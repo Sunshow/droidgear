@@ -46,6 +46,18 @@ export function ModelDialog({ open, onOpenChange, model, onSave }: ModelDialogPr
   const [isFetching, setIsFetching] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
 
+  const resetForm = () => {
+    setProvider('anthropic')
+    setBaseUrl(defaultBaseUrls.anthropic)
+    setApiKey('')
+    setModelId('')
+    setDisplayName('')
+    setMaxTokens('')
+    setSupportsImages(false)
+    setAvailableModels([])
+    setFetchError(null)
+  }
+
   // Initialize form when model changes
   useEffect(() => {
     if (model) {
@@ -60,18 +72,6 @@ export function ModelDialog({ open, onOpenChange, model, onSave }: ModelDialogPr
       resetForm()
     }
   }, [model, open])
-
-  const resetForm = () => {
-    setProvider('anthropic')
-    setBaseUrl(defaultBaseUrls.anthropic)
-    setApiKey('')
-    setModelId('')
-    setDisplayName('')
-    setMaxTokens('')
-    setSupportsImages(false)
-    setAvailableModels([])
-    setFetchError(null)
-  }
 
   const handleProviderChange = (value: Provider) => {
     setProvider(value)

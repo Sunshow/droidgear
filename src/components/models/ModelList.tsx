@@ -43,7 +43,7 @@ export function ModelList({ onEdit, onDelete }: ModelListProps) {
     return (
       <div className="text-center py-12 text-muted-foreground">
         <p>No custom models configured</p>
-        <p className="text-sm mt-1">Click "Add Model" to get started</p>
+        <p className="text-sm mt-1">Click &quot;Add Model&quot; to get started</p>
       </div>
     )
   }
