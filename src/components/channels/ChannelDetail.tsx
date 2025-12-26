@@ -29,9 +29,15 @@ import {
   commands,
   type Channel,
   type ChannelToken,
+  type ChannelType,
   type ModelInfo,
   type CustomModel,
 } from '@/lib/bindings'
+
+const channelTypeI18nKeys: Record<ChannelType, string> = {
+  'new-api': 'channels.typeNewApi',
+  'sub-2-api': 'channels.typeSub2Api',
+}
 
 interface ChannelDetailProps {
   channel: Channel
@@ -132,8 +138,7 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
             )}
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            {channel.type === 'new-api' ? 'New API' : 'One API'} -{' '}
-            {channel.baseUrl}
+            {t(channelTypeI18nKeys[channel.type])} - {channel.baseUrl}
           </p>
         </div>
         <div className="flex items-center gap-2">
