@@ -17,6 +17,7 @@
         "transparent": true,
         "shadow": true,
         "dragDropEnabled": true,
+        "visible": false,
         "windowEffects": {
           "effects": ["hudWindow"],
           "radius": 12.0,
