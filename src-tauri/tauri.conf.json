@@ -65,10 +65,10 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://github.com/YOUR_USERNAME/YOUR_REPO/releases/latest/download/latest.json"
+        "https://github.com/Sunshow/droidgear/releases/latest/download/latest.json"
       ],
       "dialog": true,
-      "pubkey": "YOUR_UPDATER_PUBLIC_KEY_HERE"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY1MzZFQkVGQzBDQUREQTUKUldTbDNjckE3K3MyOVRQd3p0ZUlRTElySzJ0T2NnOE9iTUFNUUFNS1JoVkRIeXJvMld6bkIrekgK"
     }
   }
 }
