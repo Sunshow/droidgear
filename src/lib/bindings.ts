@@ -186,6 +186,83 @@ async fetchModels(provider: Provider, baseUrl: string, apiKey: string) : Promise
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * Loads all channels from settings.json
+ */
+async loadChannels() : Promise<Result<Channel[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("load_channels") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Saves all channels to settings.json
+ */
+async saveChannels(channels: Channel[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_channels", { channels }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Saves a channel's credentials to ~/.droidgear/auth/
+ */
+async saveChannelCredentials(channelId: string, username: string, password: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_channel_credentials", { channelId, username, password }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Gets a channel's credentials from ~/.droidgear/auth/
+ */
+async getChannelCredentials(channelId: string) : Promise<Result<[string, string] | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_channel_credentials", { channelId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Deletes a channel's credentials from ~/.droidgear/auth/
+ */
+async deleteChannelCredentials(channelId: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_channel_credentials", { channelId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Fetches tokens from a New API channel
+ */
+async fetchChannelTokens(baseUrl: string, username: string, password: string) : Promise<Result<ChannelToken[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("fetch_channel_tokens", { baseUrl, username, password }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Fetches models using a token key (for quick model addition)
+ */
+async fetchModelsByToken(baseUrl: string, tokenKey: string) : Promise<Result<ModelInfo[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("fetch_models_by_token", { baseUrl, tokenKey }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -214,6 +291,70 @@ quick_pane_shortcut: string | null;
  * If None, uses system locale detection
  */
 language: string | null }
+/**
+ * Channel configuration
+ */
+export type Channel = { 
+/**
+ * Unique identifier (UUID)
+ */
+id: string; 
+/**
+ * User-defined name
+ */
+name: string; 
+/**
+ * Channel type
+ */
+type: ChannelType; 
+/**
+ * API base URL
+ */
+baseUrl: string; 
+/**
+ * Whether the channel is enabled
+ */
+enabled: boolean; 
+/**
+ * Creation timestamp (milliseconds) - use f64 for JS compatibility
+ */
+createdAt: number }
+/**
+ * Token from channel API
+ */
+export type ChannelToken = { 
+/**
+ * Token ID from API
+ */
+id: number; 
+/**
+ * Token name
+ */
+name: string; 
+/**
+ * Token key (sk-xxx)
+ */
+key: string; 
+/**
+ * Status (1=enabled, 2=disabled, etc.)
+ */
+status: number; 
+/**
+ * Remaining quota
+ */
+remainQuota: number; 
+/**
+ * Used quota
+ */
+usedQuota: number; 
+/**
+ * Unlimited quota flag
+ */
+unlimitedQuota: boolean }
+/**
+ * Channel types supported
+ */
+export type ChannelType = "new-api" | "one-api"
 /**
  * Custom model configuration
  */

@@ -77,7 +77,7 @@ fn get_factory_config_path() -> Result<PathBuf, String> {
 }
 
 /// Reads the entire config.json file
-fn read_config_file() -> Result<Value, String> {
+pub fn read_config_file() -> Result<Value, String> {
     let config_path = get_factory_config_path()?;
 
     if !config_path.exists() {
@@ -92,7 +92,7 @@ fn read_config_file() -> Result<Value, String> {
 }
 
 /// Writes the entire config.json file (atomic write)
-fn write_config_file(config: &Value) -> Result<(), String> {
+pub fn write_config_file(config: &Value) -> Result<(), String> {
     let config_path = get_factory_config_path()?;
     let temp_path = config_path.with_extension("tmp");
 

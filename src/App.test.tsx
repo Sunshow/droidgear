@@ -7,9 +7,11 @@ import App from './App'
 describe('App', () => {
   it('renders main window layout', () => {
     render(<App />)
+    // Default view is now channels, check for channel navigation buttons
     expect(
-      screen.getByRole('heading', { name: /BYOK Model Configuration/i })
+      screen.getByRole('button', { name: /Channels/i })
     ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Models/i })).toBeInTheDocument()
   })
 
   it('renders title bar with app name', () => {

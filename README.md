@@ -47,11 +47,11 @@ DroidGear 读写 `~/.factory/settings.json` 文件：
 
 ### 支持的服务商
 
-| 服务商      | 值                            |
-| ----------- | ----------------------------- |
-| Anthropic   | `anthropic`                   |
-| OpenAI      | `openai`                      |
-| 通用 API    | `generic-chat-completion-api` |
+| 服务商    | 值                            |
+| --------- | ----------------------------- |
+| Anthropic | `anthropic`                   |
+| OpenAI    | `openai`                      |
+| 通用 API  | `generic-chat-completion-api` |
 
 ## 开发指南
 
