@@ -17,6 +17,7 @@ npm run release:prepare v0.0.3
 ```
 
 The script will:
+
 1. Check git status is clean
 2. Run `npm run check:all`
 3. Update version in package.json, tauri.conf.json, Cargo.toml

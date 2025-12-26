@@ -188,6 +188,28 @@ async saveCustomModels(models: CustomModel[]) : Promise<Result<null, string>> {
 }
 },
 /**
+ * Checks if legacy config.json exists and settings.json has customModels
+ */
+async checkLegacyConfig() : Promise<Result<boolean, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("check_legacy_config") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Deletes the legacy config.json file
+ */
+async deleteLegacyConfig() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_legacy_config") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Fetches available models from a provider API
  */
 async fetchModels(provider: Provider, baseUrl: string, apiKey: string) : Promise<Result<ModelInfo[], string>> {

@@ -113,5 +113,10 @@
   "toast.error.windowMinimizeFailed": "Failed to minimize window: {{message}}",
   "toast.error.windowMaximizeFailed": "Failed to toggle maximize: {{message}}",
   "toast.error.fullscreenEnterFailed": "Failed to enter fullscreen: {{message}}",
-  "toast.error.fullscreenExitFailed": "Failed to exit fullscreen: {{message}}"
+  "toast.error.fullscreenExitFailed": "Failed to exit fullscreen: {{message}}",
+
+  "legacyConfig.title": "Legacy Configuration Found",
+  "legacyConfig.description": "The old config.json file is deprecated and is no longer used. Would you like to delete it?",
+  "legacyConfig.keep": "Keep",
+  "legacyConfig.delete": "Delete"
 }

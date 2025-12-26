@@ -221,6 +221,47 @@ pub async fn save_custom_models(models: Vec<CustomModel>) -> Result<(), String> 
     Ok(())
 }
 
+/// Checks if legacy config.json exists and settings.json has customModels
+#[tauri::command]
+#[specta::specta]
+pub async fn check_legacy_config() -> Result<bool, String> {
+    let home_dir = dirs::home_dir().ok_or("Failed to get home directory")?;
+    let config_path = home_dir.join(".factory").join("config.json");
+
+    // Check if legacy config.json exists
+    if !config_path.exists() {
+        return Ok(false);
+    }
+
+    // Check if settings.json has customModels
+    match read_config_file() {
+        ConfigReadResult::Ok(value) => {
+            let has_custom_models = value
+                .get("customModels")
+                .and_then(|v| v.as_array())
+                .map(|arr| !arr.is_empty())
+                .unwrap_or(false);
+            Ok(has_custom_models)
+        }
+        _ => Ok(false),
+    }
+}
+
+/// Deletes the legacy config.json file
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_legacy_config() -> Result<(), String> {
+    let home_dir = dirs::home_dir().ok_or("Failed to get home directory")?;
+    let config_path = home_dir.join(".factory").join("config.json");
+
+    if config_path.exists() {
+        std::fs::remove_file(&config_path)
+            .map_err(|e| format!("Failed to delete legacy config: {e}"))?;
+        log::info!("Deleted legacy config.json");
+    }
+    Ok(())
+}
+
 /// Fetches available models from a provider API
 #[tauri::command]
 #[specta::specta]

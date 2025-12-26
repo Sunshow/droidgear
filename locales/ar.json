@@ -106,5 +106,10 @@
   "toast.error.windowMinimizeFailed": "فشل تصغير النافذة: {{message}}",
   "toast.error.windowMaximizeFailed": "فشل تبديل التكبير: {{message}}",
   "toast.error.fullscreenEnterFailed": "فشل الدخول إلى ملء الشاشة: {{message}}",
-  "toast.error.fullscreenExitFailed": "فشل الخروج من ملء الشاشة: {{message}}"
+  "toast.error.fullscreenExitFailed": "فشل الخروج من ملء الشاشة: {{message}}",
+
+  "legacyConfig.title": "تم العثور على تكوين قديم",
+  "legacyConfig.description": "ملف config.json القديم مهمل ولم يعد مستخدماً. هل تريد حذفه؟",
+  "legacyConfig.keep": "الاحتفاظ",
+  "legacyConfig.delete": "حذف"
 }

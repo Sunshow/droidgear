@@ -87,7 +87,8 @@ fn read_channel_auth(channel_id: &str) -> Result<Option<ChannelAuth>, String> {
     if !path.exists() {
         return Ok(None);
     }
-    let content = fs::read_to_string(&path).map_err(|e| format!("Failed to read auth file: {e}"))?;
+    let content =
+        fs::read_to_string(&path).map_err(|e| format!("Failed to read auth file: {e}"))?;
     let auth: ChannelAuth =
         serde_json::from_str(&content).map_err(|e| format!("Failed to parse auth file: {e}"))?;
     Ok(Some(auth))
@@ -433,16 +434,17 @@ async fn fetch_sub2api_tokens(
         .await
         .map_err(|e| format!("Failed to fetch usage: {e}"))?;
 
-    let usage_stats: std::collections::HashMap<String, Value> = if usage_response.status().is_success() {
-        let usage_data: Value = usage_response.json().await.unwrap_or_default();
-        usage_data
-            .get("data")
-            .and_then(|d| d.get("stats"))
-            .and_then(|s| serde_json::from_value(s.clone()).ok())
-            .unwrap_or_default()
-    } else {
-        std::collections::HashMap::new()
-    };
+    let usage_stats: std::collections::HashMap<String, Value> =
+        if usage_response.status().is_success() {
+            let usage_data: Value = usage_response.json().await.unwrap_or_default();
+            usage_data
+                .get("data")
+                .and_then(|d| d.get("stats"))
+                .and_then(|s| serde_json::from_value(s.clone()).ok())
+                .unwrap_or_default()
+        } else {
+            std::collections::HashMap::new()
+        };
 
     // Build tokens list
     let tokens: Vec<ChannelToken> = items
@@ -452,7 +454,10 @@ async fn fetch_sub2api_tokens(
             let id_str = (id as i64).to_string();
             let usage = usage_stats.get(&id_str);
 
-            let status_str = k.get("status").and_then(|s| s.as_str()).unwrap_or("unknown");
+            let status_str = k
+                .get("status")
+                .and_then(|s| s.as_str())
+                .unwrap_or("unknown");
             let status = match status_str {
                 "active" => 1,
                 "inactive" => 2,

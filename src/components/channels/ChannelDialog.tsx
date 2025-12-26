@@ -165,7 +165,10 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
         <Button variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button onClick={handleSave} disabled={!isValid || isLoadingCredentials}>
+        <Button
+          onClick={handleSave}
+          disabled={!isValid || isLoadingCredentials}
+        >
           {channel ? 'Save' : 'Add'}
         </Button>
       </DialogFooter>

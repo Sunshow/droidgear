@@ -106,5 +106,10 @@
   "toast.error.windowMinimizeFailed": "Échec de la réduction de la fenêtre : {{message}}",
   "toast.error.windowMaximizeFailed": "Échec du basculement de l'agrandissement : {{message}}",
   "toast.error.fullscreenEnterFailed": "Échec du passage en plein écran : {{message}}",
-  "toast.error.fullscreenExitFailed": "Échec de la sortie du plein écran : {{message}}"
+  "toast.error.fullscreenExitFailed": "Échec de la sortie du plein écran : {{message}}",
+
+  "legacyConfig.title": "Configuration héritée trouvée",
+  "legacyConfig.description": "L'ancien fichier config.json est obsolète et n'est plus utilisé. Voulez-vous le supprimer ?",
+  "legacyConfig.keep": "Conserver",
+  "legacyConfig.delete": "Supprimer"
 }

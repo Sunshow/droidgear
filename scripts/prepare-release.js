@@ -75,7 +75,9 @@ async function prepareRelease() {
     console.log('📝 Updating Cargo.toml...')
     const cargoPath = 'src-tauri/Cargo.toml'
     const cargoToml = fs.readFileSync(cargoPath, 'utf8')
-    const oldCargoVersion = cargoToml.match(/\[package\][\s\S]*?version = "([^"]*)"/)
+    const oldCargoVersion = cargoToml.match(
+      /\[package\][\s\S]*?version = "([^"]*)"/
+    )
     const updatedCargo = cargoToml.replace(
       /(\[package\][\s\S]*?version = ")[^"]*(")/,
       `$1${cleanVersion}$2`

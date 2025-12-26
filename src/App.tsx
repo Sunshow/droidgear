@@ -12,6 +12,7 @@ import './App.css'
 import { MainWindow } from './components/layout/MainWindow'
 import { ThemeProvider } from './components/ThemeProvider'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { LegacyConfigDialog } from './components/LegacyConfigDialog'
 
 /**
  * Show main window after frontend is ready
@@ -129,6 +130,7 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider>
         <MainWindow />
+        <LegacyConfigDialog />
       </ThemeProvider>
     </ErrorBoundary>
   )
