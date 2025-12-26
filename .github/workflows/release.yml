@@ -1,4 +1,4 @@
-name: 'Release Tauri Template App'
+name: 'Release DroidGear'
 
 on:
   push:
@@ -23,6 +23,8 @@ jobs:
       matrix:
         include:
           - platform: 'macos-latest'
+            args: '--bundles app,dmg'
+          - platform: 'macos-13'
             args: '--bundles app,dmg'
           - platform: 'windows-latest'
             args: '--bundles msi'
@@ -64,9 +66,9 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name || inputs.version }}
-          releaseName: 'Tauri Template App ${{ github.ref_name || inputs.version }}'
+          releaseName: 'DroidGear ${{ github.ref_name || inputs.version }}'
           releaseBody: |
-            ## Tauri Template App ${{ github.ref_name || inputs.version }}
+            ## DroidGear ${{ github.ref_name || inputs.version }}
 
             ### Installation Instructions
             - **macOS**: Download the `.dmg` file and drag to Applications folder
