@@ -33,6 +33,7 @@ import {
   type ChannelType,
   type ModelInfo,
   type CustomModel,
+  type Provider,
 } from '@/lib/bindings'
 
 const channelTypeI18nKeys: Record<ChannelType, string> = {
@@ -134,6 +135,15 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
   const handleAddModels = async () => {
     if (!selectedKey || selectedModels.size === 0) return
 
+    // Determine provider based on platform
+    const getProviderFromPlatform = (
+      platform: string | null | undefined
+    ): Provider => {
+      if (platform === 'openai') return 'openai'
+      if (platform === 'anthropic') return 'anthropic'
+      return 'generic-chat-completion-api'
+    }
+
     for (const [modelId, customAlias] of selectedModels) {
       // Skip if this model+key combination already exists
       if (isModelKeyExisting(modelId, selectedKey.key)) continue
@@ -150,7 +160,7 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
         model: modelId,
         baseUrl: channel.baseUrl,
         apiKey: selectedKey.key,
-        provider: 'generic-chat-completion-api',
+        provider: getProviderFromPlatform(selectedKey.platform),
         displayName,
       }
       addModel(newModel)

@@ -406,7 +406,11 @@ usedQuota: number;
 /**
  * Unlimited quota flag
  */
-unlimitedQuota: boolean }
+unlimitedQuota: boolean; 
+/**
+ * Platform type (openai, anthropic, gemini, etc.) - from Sub2API
+ */
+platform: string | null }
 /**
  * Channel types supported
  */

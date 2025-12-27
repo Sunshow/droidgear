@@ -20,6 +20,7 @@
     "clipboard-manager:default",
     "dialog:default",
     "fs:default",
+    "fs:allow-write-text-file",
     "log:default",
     "notification:default",
     "process:default",

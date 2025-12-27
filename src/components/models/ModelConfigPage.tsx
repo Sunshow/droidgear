@@ -9,7 +9,12 @@ import {
   Trash2,
   X,
   CheckSquare,
+  Download,
+  Upload,
 } from 'lucide-react'
+import { save, open } from '@tauri-apps/plugin-dialog'
+import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -32,9 +37,16 @@ import {
 } from '@/components/ui/alert-dialog'
 import { ModelList } from './ModelList'
 import { ModelDialog } from './ModelDialog'
+import { ModelImportDialog, type MergeStrategy } from './ModelImportDialog'
 import { useModelStore } from '@/store/model-store'
 import type { CustomModel } from '@/lib/bindings'
 import { useTranslation } from 'react-i18next'
+
+interface ExportData {
+  version: number
+  exportedAt: string
+  models: CustomModel[]
+}
 
 export function ModelConfigPage() {
   const { t } = useTranslation()
@@ -70,6 +82,10 @@ export function ModelConfigPage() {
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set())
   const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false)
+
+  // Import/Export state
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [importModels, setImportModels] = useState<CustomModel[]>([])
 
   useEffect(() => {
     loadModels()
@@ -193,6 +209,105 @@ export function ModelConfigPage() {
     handleExitSelectionMode()
   }
 
+  // Export models to JSON file
+  const handleExport = async () => {
+    if (models.length === 0) return
+
+    try {
+      const filePath = await save({
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+        defaultPath: 'models-export.json',
+      })
+
+      if (!filePath) return
+
+      const exportData: ExportData = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        models: models,
+      }
+
+      await writeTextFile(filePath, JSON.stringify(exportData, null, 2))
+      toast.success(t('models.export.success'))
+    } catch (e) {
+      setError(String(e))
+    }
+  }
+
+  // Import models from JSON file
+  const handleImport = async () => {
+    try {
+      const filePath = await open({
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+        multiple: false,
+      })
+
+      if (!filePath) return
+
+      const content = await readTextFile(filePath)
+      const data = JSON.parse(content) as ExportData
+
+      // Validate structure
+      if (!data.models || !Array.isArray(data.models)) {
+        setError(t('models.import.invalidFormat'))
+        return
+      }
+
+      // Validate each model has required fields
+      const validModels = data.models.filter(
+        m => m.model && m.baseUrl && m.apiKey && m.provider
+      )
+
+      if (validModels.length === 0) {
+        setError(t('models.import.noValidModels'))
+        return
+      }
+
+      setImportModels(validModels)
+      setImportDialogOpen(true)
+    } catch (e) {
+      setError(String(e))
+    }
+  }
+
+  // Handle import confirmation with merge strategy
+  const handleImportConfirm = (
+    selectedModels: CustomModel[],
+    strategy: MergeStrategy
+  ) => {
+    const findDuplicateIndex = (model: CustomModel) =>
+      models.findIndex(
+        existing =>
+          existing.baseUrl === model.baseUrl && existing.apiKey === model.apiKey
+      )
+
+    selectedModels.forEach(model => {
+      const dupIndex = findDuplicateIndex(model)
+      const isDup = dupIndex !== -1
+
+      if (!isDup) {
+        // Not a duplicate, always add
+        addModel(model)
+      } else {
+        // Handle based on strategy
+        switch (strategy) {
+          case 'skip':
+            // Do nothing
+            break
+          case 'replace':
+            updateModel(dupIndex, model)
+            break
+          case 'keep-both':
+            addModel(model)
+            break
+        }
+      }
+    })
+
+    setImportDialogOpen(false)
+    setImportModels([])
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -221,6 +336,23 @@ export function ModelConfigPage() {
             title={t('models.refresh')}
           >
             <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleImport}
+            title={t('models.import.button')}
+          >
+            <Upload className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleExport}
+            disabled={models.length === 0}
+            title={t('models.export.button')}
+          >
+            <Download className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
@@ -446,6 +578,15 @@ export function ModelConfigPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Import Dialog */}
+      <ModelImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        importModels={importModels}
+        existingModels={models}
+        onImport={handleImportConfirm}
+      />
     </div>
   )
 }

@@ -110,6 +110,7 @@ export function KeyList({
               <TableRow>
                 <TableHead>{t('common.name')}</TableHead>
                 <TableHead>{t('common.status')}</TableHead>
+                <TableHead>{t('keys.platform')}</TableHead>
                 <TableHead>{t('keys.remaining')}</TableHead>
                 <TableHead>{t('keys.used')}</TableHead>
                 <TableHead className="w-[100px]">
@@ -122,6 +123,13 @@ export function KeyList({
                 <TableRow key={apiKey.id}>
                   <TableCell className="font-medium">{apiKey.name}</TableCell>
                   <TableCell>{getStatusBadge(apiKey.status, t)}</TableCell>
+                  <TableCell>
+                    {apiKey.platform ? (
+                      <Badge variant="outline">{apiKey.platform}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {formatQuota(apiKey.remainQuota, apiKey.unlimitedQuota, t)}
                   </TableCell>

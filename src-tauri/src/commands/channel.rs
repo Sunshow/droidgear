@@ -60,6 +60,8 @@ pub struct ChannelToken {
     pub used_quota: f64,
     /// Unlimited quota flag
     pub unlimited_quota: bool,
+    /// Platform type (openai, anthropic, gemini, etc.) - from Sub2API
+    pub platform: Option<String>,
 }
 
 /// Channel authentication data (stored in ~/.droidgear/auth/)
@@ -331,6 +333,7 @@ async fn fetch_new_api_tokens(
                             .get("unlimited_quota")
                             .and_then(|v| v.as_bool())
                             .unwrap_or(false),
+                        platform: None, // New API doesn't provide platform info
                     })
                 })
                 .collect()
@@ -390,6 +393,42 @@ async fn fetch_sub2api_tokens(
         .ok_or("Could not get access_token from login response")?;
 
     log::debug!("Got Sub2API access token");
+
+    // Fetch available groups to get platform info
+    let groups_url = format!("{base}/api/v1/groups/available");
+    let groups_response = client
+        .get(&groups_url)
+        .header("Authorization", format!("Bearer {access_token}"))
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch groups: {e}"))?;
+
+    // Build group_id -> platform map
+    let group_platforms: std::collections::HashMap<i64, String> =
+        if groups_response.status().is_success() {
+            let groups_data: Value = groups_response.json().await.unwrap_or_default();
+            groups_data
+                .get("data")
+                .and_then(|d| d.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|g| {
+                            let id = g.get("id")?.as_i64()?;
+                            let platform = g.get("platform")?.as_str()?.to_string();
+                            Some((id, platform))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default()
+        } else {
+            log::warn!("Failed to fetch groups, platform info will be unavailable");
+            std::collections::HashMap::new()
+        };
+
+    log::debug!(
+        "Fetched {} groups with platform info",
+        group_platforms.len()
+    );
 
     // Fetch keys list
     let keys_url = format!("{base}/api/v1/keys");
@@ -464,6 +503,12 @@ async fn fetch_sub2api_tokens(
                 _ => 0,
             };
 
+            // Get platform from group_id
+            let platform = k
+                .get("group_id")
+                .and_then(|g| g.as_i64())
+                .and_then(|group_id| group_platforms.get(&group_id).cloned());
+
             Some(ChannelToken {
                 id,
                 name: k.get("name")?.as_str()?.to_string(),
@@ -475,6 +520,7 @@ async fn fetch_sub2api_tokens(
                     .and_then(|v| v.as_f64())
                     .unwrap_or(0.0),
                 unlimited_quota: true,
+                platform,
             })
         })
         .collect();
