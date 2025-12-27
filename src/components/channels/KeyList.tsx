@@ -12,6 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useChannelStore } from '@/store/channel-store'
+import { platformColors } from '@/lib/platform-colors'
 import type { ChannelToken, ChannelType } from '@/lib/bindings'
 
 interface KeyListProps {
@@ -125,7 +126,12 @@ export function KeyList({
                   <TableCell>{getStatusBadge(apiKey.status, t)}</TableCell>
                   <TableCell>
                     {apiKey.platform ? (
-                      <Badge variant="outline">{apiKey.platform}</Badge>
+                      <Badge
+                        variant="outline"
+                        className={platformColors[apiKey.platform] || ''}
+                      >
+                        {apiKey.platform}
+                      </Badge>
                     ) : (
                       <span className="text-muted-foreground">-</span>
                     )}

@@ -529,21 +529,32 @@ async fn fetch_sub2api_tokens(
     Ok(tokens)
 }
 
-/// Fetches models using a token key (for quick model addition)
+/// Fetches models using an API key (for quick model addition from channels)
 #[tauri::command]
 #[specta::specta]
-pub async fn fetch_models_by_token(
+pub async fn fetch_models_by_api_key(
     base_url: String,
-    token_key: String,
+    api_key: String,
+    platform: Option<String>,
 ) -> Result<Vec<ModelInfo>, String> {
-    log::debug!("Fetching models from {base_url} using token");
+    log::debug!(
+        "Fetching models from {base_url} for platform {:?}",
+        platform
+    );
+
+    let trimmed_base = base_url.trim_end_matches('/');
+    let (url, parser): (String, fn(&Value) -> Vec<ModelInfo>) = match platform.as_deref() {
+        Some("gemini") => (format!("{trimmed_base}/v1beta/models"), parse_gemini_models),
+        Some("openai") => (format!("{trimmed_base}/v1/models"), parse_openai_models),
+        _ => (format!("{trimmed_base}/models"), parse_openai_models),
+    };
+
+    log::debug!("Requesting models from {url}");
 
     let client = reqwest::Client::new();
-    let url = format!("{}/v1/models", base_url.trim_end_matches('/'));
-
     let response = client
         .get(&url)
-        .header("Authorization", format!("Bearer {token_key}"))
+        .header("Authorization", format!("Bearer {api_key}"))
         .send()
         .await
         .map_err(|e| format!("Request failed: {e}"))?;
@@ -559,8 +570,13 @@ pub async fn fetch_models_by_token(
         .await
         .map_err(|e| format!("Failed to parse response: {e}"))?;
 
-    let models: Vec<ModelInfo> = data
-        .get("data")
+    let models = parser(&data);
+    log::info!("Fetched {} models", models.len());
+    Ok(models)
+}
+
+fn parse_openai_models(data: &Value) -> Vec<ModelInfo> {
+    data.get("data")
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
@@ -570,8 +586,26 @@ pub async fn fetch_models_by_token(
                 })
                 .collect()
         })
-        .unwrap_or_default();
+        .unwrap_or_default()
+}
 
-    log::info!("Fetched {} models", models.len());
-    Ok(models)
+fn parse_gemini_models(data: &Value) -> Vec<ModelInfo> {
+    data.get("models")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|m| {
+                    let id = m.get("name")?.as_str()?.to_string();
+                    let display_name = m
+                        .get("displayName")
+                        .and_then(|n| n.as_str())
+                        .map(String::from);
+                    Some(ModelInfo {
+                        id,
+                        name: display_name,
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default()
 }

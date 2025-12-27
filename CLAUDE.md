@@ -2,6 +2,12 @@
 
 Read @AGENTS.md for all project instructions.
 
+## Common Scripts
+
+- **Generate Rust bindings**: `npm run rust:bindings`
+- **Format all code**: `npm run fix:all`
+- **Check all**: `npm run check:all`
+
 ## Release Procedure
 
 To release a new version, run:

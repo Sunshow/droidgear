@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import { providerColors, providerLabels } from '@/lib/platform-colors'
 import type { CustomModel } from '@/lib/bindings'
 
 interface ModelCardProps {
@@ -17,20 +18,6 @@ interface ModelCardProps {
   onEdit: () => void
   onDelete: () => void
   onCopy: () => void
-}
-
-const providerLabels: Record<string, string> = {
-  anthropic: 'Anthropic',
-  openai: 'OpenAI',
-  'generic-chat-completion-api': 'Generic',
-}
-
-const providerColors: Record<string, string> = {
-  anthropic:
-    'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-  openai: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  'generic-chat-completion-api':
-    'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
 }
 
 export function ModelCard({

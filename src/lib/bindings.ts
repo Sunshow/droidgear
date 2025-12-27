@@ -305,11 +305,11 @@ async fetchChannelTokens(channelType: ChannelType, baseUrl: string, username: st
 }
 },
 /**
- * Fetches models using a token key (for quick model addition)
+ * Fetches models using an API key (for quick model addition from channels)
  */
-async fetchModelsByToken(baseUrl: string, tokenKey: string) : Promise<Result<ModelInfo[], string>> {
+async fetchModelsByApiKey(baseUrl: string, apiKey: string, platform: string | null) : Promise<Result<ModelInfo[], string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("fetch_models_by_token", { baseUrl, tokenKey }) };
+    return { status: "ok", data: await TAURI_INVOKE("fetch_models_by_api_key", { baseUrl, apiKey, platform }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

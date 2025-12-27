@@ -33,8 +33,8 @@ import {
   type ChannelType,
   type ModelInfo,
   type CustomModel,
-  type Provider,
 } from '@/lib/bindings'
+import { getProviderConfigFromPlatform } from '@/lib/sub2api-platform'
 
 const channelTypeI18nKeys: Record<ChannelType, string> = {
   'new-api': 'channels.typeNewApi',
@@ -92,9 +92,10 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
     setPrefix('')
     setSuffix('')
 
-    const result = await commands.fetchModelsByToken(
+    const result = await commands.fetchModelsByApiKey(
       channel.baseUrl,
-      apiKey.key
+      apiKey.key,
+      apiKey.platform
     )
     setIsFetchingModels(false)
 
@@ -135,18 +136,14 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
   const handleAddModels = async () => {
     if (!selectedKey || selectedModels.size === 0) return
 
-    // Determine provider based on platform
-    const getProviderFromPlatform = (
-      platform: string | null | undefined
-    ): Provider => {
-      if (platform === 'openai') return 'openai'
-      if (platform === 'anthropic') return 'anthropic'
-      return 'generic-chat-completion-api'
-    }
-
     for (const [modelId, customAlias] of selectedModels) {
       // Skip if this model+key combination already exists
       if (isModelKeyExisting(modelId, selectedKey.key)) continue
+
+      const providerConfig = getProviderConfigFromPlatform(
+        selectedKey.platform,
+        channel.baseUrl
+      )
 
       // Determine display name: custom alias > prefix+model+suffix > model
       let displayName = modelId
@@ -158,9 +155,9 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
 
       const newModel: CustomModel = {
         model: modelId,
-        baseUrl: channel.baseUrl,
+        baseUrl: providerConfig.baseUrl,
         apiKey: selectedKey.key,
-        provider: getProviderFromPlatform(selectedKey.platform),
+        provider: providerConfig.provider,
         displayName,
       }
       addModel(newModel)

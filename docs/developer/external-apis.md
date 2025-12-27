@@ -233,3 +233,15 @@ See [data-persistence.md](./data-persistence.md) for SQLite setup.
 | Type safety     | tauri-specta (same as local commands)    |
 | Error handling  | Result types, see error-handling.md      |
 | Offline support | Cache to SQLite, fallback on network err |
+
+## Sub2API Platform Base URLs
+
+When using Sub2API tokens, the upstream provider determines the base URL
+suffix used for model endpoints:
+
+- openai: append `/v1`
+- gemini: append `/v1beta`
+- other/unknown: use the base URL as-is
+
+Apply this consistently when saving custom models and when fetching models
+via token-based discovery.

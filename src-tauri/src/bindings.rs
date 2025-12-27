@@ -31,7 +31,7 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         channel::get_channel_credentials,
         channel::delete_channel_credentials,
         channel::fetch_channel_tokens,
-        channel::fetch_models_by_token,
+        channel::fetch_models_by_api_key,
     ])
 }
 
