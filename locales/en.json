@@ -35,6 +35,17 @@
   "preferences.general.exampleToggle": "Example Toggle Setting",
   "preferences.general.exampleToggleDescription": "This is an example switch/toggle setting (not persisted)",
 
+  "preferences.general.softwareUpdate": "Software Update",
+  "preferences.general.currentVersion": "Current Version: {{version}}",
+  "preferences.general.checkForUpdates": "Check for Updates",
+  "preferences.general.checking": "Checking...",
+  "preferences.general.upToDate": "You're up to date!",
+  "preferences.general.updateAvailable": "Update available: {{version}}",
+  "preferences.general.downloadAndInstall": "Download and Install",
+  "preferences.general.downloading": "Downloading...",
+  "preferences.general.installing": "Installing...",
+  "preferences.general.updateFailed": "Update check failed",
+
   "preferences.appearance.theme": "Theme",
   "preferences.appearance.colorTheme": "Color Theme",
   "preferences.appearance.colorThemeDescription": "Choose your preferred color theme",

@@ -44,6 +44,12 @@ async savePreferences(preferences: AppPreferences) : Promise<Result<null, string
 }
 },
 /**
+ * Gets the current application version from Cargo.toml.
+ */
+async getAppVersion() : Promise<string> {
+    return await TAURI_INVOKE("get_app_version");
+},
+/**
  * Sends a native system notification.
  * On mobile platforms, returns an error as notifications are not yet supported.
  */

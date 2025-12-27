@@ -114,3 +114,10 @@ pub async fn save_preferences(app: AppHandle, preferences: AppPreferences) -> Re
     log::info!("Successfully saved preferences to {prefs_path:?}");
     Ok(())
 }
+
+/// Gets the current application version from Cargo.toml.
+#[tauri::command]
+#[specta::specta]
+pub fn get_app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}

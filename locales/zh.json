@@ -35,6 +35,17 @@
   "preferences.general.exampleToggle": "示例开关设置",
   "preferences.general.exampleToggleDescription": "这是一个示例开关设置（不会保存）",
 
+  "preferences.general.softwareUpdate": "软件更新",
+  "preferences.general.currentVersion": "当前版本：{{version}}",
+  "preferences.general.checkForUpdates": "检查更新",
+  "preferences.general.checking": "检查中...",
+  "preferences.general.upToDate": "已是最新版本！",
+  "preferences.general.updateAvailable": "有可用更新：{{version}}",
+  "preferences.general.downloadAndInstall": "下载并安装",
+  "preferences.general.downloading": "下载中...",
+  "preferences.general.installing": "安装中...",
+  "preferences.general.updateFailed": "检查更新失败",
+
   "preferences.appearance.theme": "主题",
   "preferences.appearance.colorTheme": "颜色主题",
   "preferences.appearance.colorThemeDescription": "选择您喜欢的颜色主题",

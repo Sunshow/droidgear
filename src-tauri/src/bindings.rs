@@ -7,6 +7,7 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         preferences::greet,
         preferences::load_preferences,
         preferences::save_preferences,
+        preferences::get_app_version,
         notifications::send_native_notification,
         recovery::save_emergency_data,
         recovery::load_emergency_data,
