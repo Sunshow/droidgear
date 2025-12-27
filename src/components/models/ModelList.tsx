@@ -19,9 +19,10 @@ import { useModelStore } from '@/store/model-store'
 interface ModelListProps {
   onEdit: (index: number) => void
   onDelete: (index: number) => void
+  onCopy: (index: number) => void
 }
 
-export function ModelList({ onEdit, onDelete }: ModelListProps) {
+export function ModelList({ onEdit, onDelete, onCopy }: ModelListProps) {
   const { t } = useTranslation()
   const { models, reorderModels } = useModelStore()
 
@@ -68,6 +69,7 @@ export function ModelList({ onEdit, onDelete }: ModelListProps) {
               index={index}
               onEdit={() => onEdit(index)}
               onDelete={() => onDelete(index)}
+              onCopy={() => onCopy(index)}
             />
           ))}
         </div>

@@ -30,6 +30,7 @@ interface ModelDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   model?: CustomModel
+  mode: 'add' | 'edit' | 'duplicate'
   onSave: (model: CustomModel) => void
 }
 
@@ -248,6 +249,7 @@ export function ModelDialog({
   open,
   onOpenChange,
   model,
+  mode,
   onSave,
 }: ModelDialogProps) {
   const { t } = useTranslation()
@@ -258,13 +260,18 @@ export function ModelDialog({
     onOpenChange(false)
   }
 
+  const titleKey =
+    mode === 'edit'
+      ? 'models.editModel'
+      : mode === 'duplicate'
+        ? 'models.duplicateModel'
+        : 'models.addModel'
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>
-            {model ? t('models.editModel') : t('models.addModel')}
-          </DialogTitle>
+          <DialogTitle>{t(titleKey)}</DialogTitle>
         </DialogHeader>
         {open && (
           <ModelForm

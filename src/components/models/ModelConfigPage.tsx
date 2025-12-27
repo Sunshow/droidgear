@@ -39,6 +39,7 @@ export function ModelConfigPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
+  const [copyingModel, setCopyingModel] = useState<CustomModel | null>(null)
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null)
   const [showRefreshConfirm, setShowRefreshConfirm] = useState(false)
 
@@ -48,6 +49,7 @@ export function ModelConfigPage() {
 
   const handleAdd = () => {
     setEditingIndex(null)
+    setCopyingModel(null)
     setDialogOpen(true)
   }
 
@@ -66,7 +68,17 @@ export function ModelConfigPage() {
 
   const handleEdit = (index: number) => {
     setEditingIndex(index)
+    setCopyingModel(null)
     setDialogOpen(true)
+  }
+
+  const handleCopy = (index: number) => {
+    const modelToCopy = models[index]
+    if (modelToCopy) {
+      setCopyingModel(modelToCopy)
+      setEditingIndex(null)
+      setDialogOpen(true)
+    }
   }
 
   const handleSaveModel = (model: CustomModel) => {
@@ -150,14 +162,29 @@ export function ModelConfigPage() {
 
       {/* Model List */}
       <div className="flex-1 overflow-auto p-4">
-        <ModelList onEdit={handleEdit} onDelete={setDeleteIndex} />
+        <ModelList
+          onEdit={handleEdit}
+          onDelete={setDeleteIndex}
+          onCopy={handleCopy}
+        />
       </div>
 
       {/* Model Dialog */}
       <ModelDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        model={editingIndex !== null ? models[editingIndex] : undefined}
+        model={
+          editingIndex !== null
+            ? models[editingIndex]
+            : (copyingModel ?? undefined)
+        }
+        mode={
+          editingIndex !== null
+            ? 'edit'
+            : copyingModel !== null
+              ? 'duplicate'
+              : 'add'
+        }
         onSave={handleSaveModel}
       />
 

@@ -190,6 +190,7 @@
   "models.noModelsHint": "Click \"Add Model\" to get started",
   "models.addModel": "Add Model",
   "models.editModel": "Edit Model",
+  "models.duplicateModel": "Duplicate Model",
   "models.deleteModel": "Delete Model",
   "models.deleteConfirm": "Are you sure you want to delete this model? This action cannot be undone.",
   "models.unsavedChanges": "Unsaved Changes",

@@ -1,6 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Pencil, Trash2 } from 'lucide-react'
+import { GripVertical, Pencil, Trash2, Copy } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -11,6 +12,7 @@ interface ModelCardProps {
   index: number
   onEdit: () => void
   onDelete: () => void
+  onCopy: () => void
 }
 
 const providerLabels: Record<string, string> = {
@@ -27,7 +29,14 @@ const providerColors: Record<string, string> = {
     'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
 }
 
-export function ModelCard({ model, index, onEdit, onDelete }: ModelCardProps) {
+export function ModelCard({
+  model,
+  index,
+  onEdit,
+  onDelete,
+  onCopy,
+}: ModelCardProps) {
+  const { t } = useTranslation()
   const {
     attributes,
     listeners,
@@ -72,6 +81,14 @@ export function ModelCard({ model, index, onEdit, onDelete }: ModelCardProps) {
       </div>
 
       <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onCopy}
+          title={t('models.duplicateModel')}
+        >
+          <Copy className="h-4 w-4" />
+        </Button>
         <Button variant="ghost" size="icon" onClick={onEdit}>
           <Pencil className="h-4 w-4" />
         </Button>

@@ -190,6 +190,7 @@
   "models.noModelsHint": "点击「添加模型」开始",
   "models.addModel": "添加模型",
   "models.editModel": "编辑模型",
+  "models.duplicateModel": "复制模型",
   "models.deleteModel": "删除模型",
   "models.deleteConfirm": "确定要删除此模型吗？此操作无法撤销。",
   "models.unsavedChanges": "未保存的更改",
