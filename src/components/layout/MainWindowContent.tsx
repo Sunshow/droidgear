@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { ModelConfigPage } from '@/components/models'
+import { DroidHelpersPage } from '@/components/droid'
 import { ChannelDetail, ChannelDialog } from '@/components/channels'
 import { useUIStore } from '@/store/ui-store'
 import { useChannelStore } from '@/store/channel-store'
@@ -18,6 +19,7 @@ export function MainWindowContent({
 }: MainWindowContentProps) {
   const { t } = useTranslation()
   const currentView = useUIStore(state => state.currentView)
+  const droidSubView = useUIStore(state => state.droidSubView)
   const channels = useChannelStore(state => state.channels)
   const selectedChannelId = useChannelStore(state => state.selectedChannelId)
   const saveChannels = useChannelStore(state => state.saveChannels)
@@ -43,8 +45,11 @@ export function MainWindowContent({
   const renderContent = () => {
     if (children) return children
 
-    if (currentView === 'models') {
-      return <ModelConfigPage />
+    if (currentView === 'droid') {
+      if (droidSubView === 'models') {
+        return <ModelConfigPage />
+      }
+      return <DroidHelpersPage />
     }
 
     // Channels view

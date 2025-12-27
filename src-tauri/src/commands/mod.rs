@@ -5,6 +5,7 @@
 
 pub mod channel;
 pub mod config;
+pub mod env;
 pub mod notifications;
 pub mod preferences;
 pub mod quick_pane;

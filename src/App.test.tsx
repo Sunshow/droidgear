@@ -11,7 +11,7 @@ describe('App', () => {
     expect(
       screen.getByRole('button', { name: /Channels/i })
     ).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Models/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Droid/i })).toBeInTheDocument()
   })
 
   it('renders title bar with app name', () => {

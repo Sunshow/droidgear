@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Server, Cpu } from 'lucide-react'
+import { Server, Bot } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,12 +13,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { ChannelList, ChannelDialog } from '@/components/channels'
+import { DroidFeatureList } from '@/components/droid'
 import { useUIStore } from '@/store/ui-store'
 import { useChannelStore } from '@/store/channel-store'
 import { useModelStore } from '@/store/model-store'
 import { commands, type Channel } from '@/lib/bindings'
 
-type NavigationView = 'models' | 'channels'
+type NavigationView = 'droid' | 'channels'
 
 interface LeftSideBarProps {
   children?: React.ReactNode
@@ -45,7 +46,7 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
 
     // Check if current view has unsaved changes
     const hasUnsavedChanges =
-      (currentView === 'models' && modelHasChanges) ||
+      (currentView === 'droid' && modelHasChanges) ||
       (currentView === 'channels' && channelHasChanges)
 
     if (hasUnsavedChanges) {
@@ -56,7 +57,7 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
   }
 
   const handleSaveAndSwitch = async () => {
-    if (currentView === 'models') {
+    if (currentView === 'droid') {
       await useModelStore.getState().saveModels()
     } else {
       await useChannelStore.getState().saveChannels()
@@ -68,7 +69,7 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
   }
 
   const handleDiscardAndSwitch = () => {
-    if (currentView === 'models') {
+    if (currentView === 'droid') {
       useModelStore.getState().resetChanges()
     } else {
       useChannelStore.getState().resetChanges()
@@ -142,13 +143,13 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
           {t('sidebar.channels')}
         </Button>
         <Button
-          variant={currentView === 'models' ? 'secondary' : 'ghost'}
+          variant={currentView === 'droid' ? 'secondary' : 'ghost'}
           size="sm"
           className="flex-1"
-          onClick={() => handleViewChange('models')}
+          onClick={() => handleViewChange('droid')}
         >
-          <Cpu className="h-4 w-4 mr-2" />
-          {t('sidebar.models')}
+          <Bot className="h-4 w-4 mr-2" />
+          {t('sidebar.droid')}
         </Button>
       </div>
 
@@ -157,9 +158,7 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
         {currentView === 'channels' ? (
           <ChannelList onAddChannel={handleAddChannel} />
         ) : (
-          <div className="p-3 text-sm text-muted-foreground">
-            {t('sidebar.selectModelHint')}
-          </div>
+          <DroidFeatureList />
         )}
       </div>
 

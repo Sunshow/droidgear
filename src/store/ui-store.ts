@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 
-type NavigationView = 'models' | 'channels'
+type NavigationView = 'droid' | 'channels'
+export type DroidSubView = 'models' | 'helpers'
 
 interface UIState {
   leftSidebarVisible: boolean
@@ -10,6 +11,7 @@ interface UIState {
   preferencesOpen: boolean
   lastQuickPaneEntry: string | null
   currentView: NavigationView
+  droidSubView: DroidSubView
 
   toggleLeftSidebar: () => void
   setLeftSidebarVisible: (visible: boolean) => void
@@ -21,6 +23,7 @@ interface UIState {
   setPreferencesOpen: (open: boolean) => void
   setLastQuickPaneEntry: (text: string) => void
   setCurrentView: (view: NavigationView) => void
+  setDroidSubView: (view: DroidSubView) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -32,6 +35,7 @@ export const useUIStore = create<UIState>()(
       preferencesOpen: false,
       lastQuickPaneEntry: null,
       currentView: 'channels',
+      droidSubView: 'models',
 
       toggleLeftSidebar: () =>
         set(
@@ -86,6 +90,9 @@ export const useUIStore = create<UIState>()(
 
       setCurrentView: view =>
         set({ currentView: view }, undefined, 'setCurrentView'),
+
+      setDroidSubView: view =>
+        set({ droidSubView: view }, undefined, 'setDroidSubView'),
     }),
     {
       name: 'ui-store',

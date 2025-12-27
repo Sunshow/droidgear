@@ -37,6 +37,10 @@ pub struct AppPreferences {
     /// User's preferred language (e.g., "en", "es", "de")
     /// If None, uses system locale detection
     pub language: Option<String>,
+    /// Whether the skip login feature is enabled
+    /// If None, defaults to false (disabled)
+    #[serde(default)]
+    pub skip_login_enabled: Option<bool>,
 }
 
 impl Default for AppPreferences {
@@ -46,6 +50,7 @@ impl Default for AppPreferences {
             quick_pane_enabled: None,  // None means disabled (default)
             quick_pane_shortcut: None, // None means use default
             language: None,            // None means use system locale
+            skip_login_enabled: None,  // None means disabled (default)
         }
     }
 }

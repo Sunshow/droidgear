@@ -1,7 +1,7 @@
 use tauri_specta::{collect_commands, Builder};
 
 pub fn generate_bindings() -> Builder<tauri::Wry> {
-    use crate::commands::{channel, config, notifications, preferences, quick_pane, recovery};
+    use crate::commands::{channel, config, env, notifications, preferences, quick_pane, recovery};
 
     Builder::<tauri::Wry>::new().commands(collect_commands![
         preferences::greet,
@@ -32,6 +32,9 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         channel::delete_channel_credentials,
         channel::fetch_channel_tokens,
         channel::fetch_models_by_api_key,
+        env::get_env_var,
+        env::set_env_var,
+        env::remove_env_var,
     ])
 }
 

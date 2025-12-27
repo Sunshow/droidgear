@@ -314,6 +314,27 @@ async fetchModelsByApiKey(baseUrl: string, apiKey: string, platform: string | nu
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * Gets the value of an environment variable.
+ * Returns None if the variable is not set.
+ */
+async getEnvVar(name: string) : Promise<string | null> {
+    return await TAURI_INVOKE("get_env_var", { name });
+},
+/**
+ * Sets an environment variable for the current process.
+ * Note: This only affects the current process, not the system or shell.
+ */
+async setEnvVar(name: string, value: string) : Promise<void> {
+    await TAURI_INVOKE("set_env_var", { name, value });
+},
+/**
+ * Removes an environment variable from the current process.
+ * Note: This only affects the current process, not the system or shell.
+ */
+async removeEnvVar(name: string) : Promise<void> {
+    await TAURI_INVOKE("remove_env_var", { name });
 }
 }
 
@@ -346,7 +367,12 @@ quick_pane_shortcut: string | null;
  * User's preferred language (e.g., "en", "es", "de")
  * If None, uses system locale detection
  */
-language: string | null }
+language: string | null; 
+/**
+ * Whether the skip login feature is enabled
+ * If None, defaults to false (disabled)
+ */
+skip_login_enabled?: boolean | null }
 /**
  * Channel configuration
  */

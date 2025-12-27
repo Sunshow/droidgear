@@ -27,6 +27,7 @@ export function usePreferences() {
           quick_pane_enabled: null,
           quick_pane_shortcut: null,
           language: null,
+          skip_login_enabled: null,
         }
       }
 
@@ -66,4 +67,34 @@ export function useSavePreferences() {
       toast.success('Preferences saved')
     },
   })
+}
+
+/**
+ * Combined hook for preferences management.
+ * Provides current preferences and an update function.
+ */
+export function usePreferencesManager() {
+  const { data: preferences } = usePreferences()
+  const { mutateAsync: savePreferences } = useSavePreferences()
+
+  const updatePreferences = async (updates: Partial<AppPreferences>) => {
+    if (!preferences) return
+
+    const newPreferences: AppPreferences = {
+      ...preferences,
+      ...updates,
+    }
+
+    await savePreferences(newPreferences)
+  }
+
+  // Map skipLoginEnabled for convenience
+  const skipLoginEnabled = preferences?.skip_login_enabled ?? false
+
+  return {
+    preferences,
+    skipLoginEnabled,
+    updatePreferences,
+    savePreferences,
+  }
 }
