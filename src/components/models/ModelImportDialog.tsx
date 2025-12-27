@@ -19,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import type { CustomModel } from '@/lib/bindings'
 
 export type MergeStrategy = 'skip' | 'replace' | 'keep-both'
@@ -158,7 +157,7 @@ export function ModelImportDialog({
           </div>
         )}
 
-        <ScrollArea className="flex-1 min-h-0 max-h-[50vh] border rounded-md">
+        <div className="min-h-0 flex-1 overflow-y-auto border rounded-md">
           <div className="p-2 space-y-1">
             {importModels.map((model, index) => {
               const isDup = duplicateIndices.has(index)
@@ -195,7 +194,7 @@ export function ModelImportDialog({
               )
             })}
           </div>
-        </ScrollArea>
+        </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
