@@ -84,4 +84,5 @@ jobs:
           releaseDraft: true
           prerelease: false
           uploadUpdaterJson: true
+          uploadPlainBinary: true
           args: ${{ matrix.args }}
