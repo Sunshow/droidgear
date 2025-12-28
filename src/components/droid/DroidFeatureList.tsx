@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Cpu, LifeBuoy } from 'lucide-react'
+import { Cpu, LifeBuoy, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useUIStore } from '@/store/ui-store'
@@ -14,6 +14,7 @@ interface FeatureItem {
 const features: FeatureItem[] = [
   { id: 'models', labelKey: 'droid.features.models', icon: Cpu },
   { id: 'helpers', labelKey: 'droid.features.helpers', icon: LifeBuoy },
+  { id: 'specs', labelKey: 'droid.features.specs', icon: FileText },
 ]
 
 export function DroidFeatureList() {

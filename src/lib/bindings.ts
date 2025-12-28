@@ -335,6 +335,29 @@ async setEnvVar(name: string, value: string) : Promise<void> {
  */
 async removeEnvVar(name: string) : Promise<void> {
     await TAURI_INVOKE("remove_env_var", { name });
+},
+/**
+ * Lists all spec files from ~/.factory/specs directory.
+ * Returns files sorted by modification time (newest first).
+ */
+async listSpecs() : Promise<Result<SpecFile[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_specs") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Reads a single spec file by path.
+ */
+async readSpec(path: string) : Promise<Result<SpecFile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("read_spec", { path }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -348,6 +371,10 @@ async removeEnvVar(name: string) : Promise<void> {
 
 /** user-defined types **/
 
+/**
+ * Spec file from ~/.factory/specs directory
+ */
+export type SpecFile = { name: string; path: string; content: string; modifiedAt: number }
 /**
  * Application preferences that persist to disk.
  * Only contains settings that should be saved between sessions.

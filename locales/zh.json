@@ -157,6 +157,7 @@
 
   "droid.features.models": "BYOK 模型",
   "droid.features.helpers": "辅助工具",
+  "droid.features.specs": "Specs",
   "droid.helpers.title": "辅助工具",
   "droid.helpers.skipLogin.title": "尝试跳过登录",
   "droid.helpers.skipLogin.notSet": "未设置",
@@ -171,6 +172,11 @@
   "droid.helpers.skipLogin.linuxPermanent": "将 export 命令添加到 ~/.bashrc 或 ~/.profile，然后重新打开终端。",
   "droid.helpers.skipLogin.windowsPermanent": "打开系统设置 → 系统 → 关于 → 高级系统设置 → 环境变量，添加新的用户变量。",
   "droid.helpers.skipLogin.restartWarning": "设置后需刷新环境变量并重启 Droid 生效",
+
+  "droid.specs.title": "Specs",
+  "droid.specs.noSpecs": "没有找到 Specs",
+  "droid.specs.noSpecsHint": "Specs 将在 ~/.factory/specs 中可用时显示在这里",
+  "droid.specs.selectSpecHint": "从列表中选择一个 Spec 查看内容",
 
   "common.copied": "已复制",
 

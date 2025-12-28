@@ -157,6 +157,7 @@
 
   "droid.features.models": "BYOK Models",
   "droid.features.helpers": "Helpers",
+  "droid.features.specs": "Specs",
   "droid.helpers.title": "Helpers",
   "droid.helpers.skipLogin.title": "Try Skip Login",
   "droid.helpers.skipLogin.notSet": "Not set",
@@ -171,6 +172,11 @@
   "droid.helpers.skipLogin.linuxPermanent": "Add the export command to ~/.bashrc or ~/.profile, then reopen Terminal.",
   "droid.helpers.skipLogin.windowsPermanent": "Open System Settings → System → About → Advanced system settings → Environment Variables, then add a new user variable.",
   "droid.helpers.skipLogin.restartWarning": "Refresh environment variables and restart Droid for changes to take effect",
+
+  "droid.specs.title": "Specs",
+  "droid.specs.noSpecs": "No specs found",
+  "droid.specs.noSpecsHint": "Specs will appear here when available in ~/.factory/specs",
+  "droid.specs.selectSpecHint": "Select a spec from the list to view its content",
 
   "common.copied": "Copied",
 
