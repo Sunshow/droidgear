@@ -89,6 +89,7 @@
     "react-dom": "^19.2.3",
     "react-i18next": "^16.5.0",
     "react-resizable-panels": "^3.0.6",
+    "react-rnd": "^10.5.2",
     "sonner": "^2.0.7",
     "streamdown": "^1.6.10",
     "tailwind-merge": "^3.4.0",

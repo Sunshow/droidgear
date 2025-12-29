@@ -15,12 +15,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
+  ResizableDialog,
+  ResizableDialogContent,
+  ResizableDialogHeader,
+  ResizableDialogBody,
+  ResizableDialogTitle,
+  ResizableDialogFooter,
+} from '@/components/ui/resizable-dialog'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -269,161 +270,168 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
       </AlertDialog>
 
       {/* Model Selection Dialog */}
-      <Dialog open={modelDialogOpen} onOpenChange={setModelDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>{t('models.addModels')}</DialogTitle>
-          </DialogHeader>
+      <ResizableDialog open={modelDialogOpen} onOpenChange={setModelDialogOpen}>
+        <ResizableDialogContent
+          defaultWidth={700}
+          defaultHeight={550}
+          minWidth={500}
+          minHeight={400}
+        >
+          <ResizableDialogHeader>
+            <ResizableDialogTitle>{t('models.addModels')}</ResizableDialogTitle>
+          </ResizableDialogHeader>
 
-          {isFetchingModels ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin mr-2" />
-              <span>{t('models.fetchingModels')}</span>
-            </div>
-          ) : modelError ? (
-            <div className="py-4 text-center text-destructive">
-              <p>{modelError}</p>
-            </div>
-          ) : availableModels.length === 0 ? (
-            <div className="py-4 text-center text-muted-foreground">
-              <p>{t('models.noModelsAvailable')}</p>
-            </div>
-          ) : (
-            <div className="py-4 space-y-4">
-              {/* Prefix and Suffix inputs */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="prefix">{t('models.prefix')}</Label>
-                  <Input
-                    id="prefix"
-                    value={prefix}
-                    onChange={e => setPrefix(e.target.value)}
-                    placeholder={t('models.prefixPlaceholder')}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="suffix">{t('models.suffix')}</Label>
-                  <Input
-                    id="suffix"
-                    value={suffix}
-                    onChange={e => setSuffix(e.target.value)}
-                    placeholder={t('models.suffixPlaceholder')}
-                  />
-                </div>
+          <ResizableDialogBody>
+            {isFetchingModels ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                <span>{t('models.fetchingModels')}</span>
               </div>
+            ) : modelError ? (
+              <div className="py-4 text-center text-destructive">
+                <p>{modelError}</p>
+              </div>
+            ) : availableModels.length === 0 ? (
+              <div className="py-4 text-center text-muted-foreground">
+                <p>{t('models.noModelsAvailable')}</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Prefix and Suffix inputs */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="prefix">{t('models.prefix')}</Label>
+                    <Input
+                      id="prefix"
+                      value={prefix}
+                      onChange={e => setPrefix(e.target.value)}
+                      placeholder={t('models.prefixPlaceholder')}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="suffix">{t('models.suffix')}</Label>
+                    <Input
+                      id="suffix"
+                      value={suffix}
+                      onChange={e => setSuffix(e.target.value)}
+                      placeholder={t('models.suffixPlaceholder')}
+                    />
+                  </div>
+                </div>
 
-              <div className="flex items-center justify-between">
-                <Label>
-                  {t('models.selectModelsToAdd', {
-                    count: selectedModels.size,
-                  })}
-                </Label>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const selectableModels = availableModels.filter(
+                <div className="flex items-center justify-between">
+                  <Label>
+                    {t('models.selectModelsToAdd', {
+                      count: selectedModels.size,
+                    })}
+                  </Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const selectableModels = availableModels.filter(
+                        m => !isModelKeyExisting(m.id, selectedKey?.key ?? '')
+                      )
+                      if (selectedModels.size === selectableModels.length) {
+                        setSelectedModels(new Map())
+                      } else {
+                        const newMap = new Map<
+                          string,
+                          { alias: string; provider: Provider }
+                        >()
+                        selectableModels.forEach(m => {
+                          const provider = inferProviderFromPlatformAndModel(
+                            selectedKey?.platform,
+                            m.id
+                          )
+                          newMap.set(m.id, { alias: '', provider })
+                        })
+                        setSelectedModels(newMap)
+                      }
+                    }}
+                  >
+                    {selectedModels.size ===
+                    availableModels.filter(
                       m => !isModelKeyExisting(m.id, selectedKey?.key ?? '')
-                    )
-                    if (selectedModels.size === selectableModels.length) {
-                      setSelectedModels(new Map())
-                    } else {
-                      const newMap = new Map<
-                        string,
-                        { alias: string; provider: Provider }
-                      >()
-                      selectableModels.forEach(m => {
-                        const provider = inferProviderFromPlatformAndModel(
-                          selectedKey?.platform,
-                          m.id
-                        )
-                        newMap.set(m.id, { alias: '', provider })
-                      })
-                      setSelectedModels(newMap)
-                    }
-                  }}
-                >
-                  {selectedModels.size ===
-                  availableModels.filter(
-                    m => !isModelKeyExisting(m.id, selectedKey?.key ?? '')
-                  ).length
-                    ? t('common.deselectAll')
-                    : t('common.selectAll')}
-                </Button>
-              </div>
-              <div className="h-[300px] border rounded-md p-2 overflow-auto">
-                <div className="space-y-2">
-                  {availableModels.map(model => {
-                    const isExisting = isModelKeyExisting(
-                      model.id,
-                      selectedKey?.key ?? ''
-                    )
-                    const isSelected = selectedModels.has(model.id)
-                    const modelConfig = selectedModels.get(model.id)
-                    return (
-                      <div
-                        key={model.id}
-                        className="flex items-center gap-2 p-2 rounded hover:bg-accent/50"
-                      >
-                        <Checkbox
-                          id={model.id}
-                          checked={isSelected}
-                          onCheckedChange={() => handleToggleModel(model.id)}
-                          disabled={isExisting}
-                        />
-                        <label
-                          htmlFor={model.id}
-                          className="text-sm cursor-pointer min-w-[120px] shrink-0"
+                    ).length
+                      ? t('common.deselectAll')
+                      : t('common.selectAll')}
+                  </Button>
+                </div>
+                <div className="flex-1 border rounded-md p-2 overflow-auto">
+                  <div className="space-y-2">
+                    {availableModels.map(model => {
+                      const isExisting = isModelKeyExisting(
+                        model.id,
+                        selectedKey?.key ?? ''
+                      )
+                      const isSelected = selectedModels.has(model.id)
+                      const modelConfig = selectedModels.get(model.id)
+                      return (
+                        <div
+                          key={model.id}
+                          className="flex items-center gap-2 p-2 rounded hover:bg-accent/50"
                         >
-                          {model.name || model.id}
-                          {isExisting && (
-                            <span className="ml-2 text-xs text-muted-foreground">
-                              {t('models.alreadyAddedForKey')}
-                            </span>
+                          <Checkbox
+                            id={model.id}
+                            checked={isSelected}
+                            onCheckedChange={() => handleToggleModel(model.id)}
+                            disabled={isExisting}
+                          />
+                          <label
+                            htmlFor={model.id}
+                            className="text-sm cursor-pointer min-w-[120px] shrink-0"
+                          >
+                            {model.name || model.id}
+                            {isExisting && (
+                              <span className="ml-2 text-xs text-muted-foreground">
+                                {t('models.alreadyAddedForKey')}
+                              </span>
+                            )}
+                          </label>
+                          {isSelected && (
+                            <>
+                              <Select
+                                value={modelConfig?.provider}
+                                onValueChange={(value: Provider) =>
+                                  handleProviderChange(model.id, value)
+                                }
+                              >
+                                <SelectTrigger className="h-7 w-[140px] text-sm shrink-0">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="anthropic">
+                                    {t('models.providerAnthropic')}
+                                  </SelectItem>
+                                  <SelectItem value="openai">
+                                    {t('models.providerOpenAI')}
+                                  </SelectItem>
+                                  <SelectItem value="generic-chat-completion-api">
+                                    {t('models.providerGeneric')}
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Input
+                                className="h-7 text-sm flex-1"
+                                value={modelConfig?.alias ?? ''}
+                                onChange={e =>
+                                  handleAliasChange(model.id, e.target.value)
+                                }
+                                placeholder={t('models.aliasPlaceholder')}
+                              />
+                            </>
                           )}
-                        </label>
-                        {isSelected && (
-                          <>
-                            <Select
-                              value={modelConfig?.provider}
-                              onValueChange={(value: Provider) =>
-                                handleProviderChange(model.id, value)
-                              }
-                            >
-                              <SelectTrigger className="h-7 w-[140px] text-sm shrink-0">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="anthropic">
-                                  {t('models.providerAnthropic')}
-                                </SelectItem>
-                                <SelectItem value="openai">
-                                  {t('models.providerOpenAI')}
-                                </SelectItem>
-                                <SelectItem value="generic-chat-completion-api">
-                                  {t('models.providerGeneric')}
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <Input
-                              className="h-7 text-sm flex-1"
-                              value={modelConfig?.alias ?? ''}
-                              onChange={e =>
-                                handleAliasChange(model.id, e.target.value)
-                              }
-                              placeholder={t('models.aliasPlaceholder')}
-                            />
-                          </>
-                        )}
-                      </div>
-                    )
-                  })}
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </ResizableDialogBody>
 
-          <DialogFooter>
+          <ResizableDialogFooter>
             <Button variant="outline" onClick={() => setModelDialogOpen(false)}>
               {t('common.cancel')}
             </Button>
@@ -435,9 +443,9 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
                 ? t('models.addCount', { count: selectedModels.size })
                 : t('models.addCountPlural', { count: selectedModels.size })}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ResizableDialogFooter>
+        </ResizableDialogContent>
+      </ResizableDialog>
     </div>
   )
 }
