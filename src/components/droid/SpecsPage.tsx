@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { BundledTheme } from 'shiki'
 import {
   RefreshCw,
   FileText,
@@ -53,8 +54,8 @@ export function SpecsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [systemPrefersDark, setSystemPrefersDark] = useState(() =>
-    window.matchMedia('(prefers-color-scheme: dark)').matches
+  const [systemPrefersDark, setSystemPrefersDark] = useState(
+    () => window.matchMedia('(prefers-color-scheme: dark)').matches
   )
 
   useEffect(() => {
@@ -71,10 +72,7 @@ export function SpecsPage() {
 
   const isDark = theme === 'dark' || (theme === 'system' && systemPrefersDark)
 
-  const shikiTheme: [
-    import('shiki').BundledTheme,
-    import('shiki').BundledTheme,
-  ] = isDark
+  const shikiTheme: [BundledTheme, BundledTheme] = isDark
     ? ['github-light', 'github-dark']
     : ['github-light', 'github-light']
 
