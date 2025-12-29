@@ -86,6 +86,31 @@ DroidGear values your privacy. Your username, password, API keys, and other sens
 
 ## Changelog
 
+### v0.0.9
+
+**New Features**
+
+- Add tips to use /model to switch model
+- Support setting default model and mark current default
+- Enhanced dialog dragging functionality
+
+**Bug Fixes**
+
+- Fix fetch keys bug
+- Fix wrong channels saved path (does not affect Droid settings)
+- Fix losing changes while switching Droid tabs
+- Fix dark color issue while rendering code block
+
+### v0.0.8
+
+**New Features**
+
+- Specs panel supports rename, delete, and save as operations
+
+**Bug Fixes**
+
+- Disable global context menu
+
 ### v0.0.7
 
 **New Features**
