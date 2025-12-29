@@ -6,6 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { providerColors, providerLabels } from '@/lib/platform-colors'
 import type { CustomModel } from '@/lib/bindings'
 
@@ -81,9 +86,14 @@ export function ModelCard({
             {providerLabels[model.provider]}
           </Badge>
           {isDefault && (
-            <Badge variant="default" className="bg-yellow-500 text-white">
-              {t('models.default')}
-            </Badge>
+            <>
+              <Badge variant="default" className="bg-yellow-500 text-white">
+                {t('models.default')}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                {t('models.defaultHint')}
+              </span>
+            </>
           )}
         </div>
         <div className="text-sm text-muted-foreground truncate">
@@ -93,14 +103,19 @@ export function ModelCard({
 
       <div className="flex items-center gap-1">
         {!isDefault && onSetDefault && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onSetDefault}
-            title={t('models.setAsDefault')}
-          >
-            <Star className="h-4 w-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" onClick={onSetDefault}>
+                <Star className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{t('models.setAsDefault')}</p>
+              <p className="text-xs opacity-80">
+                {t('models.setAsDefaultHint')}
+              </p>
+            </TooltipContent>
+          </Tooltip>
         )}
         <Button
           variant="ghost"
