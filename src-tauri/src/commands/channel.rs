@@ -8,7 +8,7 @@ use specta::Type;
 use std::fs;
 use std::path::PathBuf;
 
-use super::config::{read_config_file, write_config_file, ConfigReadResult, ModelInfo};
+use super::config::{read_config_file, ConfigReadResult, ModelInfo};
 
 // ============================================================================
 // Types
@@ -72,12 +72,44 @@ pub enum ChannelAuth {
 }
 
 // ============================================================================
+// DroidGear config helpers
+// ============================================================================
+
+fn get_droidgear_dir() -> Result<PathBuf, String> {
+    let home = dirs::home_dir().ok_or("Could not find home directory")?;
+    Ok(home.join(".droidgear"))
+}
+
+fn get_droidgear_channels_path() -> Result<PathBuf, String> {
+    let dir = get_droidgear_dir()?;
+    if !dir.exists() {
+        fs::create_dir_all(&dir)
+            .map_err(|e| format!("Failed to create .droidgear directory: {e}"))?;
+    }
+    Ok(dir.join("channels.json"))
+}
+
+fn read_channels_from_file(path: &PathBuf) -> Result<Vec<Channel>, String> {
+    let content =
+        fs::read_to_string(path).map_err(|e| format!("Failed to read channels file: {e}"))?;
+    let channels: Vec<Channel> = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse channels file: {e}"))?;
+    Ok(channels)
+}
+
+fn write_channels_to_file(path: &PathBuf, channels: &[Channel]) -> Result<(), String> {
+    let content = serde_json::to_string_pretty(channels)
+        .map_err(|e| format!("Failed to serialize channels: {e}"))?;
+    fs::write(path, content).map_err(|e| format!("Failed to write channels file: {e}"))?;
+    Ok(())
+}
+
+// ============================================================================
 // Auth file helpers
 // ============================================================================
 
 fn get_auth_dir() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or("Could not find home directory")?;
-    Ok(home.join(".droidgear").join("auth"))
+    Ok(get_droidgear_dir()?.join("auth"))
 }
 
 fn get_auth_file_path(channel_id: &str) -> Result<PathBuf, String> {
@@ -118,62 +150,56 @@ fn delete_channel_auth(channel_id: &str) -> Result<(), String> {
 // Tauri Commands
 // ============================================================================
 
-/// Loads all channels from settings.json
+/// Loads all channels from ~/.droidgear/channels.json
+/// Falls back to ~/.factory/settings.json for migration
 #[tauri::command]
 #[specta::specta]
 pub async fn load_channels() -> Result<Vec<Channel>, String> {
-    log::debug!("Loading channels from settings");
+    log::debug!("Loading channels");
 
-    let config = match read_config_file() {
-        ConfigReadResult::Ok(value) => value,
-        ConfigReadResult::NotFound => {
-            log::debug!("Config file not found, returning empty channels");
-            return Ok(vec![]);
+    let droidgear_path = get_droidgear_channels_path()?;
+
+    // Priority 1: Read from ~/.droidgear/channels.json
+    if droidgear_path.exists() {
+        log::debug!("Reading channels from ~/.droidgear/channels.json");
+        return read_channels_from_file(&droidgear_path);
+    }
+
+    // Priority 2: Migrate from ~/.factory/settings.json if channels exist there
+    if let ConfigReadResult::Ok(config) = read_config_file() {
+        if let Some(channels_value) = config.get("channels") {
+            if let Some(arr) = channels_value.as_array() {
+                if !arr.is_empty() {
+                    log::info!("Migrating channels from ~/.factory/settings.json");
+                    let channels: Vec<Channel> = arr
+                        .iter()
+                        .filter_map(|v| serde_json::from_value(v.clone()).ok())
+                        .collect();
+
+                    // Save to new location
+                    if !channels.is_empty() {
+                        write_channels_to_file(&droidgear_path, &channels)?;
+                        log::info!("Migrated {} channels to ~/.droidgear/", channels.len());
+                    }
+
+                    return Ok(channels);
+                }
+            }
         }
-        ConfigReadResult::ParseError(e) => {
-            log::warn!("Config file parse error: {e}, returning empty channels");
-            return Ok(vec![]);
-        }
-    };
+    }
 
-    let channels: Vec<Channel> = config
-        .get("channels")
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|v| serde_json::from_value(v.clone()).ok())
-                .collect()
-        })
-        .unwrap_or_default();
-
-    log::info!("Loaded {} channels", channels.len());
-    Ok(channels)
+    log::debug!("No channels found");
+    Ok(vec![])
 }
 
-/// Saves all channels to settings.json
+/// Saves all channels to ~/.droidgear/channels.json
 #[tauri::command]
 #[specta::specta]
 pub async fn save_channels(channels: Vec<Channel>) -> Result<(), String> {
-    log::debug!("Saving {} channels to settings", channels.len());
+    log::debug!("Saving {} channels", channels.len());
 
-    let mut config = match read_config_file() {
-        ConfigReadResult::Ok(value) => value,
-        ConfigReadResult::NotFound => serde_json::json!({}),
-        ConfigReadResult::ParseError(e) => {
-            return Err(format!("CONFIG_PARSE_ERROR: {e}"));
-        }
-    };
-
-    let channels_value = serde_json::to_value(&channels)
-        .map_err(|e| format!("Failed to serialize channels: {e}"))?;
-
-    if let Some(obj) = config.as_object_mut() {
-        obj.insert("channels".to_string(), channels_value);
-    } else {
-        config = serde_json::json!({ "channels": channels_value });
-    }
-
-    write_config_file(&config)?;
+    let path = get_droidgear_channels_path()?;
+    write_channels_to_file(&path, &channels)?;
 
     log::info!("Successfully saved {} channels", channels.len());
     Ok(())

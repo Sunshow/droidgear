@@ -239,7 +239,8 @@ async fetchModels(provider: Provider, baseUrl: string, apiKey: string) : Promise
 }
 },
 /**
- * Loads all channels from settings.json
+ * Loads all channels from ~/.droidgear/channels.json
+ * Falls back to ~/.factory/settings.json for migration
  */
 async loadChannels() : Promise<Result<Channel[], string>> {
     try {
@@ -250,7 +251,7 @@ async loadChannels() : Promise<Result<Channel[], string>> {
 }
 },
 /**
- * Saves all channels to settings.json
+ * Saves all channels to ~/.droidgear/channels.json
  */
 async saveChannels(channels: Channel[]) : Promise<Result<null, string>> {
     try {
