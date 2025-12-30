@@ -317,57 +317,74 @@ async fn fetch_new_api_tokens(
 
     log::debug!("Logged in as user ID: {user_id}");
 
-    // Now fetch tokens with session cookie and New-Api-User header
+    // Fetch tokens with pagination
     let url = format!("{base}/api/token/");
-    let response = client
-        .get(&url)
-        .header("New-Api-User", user_id.to_string())
-        .query(&[("p", "0"), ("page_size", "100")])
-        .send()
-        .await
-        .map_err(|e| format!("Request failed: {e}"))?;
+    let page_size: usize = 100;
+    let mut all_tokens: Vec<ChannelToken> = Vec::new();
+    let mut page: usize = 0;
 
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response.text().await.unwrap_or_default();
-        return Err(format!("API error {status}: {body}"));
+    loop {
+        let response = client
+            .get(&url)
+            .header("New-Api-User", user_id.to_string())
+            .query(&[
+                ("p", page.to_string()),
+                ("page_size", page_size.to_string()),
+            ])
+            .send()
+            .await
+            .map_err(|e| format!("Request failed: {e}"))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(format!("API error {status}: {body}"));
+        }
+
+        let data: Value = response
+            .json()
+            .await
+            .map_err(|e| format!("Failed to parse response: {e}"))?;
+
+        let tokens: Vec<ChannelToken> = data
+            .get("data")
+            .and_then(|d| d.get("items"))
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|t| {
+                        Some(ChannelToken {
+                            id: t.get("id")?.as_f64()?,
+                            name: t.get("name")?.as_str()?.to_string(),
+                            key: t.get("key")?.as_str()?.to_string(),
+                            status: t.get("status")?.as_i64()? as i32,
+                            remain_quota: t
+                                .get("remain_quota")
+                                .and_then(|v| v.as_f64())
+                                .unwrap_or(0.0),
+                            used_quota: t.get("used_quota").and_then(|v| v.as_f64()).unwrap_or(0.0),
+                            unlimited_quota: t
+                                .get("unlimited_quota")
+                                .and_then(|v| v.as_bool())
+                                .unwrap_or(false),
+                            platform: None, // New API doesn't provide platform info
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let count = tokens.len();
+        all_tokens.extend(tokens);
+
+        if count < page_size {
+            break;
+        }
+        page += 1;
     }
 
-    let data: Value = response
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse response: {e}"))?;
-
-    let tokens: Vec<ChannelToken> = data
-        .get("data")
-        .and_then(|d| d.get("items"))
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|t| {
-                    Some(ChannelToken {
-                        id: t.get("id")?.as_f64()?,
-                        name: t.get("name")?.as_str()?.to_string(),
-                        key: t.get("key")?.as_str()?.to_string(),
-                        status: t.get("status")?.as_i64()? as i32,
-                        remain_quota: t
-                            .get("remain_quota")
-                            .and_then(|v| v.as_f64())
-                            .unwrap_or(0.0),
-                        used_quota: t.get("used_quota").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                        unlimited_quota: t
-                            .get("unlimited_quota")
-                            .and_then(|v| v.as_bool())
-                            .unwrap_or(false),
-                        platform: None, // New API doesn't provide platform info
-                    })
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-
-    log::info!("Fetched {} tokens", tokens.len());
-    Ok(tokens)
+    log::info!("Fetched {} tokens", all_tokens.len());
+    Ok(all_tokens)
 }
 
 /// Fetches tokens from a Sub2API channel
@@ -456,35 +473,53 @@ async fn fetch_sub2api_tokens(
         group_platforms.len()
     );
 
-    // Fetch keys list
+    // Fetch keys list with pagination
     let keys_url = format!("{base}/api/v1/keys");
-    let keys_response = client
-        .get(&keys_url)
-        .header("Authorization", format!("Bearer {access_token}"))
-        .query(&[("page", "1"), ("page_size", "100")])
-        .send()
-        .await
-        .map_err(|e| format!("Failed to fetch keys: {e}"))?;
+    let page_size: usize = 100;
+    let mut all_items: Vec<Value> = Vec::new();
+    let mut page: usize = 1;
 
-    if !keys_response.status().is_success() {
-        let status = keys_response.status();
-        let body = keys_response.text().await.unwrap_or_default();
-        return Err(format!("API error {status}: {body}"));
+    loop {
+        let keys_response = client
+            .get(&keys_url)
+            .header("Authorization", format!("Bearer {access_token}"))
+            .query(&[
+                ("page", page.to_string()),
+                ("page_size", page_size.to_string()),
+            ])
+            .send()
+            .await
+            .map_err(|e| format!("Failed to fetch keys: {e}"))?;
+
+        if !keys_response.status().is_success() {
+            let status = keys_response.status();
+            let body = keys_response.text().await.unwrap_or_default();
+            return Err(format!("API error {status}: {body}"));
+        }
+
+        let keys_data: Value = keys_response
+            .json()
+            .await
+            .map_err(|e| format!("Failed to parse keys response: {e}"))?;
+
+        let items: Vec<Value> = keys_data
+            .get("data")
+            .and_then(|d| d.get("items"))
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+
+        let count = items.len();
+        all_items.extend(items);
+
+        if count < page_size {
+            break;
+        }
+        page += 1;
     }
 
-    let keys_data: Value = keys_response
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse keys response: {e}"))?;
-
     // Extract key IDs for usage query
-    let items = keys_data
-        .get("data")
-        .and_then(|d| d.get("items"))
-        .and_then(|v| v.as_array())
-        .ok_or("Could not get items from keys response")?;
-
-    let key_ids: Vec<i64> = items
+    let key_ids: Vec<i64> = all_items
         .iter()
         .filter_map(|k| k.get("id").and_then(|id| id.as_i64()))
         .collect();
@@ -512,7 +547,7 @@ async fn fetch_sub2api_tokens(
         };
 
     // Build tokens list
-    let tokens: Vec<ChannelToken> = items
+    let tokens: Vec<ChannelToken> = all_items
         .iter()
         .filter_map(|k| {
             let id = k.get("id")?.as_f64()?;
