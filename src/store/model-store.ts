@@ -35,6 +35,36 @@ function modelsEqual(a: CustomModel[], b: CustomModel[]): boolean {
   return JSON.stringify(a) === JSON.stringify(b)
 }
 
+function isSameModelConfig(a: CustomModel, b: CustomModel): boolean {
+  return a.model === b.model && a.baseUrl === b.baseUrl && a.apiKey === b.apiKey
+}
+
+function generateUniqueDisplayName(
+  baseDisplayName: string,
+  existingModels: CustomModel[],
+  newModel: CustomModel
+): string {
+  const hasConflict = existingModels.some(
+    m =>
+      (m.displayName || m.model) === baseDisplayName &&
+      !isSameModelConfig(m, newModel)
+  )
+
+  if (!hasConflict) {
+    return baseDisplayName
+  }
+
+  let suffix = 1
+  while (
+    existingModels.some(
+      m => (m.displayName || m.model) === `${baseDisplayName}-${suffix}`
+    )
+  ) {
+    suffix++
+  }
+  return `${baseDisplayName}-${suffix}`
+}
+
 export const useModelStore = create<ModelState>()(
   devtools(
     (set, get) => ({
@@ -181,7 +211,17 @@ export const useModelStore = create<ModelState>()(
       addModel: model => {
         set(
           state => {
-            const newModels = [...state.models, model]
+            const baseDisplayName = model.displayName || model.model
+            const uniqueDisplayName = generateUniqueDisplayName(
+              baseDisplayName,
+              state.models,
+              model
+            )
+            const modelWithUniqueDisplayName = {
+              ...model,
+              displayName: uniqueDisplayName,
+            }
+            const newModels = [...state.models, modelWithUniqueDisplayName]
             return {
               models: newModels,
               hasChanges: !modelsEqual(newModels, state.originalModels),
