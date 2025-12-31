@@ -86,6 +86,19 @@ DroidGear values your privacy. Your username, password, API keys, and other sens
 
 ## Changelog
 
+### v0.1.0
+
+**New Features**
+
+- Add about page, remove examples
+- Support antigravity platform of sub2api
+
+**Bug Fixes**
+
+- Fix style lint
+- Fix text align center
+- Fix fetch all pages of keys
+
 ### v0.0.9
 
 **New Features**
