@@ -1029,7 +1029,7 @@ dependencies = [
 
 [[package]]
 name = "droidgear"
-version = "0.0.9"
+version = "0.1.0"
 dependencies = [
  "dirs 5.0.1",
  "log",
