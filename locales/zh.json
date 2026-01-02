@@ -195,6 +195,9 @@
   "droid.specs.deleteSuccess": "Spec 删除成功",
   "droid.specs.exportSuccess": "Spec 导出成功",
 
+  "droid.install.title": "安装",
+  "droid.install.learnMore": "了解更多请访问 factory.ai",
+
   "common.rename": "重命名",
   "common.export": "导出",
   "common.copied": "已复制",

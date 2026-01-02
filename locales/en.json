@@ -195,6 +195,9 @@
   "droid.specs.deleteSuccess": "Spec deleted successfully",
   "droid.specs.exportSuccess": "Spec exported successfully",
 
+  "droid.install.title": "Install",
+  "droid.install.learnMore": "Learn more at factory.ai",
+
   "common.rename": "Rename",
   "common.export": "Export",
   "common.copied": "Copied",
