@@ -182,6 +182,9 @@
   "droid.helpers.skipLogin.windowsPermanent": "打开系统设置 → 系统 → 关于 → 高级系统设置 → 环境变量，添加新的用户变量。",
   "droid.helpers.skipLogin.restartWarning": "设置后需刷新环境变量并重启 Droid 生效",
 
+  "droid.helpers.cloudSessionSync.title": "Session 云同步",
+  "droid.helpers.cloudSessionSync.description": "启用后 Session 会自动同步到云端",
+
   "droid.specs.title": "Specs",
   "droid.specs.noSpecs": "没有找到 Specs",
   "droid.specs.noSpecsHint": "Specs 将在 ~/.factory/specs 中可用时显示在这里",

@@ -29,6 +29,8 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         config::fetch_models,
         config::get_default_model,
         config::save_default_model,
+        config::get_cloud_session_sync,
+        config::save_cloud_session_sync,
         channel::load_channels,
         channel::save_channels,
         channel::save_channel_credentials,

@@ -457,3 +457,49 @@ pub async fn save_default_model(model_id: String) -> Result<(), String> {
     log::info!("Successfully saved default model: {}", model_id);
     Ok(())
 }
+
+/// Gets the cloudSessionSync setting from settings.json
+/// Returns true by default if not set
+#[tauri::command]
+#[specta::specta]
+pub async fn get_cloud_session_sync() -> Result<bool, String> {
+    log::debug!("Getting cloudSessionSync from settings");
+
+    let config = match read_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => return Ok(true), // Default to true
+        ConfigReadResult::ParseError(_) => return Ok(true), // Default to true on error
+    };
+
+    let enabled = config
+        .get("cloudSessionSync")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true); // Default to true if not set
+
+    log::debug!("cloudSessionSync: {}", enabled);
+    Ok(enabled)
+}
+
+/// Saves the cloudSessionSync setting to settings.json
+#[tauri::command]
+#[specta::specta]
+pub async fn save_cloud_session_sync(enabled: bool) -> Result<(), String> {
+    log::debug!("Saving cloudSessionSync: {}", enabled);
+
+    let mut config = match read_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => serde_json::json!({}),
+        ConfigReadResult::ParseError(e) => {
+            return Err(format!("{CONFIG_PARSE_ERROR_PREFIX} {e}"));
+        }
+    };
+
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("cloudSessionSync".to_string(), serde_json::json!(enabled));
+    }
+
+    write_config_file(&config)?;
+
+    log::info!("Successfully saved cloudSessionSync: {}", enabled);
+    Ok(())
+}

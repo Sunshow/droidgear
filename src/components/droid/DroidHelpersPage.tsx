@@ -30,6 +30,7 @@ export function DroidHelpersPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editValue, setEditValue] = useState('')
   const [copied, setCopied] = useState(false)
+  const [cloudSessionSync, setCloudSessionSync] = useState(true)
 
   const isEnabled = envValue !== null && envValue.length > 0
 
@@ -42,6 +43,20 @@ export function DroidHelpersPage() {
       }
     }
     fetchEnvVar()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const fetchCloudSessionSync = async () => {
+      const result = await commands.getCloudSessionSync()
+      if (!cancelled && result.status === 'ok') {
+        setCloudSessionSync(result.data)
+      }
+    }
+    fetchCloudSessionSync()
     return () => {
       cancelled = true
     }
@@ -90,6 +105,16 @@ export function DroidHelpersPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const handleCloudSessionSyncToggle = async (enabled: boolean) => {
+    setCloudSessionSync(enabled)
+    const result = await commands.saveCloudSessionSync(enabled)
+    if (result.status === 'error') {
+      // Revert on error
+      setCloudSessionSync(!enabled)
+      toast.error(t('toast.error.generic'))
+    }
+  }
+
   const maskedValue = envValue
     ? envValue.length > 10
       ? `${envValue.substring(0, 6)}${'*'.repeat(Math.min(envValue.length - 10, 16))}${envValue.substring(envValue.length - 4)}`
@@ -104,6 +129,28 @@ export function DroidHelpersPage() {
 
       <div className="flex-1 overflow-y-auto p-4">
         <div className="space-y-6">
+          {/* Cloud Session Sync Section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-1">
+                <Label
+                  htmlFor="cloud-session-sync"
+                  className="text-base font-medium"
+                >
+                  {t('droid.helpers.cloudSessionSync.title')}
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  {t('droid.helpers.cloudSessionSync.description')}
+                </p>
+              </div>
+              <Switch
+                id="cloud-session-sync"
+                checked={cloudSessionSync}
+                onCheckedChange={handleCloudSessionSyncToggle}
+              />
+            </div>
+          </div>
+
           {/* Skip Login Section */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">

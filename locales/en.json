@@ -182,6 +182,9 @@
   "droid.helpers.skipLogin.windowsPermanent": "Open System Settings → System → About → Advanced system settings → Environment Variables, then add a new user variable.",
   "droid.helpers.skipLogin.restartWarning": "Refresh environment variables and restart Droid for changes to take effect",
 
+  "droid.helpers.cloudSessionSync.title": "Cloud Session Sync",
+  "droid.helpers.cloudSessionSync.description": "When enabled, sessions will be automatically synced to the cloud",
+
   "droid.specs.title": "Specs",
   "droid.specs.noSpecs": "No specs found",
   "droid.specs.noSpecsHint": "Specs will appear here when available in ~/.factory/specs",

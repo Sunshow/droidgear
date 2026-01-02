@@ -261,6 +261,29 @@ async saveDefaultModel(modelId: string) : Promise<Result<null, string>> {
 }
 },
 /**
+ * Gets the cloudSessionSync setting from settings.json
+ * Returns true by default if not set
+ */
+async getCloudSessionSync() : Promise<Result<boolean, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_cloud_session_sync") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Saves the cloudSessionSync setting to settings.json
+ */
+async saveCloudSessionSync(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_cloud_session_sync", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Loads all channels from ~/.droidgear/channels.json
  * Falls back to ~/.factory/settings.json for migration
  */
