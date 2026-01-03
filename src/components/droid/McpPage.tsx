@@ -38,6 +38,37 @@ import {
   type McpServerType,
 } from '@/lib/bindings'
 
+// MCP Server Presets for Quick Add
+interface McpPreset {
+  id: string
+  name: string
+  descriptionKey: string
+  config: Omit<McpServerConfig, 'disabled'>
+}
+
+const MCP_PRESETS: McpPreset[] = [
+  {
+    id: 'playwright',
+    name: 'Playwright',
+    descriptionKey: 'mcp.presets.playwright.description',
+    config: {
+      type: 'stdio',
+      command: 'npx',
+      args: ['@playwright/mcp@latest'],
+    },
+  },
+  {
+    id: 'chrome-devtools',
+    name: 'Chrome DevTools',
+    descriptionKey: 'mcp.presets.chromeDevtools.description',
+    config: {
+      type: 'stdio',
+      command: 'npx',
+      args: ['-y', 'chrome-devtools-mcp@latest'],
+    },
+  },
+]
+
 interface KeyValuePair {
   key: string
   value: string
@@ -259,6 +290,25 @@ export function McpPage() {
     return server.config.url ?? ''
   }
 
+  const handleAddPreset = async (preset: McpPreset) => {
+    const result = await commands.saveMcpServer({
+      name: preset.id,
+      config: { ...preset.config, disabled: false } as McpServerConfig,
+    })
+
+    if (result.status === 'ok') {
+      toast.success(t('common.save'))
+      loadServers()
+    } else {
+      toast.error(result.error)
+    }
+  }
+
+  // Filter presets that are not already added
+  const availablePresets = MCP_PRESETS.filter(
+    preset => !servers.some(s => s.name === preset.id)
+  )
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b">
@@ -274,54 +324,89 @@ export function McpPage() {
           <div className="text-center text-muted-foreground py-8">
             {t('common.loading')}
           </div>
-        ) : servers.length === 0 ? (
-          <div className="text-center text-muted-foreground py-8">
-            <p>{t('mcp.noServers')}</p>
-            <p className="text-sm mt-1">{t('mcp.noServersHint')}</p>
-          </div>
         ) : (
-          <div className="space-y-3">
-            {servers.map(server => (
-              <div
-                key={server.name}
-                className="border rounded-lg p-4 space-y-2"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{server.name}</span>
-                    <Badge variant="secondary">{server.config.type}</Badge>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={!server.config.disabled}
-                      onCheckedChange={checked =>
-                        handleToggle(server.name, !checked)
-                      }
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openEditDialog(server)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setServerToDelete(server.name)
-                        setDeleteDialogOpen(true)
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground font-mono truncate">
-                  {getServerDescription(server)}
-                </p>
+          <div className="space-y-6">
+            {/* Configured Servers */}
+            {servers.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                <p>{t('mcp.noServers')}</p>
+                <p className="text-sm mt-1">{t('mcp.noServersHint')}</p>
               </div>
-            ))}
+            ) : (
+              <div className="space-y-3">
+                {servers.map(server => (
+                  <div
+                    key={server.name}
+                    className="border rounded-lg p-4 space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{server.name}</span>
+                        <Badge variant="secondary">{server.config.type}</Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={!server.config.disabled}
+                          onCheckedChange={checked =>
+                            handleToggle(server.name, !checked)
+                          }
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditDialog(server)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setServerToDelete(server.name)
+                            setDeleteDialogOpen(true)
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground font-mono truncate">
+                      {getServerDescription(server)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Quick Add Section - only show if there are available presets */}
+            {availablePresets.length > 0 && (
+              <div className="space-y-3">
+                <h2 className="text-sm font-medium text-muted-foreground">
+                  {t('mcp.presets.title')}
+                </h2>
+                {availablePresets.map(preset => (
+                  <div
+                    key={preset.id}
+                    className="border rounded-lg p-4 flex items-center justify-between"
+                  >
+                    <div>
+                      <p className="font-medium">{preset.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {t(preset.descriptionKey)}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleAddPreset(preset)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      {t('mcp.presets.add')}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

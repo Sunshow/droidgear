@@ -240,6 +240,10 @@
   "mcp.addEnvVar": "添加变量",
   "mcp.addHeader": "添加请求头",
   "mcp.validation.nameRequired": "服务器名称不能为空",
+  "mcp.presets.title": "快速添加",
+  "mcp.presets.add": "添加",
+  "mcp.presets.playwright.description": "基于可访问性快照的浏览器自动化",
+  "mcp.presets.chromeDevtools.description": "调试和性能分析",
 
   "droid.install.title": "安装",
   "droid.install.learnMore": "了解更多请访问 factory.ai",

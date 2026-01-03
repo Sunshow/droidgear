@@ -240,6 +240,10 @@
   "mcp.addEnvVar": "Add Variable",
   "mcp.addHeader": "Add Header",
   "mcp.validation.nameRequired": "Server name is required",
+  "mcp.presets.title": "Quick Add",
+  "mcp.presets.add": "Add",
+  "mcp.presets.playwright.description": "Browser automation with accessibility snapshots",
+  "mcp.presets.chromeDevtools.description": "Debugging and performance analysis",
 
   "droid.install.title": "Install",
   "droid.install.learnMore": "Learn more at factory.ai",
