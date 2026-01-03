@@ -79,7 +79,9 @@ function ModelForm({ model, onSave, onCancel }: ModelFormProps) {
 
   const handleProviderChange = (value: Provider) => {
     setProvider(value)
-    setBaseUrl(defaultBaseUrls[value])
+    // Preserve user-entered baseUrl when switching provider type.
+    // Only fall back to provider defaults if baseUrl is currently empty.
+    setBaseUrl(current => current || defaultBaseUrls[value])
     setAvailableModels([])
     setFetchError(null)
   }
