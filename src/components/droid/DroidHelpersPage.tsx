@@ -1,12 +1,19 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Info, Copy, Check, Pencil } from 'lucide-react'
+import { Info, Copy, Check, Pencil, AlertCircle } from 'lucide-react'
 import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 import { toast } from 'sonner'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -31,6 +38,13 @@ export function DroidHelpersPage() {
   const [editValue, setEditValue] = useState('')
   const [copied, setCopied] = useState(false)
   const [cloudSessionSync, setCloudSessionSync] = useState(true)
+
+  // Session settings states
+  const [reasoningEffort, setReasoningEffort] = useState<string | null>(null)
+  const [diffMode, setDiffMode] = useState('github')
+  const [todoDisplayMode, setTodoDisplayMode] = useState('pinned')
+  const [includeCoAuthoredByDroid, setIncludeCoAuthoredByDroid] = useState(true)
+  const [showThinkingInMainView, setShowThinkingInMainView] = useState(false)
 
   const isEnabled = envValue !== null && envValue.length > 0
 
@@ -57,6 +71,48 @@ export function DroidHelpersPage() {
       }
     }
     fetchCloudSessionSync()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Fetch session settings on mount
+  useEffect(() => {
+    let cancelled = false
+    const fetchSessionSettings = async () => {
+      const [
+        reasoningEffortResult,
+        diffModeResult,
+        todoDisplayModeResult,
+        includeCoAuthoredResult,
+        showThinkingResult,
+      ] = await Promise.all([
+        commands.getReasoningEffort(),
+        commands.getDiffMode(),
+        commands.getTodoDisplayMode(),
+        commands.getIncludeCoAuthoredByDroid(),
+        commands.getShowThinkingInMainView(),
+      ])
+
+      if (cancelled) return
+
+      if (reasoningEffortResult.status === 'ok') {
+        setReasoningEffort(reasoningEffortResult.data)
+      }
+      if (diffModeResult.status === 'ok') {
+        setDiffMode(diffModeResult.data)
+      }
+      if (todoDisplayModeResult.status === 'ok') {
+        setTodoDisplayMode(todoDisplayModeResult.data)
+      }
+      if (includeCoAuthoredResult.status === 'ok') {
+        setIncludeCoAuthoredByDroid(includeCoAuthoredResult.data)
+      }
+      if (showThinkingResult.status === 'ok') {
+        setShowThinkingInMainView(showThinkingResult.data)
+      }
+    }
+    fetchSessionSettings()
     return () => {
       cancelled = true
     }
@@ -111,6 +167,56 @@ export function DroidHelpersPage() {
     if (result.status === 'error') {
       // Revert on error
       setCloudSessionSync(!enabled)
+      toast.error(t('toast.error.generic'))
+    }
+  }
+
+  const handleReasoningEffortChange = async (value: string) => {
+    const oldValue = reasoningEffort
+    setReasoningEffort(value)
+    const result = await commands.saveReasoningEffort(value)
+    if (result.status === 'error') {
+      setReasoningEffort(oldValue)
+      toast.error(t('toast.error.generic'))
+    }
+  }
+
+  const handleDiffModeChange = async (value: string) => {
+    const oldValue = diffMode
+    setDiffMode(value)
+    const result = await commands.saveDiffMode(value)
+    if (result.status === 'error') {
+      setDiffMode(oldValue)
+      toast.error(t('toast.error.generic'))
+    }
+  }
+
+  const handleTodoDisplayModeChange = async (value: string) => {
+    const oldValue = todoDisplayMode
+    setTodoDisplayMode(value)
+    const result = await commands.saveTodoDisplayMode(value)
+    if (result.status === 'error') {
+      setTodoDisplayMode(oldValue)
+      toast.error(t('toast.error.generic'))
+    }
+  }
+
+  const handleIncludeCoAuthoredByDroidChange = async (enabled: boolean) => {
+    const oldValue = includeCoAuthoredByDroid
+    setIncludeCoAuthoredByDroid(enabled)
+    const result = await commands.saveIncludeCoAuthoredByDroid(enabled)
+    if (result.status === 'error') {
+      setIncludeCoAuthoredByDroid(oldValue)
+      toast.error(t('toast.error.generic'))
+    }
+  }
+
+  const handleShowThinkingInMainViewChange = async (enabled: boolean) => {
+    const oldValue = showThinkingInMainView
+    setShowThinkingInMainView(enabled)
+    const result = await commands.saveShowThinkingInMainView(enabled)
+    if (result.status === 'error') {
+      setShowThinkingInMainView(oldValue)
       toast.error(t('toast.error.generic'))
     }
   }
@@ -198,6 +304,169 @@ export function DroidHelpersPage() {
                   </Button>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* Session Settings Section */}
+          <div className="space-y-4 pt-4 border-t">
+            <h2 className="text-base font-medium">
+              {t('droid.helpers.sessionSettings.title')}
+            </h2>
+
+            {/* Reasoning Effort */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-1">
+                  <Label
+                    htmlFor="reasoning-effort"
+                    className="text-sm font-medium"
+                  >
+                    {t('droid.helpers.sessionSettings.reasoningEffort')}
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t(
+                      'droid.helpers.sessionSettings.reasoningEffortDescription'
+                    )}
+                  </p>
+                </div>
+                <Select
+                  value={reasoningEffort ?? 'off'}
+                  onValueChange={handleReasoningEffortChange}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="off">
+                      {t('droid.helpers.sessionSettings.reasoningEffort.off')}
+                    </SelectItem>
+                    <SelectItem value="low">
+                      {t('droid.helpers.sessionSettings.reasoningEffort.low')}
+                    </SelectItem>
+                    <SelectItem value="medium">
+                      {t(
+                        'droid.helpers.sessionSettings.reasoningEffort.medium'
+                      )}
+                    </SelectItem>
+                    <SelectItem value="high">
+                      {t('droid.helpers.sessionSettings.reasoningEffort.high')}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2 text-amber-600 dark:text-amber-500">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <p className="text-xs">
+                  {t('droid.helpers.sessionSettings.reasoningEffortNote')}
+                </p>
+              </div>
+            </div>
+
+            {/* Diff Mode */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="diff-mode" className="text-sm font-medium">
+                    {t('droid.helpers.sessionSettings.diffMode')}
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t('droid.helpers.sessionSettings.diffModeDescription')}
+                  </p>
+                </div>
+                <Select value={diffMode} onValueChange={handleDiffModeChange}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="github">
+                      {t('droid.helpers.sessionSettings.diffMode.github')}
+                    </SelectItem>
+                    <SelectItem value="unified">
+                      {t('droid.helpers.sessionSettings.diffMode.unified')}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Todo Display Mode */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-1">
+                  <Label
+                    htmlFor="todo-display-mode"
+                    className="text-sm font-medium"
+                  >
+                    {t('droid.helpers.sessionSettings.todoDisplayMode')}
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t(
+                      'droid.helpers.sessionSettings.todoDisplayModeDescription'
+                    )}
+                  </p>
+                </div>
+                <Select
+                  value={todoDisplayMode}
+                  onValueChange={handleTodoDisplayModeChange}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pinned">
+                      {t(
+                        'droid.helpers.sessionSettings.todoDisplayMode.pinned'
+                      )}
+                    </SelectItem>
+                    <SelectItem value="inline">
+                      {t(
+                        'droid.helpers.sessionSettings.todoDisplayMode.inline'
+                      )}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Include Co-Authored By Droid */}
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-1">
+                <Label
+                  htmlFor="include-co-authored"
+                  className="text-sm font-medium"
+                >
+                  {t('droid.helpers.sessionSettings.includeCoAuthoredByDroid')}
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  {t(
+                    'droid.helpers.sessionSettings.includeCoAuthoredByDroidDescription'
+                  )}
+                </p>
+              </div>
+              <Switch
+                id="include-co-authored"
+                checked={includeCoAuthoredByDroid}
+                onCheckedChange={handleIncludeCoAuthoredByDroidChange}
+              />
+            </div>
+
+            {/* Show Thinking In Main View */}
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="show-thinking" className="text-sm font-medium">
+                  {t('droid.helpers.sessionSettings.showThinkingInMainView')}
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  {t(
+                    'droid.helpers.sessionSettings.showThinkingInMainViewDescription'
+                  )}
+                </p>
+              </div>
+              <Switch
+                id="show-thinking"
+                checked={showThinkingInMainView}
+                onCheckedChange={handleShowThinkingInMainViewChange}
+              />
             </div>
           </div>
         </div>

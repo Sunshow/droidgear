@@ -284,6 +284,121 @@ async saveCloudSessionSync(enabled: boolean) : Promise<Result<null, string>> {
 }
 },
 /**
+ * Gets the reasoningEffort setting from settings.json
+ * Returns None if not set (model-dependent default)
+ */
+async getReasoningEffort() : Promise<Result<string | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_reasoning_effort") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Saves the reasoningEffort setting to settings.json
+ */
+async saveReasoningEffort(value: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_reasoning_effort", { value }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Gets the diffMode setting from settings.json
+ * Returns "github" by default if not set
+ */
+async getDiffMode() : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_diff_mode") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Saves the diffMode setting to settings.json
+ */
+async saveDiffMode(value: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_diff_mode", { value }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Gets the todoDisplayMode setting from settings.json
+ * Returns "pinned" by default if not set
+ */
+async getTodoDisplayMode() : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_todo_display_mode") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Saves the todoDisplayMode setting to settings.json
+ */
+async saveTodoDisplayMode(value: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_todo_display_mode", { value }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Gets the includeCoAuthoredByDroid setting from settings.json
+ * Returns true by default if not set
+ */
+async getIncludeCoAuthoredByDroid() : Promise<Result<boolean, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_include_co_authored_by_droid") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Saves the includeCoAuthoredByDroid setting to settings.json
+ */
+async saveIncludeCoAuthoredByDroid(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_include_co_authored_by_droid", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Gets the showThinkingInMainView setting from settings.json
+ * Returns false by default if not set
+ */
+async getShowThinkingInMainView() : Promise<Result<boolean, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_show_thinking_in_main_view") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Saves the showThinkingInMainView setting to settings.json
+ */
+async saveShowThinkingInMainView(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_show_thinking_in_main_view", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Loads all channels from ~/.droidgear/channels.json
  * Falls back to ~/.factory/settings.json for migration
  */

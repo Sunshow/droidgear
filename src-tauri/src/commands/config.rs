@@ -506,3 +506,241 @@ pub async fn save_cloud_session_sync(enabled: bool) -> Result<(), String> {
     log::info!("Successfully saved cloudSessionSync: {}", enabled);
     Ok(())
 }
+
+/// Gets the reasoningEffort setting from settings.json
+/// Returns None if not set (model-dependent default)
+#[tauri::command]
+#[specta::specta]
+pub async fn get_reasoning_effort() -> Result<Option<String>, String> {
+    log::debug!("Getting reasoningEffort from settings");
+
+    let config = match read_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => return Ok(None),
+        ConfigReadResult::ParseError(_) => return Ok(None),
+    };
+
+    let value = config
+        .get("reasoningEffort")
+        .and_then(|v| v.as_str())
+        .map(String::from);
+
+    log::debug!("reasoningEffort: {:?}", value);
+    Ok(value)
+}
+
+/// Saves the reasoningEffort setting to settings.json
+#[tauri::command]
+#[specta::specta]
+pub async fn save_reasoning_effort(value: String) -> Result<(), String> {
+    log::debug!("Saving reasoningEffort: {}", value);
+
+    let mut config = match read_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => serde_json::json!({}),
+        ConfigReadResult::ParseError(e) => {
+            return Err(format!("{CONFIG_PARSE_ERROR_PREFIX} {e}"));
+        }
+    };
+
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("reasoningEffort".to_string(), serde_json::json!(value));
+    }
+
+    write_config_file(&config)?;
+
+    log::info!("Successfully saved reasoningEffort: {}", value);
+    Ok(())
+}
+
+/// Gets the diffMode setting from settings.json
+/// Returns "github" by default if not set
+#[tauri::command]
+#[specta::specta]
+pub async fn get_diff_mode() -> Result<String, String> {
+    log::debug!("Getting diffMode from settings");
+
+    let config = match read_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => return Ok("github".to_string()),
+        ConfigReadResult::ParseError(_) => return Ok("github".to_string()),
+    };
+
+    let value = config
+        .get("diffMode")
+        .and_then(|v| v.as_str())
+        .map(String::from)
+        .unwrap_or_else(|| "github".to_string());
+
+    log::debug!("diffMode: {}", value);
+    Ok(value)
+}
+
+/// Saves the diffMode setting to settings.json
+#[tauri::command]
+#[specta::specta]
+pub async fn save_diff_mode(value: String) -> Result<(), String> {
+    log::debug!("Saving diffMode: {}", value);
+
+    let mut config = match read_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => serde_json::json!({}),
+        ConfigReadResult::ParseError(e) => {
+            return Err(format!("{CONFIG_PARSE_ERROR_PREFIX} {e}"));
+        }
+    };
+
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("diffMode".to_string(), serde_json::json!(value));
+    }
+
+    write_config_file(&config)?;
+
+    log::info!("Successfully saved diffMode: {}", value);
+    Ok(())
+}
+
+/// Gets the todoDisplayMode setting from settings.json
+/// Returns "pinned" by default if not set
+#[tauri::command]
+#[specta::specta]
+pub async fn get_todo_display_mode() -> Result<String, String> {
+    log::debug!("Getting todoDisplayMode from settings");
+
+    let config = match read_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => return Ok("pinned".to_string()),
+        ConfigReadResult::ParseError(_) => return Ok("pinned".to_string()),
+    };
+
+    let value = config
+        .get("todoDisplayMode")
+        .and_then(|v| v.as_str())
+        .map(String::from)
+        .unwrap_or_else(|| "pinned".to_string());
+
+    log::debug!("todoDisplayMode: {}", value);
+    Ok(value)
+}
+
+/// Saves the todoDisplayMode setting to settings.json
+#[tauri::command]
+#[specta::specta]
+pub async fn save_todo_display_mode(value: String) -> Result<(), String> {
+    log::debug!("Saving todoDisplayMode: {}", value);
+
+    let mut config = match read_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => serde_json::json!({}),
+        ConfigReadResult::ParseError(e) => {
+            return Err(format!("{CONFIG_PARSE_ERROR_PREFIX} {e}"));
+        }
+    };
+
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("todoDisplayMode".to_string(), serde_json::json!(value));
+    }
+
+    write_config_file(&config)?;
+
+    log::info!("Successfully saved todoDisplayMode: {}", value);
+    Ok(())
+}
+
+/// Gets the includeCoAuthoredByDroid setting from settings.json
+/// Returns true by default if not set
+#[tauri::command]
+#[specta::specta]
+pub async fn get_include_co_authored_by_droid() -> Result<bool, String> {
+    log::debug!("Getting includeCoAuthoredByDroid from settings");
+
+    let config = match read_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => return Ok(true),
+        ConfigReadResult::ParseError(_) => return Ok(true),
+    };
+
+    let value = config
+        .get("includeCoAuthoredByDroid")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+
+    log::debug!("includeCoAuthoredByDroid: {}", value);
+    Ok(value)
+}
+
+/// Saves the includeCoAuthoredByDroid setting to settings.json
+#[tauri::command]
+#[specta::specta]
+pub async fn save_include_co_authored_by_droid(enabled: bool) -> Result<(), String> {
+    log::debug!("Saving includeCoAuthoredByDroid: {}", enabled);
+
+    let mut config = match read_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => serde_json::json!({}),
+        ConfigReadResult::ParseError(e) => {
+            return Err(format!("{CONFIG_PARSE_ERROR_PREFIX} {e}"));
+        }
+    };
+
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert(
+            "includeCoAuthoredByDroid".to_string(),
+            serde_json::json!(enabled),
+        );
+    }
+
+    write_config_file(&config)?;
+
+    log::info!("Successfully saved includeCoAuthoredByDroid: {}", enabled);
+    Ok(())
+}
+
+/// Gets the showThinkingInMainView setting from settings.json
+/// Returns false by default if not set
+#[tauri::command]
+#[specta::specta]
+pub async fn get_show_thinking_in_main_view() -> Result<bool, String> {
+    log::debug!("Getting showThinkingInMainView from settings");
+
+    let config = match read_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => return Ok(false),
+        ConfigReadResult::ParseError(_) => return Ok(false),
+    };
+
+    let value = config
+        .get("showThinkingInMainView")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    log::debug!("showThinkingInMainView: {}", value);
+    Ok(value)
+}
+
+/// Saves the showThinkingInMainView setting to settings.json
+#[tauri::command]
+#[specta::specta]
+pub async fn save_show_thinking_in_main_view(enabled: bool) -> Result<(), String> {
+    log::debug!("Saving showThinkingInMainView: {}", enabled);
+
+    let mut config = match read_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => serde_json::json!({}),
+        ConfigReadResult::ParseError(e) => {
+            return Err(format!("{CONFIG_PARSE_ERROR_PREFIX} {e}"));
+        }
+    };
+
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert(
+            "showThinkingInMainView".to_string(),
+            serde_json::json!(enabled),
+        );
+    }
+
+    write_config_file(&config)?;
+
+    log::info!("Successfully saved showThinkingInMainView: {}", enabled);
+    Ok(())
+}
