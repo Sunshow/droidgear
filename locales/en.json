@@ -315,5 +315,7 @@
   "update.progress": "Downloaded: {{size}} bytes",
   "update.installing": "Download complete, installing...",
   "update.completed": "Update completed successfully!\n\nWould you like to restart the app now to use the new version?",
-  "update.failed": "Update failed: There was a problem with the automatic download.\n\n{{error}}"
+  "update.failed": "Update failed: There was a problem with the automatic download.\n\n{{error}}",
+
+  "validation.bracketsNotAllowed": "Brackets [ ] are not recommended and may cause unexpected issues"
 }

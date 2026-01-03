@@ -47,6 +47,7 @@ import {
   inferProviderFromPlatformAndModel,
   getBaseUrlForProvider,
 } from '@/lib/sub2api-platform'
+import { containsBrackets } from '@/lib/utils'
 
 const channelTypeI18nKeys: Record<ChannelType, string> = {
   'new-api': 'channels.typeNewApi',
@@ -311,6 +312,11 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
                       onChange={e => setPrefix(e.target.value)}
                       placeholder={t('models.prefixPlaceholder')}
                     />
+                    {containsBrackets(prefix) && (
+                      <p className="text-sm text-destructive">
+                        {t('validation.bracketsNotAllowed')}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="suffix">{t('models.suffix')}</Label>
@@ -320,6 +326,11 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
                       onChange={e => setSuffix(e.target.value)}
                       placeholder={t('models.suffixPlaceholder')}
                     />
+                    {containsBrackets(suffix) && (
+                      <p className="text-sm text-destructive">
+                        {t('validation.bracketsNotAllowed')}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -416,14 +427,21 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
                                   </SelectItem>
                                 </SelectContent>
                               </Select>
-                              <Input
-                                className="h-7 text-sm flex-1"
-                                value={modelConfig?.alias ?? ''}
-                                onChange={e =>
-                                  handleAliasChange(model.id, e.target.value)
-                                }
-                                placeholder={t('models.aliasPlaceholder')}
-                              />
+                              <div className="flex-1 space-y-1">
+                                <Input
+                                  className="h-7 text-sm"
+                                  value={modelConfig?.alias ?? ''}
+                                  onChange={e =>
+                                    handleAliasChange(model.id, e.target.value)
+                                  }
+                                  placeholder={t('models.aliasPlaceholder')}
+                                />
+                                {containsBrackets(modelConfig?.alias ?? '') && (
+                                  <p className="text-xs text-destructive">
+                                    {t('validation.bracketsNotAllowed')}
+                                  </p>
+                                )}
+                              </div>
                             </>
                           )}
                         </div>

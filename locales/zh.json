@@ -315,5 +315,7 @@
   "update.progress": "已下载：{{size}} 字节",
   "update.installing": "下载完成，正在安装...",
   "update.completed": "更新成功！\n\n是否立即重启应用以使用新版本？",
-  "update.failed": "更新失败：自动下载出现问题。\n\n{{error}}"
+  "update.failed": "更新失败：自动下载出现问题。\n\n{{error}}",
+
+  "validation.bracketsNotAllowed": "不建议使用中括号 [ ]，可能导致不可预期的问题"
 }

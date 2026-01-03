@@ -26,6 +26,7 @@ import {
   type Provider,
   type ModelInfo,
 } from '@/lib/bindings'
+import { containsBrackets } from '@/lib/utils'
 
 interface ModelDialogProps {
   open: boolean
@@ -212,6 +213,11 @@ function ModelForm({ model, onSave, onCancel }: ModelFormProps) {
               onChange={e => setDisplayName(e.target.value)}
               placeholder="My Custom Model"
             />
+            {containsBrackets(displayName) && (
+              <p className="text-sm text-destructive">
+                {t('validation.bracketsNotAllowed')}
+              </p>
+            )}
           </div>
 
           <div className="grid gap-2">
