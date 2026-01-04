@@ -98,6 +98,10 @@ export function SpecsPage() {
     null
   )
 
+  // Inline rename state (for content header)
+  const [isRenamingInline, setIsRenamingInline] = useState(false)
+  const [inlineNewName, setInlineNewName] = useState('')
+
   const loadSpecs = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -171,6 +175,42 @@ export function SpecsPage() {
     // Remove .md extension for editing
     setNewName(spec.name.replace(/\.md$/, ''))
     setRenameDialogOpen(true)
+  }
+
+  // Inline rename handlers (for content header)
+  const handleInlineRenameStart = () => {
+    if (selectedSpec) {
+      setInlineNewName(selectedSpec.name.replace(/\.md$/, ''))
+      setIsRenamingInline(true)
+    }
+  }
+
+  const handleInlineRenameCancel = () => {
+    setIsRenamingInline(false)
+    setInlineNewName('')
+  }
+
+  const handleInlineRenameConfirm = async () => {
+    if (!selectedSpec || !inlineNewName.trim()) return
+
+    try {
+      const result = await commands.renameSpec(
+        selectedSpec.path,
+        inlineNewName.trim()
+      )
+      if (result.status === 'ok') {
+        toast.success(t('droid.specs.renameSuccess'))
+        setSelectedSpec(result.data)
+        loadSpecs()
+      } else {
+        toast.error(result.error)
+      }
+    } catch (err) {
+      toast.error(String(err))
+    } finally {
+      setIsRenamingInline(false)
+      setInlineNewName('')
+    }
   }
 
   const handleRenameConfirm = async () => {
@@ -422,7 +462,33 @@ export function SpecsPage() {
             <>
               <div className="p-4 border-b flex items-center justify-between">
                 <div>
-                  <h2 className="font-medium">{selectedSpec.name}</h2>
+                  {isRenamingInline ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={inlineNewName}
+                        onChange={e => setInlineNewName(e.target.value)}
+                        className="h-7 text-sm font-medium"
+                        autoFocus
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            handleInlineRenameConfirm()
+                          } else if (e.key === 'Escape') {
+                            handleInlineRenameCancel()
+                          }
+                        }}
+                        onBlur={handleInlineRenameCancel}
+                      />
+                      <span className="text-sm text-muted-foreground">.md</span>
+                    </div>
+                  ) : (
+                    <h2
+                      className="font-medium cursor-pointer hover:text-primary transition-colors"
+                      onClick={handleInlineRenameStart}
+                      title={t('common.rename')}
+                    >
+                      {selectedSpec.name}
+                    </h2>
+                  )}
                   <p className="text-xs text-muted-foreground mt-1">
                     {formatDate(selectedSpec.modifiedAt)}
                   </p>
