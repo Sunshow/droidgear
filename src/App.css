@@ -59,13 +59,5 @@
     app-region: drag;
   }
 
-  /* Streamdown code block overflow fix */
-  [data-streamdown='pre'] {
-    max-width: 100%;
-    overflow-x: auto;
-  }
-
-  [data-streamdown='code'] {
-    word-break: break-word;
-  }
+  /* Streamdown: keep layout stable (don't force wrapping/scrolling here) */
 }

@@ -417,7 +417,7 @@ export function SpecsPage() {
         </div>
 
         {/* Spec Content */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0">
           {selectedSpec ? (
             <>
               <div className="p-4 border-b flex items-center justify-between">
@@ -479,7 +479,7 @@ export function SpecsPage() {
                   placeholder="Enter spec content..."
                 />
               ) : (
-                <ScrollArea className="flex-1">
+                <ScrollArea className="flex-1 min-w-0">
                   <div className="p-4 px-6 select-text">
                     <Streamdown shikiTheme={shikiTheme}>
                       {selectedSpec.content}
