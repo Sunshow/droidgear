@@ -129,7 +129,14 @@ function App() {
 
     // Check for updates 5 seconds after app loads
     const updateTimer = setTimeout(checkForUpdates, 5000)
-    return () => clearTimeout(updateTimer)
+
+    // Check for updates every hour (3600000ms = 1 hour)
+    const hourlyUpdateInterval = setInterval(checkForUpdates, 3600000)
+
+    return () => {
+      clearTimeout(updateTimer)
+      clearInterval(hourlyUpdateInterval)
+    }
   }, [])
 
   return (
