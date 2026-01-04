@@ -22,7 +22,10 @@ describe('ModelDialog', () => {
     // Open provider select and switch provider
     await user.click(screen.getByRole('combobox'))
     const openaiOptions = screen.getAllByText(/OpenAI/i)
-    await user.click(openaiOptions[openaiOptions.length - 1])
+    const lastOption = openaiOptions[openaiOptions.length - 1]
+    if (lastOption) {
+      await user.click(lastOption)
+    }
 
     expect(screen.getByLabelText(/api url/i)).toHaveValue(
       'https://api.example.com/custom'

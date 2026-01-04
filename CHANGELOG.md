@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.3
+
+**New Features / 新功能**
+
+- Support spec selection and edit mode / 支持规格选择和编辑模式
+- Add hourly check update / 添加每小时检查更新
+- Updater add release notes display / 更新器添加发布说明显示
+- Support new-api OpenAI models detection / 支持 new-api OpenAI 模型检测
+
+**Bug Fixes / 问题修复**
+
+- Do not empty API URL if switch provider type / 切换服务商类型时不清空 API URL
+
 ## v0.1.2
 
 **New Features / 新功能**

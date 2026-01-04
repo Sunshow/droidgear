@@ -86,6 +86,19 @@ DroidGear values your privacy. Your username, password, API keys, and other sens
 
 ## Changelog
 
+### v0.1.3
+
+**New Features**
+
+- Support spec selection and edit mode
+- Add hourly check update
+- Updater add release notes display
+- Support new-api OpenAI models detection
+
+**Bug Fixes**
+
+- Do not empty API URL if switch provider type
+
 ### v0.1.2
 
 **New Features**
