@@ -51,6 +51,7 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         env::get_env_var,
         env::set_env_var,
         env::remove_env_var,
+        env::setup_env_in_shell_config,
         specs::list_specs,
         specs::read_spec,
         specs::rename_spec,

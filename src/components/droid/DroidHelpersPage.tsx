@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Info, Copy, Check, Pencil, AlertCircle } from 'lucide-react'
+import { AlertCircle, Copy, Check } from 'lucide-react'
 import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 import { toast } from 'sonner'
 import { Label } from '@/components/ui/label'
@@ -23,19 +23,24 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { commands } from '@/lib/bindings'
-import { usePlatform } from '@/hooks/use-platform'
 
 const ENV_VAR_NAME = 'FACTORY_API_KEY'
-const DEFAULT_KEY = 'fk-your-key-here'
+
+function generateRandomKey(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+  let result = 'fk-'
+  for (let i = 0; i < 24; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return result
+}
 
 export function DroidHelpersPage() {
   const { t } = useTranslation()
-  const platform = usePlatform()
 
-  const [envValue, setEnvValue] = useState<string | null>(null)
-  const [helpDialogOpen, setHelpDialogOpen] = useState(false)
-  const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [editValue, setEditValue] = useState('')
+  const [setupDialogOpen, setSetupDialogOpen] = useState(false)
+  const [apiKeyValue, setApiKeyValue] = useState('')
+  const [manualSetupError, setManualSetupError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [cloudSessionSync, setCloudSessionSync] = useState(true)
 
@@ -45,22 +50,6 @@ export function DroidHelpersPage() {
   const [todoDisplayMode, setTodoDisplayMode] = useState('pinned')
   const [includeCoAuthoredByDroid, setIncludeCoAuthoredByDroid] = useState(true)
   const [showThinkingInMainView, setShowThinkingInMainView] = useState(false)
-
-  const isEnabled = envValue !== null && envValue.length > 0
-
-  useEffect(() => {
-    let cancelled = false
-    const fetchEnvVar = async () => {
-      const value = await commands.getEnvVar(ENV_VAR_NAME)
-      if (!cancelled) {
-        setEnvValue(value)
-      }
-    }
-    fetchEnvVar()
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -118,43 +107,30 @@ export function DroidHelpersPage() {
     }
   }, [])
 
-  const refreshEnvVar = async () => {
-    const value = await commands.getEnvVar(ENV_VAR_NAME)
-    setEnvValue(value)
+  const handleOpenSetupDialog = () => {
+    setApiKeyValue(generateRandomKey())
+    setManualSetupError(null)
+    setSetupDialogOpen(true)
   }
 
-  const handleToggle = async (enabled: boolean) => {
-    if (enabled) {
-      await commands.setEnvVar(ENV_VAR_NAME, DEFAULT_KEY)
-      await refreshEnvVar()
-      setHelpDialogOpen(true)
+  const handleSetup = async () => {
+    if (!apiKeyValue.trim()) return
+
+    const result = await commands.setupEnvInShellConfig(
+      ENV_VAR_NAME,
+      apiKeyValue.trim()
+    )
+    if (result.status === 'ok') {
+      setSetupDialogOpen(false)
+      toast.success(t('droid.helpers.skipLogin.success', { file: result.data }))
     } else {
-      await commands.removeEnvVar(ENV_VAR_NAME)
-      await refreshEnvVar()
+      // Show manual setup instructions
+      setManualSetupError(result.error)
     }
   }
 
-  const handleEdit = () => {
-    setEditValue(envValue ?? DEFAULT_KEY)
-    setEditDialogOpen(true)
-  }
-
-  const handleSaveEdit = async () => {
-    if (editValue.trim()) {
-      await commands.setEnvVar(ENV_VAR_NAME, editValue.trim())
-      await refreshEnvVar()
-      setEditDialogOpen(false)
-      toast.success(t('common.save'))
-    }
-  }
-
-  const handleCopy = async () => {
-    const keyValue = envValue ?? DEFAULT_KEY
-    const command =
-      platform === 'windows'
-        ? `set ${ENV_VAR_NAME}=${keyValue}`
-        : `export ${ENV_VAR_NAME}="${keyValue}"`
-
+  const handleCopyCommand = async () => {
+    const command = `export ${ENV_VAR_NAME}="${apiKeyValue}"`
     await writeText(command)
     setCopied(true)
     toast.success(t('common.copied'))
@@ -165,7 +141,6 @@ export function DroidHelpersPage() {
     setCloudSessionSync(enabled)
     const result = await commands.saveCloudSessionSync(enabled)
     if (result.status === 'error') {
-      // Revert on error
       setCloudSessionSync(!enabled)
       toast.error(t('toast.error.generic'))
     }
@@ -221,12 +196,6 @@ export function DroidHelpersPage() {
     }
   }
 
-  const maskedValue = envValue
-    ? envValue.length > 10
-      ? `${envValue.substring(0, 6)}${'*'.repeat(Math.min(envValue.length - 10, 16))}${envValue.substring(envValue.length - 4)}`
-      : envValue
-    : null
-
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b">
@@ -258,52 +227,19 @@ export function DroidHelpersPage() {
           </div>
 
           {/* Skip Login Section */}
-          <div className="space-y-4">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="skip-login" className="text-base font-medium">
+              <div className="flex flex-col gap-1">
+                <Label className="text-base font-medium">
                   {t('droid.helpers.skipLogin.title')}
                 </Label>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={() => setHelpDialogOpen(true)}
-                >
-                  <Info className="h-4 w-4 text-muted-foreground" />
-                </Button>
+                <p className="text-sm text-muted-foreground">
+                  {t('droid.helpers.skipLogin.description')}
+                </p>
               </div>
-              <Switch
-                id="skip-login"
-                checked={isEnabled}
-                onCheckedChange={handleToggle}
-              />
-            </div>
-
-            {/* Environment Variable Display */}
-            <div className="space-y-2">
-              <Label className="text-sm text-muted-foreground">
-                {ENV_VAR_NAME}
-              </Label>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 p-3 bg-muted rounded-md font-mono text-sm">
-                  {maskedValue ?? (
-                    <span className="text-muted-foreground">
-                      {t('droid.helpers.skipLogin.notSet')}
-                    </span>
-                  )}
-                </div>
-                {isEnabled && (
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="shrink-0"
-                    onClick={handleEdit}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
+              <Button variant="outline" onClick={handleOpenSetupDialog}>
+                {t('droid.helpers.skipLogin.setupButton')}
+              </Button>
             </div>
           </div>
 
@@ -472,123 +408,69 @@ export function DroidHelpersPage() {
         </div>
       </div>
 
-      {/* Edit Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+      {/* Setup Dialog */}
+      <Dialog open={setupDialogOpen} onOpenChange={setSetupDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('droid.helpers.skipLogin.editTitle')}</DialogTitle>
+            <DialogTitle>{t('droid.helpers.skipLogin.title')}</DialogTitle>
             <DialogDescription>
-              {t('droid.helpers.skipLogin.editDescription')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Input
-              value={editValue}
-              onChange={e => setEditValue(e.target.value)}
-              placeholder={DEFAULT_KEY}
-              className="font-mono"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-              {t('common.cancel')}
-            </Button>
-            <Button onClick={handleSaveEdit}>{t('common.save')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Help Dialog */}
-      <Dialog open={helpDialogOpen} onOpenChange={setHelpDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{t('droid.helpers.skipLogin.helpTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('droid.helpers.skipLogin.helpDescription')}
+              {t('droid.helpers.skipLogin.description')}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            {/* Copy Command */}
+          <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>{t('droid.helpers.skipLogin.copyCommand')}</Label>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 p-2 bg-muted rounded-md text-sm font-mono overflow-x-auto">
-                  {platform === 'windows'
-                    ? `set ${ENV_VAR_NAME}=${envValue ?? DEFAULT_KEY}`
-                    : `export ${ENV_VAR_NAME}="${envValue ?? DEFAULT_KEY}"`}
-                </code>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="shrink-0"
-                  onClick={handleCopy}
-                >
-                  {copied ? (
-                    <Check className="h-4 w-4" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
+              <Label>{t('droid.helpers.skipLogin.apiKeyLabel')}</Label>
+              <Input
+                value={apiKeyValue}
+                onChange={e => setApiKeyValue(e.target.value)}
+                placeholder={t('droid.helpers.skipLogin.apiKeyPlaceholder')}
+                className="font-mono"
+              />
             </div>
 
-            {/* Platform-specific instructions */}
-            <div className="space-y-3">
-              {platform === 'windows' ? (
-                <>
-                  <div>
-                    <h4 className="font-medium mb-1">CMD:</h4>
-                    <code className="block p-2 bg-muted rounded-md text-sm font-mono">
-                      {`set ${ENV_VAR_NAME}=${envValue ?? DEFAULT_KEY}`}
-                    </code>
-                  </div>
-                  <div>
-                    <h4 className="font-medium mb-1">PowerShell:</h4>
-                    <code className="block p-2 bg-muted rounded-md text-sm font-mono">
-                      {`$env:${ENV_VAR_NAME}="${envValue ?? DEFAULT_KEY}"`}
-                    </code>
-                  </div>
-                  <div>
-                    <h4 className="font-medium mb-1">
-                      {t('droid.helpers.skipLogin.permanent')}:
-                    </h4>
-                    <p className="text-sm text-muted-foreground">
-                      {t('droid.helpers.skipLogin.windowsPermanent')}
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <h4 className="font-medium mb-1">
-                      {t('droid.helpers.skipLogin.temporary')}:
-                    </h4>
-                    <code className="block p-2 bg-muted rounded-md text-sm font-mono">
-                      {`export ${ENV_VAR_NAME}="${envValue ?? DEFAULT_KEY}"`}
-                    </code>
-                  </div>
-                  <div>
-                    <h4 className="font-medium mb-1">
-                      {t('droid.helpers.skipLogin.permanent')}:
-                    </h4>
-                    <p className="text-sm text-muted-foreground">
-                      {platform === 'macos'
-                        ? t('droid.helpers.skipLogin.macosPermanent')
-                        : t('droid.helpers.skipLogin.linuxPermanent')}
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Warning */}
             <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
               <p className="text-sm text-yellow-600 dark:text-yellow-500">
-                ⚠️ {t('droid.helpers.skipLogin.restartWarning')}
+                ⚠️ {t('droid.helpers.skipLogin.warning')}
               </p>
             </div>
+
+            {manualSetupError && (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  {t('droid.helpers.skipLogin.manualSetup')}
+                </p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 p-2 bg-muted rounded-md text-sm font-mono overflow-x-auto">
+                    {`export ${ENV_VAR_NAME}="${apiKeyValue}"`}
+                  </code>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0"
+                    onClick={handleCopyCommand}
+                  >
+                    {copied ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSetupDialogOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            {!manualSetupError && (
+              <Button onClick={handleSetup}>
+                {t('droid.helpers.skipLogin.confirm')}
+              </Button>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
