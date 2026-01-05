@@ -2,37 +2,109 @@
 
 ## Overview
 
-This repository is a template with sensible defaults for building Tauri React apps.
+Tauri v2 + React 19 desktop app. Uses npm (NOT pnpm), TypeScript strict mode, Zustand for state, TanStack Query for persistence.
 
-## Core Rules
+## Build/Lint/Test Commands
 
-### New Sessions
+```bash
+# Development
+npm run dev              # Start Vite dev server (frontend only)
+npm run tauri:dev        # Start full Tauri app with hot reload
 
-- Read @docs/tasks.md for task management
-- Review `docs/developer/architecture-guide.md` for high-level patterns
-- Check `docs/developer/README.md` for the full documentation index
-- Check git status and project structure
+# Build
+npm run build            # TypeScript check + Vite build
+npm run tauri:build      # Full Tauri production build
 
-### Development Practices
+# Quality Gates (run after significant changes)
+npm run check:all        # All checks: typecheck, lint, ast-grep, format, rust checks, tests
 
-**CRITICAL:** Follow these strictly:
+# Individual Checks
+npm run typecheck        # TypeScript type checking
+npm run lint             # ESLint (strict, zero warnings allowed)
+npm run lint:fix         # ESLint with auto-fix
+npm run format           # Prettier format all files
+npm run format:check     # Check formatting without changes
+npm run ast:lint         # ast-grep architecture rules
+npm run ast:fix          # ast-grep with auto-fix
 
-0. **Use npm only**: This project uses `npm`, NOT `pnpm`. Always use `npm install`, `npm run`, etc.
-1. **Read Before Editing**: Always read files first to understand context
-2. **Follow Established Patterns**: Use patterns from this file and `docs/developer`
-3. **Senior Architect Mindset**: Consider performance, maintainability, testability
-4. **Batch Operations**: Use multiple tool calls in single responses
-5. **Match Code Style**: Follow existing formatting and patterns
-6. **Test Coverage**: Write comprehensive tests for business logic
-7. **Quality Gates**: Run `npm run check:all` after significant changes
-8. **No Dev Server**: Ask user to run and report back
-9. **No Unsolicited Commits**: Only when explicitly requested
-10. **Documentation**: Update relevant `docs/developer/` files for new patterns
-11. **Removing files**: Always use `rm -f`
+# Testing - Frontend (Vitest)
+npm run test             # Watch mode
+npm run test:run         # Single run
+npm run test:run -- src/hooks/use-platform.test.ts           # Single file
+npm run test:run -- -t "should detect macOS"                 # Single test by name
+npm run test:run -- src/store/ui-store.test.ts -t "toggle"   # File + test name
+npm run test:coverage    # With coverage report
 
-**CRITICAL:** Use Tauri v2 docs only. Always use modern Rust formatting: `format!("{variable}")`
+# Testing - Rust
+npm run rust:test        # Run all Rust tests
+npm run rust:fmt         # Format Rust code
+npm run rust:fmt:check   # Check Rust formatting
+npm run rust:clippy      # Rust linter (warnings = errors)
+npm run rust:bindings    # Regenerate tauri-specta TypeScript bindings
+```
 
-## Architecture Patterns (CRITICAL)
+## Code Style Guidelines
+
+### TypeScript/React
+
+**Imports** - Use type imports, path aliases, group by external/internal:
+
+```typescript
+import { type ReactNode } from 'react' // Type imports with 'type' keyword
+import { useTranslation } from 'react-i18next' // External packages first
+import { useUIStore } from '@/store/ui-store' // Use @/ alias for src/
+import { logger } from '@/lib/logger' // Internal modules
+```
+
+**Formatting** (Prettier enforced):
+
+- No semicolons, single quotes, 2-space indent, 80 char line width
+- Trailing commas in ES5 positions, arrow parens avoided when possible
+
+**Naming**:
+
+- Components: `PascalCase` (e.g., `MainWindow.tsx`)
+- Hooks: `use-kebab-case.ts` (e.g., `use-platform.ts`)
+- Stores: `kebab-case-store.ts` (e.g., `ui-store.ts`)
+- Types: `PascalCase`, prefix with `type` import
+- Unused vars: prefix with `_` (e.g., `_unusedParam`)
+
+**Error Handling**:
+
+```typescript
+// Tauri commands return Result type
+const result = await commands.loadPreferences()
+if (result.status === 'ok') {
+  return result.data
+} else {
+  logger.error('Failed to load preferences', result.error)
+}
+```
+
+### Zustand Pattern (CRITICAL - enforced by ast-grep)
+
+```typescript
+// ✅ GOOD: Selector syntax prevents render cascades
+const leftSidebarVisible = useUIStore(state => state.leftSidebarVisible)
+
+// ❌ BAD: Destructuring causes unnecessary re-renders
+const { leftSidebarVisible } = useUIStore()
+
+// ✅ GOOD: Use getState() in callbacks
+const handleAction = () => {
+  const { setData } = useStore.getState()
+  setData(newData)
+}
+```
+
+### Rust Style
+
+- Edition 2021, MSRV 1.82
+- Modern formatting: `format!("{variable}")` not `format!("{}", variable)`
+- All warnings treated as errors via clippy
+- Use `tauri-specta` for type-safe command bindings
+
+## Architecture Patterns
 
 ### State Management Onion
 
@@ -40,105 +112,68 @@ This repository is a template with sensible defaults for building Tauri React ap
 useState (component) → Zustand (global UI) → TanStack Query (persistent data)
 ```
 
-**Decision**: Is data needed across components? → Does it persist between sessions?
-
-### Performance Pattern (CRITICAL)
-
-```typescript
-// ✅ GOOD: Selector syntax - only re-renders when specific value changes
-const leftSidebarVisible = useUIStore(state => state.leftSidebarVisible)
-
-// ❌ BAD: Destructuring causes render cascades (caught by ast-grep)
-const { leftSidebarVisible } = useUIStore()
-
-// ✅ GOOD: Use getState() in callbacks for current state
-const handleAction = () => {
-  const { data, setData } = useStore.getState()
-  setData(newData)
-}
-```
-
-### Static Analysis
-
-- **React Compiler**: Handles memoization automatically - no manual `useMemo`/`useCallback` needed
-- **ast-grep**: Enforces architecture patterns (e.g., no Zustand destructuring). See `docs/developer/static-analysis.md`
-- **Knip/jscpd**: Periodic cleanup tools. Use `/cleanup` command (Claude Code)
-
 ### Event-Driven Bridge
 
 - **Rust → React**: `app.emit("event-name", data)` → `listen("event-name", handler)`
-- **React → Rust**: Use typed commands from `@/lib/tauri-bindings` (tauri-specta)
-- **Commands**: All actions flow through centralized command system
+- **React → Rust**: Use typed commands from `@/lib/tauri-bindings`
 
-### Tauri Command Pattern (tauri-specta)
+### Tauri Commands (tauri-specta)
 
 ```typescript
-// ✅ GOOD: Type-safe commands with Result handling
 import { commands } from '@/lib/tauri-bindings'
-
-const result = await commands.loadPreferences()
-if (result.status === 'ok') {
-  console.log(result.data.theme)
-}
-
-// ❌ BAD: String-based invoke (no type safety)
-const prefs = await invoke('load_preferences')
+const result = await commands.loadPreferences() // Type-safe
+// NOT: await invoke('load_preferences')         // No type safety
 ```
 
-**Adding commands**: See `docs/developer/tauri-commands.md`
-
-### Internationalization (i18n)
+### i18n
 
 ```typescript
-// ✅ GOOD: Use useTranslation hook in React components
 import { useTranslation } from 'react-i18next'
-
-function MyComponent() {
-  const { t } = useTranslation()
-  return <h1>{t('myFeature.title')}</h1>
-}
-
-// ✅ GOOD: Non-React contexts - bind for many calls, or use directly
-import i18n from '@/i18n/config'
-const t = i18n.t.bind(i18n)  // Bind once for many translations
-i18n.t('key')                 // Or call directly for occasional use
+const { t } = useTranslation()
+return <h1>{t('myFeature.title')}</h1>
 ```
 
-- **Translations**: All strings in `/locales/*.json`
-- **RTL Support**: Use CSS logical properties (`text-start` not `text-left`)
-- **Adding strings**: See `docs/developer/i18n-patterns.md`
+Translations in `/locales/*.json`. Use CSS logical properties for RTL.
 
-### Documentation & Versions
+## Core Rules
 
-- **Context7 First**: Always use Context7 for framework docs before WebSearch
-- **Version Requirements**: Tauri v2.x, shadcn/ui v4.x, Tailwind v4.x, React 19.x, Zustand v5.x, Vite v7.x, Vitest v4.x
+1. **Use npm only** - NOT pnpm
+2. **Read before editing** - Understand context first
+3. **Run `npm run check:all`** after significant changes
+4. **No manual memoization** - React Compiler handles it
+5. **Tauri v2 docs only** - v1 patterns are incompatible
+6. **No unsolicited commits** - Only when explicitly requested
+7. **Use `rm -f`** when removing files
 
-## Developer Documentation
+## File Organization
 
-For complete patterns and detailed guidance, see `docs/developer/README.md`.
+```
+src/
+├── components/          # React components by feature
+│   ├── ui/              # shadcn/ui components (don't modify)
+│   └── layout/          # Layout components
+├── hooks/               # Custom React hooks (use-*.ts)
+├── lib/
+│   ├── commands/        # Command system
+│   └── tauri-bindings.ts # Auto-generated (don't edit)
+├── store/               # Zustand stores (*-store.ts)
+└── services/            # TanStack Query + Tauri integration
+src-tauri/
+├── src/commands/        # Rust Tauri commands
+└── capabilities/        # Window permissions (security)
+locales/                 # i18n translation files
+docs/developer/          # Architecture documentation
+```
 
-Key documents:
+## Version Requirements
 
-- `architecture-guide.md` - Mental models, security, anti-patterns
-- `state-management.md` - State onion, getState() pattern details
-- `tauri-commands.md` - Adding new Rust commands
-- `static-analysis.md` - All linting tools and quality gates
+Tauri v2.x, React 19.x, Zustand v5.x, Tailwind v4.x, shadcn/ui v4.x, Vite v7.x, Vitest v4.x
 
-## Claude Code Commands & Agents
+## Documentation
 
-These are specific to Claude Code but documented here for context.
+See `docs/developer/README.md` for full index. Key docs:
 
-### Commands
-
-- `/check` - Check work against architecture, run `npm run check:all`, suggest commit message
-- `/cleanup` - Run static analysis (knip, jscpd, check:all), get structured recommendations
-- `/init` - One-time template initialization
-
-### Agents
-
-Task-focused agents that leverage separate context for focused work:
-
-- `plan-checker` - Validate implementation plans against documented architecture
-- `docs-reviewer` - Review developer docs for accuracy and codebase consistency
-- `userguide-reviewer` - Review user guide against actual system features
-- `cleanup-analyzer` - Analyze static analysis output (used by `/cleanup`)
+- `architecture-guide.md` - Mental models, security
+- `state-management.md` - Zustand patterns
+- `tauri-commands.md` - Adding Rust commands
+- `static-analysis.md` - Linting tools
