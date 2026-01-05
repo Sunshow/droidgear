@@ -177,7 +177,8 @@
   "droid.helpers.skipLogin.warning": "This may not work in all cases. You need to restart your terminal and the app for changes to take effect.",
   "droid.helpers.skipLogin.confirm": "Setup",
   "droid.helpers.skipLogin.success": "Added to {{file}}. Please restart your terminal and the app.",
-  "droid.helpers.skipLogin.manualSetup": "Could not detect your shell. Please add the following line to your shell config file manually:",
+  "droid.helpers.skipLogin.manualSetupWindows": "Could not auto-configure. Please add the following line to your PowerShell profile ($PROFILE) manually:",
+  "droid.helpers.skipLogin.manualSetupUnix": "Could not detect your shell. Please add the following line to your shell config file (e.g., ~/.zshrc or ~/.bashrc) manually:",
   "droid.helpers.skipLogin.copyCommand": "Copy command",
 
   "droid.helpers.cloudSessionSync.title": "Cloud Session Sync",

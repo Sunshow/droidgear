@@ -177,7 +177,8 @@
   "droid.helpers.skipLogin.warning": "此功能可能不会在所有情况下生效。您需要重启终端和应用程序才能使更改生效。",
   "droid.helpers.skipLogin.confirm": "设置",
   "droid.helpers.skipLogin.success": "已添加到 {{file}}。请重启终端和应用程序。",
-  "droid.helpers.skipLogin.manualSetup": "无法检测您的 shell 类型。请手动将以下内容添加到您的 shell 配置文件中：",
+  "droid.helpers.skipLogin.manualSetupWindows": "无法自动配置。请手动将以下内容添加到您的 PowerShell 配置文件（$PROFILE）中：",
+  "droid.helpers.skipLogin.manualSetupUnix": "无法检测您的 shell 类型。请手动将以下内容添加到您的 shell 配置文件（如 ~/.zshrc 或 ~/.bashrc）中：",
   "droid.helpers.skipLogin.copyCommand": "复制命令",
 
   "droid.helpers.cloudSessionSync.title": "Session 云同步",

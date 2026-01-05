@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { commands } from '@/lib/bindings'
+import { useIsWindows } from '@/hooks/use-platform'
 
 const ENV_VAR_NAME = 'FACTORY_API_KEY'
 
@@ -37,6 +38,7 @@ function generateRandomKey(): string {
 
 export function DroidHelpersPage() {
   const { t } = useTranslation()
+  const isWindows = useIsWindows()
 
   const [setupDialogOpen, setSetupDialogOpen] = useState(false)
   const [apiKeyValue, setApiKeyValue] = useState('')
@@ -130,11 +132,19 @@ export function DroidHelpersPage() {
   }
 
   const handleCopyCommand = async () => {
-    const command = `export ${ENV_VAR_NAME}="${apiKeyValue}"`
+    const command = isWindows
+      ? `$env:${ENV_VAR_NAME} = "${apiKeyValue}"`
+      : `export ${ENV_VAR_NAME}="${apiKeyValue}"`
     await writeText(command)
     setCopied(true)
     toast.success(t('common.copied'))
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const getManualSetupCommand = () => {
+    return isWindows
+      ? `$env:${ENV_VAR_NAME} = "${apiKeyValue}"`
+      : `export ${ENV_VAR_NAME}="${apiKeyValue}"`
   }
 
   const handleCloudSessionSyncToggle = async (enabled: boolean) => {
@@ -438,11 +448,13 @@ export function DroidHelpersPage() {
             {manualSetupError && (
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  {t('droid.helpers.skipLogin.manualSetup')}
+                  {isWindows
+                    ? t('droid.helpers.skipLogin.manualSetupWindows')
+                    : t('droid.helpers.skipLogin.manualSetupUnix')}
                 </p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 p-2 bg-muted rounded-md text-sm font-mono overflow-x-auto">
-                    {`export ${ENV_VAR_NAME}="${apiKeyValue}"`}
+                    {getManualSetupCommand()}
                   </code>
                   <Button
                     variant="outline"
