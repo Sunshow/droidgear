@@ -631,6 +631,127 @@ async toggleMcpServer(name: string, disabled: boolean) : Promise<Result<null, st
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * List all profiles
+ */
+async listOpencodeProfiles() : Promise<Result<OpenCodeProfile[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_opencode_profiles") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get a single profile by ID
+ */
+async getOpencodeProfile(id: string) : Promise<Result<OpenCodeProfile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_opencode_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Save a profile
+ */
+async saveOpencodeProfile(profile: OpenCodeProfile) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_opencode_profile", { profile }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Delete a profile
+ */
+async deleteOpencodeProfile(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_opencode_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Duplicate a profile
+ */
+async duplicateOpencodeProfile(id: string, newName: string) : Promise<Result<OpenCodeProfile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("duplicate_opencode_profile", { id, newName }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Create default profile if none exists
+ */
+async createDefaultProfile() : Promise<Result<OpenCodeProfile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("create_default_profile") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get active profile ID
+ */
+async getActiveOpencodeProfileId() : Promise<Result<string | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_active_opencode_profile_id") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Apply a profile to OpenCode config files (merge write)
+ */
+async applyOpencodeProfile(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("apply_opencode_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get OpenCode config status
+ */
+async getOpencodeConfigStatus() : Promise<Result<OpenCodeConfigStatus, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_opencode_config_status") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get provider templates
+ */
+async getOpencodeProviderTemplates() : Promise<Result<ProviderTemplate[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_opencode_provider_templates") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Test provider connection
+ */
+async testOpencodeProviderConnection(providerId: string, baseUrl: string, apiKey: string) : Promise<Result<boolean, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("test_opencode_provider_connection", { providerId, baseUrl, apiKey }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -839,9 +960,29 @@ export type McpServerType = "stdio" | "http"
  */
 export type ModelInfo = { id: string; name: string | null }
 /**
+ * Configuration status
+ */
+export type OpenCodeConfigStatus = { configExists: boolean; authExists: boolean; configPath: string; authPath: string }
+/**
+ * OpenCode Profile
+ */
+export type OpenCodeProfile = { id: string; name: string; description?: string | null; createdAt: string; updatedAt: string; providers: Partial<{ [key in string]: OpenCodeProviderConfig }>; auth: Partial<{ [key in string]: JsonValue }> }
+/**
+ * OpenCode Provider configuration
+ */
+export type OpenCodeProviderConfig = { npm?: string | null; name?: string | null; options?: OpenCodeProviderOptions | null }
+/**
+ * OpenCode Provider options
+ */
+export type OpenCodeProviderOptions = { baseUrl?: string | null; apiKey?: string | null; timeout?: number | null; headers?: Partial<{ [key in string]: string }> | null }
+/**
  * Provider types supported by Factory BYOK
  */
 export type Provider = "anthropic" | "openai" | "generic-chat-completion-api"
+/**
+ * Provider template for quick setup
+ */
+export type ProviderTemplate = { id: string; name: string; defaultBaseUrl?: string | null; requiresApiKey: boolean }
 /**
  * Error types for recovery operations (typed for frontend matching)
  */

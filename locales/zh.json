@@ -368,5 +368,53 @@
   "update.completed": "更新成功！\n\n是否立即重启应用以使用新版本？",
   "update.failed": "更新失败：自动下载出现问题。\n\n{{error}}",
 
-  "validation.bracketsNotAllowed": "不建议使用中括号 [ ]，可能导致不可预期的问题"
+  "validation.bracketsNotAllowed": "不建议使用中括号 [ ]，可能导致不可预期的问题",
+
+  "sidebar.opencode": "OpenCode",
+
+  "opencode.title": "OpenCode 配置",
+  "opencode.features.providers": "Providers",
+  "opencode.install.title": "安装 OpenCode",
+  "opencode.install.learnMore": "了解更多请访问 opencode.ai",
+
+  "opencode.profile.select": "Profile",
+  "opencode.profile.create": "新建 Profile",
+  "opencode.profile.createDescription": "创建新的 Profile 来管理 Provider 配置",
+  "opencode.profile.duplicate": "复制",
+  "opencode.profile.duplicateDescription": "创建当前 Profile 的副本",
+  "opencode.profile.delete": "删除 Profile",
+  "opencode.profile.deleteConfirm": "确定要删除此 Profile 吗？此操作无法撤销。",
+  "opencode.profile.name": "名称",
+  "opencode.profile.namePlaceholder": "输入 Profile 名称",
+  "opencode.profile.description": "描述",
+  "opencode.profile.descriptionPlaceholder": "可选描述",
+  "opencode.profile.active": "已激活",
+
+  "opencode.provider.add": "添加 Provider",
+  "opencode.provider.edit": "编辑 Provider",
+  "opencode.provider.delete": "删除 Provider",
+  "opencode.provider.deleteConfirm": "确定要删除此 Provider 吗？",
+  "opencode.provider.noProviders": "未配置 Provider。点击「添加 Provider」开始。",
+  "opencode.provider.dialogDescription": "为 OpenCode 配置 Provider",
+  "opencode.provider.id": "Provider ID",
+  "opencode.provider.npm": "NPM 包",
+  "opencode.provider.displayName": "显示名称",
+  "opencode.provider.baseUrl": "Base URL",
+  "opencode.provider.apiKey": "API Key",
+  "opencode.provider.apiKeyConfigured": "API Key 已配置",
+  "opencode.provider.apiKeyNotConfigured": "未配置 API Key",
+  "opencode.provider.timeout": "超时时间 (ms)",
+  "opencode.provider.template": "模板",
+  "opencode.provider.selectTemplate": "选择模板",
+  "opencode.provider.testConnection": "测试连接",
+  "opencode.provider.testSuccess": "连接成功",
+  "opencode.provider.testFailed": "连接失败",
+
+  "opencode.config.status": "目标配置状态",
+
+  "opencode.actions.save": "保存 Profile",
+  "opencode.actions.saveSuccess": "Profile 保存成功",
+  "opencode.actions.apply": "应用 Profile",
+  "opencode.actions.applyConfirm": "应用此 Profile？这将更新您的 OpenCode 配置文件（opencode.json 和 auth.json）。",
+  "opencode.actions.applySuccess": "Profile 应用成功"
 }

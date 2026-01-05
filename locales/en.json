@@ -368,5 +368,53 @@
   "update.completed": "Update completed successfully!\n\nWould you like to restart the app now to use the new version?",
   "update.failed": "Update failed: There was a problem with the automatic download.\n\n{{error}}",
 
-  "validation.bracketsNotAllowed": "Brackets [ ] are not recommended and may cause unexpected issues"
+  "validation.bracketsNotAllowed": "Brackets [ ] are not recommended and may cause unexpected issues",
+
+  "sidebar.opencode": "OpenCode",
+
+  "opencode.title": "OpenCode Configuration",
+  "opencode.features.providers": "Providers",
+  "opencode.install.title": "Install OpenCode",
+  "opencode.install.learnMore": "Learn more at opencode.ai",
+
+  "opencode.profile.select": "Profile",
+  "opencode.profile.create": "New Profile",
+  "opencode.profile.createDescription": "Create a new profile to manage provider configurations",
+  "opencode.profile.duplicate": "Duplicate",
+  "opencode.profile.duplicateDescription": "Create a copy of the current profile",
+  "opencode.profile.delete": "Delete Profile",
+  "opencode.profile.deleteConfirm": "Are you sure you want to delete this profile? This action cannot be undone.",
+  "opencode.profile.name": "Name",
+  "opencode.profile.namePlaceholder": "Enter profile name",
+  "opencode.profile.description": "Description",
+  "opencode.profile.descriptionPlaceholder": "Optional description",
+  "opencode.profile.active": "Active",
+
+  "opencode.provider.add": "Add Provider",
+  "opencode.provider.edit": "Edit Provider",
+  "opencode.provider.delete": "Delete Provider",
+  "opencode.provider.deleteConfirm": "Are you sure you want to delete this provider?",
+  "opencode.provider.noProviders": "No providers configured. Click \"Add Provider\" to get started.",
+  "opencode.provider.dialogDescription": "Configure a provider for OpenCode",
+  "opencode.provider.id": "Provider ID",
+  "opencode.provider.npm": "NPM Package",
+  "opencode.provider.displayName": "Display Name",
+  "opencode.provider.baseUrl": "Base URL",
+  "opencode.provider.apiKey": "API Key",
+  "opencode.provider.apiKeyConfigured": "API Key configured",
+  "opencode.provider.apiKeyNotConfigured": "No API Key",
+  "opencode.provider.timeout": "Timeout (ms)",
+  "opencode.provider.template": "Template",
+  "opencode.provider.selectTemplate": "Select a template",
+  "opencode.provider.testConnection": "Test Connection",
+  "opencode.provider.testSuccess": "Connection successful",
+  "opencode.provider.testFailed": "Connection failed",
+
+  "opencode.config.status": "Target Configuration Status",
+
+  "opencode.actions.save": "Save Profile",
+  "opencode.actions.saveSuccess": "Profile saved successfully",
+  "opencode.actions.apply": "Apply Profile",
+  "opencode.actions.applyConfirm": "Apply this profile? This will update your OpenCode configuration files (opencode.json and auth.json).",
+  "opencode.actions.applySuccess": "Profile applied successfully"
 }

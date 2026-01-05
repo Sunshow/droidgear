@@ -2,7 +2,8 @@ use tauri_specta::{collect_commands, Builder};
 
 pub fn generate_bindings() -> Builder<tauri::Wry> {
     use crate::commands::{
-        channel, config, env, mcp, notifications, preferences, quick_pane, recovery, specs,
+        channel, config, env, mcp, notifications, opencode, preferences, quick_pane, recovery,
+        specs,
     };
 
     Builder::<tauri::Wry>::new().commands(collect_commands![
@@ -63,6 +64,17 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         mcp::save_mcp_server,
         mcp::delete_mcp_server,
         mcp::toggle_mcp_server,
+        opencode::list_opencode_profiles,
+        opencode::get_opencode_profile,
+        opencode::save_opencode_profile,
+        opencode::delete_opencode_profile,
+        opencode::duplicate_opencode_profile,
+        opencode::create_default_profile,
+        opencode::get_active_opencode_profile_id,
+        opencode::apply_opencode_profile,
+        opencode::get_opencode_config_status,
+        opencode::get_opencode_provider_templates,
+        opencode::test_opencode_provider_connection,
     ])
 }
 

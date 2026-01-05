@@ -1,8 +1,10 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 
-type NavigationView = 'droid' | 'channels'
+type NavigationView = 'droid' | 'channels' | 'opencode'
+type ToolView = 'droid' | 'opencode'
 export type DroidSubView = 'models' | 'helpers' | 'specs' | 'mcp'
+export type OpenCodeSubView = 'providers'
 
 interface UIState {
   leftSidebarVisible: boolean
@@ -11,7 +13,9 @@ interface UIState {
   preferencesOpen: boolean
   lastQuickPaneEntry: string | null
   currentView: NavigationView
+  lastToolView: ToolView
   droidSubView: DroidSubView
+  opencodeSubView: OpenCodeSubView
   lastSpecExportPath: string | null
 
   toggleLeftSidebar: () => void
@@ -25,6 +29,7 @@ interface UIState {
   setLastQuickPaneEntry: (text: string) => void
   setCurrentView: (view: NavigationView) => void
   setDroidSubView: (view: DroidSubView) => void
+  setOpenCodeSubView: (view: OpenCodeSubView) => void
   setLastSpecExportPath: (path: string) => void
 }
 
@@ -38,7 +43,9 @@ export const useUIStore = create<UIState>()(
         preferencesOpen: false,
         lastQuickPaneEntry: null,
         currentView: 'droid',
+        lastToolView: 'droid',
         droidSubView: 'models',
+        opencodeSubView: 'providers',
         lastSpecExportPath: null,
 
         toggleLeftSidebar: () =>
@@ -93,10 +100,24 @@ export const useUIStore = create<UIState>()(
           set({ lastQuickPaneEntry: text }, undefined, 'setLastQuickPaneEntry'),
 
         setCurrentView: view =>
-          set({ currentView: view }, undefined, 'setCurrentView'),
+          set(
+            state => ({
+              currentView: view,
+              // Update lastToolView when switching to droid/opencode
+              lastToolView:
+                view === 'droid' || view === 'opencode'
+                  ? view
+                  : state.lastToolView,
+            }),
+            undefined,
+            'setCurrentView'
+          ),
 
         setDroidSubView: view =>
           set({ droidSubView: view }, undefined, 'setDroidSubView'),
+
+        setOpenCodeSubView: view =>
+          set({ opencodeSubView: view }, undefined, 'setOpenCodeSubView'),
 
         setLastSpecExportPath: path =>
           set({ lastSpecExportPath: path }, undefined, 'setLastSpecExportPath'),
@@ -105,6 +126,8 @@ export const useUIStore = create<UIState>()(
         name: 'ui-store',
         partialize: state => ({
           lastSpecExportPath: state.lastSpecExportPath,
+          currentView: state.currentView,
+          lastToolView: state.lastToolView,
         }),
       }
     ),

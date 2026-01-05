@@ -8,6 +8,7 @@ pub mod config;
 pub mod env;
 pub mod mcp;
 pub mod notifications;
+pub mod opencode;
 pub mod preferences;
 pub mod quick_pane;
 pub mod recovery;

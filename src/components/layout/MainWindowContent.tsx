@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { ModelConfigPage } from '@/components/models'
 import { DroidHelpersPage, SpecsPage, McpPage } from '@/components/droid'
+import { OpenCodeConfigPage } from '@/components/opencode'
 import { ChannelDetail, ChannelDialog } from '@/components/channels'
 import { useUIStore } from '@/store/ui-store'
 import { useChannelStore } from '@/store/channel-store'
@@ -56,6 +57,10 @@ export function MainWindowContent({
         return <McpPage />
       }
       return <DroidHelpersPage />
+    }
+
+    if (currentView === 'opencode') {
+      return <OpenCodeConfigPage />
     }
 
     // Channels view

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Server, Bot } from 'lucide-react'
+import { Server, Bot, Terminal, ChevronDown, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,14 +12,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { ChannelList, ChannelDialog } from '@/components/channels'
 import { DroidFeatureList } from '@/components/droid'
+import { OpenCodeFeatureList } from '@/components/opencode'
 import { useUIStore } from '@/store/ui-store'
 import { useChannelStore } from '@/store/channel-store'
 import { useModelStore } from '@/store/model-store'
+import { useOpenCodeStore } from '@/store/opencode-store'
 import { commands, type Channel } from '@/lib/bindings'
 
-type NavigationView = 'droid' | 'channels'
+type NavigationView = 'droid' | 'channels' | 'opencode'
 
 interface LeftSideBarProps {
   children?: React.ReactNode
@@ -36,10 +44,33 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
   const selectChannel = useChannelStore(state => state.selectChannel)
   const channelHasChanges = useChannelStore(state => state.hasChanges)
   const modelHasChanges = useModelStore(state => state.hasChanges)
+  const opencodeHasChanges = useOpenCodeStore(state => state.hasChanges)
 
   const [channelDialogOpen, setChannelDialogOpen] = useState(false)
   const [editingChannel, setEditingChannel] = useState<Channel | undefined>()
   const [pendingView, setPendingView] = useState<NavigationView | null>(null)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+
+  // Get lastToolView from store (automatically updated when switching to droid/opencode)
+  const lastToolView = useUIStore(state => state.lastToolView)
+
+  // Shared content for tool button
+  const toolButtonContent = (
+    <>
+      {lastToolView === 'opencode' ? (
+        <>
+          <Terminal className="h-4 w-4 mr-2" />
+          {t('sidebar.opencode')}
+        </>
+      ) : (
+        <>
+          <Bot className="h-4 w-4 mr-2" />
+          {t('sidebar.droid')}
+        </>
+      )}
+      <ChevronDown className="h-3 w-3 ml-1" />
+    </>
+  )
 
   const handleViewChange = (view: NavigationView) => {
     if (view === currentView) return
@@ -47,7 +78,8 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
     // Check if current view has unsaved changes
     const hasUnsavedChanges =
       (currentView === 'droid' && modelHasChanges) ||
-      (currentView === 'channels' && channelHasChanges)
+      (currentView === 'channels' && channelHasChanges) ||
+      (currentView === 'opencode' && opencodeHasChanges)
 
     if (hasUnsavedChanges) {
       setPendingView(view)
@@ -59,8 +91,10 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
   const handleSaveAndSwitch = async () => {
     if (currentView === 'droid') {
       await useModelStore.getState().saveModels()
-    } else {
+    } else if (currentView === 'channels') {
       await useChannelStore.getState().saveChannels()
+    } else if (currentView === 'opencode') {
+      await useOpenCodeStore.getState().saveProfile()
     }
     if (pendingView) {
       setCurrentView(pendingView)
@@ -71,8 +105,10 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
   const handleDiscardAndSwitch = () => {
     if (currentView === 'droid') {
       useModelStore.getState().resetChanges()
-    } else {
+    } else if (currentView === 'channels') {
       useChannelStore.getState().resetChanges()
+    } else if (currentView === 'opencode') {
+      useOpenCodeStore.getState().resetChanges()
     }
     if (pendingView) {
       setCurrentView(pendingView)
@@ -142,23 +178,64 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
           <Server className="h-4 w-4 mr-2" />
           {t('sidebar.channels')}
         </Button>
-        <Button
-          variant={currentView === 'droid' ? 'secondary' : 'ghost'}
-          size="sm"
-          className="flex-1"
-          onClick={() => handleViewChange('droid')}
-        >
-          <Bot className="h-4 w-4 mr-2" />
-          {t('sidebar.droid')}
-        </Button>
+
+        {/* Droid/OpenCode Switcher - conditional rendering based on current view */}
+        {currentView === 'channels' ? (
+          // Simple button when in Channels - direct switch to lastToolView
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex-1"
+            onClick={() => handleViewChange(lastToolView)}
+          >
+            {toolButtonContent}
+          </Button>
+        ) : (
+          // Dropdown menu when in Droid/OpenCode - allow switching between tools
+          <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary" size="sm" className="flex-1">
+                {toolButtonContent}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem
+                onClick={() => {
+                  handleViewChange('droid')
+                  setDropdownOpen(false)
+                }}
+              >
+                <Bot className="h-4 w-4 mr-2" />
+                {t('sidebar.droid')}
+                {lastToolView === 'droid' && (
+                  <Check className="h-4 w-4 ml-auto" />
+                )}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  handleViewChange('opencode')
+                  setDropdownOpen(false)
+                }}
+              >
+                <Terminal className="h-4 w-4 mr-2" />
+                {t('sidebar.opencode')}
+                {lastToolView === 'opencode' && (
+                  <Check className="h-4 w-4 ml-auto" />
+                )}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       {/* Content based on view */}
       <div className="flex-1 overflow-hidden">
         {currentView === 'channels' ? (
           <ChannelList onAddChannel={handleAddChannel} />
-        ) : (
+        ) : currentView === 'droid' ? (
           <DroidFeatureList />
+        ) : (
+          <OpenCodeFeatureList />
         )}
       </div>
 
