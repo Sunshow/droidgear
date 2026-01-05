@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils'
  * Sidebar defaults + main default must equal 100.
  */
 const LAYOUT = {
-  leftSidebar: { default: 20, min: 15, max: 40 },
+  leftSidebar: { default: 22, min: 22, max: 40 },
   rightSidebar: { default: 20, min: 15, max: 40 },
   main: { min: 30 },
 } as const

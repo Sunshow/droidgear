@@ -15,9 +15,9 @@
       {
         "label": "main",
         "title": "DroidGear",
-        "width": 1050,
+        "width": 1150,
         "height": 700,
-        "minWidth": 1050,
+        "minWidth": 1150,
         "minHeight": 700,
         "resizable": true,
         "fullscreen": false,
