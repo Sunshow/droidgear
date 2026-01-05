@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.1.4
+
+**New Features / 新功能**
+
+- Add OpenCode support for AI development / 添加 OpenCode 支持，用于 AI 开发
+- Load and save OpenCode providers/auth to profiles / 加载和保存 OpenCode 服务商/认证到配置文件
+- Click Spec title to rename / 点击规格标题可重命名
+- Use resizable dialog for OpenCode provider / OpenCode 服务商使用可调整大小的对话框
+
+**Bug Fixes / 问题修复**
+
+- Fix window size and tab width issues / 修复窗口大小和标签宽度问题
+- Fix spec render causing window overflow / 修复规格渲染导致窗口溢出
+- Fix try skip login behavior changed / 修复尝试跳过登录行为变更
+
 ## v0.1.3
 
 **New Features / 新功能**

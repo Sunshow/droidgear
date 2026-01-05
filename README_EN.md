@@ -86,6 +86,21 @@ DroidGear values your privacy. Your username, password, API keys, and other sens
 
 ## Changelog
 
+### v0.1.4
+
+**New Features**
+
+- Add OpenCode support for AI development
+- Load and save OpenCode providers/auth to profiles
+- Click Spec title to rename
+- Use resizable dialog for OpenCode provider
+
+**Bug Fixes**
+
+- Fix window size and tab width issues
+- Fix spec render causing window overflow
+- Fix try skip login behavior changed
+
 ### v0.1.3
 
 **New Features**

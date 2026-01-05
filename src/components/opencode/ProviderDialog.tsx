@@ -5,13 +5,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  ResizableDialog,
+  ResizableDialogContent,
+  ResizableDialogDescription,
+  ResizableDialogFooter,
+  ResizableDialogHeader,
+  ResizableDialogBody,
+  ResizableDialogTitle,
+} from '@/components/ui/resizable-dialog'
 import {
   Select,
   SelectContent,
@@ -139,140 +140,147 @@ export function ProviderDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>
+    <ResizableDialog open={open} onOpenChange={onOpenChange}>
+      <ResizableDialogContent
+        defaultWidth={600}
+        defaultHeight={580}
+        minWidth={500}
+        minHeight={400}
+      >
+        <ResizableDialogHeader>
+          <ResizableDialogTitle>
             {isEditing
               ? t('opencode.provider.edit')
               : t('opencode.provider.add')}
-          </DialogTitle>
-          <DialogDescription>
+          </ResizableDialogTitle>
+          <ResizableDialogDescription>
             {t('opencode.provider.dialogDescription')}
-          </DialogDescription>
-        </DialogHeader>
+          </ResizableDialogDescription>
+        </ResizableDialogHeader>
 
-        <div className="space-y-4 py-4">
-          {/* Template Selection */}
-          {!isEditing && providerTemplates.length > 0 && (
+        <ResizableDialogBody>
+          <div className="space-y-4">
+            {/* Template Selection */}
+            {!isEditing && providerTemplates.length > 0 && (
+              <div className="space-y-2">
+                <Label>{t('opencode.provider.template')}</Label>
+                <Select onValueChange={handleTemplateSelect}>
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={t('opencode.provider.selectTemplate')}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {providerTemplates.map(template => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Provider ID */}
             <div className="space-y-2">
-              <Label>{t('opencode.provider.template')}</Label>
-              <Select onValueChange={handleTemplateSelect}>
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={t('opencode.provider.selectTemplate')}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {providerTemplates.map(template => (
-                    <SelectItem key={template.id} value={template.id}>
-                      {template.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>{t('opencode.provider.id')} *</Label>
+              <Input
+                value={providerId}
+                onChange={e => setProviderId(e.target.value)}
+                placeholder="anthropic"
+                disabled={isEditing}
+              />
             </div>
-          )}
 
-          {/* Provider ID */}
-          <div className="space-y-2">
-            <Label>{t('opencode.provider.id')} *</Label>
-            <Input
-              value={providerId}
-              onChange={e => setProviderId(e.target.value)}
-              placeholder="anthropic"
-              disabled={isEditing}
-            />
+            {/* Display Name */}
+            <div className="space-y-2">
+              <Label>{t('opencode.provider.displayName')}</Label>
+              <Input
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="Anthropic"
+              />
+            </div>
+
+            {/* NPM Package */}
+            <div className="space-y-2">
+              <Label>{t('opencode.provider.npm')}</Label>
+              <Input
+                value={npm}
+                onChange={e => setNpm(e.target.value)}
+                placeholder="@ai-sdk/openai-compatible"
+              />
+            </div>
+
+            {/* Base URL */}
+            <div className="space-y-2">
+              <Label>{t('opencode.provider.baseUrl')}</Label>
+              <Input
+                value={baseUrl}
+                onChange={e => setBaseUrl(e.target.value)}
+                placeholder="https://api.anthropic.com"
+              />
+            </div>
+
+            {/* API Key */}
+            <div className="space-y-2">
+              <Label>{t('opencode.provider.apiKey')}</Label>
+              <Input
+                type="password"
+                value={apiKey}
+                onChange={e => setApiKey(e.target.value)}
+                placeholder="sk-ant-..."
+              />
+            </div>
+
+            {/* Timeout */}
+            <div className="space-y-2">
+              <Label>{t('opencode.provider.timeout')}</Label>
+              <Input
+                type="number"
+                value={timeout}
+                onChange={e => setTimeout(e.target.value)}
+                placeholder="300000"
+              />
+            </div>
+
+            {/* Test Connection */}
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleTestConnection}
+                disabled={!providerId || !baseUrl || !apiKey || isTesting}
+              >
+                {isTesting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {t('opencode.provider.testConnection')}
+              </Button>
+              {testResult === 'success' && (
+                <span className="flex items-center text-sm text-green-600">
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  {t('opencode.provider.testSuccess')}
+                </span>
+              )}
+              {testResult === 'error' && (
+                <span className="flex items-center text-sm text-destructive">
+                  <XCircle className="h-4 w-4 mr-1" />
+                  {t('opencode.provider.testFailed')}
+                </span>
+              )}
+            </div>
           </div>
+        </ResizableDialogBody>
 
-          {/* Display Name */}
-          <div className="space-y-2">
-            <Label>{t('opencode.provider.displayName')}</Label>
-            <Input
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="Anthropic"
-            />
-          </div>
-
-          {/* NPM Package */}
-          <div className="space-y-2">
-            <Label>{t('opencode.provider.npm')}</Label>
-            <Input
-              value={npm}
-              onChange={e => setNpm(e.target.value)}
-              placeholder="@ai-sdk/openai-compatible"
-            />
-          </div>
-
-          {/* Base URL */}
-          <div className="space-y-2">
-            <Label>{t('opencode.provider.baseUrl')}</Label>
-            <Input
-              value={baseUrl}
-              onChange={e => setBaseUrl(e.target.value)}
-              placeholder="https://api.anthropic.com"
-            />
-          </div>
-
-          {/* API Key */}
-          <div className="space-y-2">
-            <Label>{t('opencode.provider.apiKey')}</Label>
-            <Input
-              type="password"
-              value={apiKey}
-              onChange={e => setApiKey(e.target.value)}
-              placeholder="sk-ant-..."
-            />
-          </div>
-
-          {/* Timeout */}
-          <div className="space-y-2">
-            <Label>{t('opencode.provider.timeout')}</Label>
-            <Input
-              type="number"
-              value={timeout}
-              onChange={e => setTimeout(e.target.value)}
-              placeholder="300000"
-            />
-          </div>
-
-          {/* Test Connection */}
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleTestConnection}
-              disabled={!providerId || !baseUrl || !apiKey || isTesting}
-            >
-              {isTesting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {t('opencode.provider.testConnection')}
-            </Button>
-            {testResult === 'success' && (
-              <span className="flex items-center text-sm text-green-600">
-                <CheckCircle className="h-4 w-4 mr-1" />
-                {t('opencode.provider.testSuccess')}
-              </span>
-            )}
-            {testResult === 'error' && (
-              <span className="flex items-center text-sm text-destructive">
-                <XCircle className="h-4 w-4 mr-1" />
-                {t('opencode.provider.testFailed')}
-              </span>
-            )}
-          </div>
-        </div>
-
-        <DialogFooter>
+        <ResizableDialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t('common.cancel')}
           </Button>
           <Button onClick={handleSave} disabled={!providerId.trim()}>
             {t('common.save')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResizableDialogFooter>
+      </ResizableDialogContent>
+    </ResizableDialog>
   )
 }
