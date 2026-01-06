@@ -51,7 +51,10 @@ import {
   inferProviderForNewApi,
   getBaseUrlForNewApi,
 } from '@/lib/newapi-platform'
-import { containsBrackets, getDefaultMaxOutputTokens } from '@/lib/utils'
+import {
+  containsRegexSpecialChars,
+  getDefaultMaxOutputTokens,
+} from '@/lib/utils'
 
 const channelTypeI18nKeys: Record<ChannelType, string> = {
   'new-api': 'channels.typeNewApi',
@@ -320,7 +323,7 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
                       onChange={e => setPrefix(e.target.value)}
                       placeholder={t('models.prefixPlaceholder')}
                     />
-                    {containsBrackets(prefix) && (
+                    {containsRegexSpecialChars(prefix) && (
                       <p className="text-sm text-destructive">
                         {t('validation.bracketsNotAllowed')}
                       </p>
@@ -334,7 +337,7 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
                       onChange={e => setSuffix(e.target.value)}
                       placeholder={t('models.suffixPlaceholder')}
                     />
-                    {containsBrackets(suffix) && (
+                    {containsRegexSpecialChars(suffix) && (
                       <p className="text-sm text-destructive">
                         {t('validation.bracketsNotAllowed')}
                       </p>
@@ -447,7 +450,9 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
                                   }
                                   placeholder={t('models.aliasPlaceholder')}
                                 />
-                                {containsBrackets(modelConfig?.alias ?? '') && (
+                                {containsRegexSpecialChars(
+                                  modelConfig?.alias ?? ''
+                                ) && (
                                   <p className="text-xs text-destructive">
                                     {t('validation.bracketsNotAllowed')}
                                   </p>

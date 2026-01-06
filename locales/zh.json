@@ -371,7 +371,7 @@
   "update.completed": "更新成功！\n\n是否立即重启应用以使用新版本？",
   "update.failed": "更新失败：自动下载出现问题。\n\n{{error}}",
 
-  "validation.bracketsNotAllowed": "不建议使用中括号 [ ]，可能导致不可预期的问题",
+  "validation.bracketsNotAllowed": "不建议使用可能影响正则表达式的特殊字符，可能导致不可预期的问题",
 
   "sidebar.opencode": "OpenCode",
 

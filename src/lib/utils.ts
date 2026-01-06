@@ -5,8 +5,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function containsBrackets(value: string): boolean {
-  return /[[\]]/.test(value)
+export function containsRegexSpecialChars(value: string): boolean {
+  return /[[\](){}^$.*+?|\\]/.test(value)
 }
 
 export function getDefaultMaxOutputTokens(modelId: string): number {
