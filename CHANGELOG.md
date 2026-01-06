@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.1.5
+
+**New Features / 新功能**
+
+- Add tips about websearch tool-call issue if skip login / 添加跳过登录时 websearch 工具调用问题的提示
+- Add environment variable conflict hinter / 添加环境变量冲突提示
+- Use toast instead of confirm while check update / 检查更新时使用 toast 代替确认框
+
+**Bug Fixes / 问题修复**
+
+- Prevent the use of system model names / 禁止使用系统模型名称
+- Add more special chars for droid display name / 为 Droid 显示名称添加更多特殊字符支持
+- Fix scroll top if switch spec / 修复切换规格时滚动到顶部
+- Fix wrong command in windows / 修复 Windows 下的错误命令
+- Disable autoCorrect autoComplete autoCapitalize spellCheck / 禁用自动更正、自动完成、自动大写和拼写检查
+
 ## v0.1.4
 
 **New Features / 新功能**

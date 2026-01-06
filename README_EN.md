@@ -86,6 +86,22 @@ DroidGear values your privacy. Your username, password, API keys, and other sens
 
 ## Changelog
 
+### v0.1.5
+
+**New Features**
+
+- Add tips about websearch tool-call issue if skip login
+- Add environment variable conflict hinter
+- Use toast instead of confirm while check update
+
+**Bug Fixes**
+
+- Prevent the use of system model names
+- Add more special chars for droid display name
+- Fix scroll top if switch spec
+- Fix wrong command in windows
+- Disable autoCorrect autoComplete autoCapitalize spellCheck
+
 ### v0.1.4
 
 **New Features**
