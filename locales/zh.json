@@ -363,6 +363,8 @@
   "quickPane.placeholder": "输入文本...",
 
   "update.available": "有可用更新：{{version}}\n\n是否立即安装此更新？",
+  "update.availableNotification": "有可用更新：v{{version}}",
+  "update.viewDetails": "查看详情",
   "update.downloading": "正在下载 {{size}} 字节",
   "update.progress": "已下载：{{size}} 字节",
   "update.installing": "下载完成，正在安装...",

@@ -6,6 +6,11 @@ type ToolView = 'droid' | 'opencode'
 export type DroidSubView = 'models' | 'helpers' | 'specs' | 'mcp'
 export type OpenCodeSubView = 'providers'
 
+export interface PendingUpdate {
+  version: string
+  body?: string
+}
+
 interface UIState {
   leftSidebarVisible: boolean
   rightSidebarVisible: boolean
@@ -17,6 +22,7 @@ interface UIState {
   droidSubView: DroidSubView
   opencodeSubView: OpenCodeSubView
   lastSpecExportPath: string | null
+  pendingUpdate: PendingUpdate | null
 
   toggleLeftSidebar: () => void
   setLeftSidebarVisible: (visible: boolean) => void
@@ -31,6 +37,8 @@ interface UIState {
   setDroidSubView: (view: DroidSubView) => void
   setOpenCodeSubView: (view: OpenCodeSubView) => void
   setLastSpecExportPath: (path: string) => void
+  setPendingUpdate: (update: PendingUpdate | null) => void
+  clearPendingUpdate: () => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -47,6 +55,7 @@ export const useUIStore = create<UIState>()(
         droidSubView: 'models',
         opencodeSubView: 'providers',
         lastSpecExportPath: null,
+        pendingUpdate: null,
 
         toggleLeftSidebar: () =>
           set(
@@ -121,6 +130,12 @@ export const useUIStore = create<UIState>()(
 
         setLastSpecExportPath: path =>
           set({ lastSpecExportPath: path }, undefined, 'setLastSpecExportPath'),
+
+        setPendingUpdate: update =>
+          set({ pendingUpdate: update }, undefined, 'setPendingUpdate'),
+
+        clearPendingUpdate: () =>
+          set({ pendingUpdate: null }, undefined, 'clearPendingUpdate'),
       }),
       {
         name: 'ui-store',

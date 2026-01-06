@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { check } from '@tauri-apps/plugin-updater'
-import { relaunch } from '@tauri-apps/plugin-process'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { toast } from 'sonner'
 import { initializeCommandSystem } from './lib/commands'
 import { buildAppMenu, setupMenuLanguageListener } from './lib/menu'
 import { initializeLanguage } from './i18n/language-init'
@@ -9,6 +9,7 @@ import i18n from './i18n/config'
 import { logger } from './lib/logger'
 import { cleanupOldFiles } from './lib/recovery'
 import { commands } from './lib/tauri-bindings'
+import { useUIStore } from './store/ui-store'
 import './App.css'
 import { MainWindow } from './components/layout/MainWindow'
 import { ThemeProvider } from './components/ThemeProvider'
@@ -78,48 +79,25 @@ function App() {
         if (update) {
           logger.info(`Update available: ${update.version}`)
 
-          // Show confirmation dialog with release notes
-          const shouldUpdate = confirm(
-            i18n.t('update.available', { version: update.version }) +
-              (update.body ? `\n\n${update.body}` : '')
-          )
+          // Store update info for GeneralPane to display
+          useUIStore.getState().setPendingUpdate({
+            version: update.version,
+            body: update.body ?? undefined,
+          })
 
-          if (shouldUpdate) {
-            try {
-              // Download and install with progress logging
-              await update.downloadAndInstall(event => {
-                switch (event.event) {
-                  case 'Started':
-                    logger.info(
-                      i18n.t('update.downloading', {
-                        size: event.data.contentLength,
-                      })
-                    )
-                    break
-                  case 'Progress':
-                    logger.info(
-                      i18n.t('update.progress', {
-                        size: event.data.chunkLength,
-                      })
-                    )
-                    break
-                  case 'Finished':
-                    logger.info(i18n.t('update.installing'))
-                    break
-                }
-              })
-
-              // Ask if user wants to restart now
-              const shouldRestart = confirm(i18n.t('update.completed'))
-
-              if (shouldRestart) {
-                await relaunch()
-              }
-            } catch (updateError) {
-              logger.error(`Update installation failed: ${String(updateError)}`)
-              alert(i18n.t('update.failed', { error: String(updateError) }))
+          // Show non-blocking toast notification with action to view details
+          toast.info(
+            i18n.t('update.availableNotification', { version: update.version }),
+            {
+              duration: Infinity,
+              action: {
+                label: i18n.t('update.viewDetails'),
+                onClick: () => {
+                  useUIStore.getState().setPreferencesOpen(true)
+                },
+              },
             }
-          }
+          )
         }
       } catch (checkError) {
         logger.error(`Update check failed: ${String(checkError)}`)

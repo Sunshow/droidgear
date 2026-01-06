@@ -363,6 +363,8 @@
   "quickPane.placeholder": "Enter text...",
 
   "update.available": "Update available: {{version}}\n\nWould you like to install this update now?",
+  "update.availableNotification": "Update available: v{{version}}",
+  "update.viewDetails": "View Details",
   "update.downloading": "Downloading {{size}} bytes",
   "update.progress": "Downloaded: {{size}} bytes",
   "update.installing": "Download complete, installing...",
