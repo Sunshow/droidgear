@@ -76,6 +76,7 @@ function ModelForm({ model, onSave, onCancel }: ModelFormProps) {
 
   const handleModelIdChange = (newModelId: string) => {
     setModelId(newModelId)
+    setDisplayName(newModelId)
     if (newModelId && !maxTokens) {
       setMaxTokens(getDefaultMaxOutputTokens(newModelId).toString())
     }
@@ -121,7 +122,7 @@ function ModelForm({ model, onSave, onCancel }: ModelFormProps) {
       baseUrl: baseUrl,
       apiKey: apiKey,
       provider,
-      displayName: displayName || undefined,
+      displayName: displayName,
       maxOutputTokens: maxTokens ? parseInt(maxTokens) : undefined,
       supportsImages: supportsImages || undefined,
     }
@@ -133,6 +134,7 @@ function ModelForm({ model, onSave, onCancel }: ModelFormProps) {
     modelId &&
     baseUrl &&
     apiKey &&
+    displayName &&
     !containsRegexSpecialChars(displayName) &&
     !isOfficialModelName(displayName)
 
