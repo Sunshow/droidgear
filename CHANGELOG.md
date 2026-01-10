@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.6
+
+**New Features / 新功能**
+
+- Copy spec full path / 复制规格完整路径
+- Auto set displayName / 自动设置显示名称
+
 ## v0.1.5
 
 **New Features / 新功能**

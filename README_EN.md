@@ -86,6 +86,13 @@ DroidGear values your privacy. Your username, password, API keys, and other sens
 
 ## Changelog
 
+### v0.1.6
+
+**New Features**
+
+- Copy spec full path
+- Auto set displayName
+
 ### v0.1.5
 
 **New Features**
