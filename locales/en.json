@@ -223,6 +223,8 @@
   "droid.specs.exportSuccess": "Spec exported successfully",
   "droid.specs.copyAll": "Copy All",
   "droid.specs.copySuccess": "Spec content copied",
+  "droid.specs.copyPath": "Copy path",
+  "droid.specs.copyPathSuccess": "Path copied",
   "droid.specs.editMode": "Edit",
   "droid.specs.viewMode": "View",
   "droid.specs.saveSuccess": "Spec saved successfully",

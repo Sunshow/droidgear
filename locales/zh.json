@@ -223,6 +223,8 @@
   "droid.specs.exportSuccess": "Spec 导出成功",
   "droid.specs.copyAll": "复制全部",
   "droid.specs.copySuccess": "Spec 内容已复制",
+  "droid.specs.copyPath": "复制路径",
+  "droid.specs.copyPathSuccess": "路径已复制",
   "droid.specs.editMode": "编辑",
   "droid.specs.viewMode": "查看",
   "droid.specs.saveSuccess": "Spec 保存成功",

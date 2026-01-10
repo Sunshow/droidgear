@@ -11,6 +11,7 @@ import {
   Copy,
   Save,
   X,
+  FolderOpen,
 } from 'lucide-react'
 import { Streamdown } from 'streamdown'
 import { listen } from '@tauri-apps/api/event'
@@ -38,6 +39,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import {
   Dialog,
   DialogContent,
@@ -310,10 +316,13 @@ export function SpecsPage() {
   }
 
   // Copy handler
-  const handleCopy = async (content: string) => {
+  const handleCopy = async (
+    content: string,
+    successKey = 'droid.specs.copySuccess'
+  ) => {
     try {
       await writeText(content)
-      toast.success(t('droid.specs.copySuccess'))
+      toast.success(t(successKey))
     } catch (err) {
       toast.error(String(err))
     }
@@ -532,22 +541,56 @@ export function SpecsPage() {
                     </>
                   ) : (
                     <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleCopy(selectedSpec.content)}
-                      >
-                        <Copy className="h-4 w-4 mr-1" />
-                        {t('droid.specs.copyAll')}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleEditClick}
-                      >
-                        <Pencil className="h-4 w-4 mr-1" />
-                        {t('droid.specs.editMode')}
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() =>
+                              handleCopy(
+                                selectedSpec.path,
+                                'droid.specs.copyPathSuccess'
+                              )
+                            }
+                          >
+                            <FolderOpen className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {t('droid.specs.copyPath')}
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleCopy(selectedSpec.content)}
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {t('droid.specs.copyAll')}
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={handleEditClick}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {t('droid.specs.editMode')}
+                        </TooltipContent>
+                      </Tooltip>
                     </>
                   )}
                 </div>
