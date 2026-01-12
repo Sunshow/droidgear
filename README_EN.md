@@ -86,6 +86,12 @@ DroidGear values your privacy. Your username, password, API keys, and other sens
 
 ## Changelog
 
+### v0.1.7
+
+**New Features**
+
+- Support droid sessions
+
 ### v0.1.6
 
 **New Features**

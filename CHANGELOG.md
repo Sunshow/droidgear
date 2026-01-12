@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.7
+
+**New Features / 新功能**
+
+- Support droid sessions / 支持 Droid 会话
+
 ## v0.1.6
 
 **New Features / 新功能**
