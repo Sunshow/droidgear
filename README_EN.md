@@ -86,6 +86,14 @@ DroidGear values your privacy. Your username, password, API keys, and other sens
 
 ## Changelog
 
+### v0.1.8
+
+**New Features**
+
+- Save and restore terminal status
+- Embedded terminals support
+- More powerful session follow mode and toggle thinking expansion
+
 ### v0.1.7
 
 **New Features**

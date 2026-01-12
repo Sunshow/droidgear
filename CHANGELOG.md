@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.1.8
+
+**New Features / 新功能**
+
+- Save and restore terminal status / 保存和恢复终端状态
+- Embedded terminals support / 支持嵌入式终端
+- More powerful session follow mode and toggle thinking expansion / 更强大的会话跟随模式，支持切换思考展开状态
+
 ## v0.1.7
 
 **New Features / 新功能**
