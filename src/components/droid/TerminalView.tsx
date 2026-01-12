@@ -1,4 +1,11 @@
-import { useEffect, useRef, useCallback, useState } from 'react'
+import {
+  useEffect,
+  useRef,
+  useCallback,
+  useState,
+  forwardRef,
+  useImperativeHandle,
+} from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
@@ -13,171 +20,191 @@ interface TerminalViewProps {
   onExit?: (exitCode: number) => void
 }
 
-export function TerminalView({ terminalId, cwd, onExit }: TerminalViewProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const terminalRef = useRef<Terminal | null>(null)
-  const fitAddonRef = useRef<FitAddon | null>(null)
-  const ptyRef = useRef<IPty | null>(null)
-  const onExitRef = useRef(onExit)
-  const { theme } = useTheme()
-
-  // Keep onExit ref updated
-  useEffect(() => {
-    onExitRef.current = onExit
-  }, [onExit])
-
-  const [systemPrefersDark, setSystemPrefersDark] = useState(
-    () => window.matchMedia('(prefers-color-scheme: dark)').matches
-  )
-
-  useEffect(() => {
-    if (theme !== 'system') return
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-    const handleChange = (e: MediaQueryListEvent) => {
-      setSystemPrefersDark(e.matches)
-    }
-    mediaQuery.addEventListener('change', handleChange)
-    return () => mediaQuery.removeEventListener('change', handleChange)
-  }, [theme])
-
-  const isDark = theme === 'dark' || (theme === 'system' && systemPrefersDark)
-
-  const getThemeColors = useCallback(() => {
-    return {
-      background: isDark ? '#1e1e1e' : '#ffffff',
-      foreground: isDark ? '#d4d4d4' : '#1e1e1e',
-      cursor: isDark ? '#d4d4d4' : '#1e1e1e',
-      cursorAccent: isDark ? '#1e1e1e' : '#ffffff',
-      selectionBackground: isDark
-        ? 'rgba(255, 255, 255, 0.3)'
-        : 'rgba(0, 0, 0, 0.3)',
-    }
-  }, [isDark])
-
-  // Initialize terminal only once per terminalId
-  useEffect(() => {
-    if (!containerRef.current) return
-
-    // Compute theme colors at initialization time
-    const currentIsDark =
-      theme === 'dark' ||
-      (theme === 'system' &&
-        window.matchMedia('(prefers-color-scheme: dark)').matches)
-    const themeColors = {
-      background: currentIsDark ? '#1e1e1e' : '#ffffff',
-      foreground: currentIsDark ? '#d4d4d4' : '#1e1e1e',
-      cursor: currentIsDark ? '#d4d4d4' : '#1e1e1e',
-      cursorAccent: currentIsDark ? '#1e1e1e' : '#ffffff',
-      selectionBackground: currentIsDark
-        ? 'rgba(255, 255, 255, 0.3)'
-        : 'rgba(0, 0, 0, 0.3)',
-    }
-
-    const terminal = new Terminal({
-      cursorBlink: true,
-      fontSize: 14,
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-      theme: themeColors,
-      allowProposedApi: true,
-      scrollback: 10000,
-    })
-
-    const fitAddon = new FitAddon()
-    const webLinksAddon = new WebLinksAddon()
-
-    terminal.loadAddon(fitAddon)
-    terminal.loadAddon(webLinksAddon)
-
-    terminal.open(containerRef.current)
-    fitAddon.fit()
-
-    terminalRef.current = terminal
-    fitAddonRef.current = fitAddon
-
-    // Determine shell based on platform
-    const currentPlatform = platform()
-    const shell = currentPlatform === 'windows' ? 'powershell.exe' : '/bin/zsh'
-
-    // Get initial dimensions
-    const dims = fitAddon.proposeDimensions()
-    const cols = dims?.cols || 80
-    const rows = dims?.rows || 24
-
-    // Spawn PTY using tauri-pty
-    const pty = spawn(shell, [], {
-      cols,
-      rows,
-      cwd: cwd || undefined,
-    })
-
-    ptyRef.current = pty
-
-    // Connect PTY output to terminal
-    pty.onData(data => {
-      terminal.write(data)
-    })
-
-    // Connect terminal input to PTY
-    terminal.onData(data => {
-      pty.write(data)
-    })
-
-    // Handle PTY exit
-    pty.onExit(({ exitCode }) => {
-      terminal.write(`\r\n[Process exited with code ${exitCode}]\r\n`)
-      onExitRef.current?.(exitCode)
-    })
-
-    // Handle resize
-    const container = containerRef.current
-    const resizeObserver = new ResizeObserver(() => {
-      if (fitAddonRef.current && ptyRef.current) {
-        fitAddonRef.current.fit()
-        const newDims = fitAddonRef.current.proposeDimensions()
-        if (newDims) {
-          ptyRef.current.resize(newDims.cols, newDims.rows)
-        }
-      }
-    })
-
-    resizeObserver.observe(container)
-
-    // Initial resize after a short delay
-    setTimeout(() => {
-      if (fitAddonRef.current && ptyRef.current) {
-        fitAddonRef.current.fit()
-        const newDims = fitAddonRef.current.proposeDimensions()
-        if (newDims) {
-          ptyRef.current.resize(newDims.cols, newDims.rows)
-        }
-      }
-    }, 100)
-
-    return () => {
-      resizeObserver.disconnect()
-      pty.kill()
-      terminal.dispose()
-      terminalRef.current = null
-      fitAddonRef.current = null
-      ptyRef.current = null
-    }
-  }, [terminalId, cwd, theme])
-
-  // Update theme when it changes
-  useEffect(() => {
-    if (terminalRef.current) {
-      terminalRef.current.options.theme = getThemeColors()
-    }
-  }, [getThemeColors])
-
-  return (
-    <div
-      ref={containerRef}
-      className="h-full w-full"
-      style={{
-        padding: '8px',
-        backgroundColor: isDark ? '#1e1e1e' : '#ffffff',
-      }}
-    />
-  )
+export interface TerminalViewRef {
+  focus: () => void
 }
+
+export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
+  function TerminalView({ cwd, onExit }, ref) {
+    const containerRef = useRef<HTMLDivElement>(null)
+    const terminalRef = useRef<Terminal | null>(null)
+    const fitAddonRef = useRef<FitAddon | null>(null)
+    const ptyRef = useRef<IPty | null>(null)
+    const onExitRef = useRef(onExit)
+    const initialCwdRef = useRef(cwd)
+    const isInitializedRef = useRef(false)
+    const { theme } = useTheme()
+
+    // Expose focus method to parent
+    useImperativeHandle(ref, () => ({
+      focus: () => {
+        terminalRef.current?.focus()
+      },
+    }))
+
+    // Keep onExit ref updated
+    useEffect(() => {
+      onExitRef.current = onExit
+    }, [onExit])
+
+    const [systemPrefersDark, setSystemPrefersDark] = useState(
+      () => window.matchMedia('(prefers-color-scheme: dark)').matches
+    )
+
+    useEffect(() => {
+      if (theme !== 'system') return
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+      const handleChange = (e: MediaQueryListEvent) => {
+        setSystemPrefersDark(e.matches)
+      }
+      mediaQuery.addEventListener('change', handleChange)
+      return () => mediaQuery.removeEventListener('change', handleChange)
+    }, [theme])
+
+    const isDark = theme === 'dark' || (theme === 'system' && systemPrefersDark)
+
+    const getThemeColors = useCallback(() => {
+      return {
+        background: isDark ? '#1e1e1e' : '#ffffff',
+        foreground: isDark ? '#d4d4d4' : '#1e1e1e',
+        cursor: isDark ? '#d4d4d4' : '#1e1e1e',
+        cursorAccent: isDark ? '#1e1e1e' : '#ffffff',
+        selectionBackground: isDark
+          ? 'rgba(255, 255, 255, 0.3)'
+          : 'rgba(0, 0, 0, 0.3)',
+      }
+    }, [isDark])
+
+    // Initialize terminal only once when component mounts
+    useEffect(() => {
+      // Skip if already initialized
+      if (isInitializedRef.current) return
+      if (!containerRef.current) return
+      isInitializedRef.current = true
+
+      // Compute theme colors at initialization time
+      const currentIsDark =
+        theme === 'dark' ||
+        (theme === 'system' &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches)
+      const themeColors = {
+        background: currentIsDark ? '#1e1e1e' : '#ffffff',
+        foreground: currentIsDark ? '#d4d4d4' : '#1e1e1e',
+        cursor: currentIsDark ? '#d4d4d4' : '#1e1e1e',
+        cursorAccent: currentIsDark ? '#1e1e1e' : '#ffffff',
+        selectionBackground: currentIsDark
+          ? 'rgba(255, 255, 255, 0.3)'
+          : 'rgba(0, 0, 0, 0.3)',
+      }
+
+      const terminal = new Terminal({
+        cursorBlink: true,
+        fontSize: 14,
+        fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+        theme: themeColors,
+        allowProposedApi: true,
+        scrollback: 10000,
+      })
+
+      const fitAddon = new FitAddon()
+      const webLinksAddon = new WebLinksAddon()
+
+      terminal.loadAddon(fitAddon)
+      terminal.loadAddon(webLinksAddon)
+
+      terminal.open(containerRef.current)
+      fitAddon.fit()
+
+      terminalRef.current = terminal
+      fitAddonRef.current = fitAddon
+
+      // Determine shell based on platform
+      const currentPlatform = platform()
+      const shell =
+        currentPlatform === 'windows' ? 'powershell.exe' : '/bin/zsh'
+
+      // Get initial dimensions
+      const dims = fitAddon.proposeDimensions()
+      const cols = dims?.cols || 80
+      const rows = dims?.rows || 24
+
+      // Spawn PTY using tauri-pty with initial cwd from ref
+      const pty = spawn(shell, [], {
+        cols,
+        rows,
+        cwd: initialCwdRef.current || undefined,
+      })
+
+      ptyRef.current = pty
+
+      // Connect PTY output to terminal
+      pty.onData(data => {
+        terminal.write(data)
+      })
+
+      // Connect terminal input to PTY
+      terminal.onData(data => {
+        pty.write(data)
+      })
+
+      // Handle PTY exit
+      pty.onExit(({ exitCode }) => {
+        terminal.write(`\r\n[Process exited with code ${exitCode}]\r\n`)
+        onExitRef.current?.(exitCode)
+      })
+
+      // Handle resize
+      const container = containerRef.current
+      const resizeObserver = new ResizeObserver(() => {
+        if (fitAddonRef.current && ptyRef.current) {
+          fitAddonRef.current.fit()
+          const newDims = fitAddonRef.current.proposeDimensions()
+          if (newDims) {
+            ptyRef.current.resize(newDims.cols, newDims.rows)
+          }
+        }
+      })
+
+      resizeObserver.observe(container)
+
+      // Initial resize after a short delay
+      setTimeout(() => {
+        if (fitAddonRef.current && ptyRef.current) {
+          fitAddonRef.current.fit()
+          const newDims = fitAddonRef.current.proposeDimensions()
+          if (newDims) {
+            ptyRef.current.resize(newDims.cols, newDims.rows)
+          }
+        }
+      }, 100)
+
+      return () => {
+        resizeObserver.disconnect()
+        pty.kill()
+        terminal.dispose()
+        terminalRef.current = null
+        fitAddonRef.current = null
+        ptyRef.current = null
+        isInitializedRef.current = false
+      }
+    }, [theme])
+
+    // Update theme when it changes
+    useEffect(() => {
+      if (terminalRef.current) {
+        terminalRef.current.options.theme = getThemeColors()
+      }
+    }, [getThemeColors])
+
+    return (
+      <div
+        ref={containerRef}
+        className="h-full w-full"
+        style={{
+          padding: '8px',
+          backgroundColor: isDark ? '#1e1e1e' : '#ffffff',
+        }}
+      />
+    )
+  }
+)

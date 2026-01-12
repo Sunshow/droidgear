@@ -53,22 +53,15 @@ export function MainWindowContent({
     if (children) return children
 
     if (currentView === 'droid') {
-      if (droidSubView === 'models') {
-        return <ModelConfigPage />
-      }
-      if (droidSubView === 'specs') {
-        return <SpecsPage />
-      }
-      if (droidSubView === 'mcp') {
-        return <McpPage />
-      }
-      if (droidSubView === 'sessions') {
-        return <SessionsPage />
-      }
-      if (droidSubView === 'terminal') {
-        return <TerminalPage />
-      }
-      return <DroidHelpersPage />
+      return (
+        <>
+          {droidSubView === 'models' && <ModelConfigPage />}
+          {droidSubView === 'specs' && <SpecsPage />}
+          {droidSubView === 'mcp' && <McpPage />}
+          {droidSubView === 'sessions' && <SessionsPage />}
+          {droidSubView === 'helpers' && <DroidHelpersPage />}
+        </>
+      )
     }
 
     if (currentView === 'opencode') {
@@ -98,8 +91,19 @@ export function MainWindowContent({
   }
 
   return (
-    <div className={cn('flex h-full flex-col bg-background', className)}>
+    <div
+      className={cn('flex h-full flex-col bg-background relative', className)}
+    >
       {renderContent()}
+      {/* Terminal is always mounted across all views, hidden when not active */}
+      <div
+        className={cn(
+          !(currentView === 'droid' && droidSubView === 'terminal') && 'hidden',
+          'absolute inset-0 bg-background'
+        )}
+      >
+        <TerminalPage />
+      </div>
     </div>
   )
 }

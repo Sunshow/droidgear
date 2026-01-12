@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Plus,
@@ -8,10 +8,11 @@ import {
   Circle,
   Pencil,
   FolderOpen,
+  Copy,
 } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-dialog'
+import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Input } from '@/components/ui/input'
 import {
   Tooltip,
@@ -25,7 +26,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
 import { cn } from '@/lib/utils'
-import { TerminalView } from './TerminalView'
+import { TerminalView, type TerminalViewRef } from './TerminalView'
 import { useTerminalStore } from '@/store/terminal-store'
 
 export function TerminalPage() {
@@ -45,6 +46,17 @@ export function TerminalPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
+  const terminalRefs = useRef<Map<string, TerminalViewRef>>(new Map())
+
+  // Focus terminal when selection changes
+  useEffect(() => {
+    if (selectedTerminalId) {
+      // Small delay to ensure terminal is visible
+      setTimeout(() => {
+        terminalRefs.current.get(selectedTerminalId)?.focus()
+      }, 50)
+    }
+  }, [selectedTerminalId])
 
   const handleCreateTerminal = () => {
     createTerminal()
@@ -113,8 +125,6 @@ export function TerminalPage() {
     }
   }
 
-  const selectedTerminal = terminals.find(t => t.id === selectedTerminalId)
-
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -145,9 +155,9 @@ export function TerminalPage() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Terminal List */}
-        <div className="w-56 border-r flex flex-col">
-          <ScrollArea className="flex-1">
-            <div className="p-2 space-y-1">
+        <div className="w-56 border-r flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-2 flex flex-col gap-1.5">
               {terminals.length === 0 ? (
                 <div className="text-center text-muted-foreground text-sm py-8">
                   {t('droid.terminal.noTerminals')}
@@ -159,7 +169,7 @@ export function TerminalPage() {
                       <button
                         onClick={() => selectTerminal(terminal.id)}
                         className={cn(
-                          'w-full text-start p-2 rounded-md hover:bg-accent transition-colors',
+                          'w-full text-start p-2 rounded-lg hover:bg-accent transition-colors overflow-hidden',
                           selectedTerminalId === terminal.id && 'bg-accent'
                         )}
                       >
@@ -200,6 +210,14 @@ export function TerminalPage() {
                         <Pencil className="h-4 w-4 mr-2" />
                         {t('droid.terminal.rename')}
                       </ContextMenuItem>
+                      {terminal.cwd && (
+                        <ContextMenuItem
+                          onClick={() => writeText(terminal.cwd)}
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                          {t('droid.terminal.copyPath')}
+                        </ContextMenuItem>
+                      )}
                       <ContextMenuItem
                         onClick={() => handleCloseTerminal(terminal.id)}
                         className="text-destructive"
@@ -212,20 +230,34 @@ export function TerminalPage() {
                 ))
               )}
             </div>
-          </ScrollArea>
+          </div>
         </div>
 
         {/* Terminal View */}
         <div className="flex-1 flex flex-col min-w-0">
-          {selectedTerminal ? (
-            <TerminalView
-              key={selectedTerminal.id}
-              terminalId={selectedTerminal.id}
-              cwd={selectedTerminal.cwd || undefined}
-              onExit={exitCode =>
-                handleTerminalExit(selectedTerminal.id, exitCode)
-              }
-            />
+          {terminals.length > 0 ? (
+            terminals.map(terminal => (
+              <div
+                key={terminal.id}
+                className={cn(
+                  'h-full w-full',
+                  terminal.id !== selectedTerminalId && 'hidden'
+                )}
+              >
+                <TerminalView
+                  ref={ref => {
+                    if (ref) {
+                      terminalRefs.current.set(terminal.id, ref)
+                    } else {
+                      terminalRefs.current.delete(terminal.id)
+                    }
+                  }}
+                  terminalId={terminal.id}
+                  cwd={terminal.cwd || undefined}
+                  onExit={exitCode => handleTerminalExit(terminal.id, exitCode)}
+                />
+              </div>
+            ))
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
               <p>{t('droid.terminal.selectOrCreate')}</p>
