@@ -99,7 +99,7 @@ export function MainWindowContent({
       <div
         className={cn(
           !(currentView === 'droid' && droidSubView === 'terminal') && 'hidden',
-          'absolute inset-0 bg-background'
+          'absolute inset-0'
         )}
       >
         <TerminalPage />

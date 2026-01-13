@@ -329,7 +329,7 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
         ref={containerRef}
         className="h-full w-full"
         style={{
-          padding: '8px',
+          padding: '8px 8px 16px 8px',
           backgroundColor: isDark ? '#1e1e1e' : '#ffffff',
         }}
       />

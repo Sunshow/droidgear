@@ -253,6 +253,7 @@ function ModelForm({ model, onSave, onCancel }: ModelFormProps) {
               value={maxTokens}
               onChange={e => setMaxTokens(e.target.value)}
               placeholder="8192"
+              step={8192}
             />
           </div>
 
