@@ -15,6 +15,7 @@ interface TerminalState {
   terminals: TerminalInstance[]
   selectedTerminalId: string | null
   terminalForceDark: boolean
+  terminalCopyOnSelect: boolean
 
   // Actions
   createTerminal: (name?: string, cwd?: string) => string
@@ -25,6 +26,7 @@ interface TerminalState {
   setTerminalNotification: (id: string, hasNotification: boolean) => void
   clearNotification: (id: string) => void
   setTerminalForceDark: (forceDark: boolean) => void
+  setTerminalCopyOnSelect: (enabled: boolean) => void
 }
 
 let terminalCounter = 0
@@ -36,6 +38,7 @@ export const useTerminalStore = create<TerminalState>()(
         terminals: [],
         selectedTerminalId: null,
         terminalForceDark: true,
+        terminalCopyOnSelect: false,
 
         createTerminal: (name?: string, cwd?: string) => {
           // Sync counter with existing terminals to avoid ID conflicts
@@ -152,6 +155,14 @@ export const useTerminalStore = create<TerminalState>()(
             'setTerminalForceDark'
           )
         },
+
+        setTerminalCopyOnSelect: (enabled: boolean) => {
+          set(
+            { terminalCopyOnSelect: enabled },
+            undefined,
+            'setTerminalCopyOnSelect'
+          )
+        },
       }),
       {
         name: 'terminal-store',
@@ -166,6 +177,7 @@ export const useTerminalStore = create<TerminalState>()(
           })),
           selectedTerminalId: state.selectedTerminalId,
           terminalForceDark: state.terminalForceDark,
+          terminalCopyOnSelect: state.terminalCopyOnSelect,
         }),
       }
     ),

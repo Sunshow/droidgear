@@ -260,6 +260,7 @@
   "droid.terminal.copyPath": "Copy Path",
   "droid.terminal.close": "Close",
   "droid.terminal.forceDark": "Force Dark Mode",
+  "droid.terminal.copyOnSelect": "Copy on Select",
 
   "mcp.title": "MCP Server Management",
   "mcp.noServers": "No MCP servers configured",

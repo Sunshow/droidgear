@@ -11,6 +11,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import '@xterm/xterm/css/xterm.css'
 import { spawn, type IPty } from 'tauri-pty'
+import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 import { useTheme } from '@/hooks/use-theme'
 import { platform } from '@tauri-apps/plugin-os'
 import { usePreferences } from '@/services/preferences'
@@ -22,6 +23,7 @@ interface TerminalViewProps {
   terminalId: string
   cwd?: string
   forceDark?: boolean
+  copyOnSelect?: boolean
   onExit?: (exitCode: number) => void
 }
 
@@ -31,7 +33,10 @@ export interface TerminalViewRef {
 }
 
 export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
-  function TerminalView({ terminalId, cwd, forceDark, onExit }, ref) {
+  function TerminalView(
+    { terminalId, cwd, forceDark, copyOnSelect, onExit },
+    ref
+  ) {
     const containerRef = useRef<HTMLDivElement>(null)
     const terminalRef = useRef<Terminal | null>(null)
     const fitAddonRef = useRef<FitAddon | null>(null)
@@ -39,6 +44,7 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
     const onExitRef = useRef(onExit)
     const initialCwdRef = useRef(cwd)
     const initialForceDarkRef = useRef(forceDark)
+    const copyOnSelectRef = useRef(copyOnSelect)
     const isInitializedRef = useRef(false)
     const { theme } = useTheme()
     const initialThemeRef = useRef(theme)
@@ -80,6 +86,11 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
     useEffect(() => {
       onExitRef.current = onExit
     }, [onExit])
+
+    // Keep copyOnSelect ref updated
+    useEffect(() => {
+      copyOnSelectRef.current = copyOnSelect
+    }, [copyOnSelect])
 
     const [systemPrefersDark, setSystemPrefersDark] = useState(
       () => window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -198,6 +209,18 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
         onExitRef.current?.(exitCode)
       })
 
+      // Handle copy on select
+      const selectionDisposable = terminal.onSelectionChange(() => {
+        if (copyOnSelectRef.current) {
+          const selection = terminal.getSelection()
+          if (selection) {
+            writeText(selection).catch(() => {
+              // Ignore clipboard errors
+            })
+          }
+        }
+      })
+
       // Handle resize
       const container = containerRef.current
       const resizeObserver = new ResizeObserver(() => {
@@ -212,6 +235,19 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
 
       resizeObserver.observe(container)
 
+      // Handle mouseup outside terminal to clear selection
+      const handleMouseDown = () => {
+        const handleMouseUp = (e: MouseEvent) => {
+          // If mouseup is outside the terminal container, clear selection
+          if (container && !container.contains(e.target as Node)) {
+            terminal.clearSelection()
+          }
+        }
+        // Add one-time listener to document
+        document.addEventListener('mouseup', handleMouseUp, { once: true })
+      }
+      container.addEventListener('mousedown', handleMouseDown)
+
       // Initial resize after a short delay
       setTimeout(() => {
         if (fitAddonRef.current && ptyRef.current) {
@@ -225,6 +261,8 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
 
       return () => {
         resizeObserver.disconnect()
+        container.removeEventListener('mousedown', handleMouseDown)
+        selectionDisposable.dispose()
         pty.kill()
         terminal.dispose()
         terminalRef.current = null

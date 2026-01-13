@@ -9,6 +9,7 @@ import {
   Copy,
   Moon,
   RotateCw,
+  ClipboardCopy,
 } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-dialog'
 import { writeText } from '@tauri-apps/plugin-clipboard-manager'
@@ -44,6 +45,12 @@ export function TerminalPage() {
   const terminalForceDark = useTerminalStore(state => state.terminalForceDark)
   const setTerminalForceDark = useTerminalStore(
     state => state.setTerminalForceDark
+  )
+  const terminalCopyOnSelect = useTerminalStore(
+    state => state.terminalCopyOnSelect
+  )
+  const setTerminalCopyOnSelect = useTerminalStore(
+    state => state.setTerminalCopyOnSelect
   )
 
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -126,6 +133,18 @@ export function TerminalPage() {
       <div className="flex items-center justify-between p-4 border-b">
         <h1 className="text-xl font-semibold">{t('droid.terminal.title')}</h1>
         <div className="flex items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-2">
+                <ClipboardCopy className="h-4 w-4 text-muted-foreground" />
+                <Switch
+                  checked={terminalCopyOnSelect}
+                  onCheckedChange={setTerminalCopyOnSelect}
+                />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>{t('droid.terminal.copyOnSelect')}</TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="flex items-center gap-2">
@@ -265,6 +284,7 @@ export function TerminalPage() {
                   terminalId={terminal.id}
                   cwd={terminal.cwd || undefined}
                   forceDark={terminalForceDark}
+                  copyOnSelect={terminalCopyOnSelect}
                   onExit={exitCode => handleTerminalExit(terminal.id, exitCode)}
                 />
               </div>
