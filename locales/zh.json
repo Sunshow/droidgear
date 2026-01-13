@@ -67,6 +67,10 @@
   "preferences.appearance.language": "语言",
   "preferences.appearance.languageDescription": "选择您喜欢的显示语言",
   "preferences.appearance.language.system": "系统默认",
+  "preferences.appearance.terminalFont": "终端字体",
+  "preferences.appearance.terminalFontDescription": "终端自定义字体（支持 Nerd Font 图标）",
+  "preferences.appearance.terminalFontPlaceholder": "选择字体",
+  "preferences.appearance.terminalFont.default": "系统默认",
 
   "preferences.advanced.title": "示例高级设置",
   "preferences.advanced.toggle": "示例高级开关",

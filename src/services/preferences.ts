@@ -28,6 +28,7 @@ export function usePreferences() {
           quick_pane_shortcut: null,
           language: null,
           skip_login_enabled: null,
+          terminal_font_family: null,
         }
       }
 

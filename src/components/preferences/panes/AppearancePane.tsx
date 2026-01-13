@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { locale } from '@tauri-apps/plugin-os'
+import { getSystemFonts } from 'tauri-plugin-system-fonts-api'
 import { toast } from 'sonner'
 import {
   Select,
@@ -25,6 +27,28 @@ export function AppearancePane() {
   const { theme, setTheme } = useTheme()
   const { data: preferences } = usePreferences()
   const savePreferences = useSavePreferences()
+  const [systemFonts, setSystemFonts] = useState<string[]>([])
+  const [fontsLoading, setFontsLoading] = useState(true)
+
+  // Load system fonts on mount
+  useEffect(() => {
+    const loadFonts = async () => {
+      try {
+        const fonts = await getSystemFonts()
+        // Extract unique font names, sort alphabetically
+        // Prefer monospaced fonts for terminal
+        const fontNames = [...new Set(fonts.map(f => f.name))].sort((a, b) =>
+          a.localeCompare(b)
+        )
+        setSystemFonts(fontNames)
+      } catch (error) {
+        logger.error('Failed to load system fonts', { error })
+      } finally {
+        setFontsLoading(false)
+      }
+    }
+    loadFonts()
+  }, [])
 
   const handleThemeChange = (value: 'light' | 'dark' | 'system') => {
     // Update the theme provider immediately for instant UI feedback
@@ -66,6 +90,21 @@ export function AppearancePane() {
 
   // Determine the current language value for the select
   const currentLanguageValue = preferences?.language ?? 'system'
+
+  // Determine the current terminal font value
+  const currentTerminalFont = preferences?.terminal_font_family ?? '__default__'
+
+  const handleTerminalFontChange = (value: string) => {
+    const fontFamily = value === '__default__' ? null : value
+
+    // Persist the font preference to disk
+    if (preferences) {
+      savePreferences.mutate({
+        ...preferences,
+        terminal_font_family: fontFamily,
+      })
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -121,6 +160,37 @@ export function AppearancePane() {
               <SelectItem value="system">
                 {t('preferences.appearance.theme.system')}
               </SelectItem>
+            </SelectContent>
+          </Select>
+        </SettingsField>
+      </SettingsSection>
+
+      <SettingsSection title={t('preferences.appearance.terminalFont')}>
+        <SettingsField
+          label={t('preferences.appearance.terminalFont')}
+          description={t('preferences.appearance.terminalFontDescription')}
+        >
+          <Select
+            value={currentTerminalFont}
+            onValueChange={handleTerminalFontChange}
+            disabled={savePreferences.isPending || fontsLoading}
+          >
+            <SelectTrigger>
+              <SelectValue
+                placeholder={t(
+                  'preferences.appearance.terminalFontPlaceholder'
+                )}
+              />
+            </SelectTrigger>
+            <SelectContent className="max-h-60">
+              <SelectItem value="__default__">
+                {t('preferences.appearance.terminalFont.default')}
+              </SelectItem>
+              {systemFonts.map(font => (
+                <SelectItem key={font} value={font}>
+                  {font}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </SettingsField>

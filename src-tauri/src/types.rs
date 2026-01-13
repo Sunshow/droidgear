@@ -41,16 +41,21 @@ pub struct AppPreferences {
     /// If None, defaults to false (disabled)
     #[serde(default)]
     pub skip_login_enabled: Option<bool>,
+    /// Custom font family for terminal (e.g., "Cascadia Mono NF")
+    /// If None, uses default monospace fonts
+    #[serde(default)]
+    pub terminal_font_family: Option<String>,
 }
 
 impl Default for AppPreferences {
     fn default() -> Self {
         Self {
             theme: "system".to_string(),
-            quick_pane_enabled: None,  // None means disabled (default)
-            quick_pane_shortcut: None, // None means use default
-            language: None,            // None means use system locale
-            skip_login_enabled: None,  // None means disabled (default)
+            quick_pane_enabled: None,   // None means disabled (default)
+            quick_pane_shortcut: None,  // None means use default
+            language: None,             // None means use system locale
+            skip_login_enabled: None,   // None means disabled (default)
+            terminal_font_family: None, // None means use default fonts
         }
     }
 }

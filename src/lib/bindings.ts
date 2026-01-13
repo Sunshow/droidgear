@@ -859,7 +859,12 @@ language: string | null;
  * Whether the skip login feature is enabled
  * If None, defaults to false (disabled)
  */
-skip_login_enabled?: boolean | null }
+skip_login_enabled?: boolean | null; 
+/**
+ * Custom font family for terminal (e.g., "Cascadia Mono NF")
+ * If None, uses default monospace fonts
+ */
+terminal_font_family?: string | null }
 /**
  * Channel configuration
  */

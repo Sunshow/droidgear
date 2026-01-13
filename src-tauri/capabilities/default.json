@@ -26,6 +26,7 @@
     "process:default",
     "os:default",
     "global-shortcut:default",
-    "pty:default"
+    "pty:default",
+    "system-fonts:default"
   ]
 }

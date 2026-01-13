@@ -98,6 +98,7 @@
     "streamdown": "^1.6.10",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18",
+    "tauri-plugin-system-fonts-api": "^2.0.2",
     "tauri-pty": "^0.2.0",
     "zustand": "^5.0.9"
   },

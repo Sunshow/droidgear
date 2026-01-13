@@ -13,6 +13,10 @@ import '@xterm/xterm/css/xterm.css'
 import { spawn, type IPty } from 'tauri-pty'
 import { useTheme } from '@/hooks/use-theme'
 import { platform } from '@tauri-apps/plugin-os'
+import { usePreferences } from '@/services/preferences'
+
+// Default fallback fonts for terminal
+const DEFAULT_TERMINAL_FONTS = 'Menlo, Monaco, "Courier New", monospace'
 
 interface TerminalViewProps {
   terminalId: string
@@ -37,6 +41,18 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
     const isInitializedRef = useRef(false)
     const { theme } = useTheme()
     const initialThemeRef = useRef(theme)
+    const { data: preferences } = usePreferences()
+    const initialFontFamilyRef = useRef<string | null | undefined>(undefined)
+
+    // Capture initial font family from preferences (only once when preferences first loads)
+    useEffect(() => {
+      if (
+        initialFontFamilyRef.current === undefined &&
+        preferences !== undefined
+      ) {
+        initialFontFamilyRef.current = preferences.terminal_font_family ?? null
+      }
+    }, [preferences])
 
     // Expose focus method to parent
     useImperativeHandle(ref, () => ({
@@ -86,6 +102,11 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
       if (!containerRef.current) return
       isInitializedRef.current = true
 
+      // Build font family string: user preference first, then fallbacks
+      const fontFamily = initialFontFamilyRef.current
+        ? `"${initialFontFamilyRef.current}", ${DEFAULT_TERMINAL_FONTS}`
+        : DEFAULT_TERMINAL_FONTS
+
       // Compute theme colors at initialization time
       const currentIsDark =
         initialForceDarkRef.current ||
@@ -105,7 +126,7 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
       const terminal = new Terminal({
         cursorBlink: true,
         fontSize: 14,
-        fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+        fontFamily,
         theme: themeColors,
         allowProposedApi: true,
         scrollback: 10000,

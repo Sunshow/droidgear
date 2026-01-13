@@ -67,6 +67,10 @@
   "preferences.appearance.language": "Language",
   "preferences.appearance.languageDescription": "Choose your preferred display language",
   "preferences.appearance.language.system": "System Default",
+  "preferences.appearance.terminalFont": "Terminal Font",
+  "preferences.appearance.terminalFontDescription": "Custom font for terminal (supports Nerd Font icons)",
+  "preferences.appearance.terminalFontPlaceholder": "Select a font",
+  "preferences.appearance.terminalFont.default": "System Default",
 
   "preferences.advanced.title": "Example Advanced Settings",
   "preferences.advanced.toggle": "Example Advanced Toggle",
