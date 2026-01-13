@@ -243,6 +243,7 @@
   "droid.sessions.followModeOff": "Click to follow new messages",
   "droid.sessions.expandThinkingOn": "Thinking expanded by default",
   "droid.sessions.expandThinkingOff": "Click to expand thinking by default",
+  "droid.sessions.hideEmptySessions": "Hide empty sessions",
 
   "droid.terminal.title": "Terminal",
   "droid.terminal.newTerminal": "New Terminal",

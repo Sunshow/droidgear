@@ -243,6 +243,7 @@
   "droid.sessions.followModeOff": "点击追踪新消息",
   "droid.sessions.expandThinkingOn": "默认展开思考内容",
   "droid.sessions.expandThinkingOff": "点击默认展开思考内容",
+  "droid.sessions.hideEmptySessions": "隐藏空会话",
 
   "droid.terminal.title": "终端",
   "droid.terminal.newTerminal": "新建终端",

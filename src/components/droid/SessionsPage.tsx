@@ -17,6 +17,8 @@ import {
 import { Streamdown } from 'streamdown'
 import { listen } from '@tauri-apps/api/event'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -57,6 +59,10 @@ export function SessionsPage() {
   const [expandThinking, setExpandThinking] = useState(() => {
     const saved = localStorage.getItem('sessions-expand-thinking')
     return saved === 'true'
+  })
+  const [hideEmptySessions, setHideEmptySessions] = useState(() => {
+    const saved = localStorage.getItem('sessions-hide-empty')
+    return saved !== 'false' // 默认为 true
   })
 
   const [systemPrefersDark, setSystemPrefersDark] = useState(
@@ -262,16 +268,26 @@ export function SessionsPage() {
     return tokens.toString()
   }
 
-  const groupedSessions = sessions.reduce<Record<string, SessionSummary[]>>(
-    (acc, session) => {
-      const projectKey = session.project
-      const projectSessions = acc[projectKey] ?? []
-      projectSessions.push(session)
-      acc[projectKey] = projectSessions
-      return acc
-    },
-    {}
-  )
+  // Filter empty sessions (0 tokens and named "New Session")
+  const filteredSessions = hideEmptySessions
+    ? sessions.filter(session => {
+        const totalTokens =
+          (session.tokenUsage?.inputTokens ?? 0) +
+          (session.tokenUsage?.outputTokens ?? 0)
+        const isNewSession = session.title === 'New Session'
+        return !(totalTokens === 0 && isNewSession)
+      })
+    : sessions
+
+  const groupedSessions = filteredSessions.reduce<
+    Record<string, SessionSummary[]>
+  >((acc, session) => {
+    const projectKey = session.project
+    const projectSessions = acc[projectKey] ?? []
+    projectSessions.push(session)
+    acc[projectKey] = projectSessions
+    return acc
+  }, {})
 
   const renderSessionItem = (session: SessionSummary, isSelected: boolean) => (
     <button
@@ -301,7 +317,7 @@ export function SessionsPage() {
 
   const renderListView = () => (
     <div className="p-2 space-y-1">
-      {sessions.map(session =>
+      {filteredSessions.map(session =>
         renderSessionItem(session, selectedSession?.id === session.id)
       )}
     </div>
@@ -349,6 +365,22 @@ export function SessionsPage() {
       <div className="flex items-center justify-between p-4 border-b">
         <h1 className="text-xl font-semibold">{t('droid.sessions.title')}</h1>
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mr-2">
+            <Checkbox
+              id="hide-empty"
+              checked={hideEmptySessions}
+              onCheckedChange={checked => {
+                setHideEmptySessions(!!checked)
+                localStorage.setItem('sessions-hide-empty', String(!!checked))
+              }}
+            />
+            <Label
+              htmlFor="hide-empty"
+              className="text-sm cursor-pointer whitespace-nowrap"
+            >
+              {t('droid.sessions.hideEmptySessions')}
+            </Label>
+          </div>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
