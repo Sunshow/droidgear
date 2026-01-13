@@ -18,17 +18,14 @@ import { cn } from '@/lib/utils'
 /**
  * Layout sizing configuration for resizable panels.
  * All values are percentages of total width.
- * Sidebar defaults + main default must equal 100.
  */
 const LAYOUT = {
-  leftSidebar: { default: 22, min: 22, max: 40 },
   rightSidebar: { default: 20, min: 15, max: 40 },
   main: { min: 30 },
 } as const
 
-// Main content default is calculated to ensure totals sum to 100%
-const MAIN_CONTENT_DEFAULT =
-  100 - LAYOUT.leftSidebar.default - LAYOUT.rightSidebar.default
+// Main content default when right sidebar is visible
+const MAIN_CONTENT_DEFAULT = 100 - LAYOUT.rightSidebar.default
 
 export function MainWindow() {
   const { theme } = useTheme()
@@ -43,18 +40,14 @@ export function MainWindow() {
       <TitleBar />
 
       <div className="flex flex-1 overflow-hidden">
+        {/* Left sidebar with fixed width */}
+        <div
+          className={cn('w-[280px] shrink-0', !leftSidebarVisible && 'hidden')}
+        >
+          <LeftSideBar />
+        </div>
+
         <ResizablePanelGroup direction="horizontal">
-          <ResizablePanel
-            defaultSize={LAYOUT.leftSidebar.default}
-            minSize={LAYOUT.leftSidebar.min}
-            maxSize={LAYOUT.leftSidebar.max}
-            className={cn(!leftSidebarVisible && 'hidden')}
-          >
-            <LeftSideBar />
-          </ResizablePanel>
-
-          <ResizableHandle className={cn(!leftSidebarVisible && 'hidden')} />
-
           <ResizablePanel
             defaultSize={MAIN_CONTENT_DEFAULT}
             minSize={LAYOUT.main.min}
