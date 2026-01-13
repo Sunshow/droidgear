@@ -13,12 +13,12 @@ import {
   Bot,
   ArrowDownToLine,
   Brain,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { Streamdown } from 'streamdown'
 import { listen } from '@tauri-apps/api/event'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -323,64 +323,85 @@ export function SessionsPage() {
     </div>
   )
 
-  const renderGroupedView = () => (
-    <div className="p-2 space-y-1">
-      {projects.map(project => {
-        const projectSessions = groupedSessions[project.name] || []
-        const isExpanded = expandedProjects.has(project.name)
-
-        return (
-          <div key={project.name}>
-            <button
-              onClick={() => toggleProject(project.name)}
-              className="w-full flex items-center gap-2 p-2 rounded-md hover:bg-accent transition-colors text-sm"
-            >
-              {isExpanded ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-              <span className="truncate flex-1 text-start font-medium">
-                {project.name}
-              </span>
-              <Badge variant="secondary" className="text-xs">
-                {project.sessionCount}
-              </Badge>
-            </button>
-            {isExpanded && (
-              <div className="ml-4 space-y-1">
-                {projectSessions.map(session =>
-                  renderSessionItem(session, selectedSession?.id === session.id)
-                )}
-              </div>
-            )}
-          </div>
+  const renderGroupedView = () => {
+    // Filter out projects with no sessions when hideEmptySessions is enabled
+    const filteredProjects = hideEmptySessions
+      ? projects.filter(
+          project => (groupedSessions[project.name]?.length ?? 0) > 0
         )
-      })}
-    </div>
-  )
+      : projects
+
+    return (
+      <div className="p-2 space-y-1">
+        {filteredProjects.map(project => {
+          const projectSessions = groupedSessions[project.name] || []
+          const isExpanded = expandedProjects.has(project.name)
+
+          return (
+            <div key={project.name}>
+              <button
+                onClick={() => toggleProject(project.name)}
+                className="w-full flex items-center gap-2 p-2 rounded-md hover:bg-accent transition-colors text-sm"
+              >
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+                <span className="truncate flex-1 text-start font-medium">
+                  {project.name}
+                </span>
+                <Badge variant="secondary" className="text-xs">
+                  {projectSessions.length}
+                </Badge>
+              </button>
+              {isExpanded && (
+                <div className="ml-4 space-y-1">
+                  {projectSessions.map(session =>
+                    renderSessionItem(
+                      session,
+                      selectedSession?.id === session.id
+                    )
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b">
         <h1 className="text-xl font-semibold">{t('droid.sessions.title')}</h1>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 mr-2">
-            <Checkbox
-              id="hide-empty"
-              checked={hideEmptySessions}
-              onCheckedChange={checked => {
-                setHideEmptySessions(!!checked)
-                localStorage.setItem('sessions-hide-empty', String(!!checked))
-              }}
-            />
-            <Label
-              htmlFor="hide-empty"
-              className="text-sm cursor-pointer whitespace-nowrap"
-            >
-              {t('droid.sessions.hideEmptySessions')}
-            </Label>
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={hideEmptySessions ? 'secondary' : 'outline'}
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => {
+                  const newValue = !hideEmptySessions
+                  setHideEmptySessions(newValue)
+                  localStorage.setItem('sessions-hide-empty', String(newValue))
+                }}
+              >
+                {hideEmptySessions ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {hideEmptySessions
+                ? t('droid.sessions.hideEmptySessionsOn')
+                : t('droid.sessions.hideEmptySessionsOff')}
+            </TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button

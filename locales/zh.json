@@ -248,6 +248,8 @@
   "droid.sessions.expandThinkingOn": "默认展开思考内容",
   "droid.sessions.expandThinkingOff": "点击默认展开思考内容",
   "droid.sessions.hideEmptySessions": "隐藏空会话",
+  "droid.sessions.hideEmptySessionsOn": "已隐藏空会话",
+  "droid.sessions.hideEmptySessionsOff": "点击隐藏空会话",
 
   "droid.terminal.title": "终端",
   "droid.terminal.newTerminal": "新建终端",
