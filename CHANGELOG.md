@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.2.1
+
+**New Features / 新功能**
+
+- Terminal support open derived sub window / 终端支持打开派生子窗口
+- Support shift+enter on macOS and ctrl+shift+c/v on Windows/Linux / macOS 支持 shift+enter，Windows/Linux 支持 ctrl+shift+c/v
+
+**Bug Fixes / 问题修复**
+
+- Auto focus and selection while rename Terminal name / 重命名终端时自动聚焦和选中
+- Allow use dot in model name / 允许模型名称中使用点号
+- Terminal bottom style and model maxTokens step size / 修复终端底部样式和模型 maxTokens 步长
+- Save and restore window state / 保存和恢复窗口状态
+- Remove custom env to inherit system environment / 移除自定义环境变量以继承系统环境
+
 ## v0.2.0
 
 **New Features / 新功能**

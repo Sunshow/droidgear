@@ -86,6 +86,21 @@ DroidGear values your privacy. Your username, password, API keys, and other sens
 
 ## Changelog
 
+### v0.2.1
+
+**New Features**
+
+- Terminal support open derived sub window
+- Support shift+enter on macOS and ctrl+shift+c/v on Windows/Linux
+
+**Bug Fixes**
+
+- Auto focus and selection while rename Terminal name
+- Allow use dot in model name
+- Terminal bottom style and model maxTokens step size
+- Save and restore window state
+- Remove custom env to inherit system environment
+
 ### v0.2.0
 
 **New Features**
