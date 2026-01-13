@@ -20,9 +20,47 @@ Run the installer directly.
 
 ## Features
 
+### Custom Model Management
+
 - **Multi-Provider Support** - Configure models from Anthropic, OpenAI, or any Generic Chat Completion API
 - **Visual Model Management** - Add, edit, delete, and reorder custom models with drag-and-drop
 - **API Model Discovery** - Fetch available models directly from provider APIs
+- **Import/Export** - Support configuration import/export and batch management
+- **Multi-Platform Support** - Support sub2api, antigravity and other API proxy platforms
+
+### Embedded Terminal
+
+- **Built-in Terminal** - Integrated terminal with state save and restore
+- **Custom Configuration** - Custom font, force dark mode
+- **Convenient Operations** - Copy-on-select, OSC 9 notifications, derived sub-windows
+
+### Droid Session Management
+
+- **Session Viewer** - View and manage Droid sessions
+- **Multiple Views** - Toggle between list/grouped view, hide empty sessions
+- **Follow Mode** - Session follow mode with thinking expansion toggle
+- **Cloud Sync** - Cloud session sync toggle
+
+### Specs File Management
+
+- **File Browser** - View spec files in `~/.factory/specs` directory
+- **Markdown Rendering** - Support Markdown format rendering
+- **File Operations** - Rename, delete, save as, copy full path
+
+### MCP Server Management
+
+- **Presets** - Built-in MCP presets
+- **Server Management** - MCP server configuration management
+
+### OpenCode Support
+
+- **AI Development Integration** - OpenCode tool integration
+- **Configuration Management** - Load and save provider/auth configurations
+
+### Other Features
+
+- **Skip Login Helper** - Helper for skipping login flow
+- **Auto Update** - Version check and auto update notification
 - **Exit Protection** - Warns before closing with unsaved changes
 - **Cross-Platform** - Works on macOS, Windows, and Linux
 
