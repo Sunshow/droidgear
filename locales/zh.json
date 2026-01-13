@@ -256,6 +256,7 @@
   "droid.terminal.noTerminals": "没有打开的终端",
   "droid.terminal.selectOrCreate": "选择一个终端或创建新终端",
   "droid.terminal.rename": "重命名",
+  "droid.terminal.reload": "重载",
   "droid.terminal.copyPath": "复制路径",
   "droid.terminal.close": "关闭",
   "droid.terminal.forceDark": "强制夜间模式",

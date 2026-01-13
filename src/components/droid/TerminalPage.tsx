@@ -3,13 +3,12 @@ import { useTranslation } from 'react-i18next'
 import {
   Plus,
   X,
-  Play,
-  CheckCircle,
   Circle,
   Pencil,
   FolderOpen,
   Copy,
   Moon,
+  RotateCw,
 } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-dialog'
 import { writeText } from '@tauri-apps/plugin-clipboard-manager'
@@ -39,9 +38,6 @@ export function TerminalPage() {
   const closeTerminal = useTerminalStore(state => state.closeTerminal)
   const renameTerminal = useTerminalStore(state => state.renameTerminal)
   const selectTerminal = useTerminalStore(state => state.selectTerminal)
-  const updateTerminalStatus = useTerminalStore(
-    state => state.updateTerminalStatus
-  )
   const setTerminalNotification = useTerminalStore(
     state => state.setTerminalNotification
   )
@@ -83,6 +79,10 @@ export function TerminalPage() {
     closeTerminal(id)
   }
 
+  const handleReloadTerminal = (id: string) => {
+    terminalRefs.current.get(id)?.reload()
+  }
+
   const handleStartRename = (id: string, currentName: string) => {
     setEditingId(id)
     setEditingName(currentName)
@@ -106,7 +106,6 @@ export function TerminalPage() {
   }
 
   const handleTerminalExit = (terminalId: string, exitCode: number) => {
-    updateTerminalStatus(terminalId, 'completed')
     // Show notification if this terminal is not currently selected
     if (selectedTerminalId !== terminalId) {
       setTerminalNotification(terminalId, true)
@@ -114,21 +113,11 @@ export function TerminalPage() {
     console.log(`Terminal ${terminalId} exited with code ${exitCode}`)
   }
 
-  const getStatusIcon = (
-    status: 'running' | 'completed',
-    hasNotification: boolean
-  ) => {
+  const getStatusIcon = (hasNotification: boolean) => {
     if (hasNotification) {
       return <Circle className="h-3 w-3 fill-primary text-primary" />
     }
-    switch (status) {
-      case 'running':
-        return <Play className="h-3 w-3 text-green-500" />
-      case 'completed':
-        return <CheckCircle className="h-3 w-3 text-muted-foreground" />
-      default:
-        return null
-    }
+    return <Circle className="h-3 w-3 text-muted-foreground" />
   }
 
   return (
@@ -192,10 +181,7 @@ export function TerminalPage() {
                         )}
                       >
                         <div className="flex items-center gap-2">
-                          {getStatusIcon(
-                            terminal.status,
-                            terminal.hasNotification
-                          )}
+                          {getStatusIcon(terminal.hasNotification)}
                           {editingId === terminal.id ? (
                             <Input
                               value={editingName}
@@ -227,6 +213,12 @@ export function TerminalPage() {
                       >
                         <Pencil className="h-4 w-4 mr-2" />
                         {t('droid.terminal.rename')}
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onClick={() => handleReloadTerminal(terminal.id)}
+                      >
+                        <RotateCw className="h-4 w-4 mr-2" />
+                        {t('droid.terminal.reload')}
                       </ContextMenuItem>
                       {terminal.cwd && (
                         <ContextMenuItem

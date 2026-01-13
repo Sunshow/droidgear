@@ -256,6 +256,7 @@
   "droid.terminal.noTerminals": "No terminals open",
   "droid.terminal.selectOrCreate": "Select a terminal or create a new one",
   "droid.terminal.rename": "Rename",
+  "droid.terminal.reload": "Reload",
   "droid.terminal.copyPath": "Copy Path",
   "droid.terminal.close": "Close",
   "droid.terminal.forceDark": "Force Dark Mode",

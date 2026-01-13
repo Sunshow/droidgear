@@ -27,10 +27,11 @@ interface TerminalViewProps {
 
 export interface TerminalViewRef {
   focus: () => void
+  reload: () => void
 }
 
 export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
-  function TerminalView({ cwd, forceDark, onExit }, ref) {
+  function TerminalView({ terminalId, cwd, forceDark, onExit }, ref) {
     const containerRef = useRef<HTMLDivElement>(null)
     const terminalRef = useRef<Terminal | null>(null)
     const fitAddonRef = useRef<FitAddon | null>(null)
@@ -43,6 +44,7 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
     const initialThemeRef = useRef(theme)
     const { data: preferences } = usePreferences()
     const initialFontFamilyRef = useRef<string | null | undefined>(undefined)
+    const [reloadKey, setReloadKey] = useState(0)
 
     // Capture initial font family from preferences (only once when preferences first loads)
     useEffect(() => {
@@ -54,10 +56,23 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
       }
     }, [preferences])
 
-    // Expose focus method to parent
+    // Expose focus and reload methods to parent
     useImperativeHandle(ref, () => ({
       focus: () => {
         terminalRef.current?.focus()
+      },
+      reload: () => {
+        // Kill existing PTY
+        ptyRef.current?.kill()
+        // Dispose terminal
+        terminalRef.current?.dispose()
+        terminalRef.current = null
+        fitAddonRef.current = null
+        ptyRef.current = null
+        // Reset initialization flag to allow re-init
+        isInitializedRef.current = false
+        // Trigger re-initialization
+        setReloadKey(k => k + 1)
       },
     }))
 
@@ -95,7 +110,7 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
       }
     }, [isDark])
 
-    // Initialize terminal only once when component mounts
+    // Initialize terminal only once when component mounts or reloads
     useEffect(() => {
       // Skip if already initialized
       if (isInitializedRef.current) return
@@ -217,7 +232,7 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
         ptyRef.current = null
         isInitializedRef.current = false
       }
-    }, [])
+    }, [reloadKey, terminalId])
 
     // Update theme when it changes
     useEffect(() => {
