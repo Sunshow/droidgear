@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.1.9
+
+**New Features / 新功能**
+
+- Terminal add reload and remove state control / 终端添加重新加载和移除状态控制
+- Custom terminal font / 自定义终端字体
+- Sessions support hiding empty / 会话支持隐藏空会话
+- Terminal inject envs and add force dark mode / 终端注入环境变量并添加强制深色模式
+
 ## v0.1.8
 
 **New Features / 新功能**

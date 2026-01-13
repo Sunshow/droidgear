@@ -86,6 +86,15 @@ DroidGear values your privacy. Your username, password, API keys, and other sens
 
 ## Changelog
 
+### v0.1.9
+
+**New Features**
+
+- Terminal add reload and remove state control
+- Custom terminal font
+- Sessions support hiding empty
+- Terminal inject envs and add force dark mode
+
 ### v0.1.8
 
 **New Features**
