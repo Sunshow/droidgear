@@ -124,6 +124,12 @@ DroidGear values your privacy. Your username, password, API keys, and other sens
 
 ## Changelog
 
+### v0.2.2
+
+**Bug Fixes**
+
+- Fix TERM/COLORTERM environment variable injection
+
 ### v0.2.1
 
 **New Features**

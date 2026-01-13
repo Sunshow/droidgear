@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.2
+
+**Bug Fixes / 问题修复**
+
+- Fix TERM/COLORTERM environment variable injection / 修复 TERM/COLORTERM 环境变量注入问题
+
 ## v0.2.1
 
 **New Features / 新功能**
