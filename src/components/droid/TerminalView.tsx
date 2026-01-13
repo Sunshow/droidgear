@@ -15,6 +15,7 @@ import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 import { useTheme } from '@/hooks/use-theme'
 import { platform } from '@tauri-apps/plugin-os'
 import { usePreferences } from '@/services/preferences'
+import { notify } from '@/lib/notifications'
 
 // Default fallback fonts for terminal
 const DEFAULT_TERMINAL_FONTS = 'Menlo, Monaco, "Courier New", monospace'
@@ -209,6 +210,16 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
         onExitRef.current?.(exitCode)
       })
 
+      // Register OSC 9 handler for system notifications
+      // OSC 9 format: ESC ] 9 ; <message> BEL
+      // Used by tools like Claude Code to send notifications
+      const osc9Disposable = terminal.parser.registerOscHandler(9, data => {
+        if (data) {
+          notify('Terminal', data, { native: true })
+        }
+        return true
+      })
+
       // Handle copy on select
       const selectionDisposable = terminal.onSelectionChange(() => {
         if (copyOnSelectRef.current) {
@@ -263,6 +274,7 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
         resizeObserver.disconnect()
         container.removeEventListener('mousedown', handleMouseDown)
         selectionDisposable.dispose()
+        osc9Disposable.dispose()
         pty.kill()
         terminal.dispose()
         terminalRef.current = null
