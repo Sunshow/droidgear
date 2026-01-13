@@ -6,7 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function containsRegexSpecialChars(value: string): boolean {
-  return /[[\](){}^$.*+?|\\]/.test(value)
+  return /[[\](){}^$*+?|\\]/.test(value)
 }
 
 export function getDefaultMaxOutputTokens(modelId: string): number {
