@@ -70,6 +70,7 @@ export function TerminalPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
+  const renameInputRef = useRef<HTMLInputElement>(null)
   // Map key format: terminalId or terminalId:derivedId
   const terminalRefs = useRef<Map<string, TerminalViewRef>>(new Map())
 
@@ -118,6 +119,17 @@ export function TerminalPage() {
       }, 50)
     }
   }, [selectedTerminalId, selectedTerminal?.selectedDerivedId, terminals])
+
+  // Focus rename input when editing starts
+  useEffect(() => {
+    if (editingId) {
+      // Delay to ensure ContextMenu is fully closed
+      setTimeout(() => {
+        renameInputRef.current?.focus()
+        renameInputRef.current?.select()
+      }, 0)
+    }
+  }, [editingId])
 
   const handleCreateTerminal = () => {
     createTerminal()
@@ -300,12 +312,12 @@ export function TerminalPage() {
                           {getStatusIcon(selectedTerminalId === terminal.id)}
                           {editingId === terminal.id ? (
                             <Input
+                              ref={renameInputRef}
                               value={editingName}
                               onChange={e => setEditingName(e.target.value)}
                               onBlur={handleFinishRename}
                               onKeyDown={handleKeyDown}
                               className="h-6 text-sm"
-                              autoFocus
                               onClick={e => e.stopPropagation()}
                             />
                           ) : (
