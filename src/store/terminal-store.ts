@@ -14,6 +14,7 @@ export interface TerminalInstance {
 interface TerminalState {
   terminals: TerminalInstance[]
   selectedTerminalId: string | null
+  terminalForceDark: boolean
 
   // Actions
   createTerminal: (name?: string, cwd?: string) => string
@@ -23,6 +24,7 @@ interface TerminalState {
   updateTerminalStatus: (id: string, status: 'running' | 'completed') => void
   setTerminalNotification: (id: string, hasNotification: boolean) => void
   clearNotification: (id: string) => void
+  setTerminalForceDark: (forceDark: boolean) => void
 }
 
 let terminalCounter = 0
@@ -33,6 +35,7 @@ export const useTerminalStore = create<TerminalState>()(
       (set, get) => ({
         terminals: [],
         selectedTerminalId: null,
+        terminalForceDark: true,
 
         createTerminal: (name?: string, cwd?: string) => {
           // Sync counter with existing terminals to avoid ID conflicts
@@ -141,6 +144,14 @@ export const useTerminalStore = create<TerminalState>()(
             'clearNotification'
           )
         },
+
+        setTerminalForceDark: (forceDark: boolean) => {
+          set(
+            { terminalForceDark: forceDark },
+            undefined,
+            'setTerminalForceDark'
+          )
+        },
       }),
       {
         name: 'terminal-store',
@@ -154,6 +165,7 @@ export const useTerminalStore = create<TerminalState>()(
             createdAt: t.createdAt,
           })),
           selectedTerminalId: state.selectedTerminalId,
+          terminalForceDark: state.terminalForceDark,
         }),
       }
     ),

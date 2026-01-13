@@ -9,11 +9,13 @@ import {
   Pencil,
   FolderOpen,
   Copy,
+  Moon,
 } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-dialog'
 import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import {
   Tooltip,
   TooltipContent,
@@ -42,6 +44,10 @@ export function TerminalPage() {
   )
   const setTerminalNotification = useTerminalStore(
     state => state.setTerminalNotification
+  )
+  const terminalForceDark = useTerminalStore(state => state.terminalForceDark)
+  const setTerminalForceDark = useTerminalStore(
+    state => state.setTerminalForceDark
   )
 
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -131,6 +137,18 @@ export function TerminalPage() {
       <div className="flex items-center justify-between p-4 border-b">
         <h1 className="text-xl font-semibold">{t('droid.terminal.title')}</h1>
         <div className="flex items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-2">
+                <Moon className="h-4 w-4 text-muted-foreground" />
+                <Switch
+                  checked={terminalForceDark}
+                  onCheckedChange={setTerminalForceDark}
+                />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>{t('droid.terminal.forceDark')}</TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -254,6 +272,7 @@ export function TerminalPage() {
                   }}
                   terminalId={terminal.id}
                   cwd={terminal.cwd || undefined}
+                  forceDark={terminalForceDark}
                   onExit={exitCode => handleTerminalExit(terminal.id, exitCode)}
                 />
               </div>

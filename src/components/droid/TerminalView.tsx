@@ -17,6 +17,7 @@ import { platform } from '@tauri-apps/plugin-os'
 interface TerminalViewProps {
   terminalId: string
   cwd?: string
+  forceDark?: boolean
   onExit?: (exitCode: number) => void
 }
 
@@ -25,15 +26,17 @@ export interface TerminalViewRef {
 }
 
 export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
-  function TerminalView({ cwd, onExit }, ref) {
+  function TerminalView({ cwd, forceDark, onExit }, ref) {
     const containerRef = useRef<HTMLDivElement>(null)
     const terminalRef = useRef<Terminal | null>(null)
     const fitAddonRef = useRef<FitAddon | null>(null)
     const ptyRef = useRef<IPty | null>(null)
     const onExitRef = useRef(onExit)
     const initialCwdRef = useRef(cwd)
+    const initialForceDarkRef = useRef(forceDark)
     const isInitializedRef = useRef(false)
     const { theme } = useTheme()
+    const initialThemeRef = useRef(theme)
 
     // Expose focus method to parent
     useImperativeHandle(ref, () => ({
@@ -61,7 +64,8 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
       return () => mediaQuery.removeEventListener('change', handleChange)
     }, [theme])
 
-    const isDark = theme === 'dark' || (theme === 'system' && systemPrefersDark)
+    const isDark =
+      forceDark || theme === 'dark' || (theme === 'system' && systemPrefersDark)
 
     const getThemeColors = useCallback(() => {
       return {
@@ -84,8 +88,9 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
 
       // Compute theme colors at initialization time
       const currentIsDark =
-        theme === 'dark' ||
-        (theme === 'system' &&
+        initialForceDarkRef.current ||
+        initialThemeRef.current === 'dark' ||
+        (initialThemeRef.current === 'system' &&
           window.matchMedia('(prefers-color-scheme: dark)').matches)
       const themeColors = {
         background: currentIsDark ? '#1e1e1e' : '#ffffff',
@@ -133,6 +138,10 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
         cols,
         rows,
         cwd: initialCwdRef.current || undefined,
+        env: {
+          TERM: 'xterm-256color',
+          COLORTERM: 'truecolor',
+        },
       })
 
       ptyRef.current = pty
@@ -187,7 +196,7 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
         ptyRef.current = null
         isInitializedRef.current = false
       }
-    }, [theme])
+    }, [])
 
     // Update theme when it changes
     useEffect(() => {
