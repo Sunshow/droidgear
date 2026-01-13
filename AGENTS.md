@@ -104,6 +104,24 @@ const handleAction = () => {
 - All warnings treated as errors via clippy
 - Use `tauri-specta` for type-safe command bindings
 
+### Radix UI Focus Management
+
+When using Radix UI components (Dialog, DropdownMenu, Popover, etc.), be aware of automatic focus behavior:
+
+- **Problem**: Radix components return focus to the trigger element when closed, which may override manual `focus()` calls
+- **Solution**: Use `onCloseAutoFocus` to prevent default behavior and manually control focus:
+
+```tsx
+<DropdownMenuContent
+  onCloseAutoFocus={e => {
+    e.preventDefault()
+    targetRef.current?.focus()
+  }}
+>
+```
+
+This applies to: `DialogContent`, `DropdownMenuContent`, `PopoverContent`, `AlertDialogContent`, etc.
+
 ## Architecture Patterns
 
 ### State Management Onion

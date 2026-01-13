@@ -1,6 +1,14 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 
+// Terminal snippet for quick input
+export interface TerminalSnippet {
+  id: string
+  name: string
+  content: string
+  autoExecute: boolean
+}
+
 // Derived terminal (child of a main terminal)
 export interface DerivedTerminal {
   id: string
@@ -28,6 +36,7 @@ interface TerminalState {
   selectedTerminalId: string | null
   terminalForceDark: boolean
   terminalCopyOnSelect: boolean
+  snippets: TerminalSnippet[]
 
   // Actions
   createTerminal: (name?: string, cwd?: string) => string
@@ -63,6 +72,15 @@ interface TerminalState {
     derivedId: string,
     hasNotification: boolean
   ) => void
+
+  // Snippet actions
+  addSnippet: (snippet: Omit<TerminalSnippet, 'id'>) => string
+  updateSnippet: (
+    id: string,
+    updates: Partial<Omit<TerminalSnippet, 'id'>>
+  ) => void
+  removeSnippet: (id: string) => void
+  reorderSnippets: (ids: string[]) => void
 }
 
 let terminalCounter = 0
@@ -75,6 +93,7 @@ export const useTerminalStore = create<TerminalState>()(
         selectedTerminalId: null,
         terminalForceDark: true,
         terminalCopyOnSelect: false,
+        snippets: [],
 
         createTerminal: (name?: string, cwd?: string) => {
           // Sync counter with existing terminals to avoid ID conflicts
@@ -351,6 +370,58 @@ export const useTerminalStore = create<TerminalState>()(
             'setDerivedTerminalNotification'
           )
         },
+
+        // Snippet actions
+        addSnippet: (snippet: Omit<TerminalSnippet, 'id'>) => {
+          const id = `snippet-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+          set(
+            state => ({
+              snippets: [...state.snippets, { ...snippet, id }],
+            }),
+            undefined,
+            'addSnippet'
+          )
+          return id
+        },
+
+        updateSnippet: (
+          id: string,
+          updates: Partial<Omit<TerminalSnippet, 'id'>>
+        ) => {
+          set(
+            state => ({
+              snippets: state.snippets.map(s =>
+                s.id === id ? { ...s, ...updates } : s
+              ),
+            }),
+            undefined,
+            'updateSnippet'
+          )
+        },
+
+        removeSnippet: (id: string) => {
+          set(
+            state => ({
+              snippets: state.snippets.filter(s => s.id !== id),
+            }),
+            undefined,
+            'removeSnippet'
+          )
+        },
+
+        reorderSnippets: (ids: string[]) => {
+          set(
+            state => {
+              const snippetMap = new Map(state.snippets.map(s => [s.id, s]))
+              const reordered = ids
+                .map(id => snippetMap.get(id))
+                .filter((s): s is TerminalSnippet => s !== undefined)
+              return { snippets: reordered }
+            },
+            undefined,
+            'reorderSnippets'
+          )
+        },
       }),
       {
         name: 'terminal-store',
@@ -372,6 +443,7 @@ export const useTerminalStore = create<TerminalState>()(
           selectedTerminalId: state.selectedTerminalId,
           terminalForceDark: state.terminalForceDark,
           terminalCopyOnSelect: state.terminalCopyOnSelect,
+          snippets: state.snippets,
         }),
         merge: (persistedState, currentState) => {
           const persisted = persistedState as Partial<TerminalState>
@@ -383,6 +455,7 @@ export const useTerminalStore = create<TerminalState>()(
               derivedTerminals: t.derivedTerminals ?? [],
               selectedDerivedId: t.selectedDerivedId ?? null,
             })),
+            snippets: persisted.snippets ?? [],
           }
         },
       }

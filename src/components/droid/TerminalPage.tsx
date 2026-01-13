@@ -10,6 +10,8 @@ import {
   Moon,
   RotateCw,
   ClipboardCopy,
+  FileCode,
+  Settings,
 } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-dialog'
 import { writeText } from '@tauri-apps/plugin-clipboard-manager'
@@ -27,9 +29,18 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuShortcut,
+} from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { TerminalView, type TerminalViewRef } from './TerminalView'
 import { DerivedTerminalBar } from './DerivedTerminalBar'
+import { TerminalSnippetDialog } from './TerminalSnippetDialog'
 import { useTerminalStore } from '@/store/terminal-store'
 
 export function TerminalPage() {
@@ -68,8 +79,13 @@ export function TerminalPage() {
     state => state.setDerivedTerminalNotification
   )
 
+  // Snippets
+  const snippets = useTerminalStore(state => state.snippets)
+
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
+  const [snippetDialogOpen, setSnippetDialogOpen] = useState(false)
+  const [snippetDropdownOpen, setSnippetDropdownOpen] = useState(false)
   const renameInputRef = useRef<HTMLInputElement>(null)
   const isEnteringRenameRef = useRef(false)
   // Map key format: terminalId or terminalId:derivedId
@@ -128,6 +144,27 @@ export function TerminalPage() {
       renameInputRef.current?.select()
     }
   }, [editingId])
+
+  // Keyboard shortcut to open Snippets dropdown (Ctrl/Cmd + Shift + S)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only respond when there's a selected terminal
+      if (!selectedTerminalId) return
+
+      // Ctrl/Cmd + Shift + S to open Snippets
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        e.key.toLowerCase() === 's'
+      ) {
+        e.preventDefault()
+        setSnippetDropdownOpen(true)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [selectedTerminalId])
 
   const handleCreateTerminal = () => {
     createTerminal()
@@ -227,6 +264,46 @@ export function TerminalPage() {
     selectDerivedTerminal(parentId, derivedId)
   }
 
+  // Execute a snippet by writing to the current terminal
+  const handleExecuteSnippet = (snippetId: string) => {
+    const snippet = snippets.find(s => s.id === snippetId)
+    if (!snippet || !selectedTerminalId) return
+
+    const terminal = terminals.find(t => t.id === selectedTerminalId)
+    const refKey = terminal?.selectedDerivedId
+      ? `${selectedTerminalId}:${terminal.selectedDerivedId}`
+      : selectedTerminalId
+
+    const terminalRef = terminalRefs.current.get(refKey)
+    if (terminalRef) {
+      terminalRef.write(snippet.content)
+      if (snippet.autoExecute) {
+        terminalRef.write('\r')
+      }
+      setSnippetDropdownOpen(false)
+    }
+  }
+
+  // Handle keyboard shortcuts in snippet dropdown (1-9, 0 for 1-10)
+  const handleSnippetDropdownKeyDown = (e: React.KeyboardEvent) => {
+    const key = e.key
+    if (key >= '1' && key <= '9') {
+      const index = parseInt(key, 10) - 1
+      const snippet = snippets[index]
+      if (snippet) {
+        e.preventDefault()
+        handleExecuteSnippet(snippet.id)
+      }
+    } else if (key === '0') {
+      // 0 maps to index 9 (10th item)
+      const snippet = snippets[9]
+      if (snippet) {
+        e.preventDefault()
+        handleExecuteSnippet(snippet.id)
+      }
+    }
+  }
+
   const getStatusIcon = (isSelected: boolean) => {
     if (isSelected) {
       return <Circle className="h-3 w-3 fill-primary text-primary" />
@@ -264,6 +341,76 @@ export function TerminalPage() {
             </TooltipTrigger>
             <TooltipContent>{t('droid.terminal.forceDark')}</TooltipContent>
           </Tooltip>
+          <DropdownMenu
+            open={snippetDropdownOpen}
+            onOpenChange={setSnippetDropdownOpen}
+          >
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-8 w-8">
+                    <FileCode className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                {t('droid.terminal.snippets.title')} (⌘⇧S)
+              </TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent
+              align="end"
+              onKeyDown={handleSnippetDropdownKeyDown}
+              onCloseAutoFocus={e => {
+                e.preventDefault()
+                // Focus the current terminal
+                const terminal = terminals.find(
+                  t => t.id === selectedTerminalId
+                )
+                const refKey = terminal?.selectedDerivedId
+                  ? `${selectedTerminalId}:${terminal.selectedDerivedId}`
+                  : selectedTerminalId
+                if (refKey) {
+                  terminalRefs.current.get(refKey)?.focus()
+                }
+              }}
+            >
+              {snippets.length === 0 ? (
+                <DropdownMenuItem disabled>
+                  {t('droid.terminal.snippets.empty')}
+                </DropdownMenuItem>
+              ) : (
+                snippets.slice(0, 10).map((snippet, index) => (
+                  <DropdownMenuItem
+                    key={snippet.id}
+                    onClick={() => handleExecuteSnippet(snippet.id)}
+                  >
+                    <span className="truncate max-w-48">{snippet.name}</span>
+                    <DropdownMenuShortcut>
+                      {index < 9 ? index + 1 : 0}
+                    </DropdownMenuShortcut>
+                  </DropdownMenuItem>
+                ))
+              )}
+              {snippets.length > 10 && (
+                <>
+                  <DropdownMenuSeparator />
+                  {snippets.slice(10).map(snippet => (
+                    <DropdownMenuItem
+                      key={snippet.id}
+                      onClick={() => handleExecuteSnippet(snippet.id)}
+                    >
+                      <span className="truncate max-w-48">{snippet.name}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setSnippetDialogOpen(true)}>
+                <Settings className="h-4 w-4 mr-2" />
+                {t('droid.terminal.snippets.manage')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -486,6 +633,12 @@ export function TerminalPage() {
           )}
         </div>
       </div>
+
+      {/* Snippet Management Dialog */}
+      <TerminalSnippetDialog
+        open={snippetDialogOpen}
+        onOpenChange={setSnippetDialogOpen}
+      />
     </div>
   )
 }

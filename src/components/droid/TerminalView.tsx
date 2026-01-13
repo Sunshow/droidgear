@@ -36,6 +36,7 @@ interface TerminalViewProps {
 export interface TerminalViewRef {
   focus: () => void
   reload: () => void
+  write: (text: string) => void
 }
 
 export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
@@ -107,7 +108,7 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
       }
     }, [preferences])
 
-    // Expose focus and reload methods to parent
+    // Expose focus, reload, and write methods to parent
     useImperativeHandle(ref, () => ({
       focus: () => {
         terminalRef.current?.focus()
@@ -124,6 +125,9 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
         isInitializedRef.current = false
         // Trigger re-initialization
         setReloadKey(k => k + 1)
+      },
+      write: (text: string) => {
+        ptyRef.current?.write(text)
       },
     }))
 
