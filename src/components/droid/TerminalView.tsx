@@ -182,14 +182,11 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
       const rows = dims?.rows || 24
 
       // Spawn PTY using tauri-pty with initial cwd from ref
+      // Don't pass env to inherit system environment variables (PATH, HOME, etc.)
       const pty = spawn(shell, [], {
         cols,
         rows,
         cwd: initialCwdRef.current || undefined,
-        env: {
-          TERM: 'xterm-256color',
-          COLORTERM: 'truecolor',
-        },
       })
 
       ptyRef.current = pty
