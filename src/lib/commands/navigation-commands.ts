@@ -9,7 +9,6 @@ export const navigationCommands: AppCommand[] = [
     descriptionKey: 'commands.showLeftSidebar.description',
     icon: Sidebar,
     group: 'navigation',
-    shortcut: '⌘+1',
     keywords: ['sidebar', 'left', 'panel', 'show'],
 
     execute: () => {
@@ -25,7 +24,6 @@ export const navigationCommands: AppCommand[] = [
     descriptionKey: 'commands.hideLeftSidebar.description',
     icon: Sidebar,
     group: 'navigation',
-    shortcut: '⌘+1',
     keywords: ['sidebar', 'left', 'panel', 'hide'],
 
     execute: () => {
@@ -41,7 +39,6 @@ export const navigationCommands: AppCommand[] = [
     descriptionKey: 'commands.showRightSidebar.description',
     icon: PanelRight,
     group: 'navigation',
-    shortcut: '⌘+2',
     keywords: ['sidebar', 'right', 'panel', 'show'],
 
     execute: () => {
@@ -57,7 +54,6 @@ export const navigationCommands: AppCommand[] = [
     descriptionKey: 'commands.hideRightSidebar.description',
     icon: PanelRight,
     group: 'navigation',
-    shortcut: '⌘+2',
     keywords: ['sidebar', 'right', 'panel', 'hide'],
 
     execute: () => {

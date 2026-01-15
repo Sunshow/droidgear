@@ -92,13 +92,11 @@ export async function buildAppMenu(): Promise<Menu> {
         await MenuItem.new({
           id: 'toggle-left-sidebar',
           text: t('menu.toggleLeftSidebar'),
-          accelerator: 'CmdOrCtrl+1',
           action: handleToggleLeftSidebar,
         }),
         await MenuItem.new({
           id: 'toggle-right-sidebar',
           text: t('menu.toggleRightSidebar'),
-          accelerator: 'CmdOrCtrl+2',
           action: handleToggleRightSidebar,
         }),
       ],

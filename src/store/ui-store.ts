@@ -143,6 +143,8 @@ export const useUIStore = create<UIState>()(
           lastSpecExportPath: state.lastSpecExportPath,
           currentView: state.currentView,
           lastToolView: state.lastToolView,
+          leftSidebarVisible: state.leftSidebarVisible,
+          rightSidebarVisible: state.rightSidebarVisible,
         }),
       }
     ),

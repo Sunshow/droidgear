@@ -1,10 +1,10 @@
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
-// import { useUIStore } from '@/store/ui-store'
+import { useUIStore } from '@/store/ui-store'
 import { executeCommand, useCommandContext } from '@/lib/commands'
 import {
-  // PanelLeft,
-  // PanelLeftClose,
+  PanelLeft,
+  PanelLeftClose,
   // PanelRight,
   // PanelRightClose,
   Settings,
@@ -15,13 +15,12 @@ import {
  * Place this after window controls on macOS, or at the start on Windows/Linux.
  */
 export function TitleBarLeftActions() {
-  // const { t } = useTranslation()
-  // const leftSidebarVisible = useUIStore(state => state.leftSidebarVisible)
-  // const toggleLeftSidebar = useUIStore(state => state.toggleLeftSidebar)
+  const { t } = useTranslation()
+  const leftSidebarVisible = useUIStore(state => state.leftSidebarVisible)
+  const toggleLeftSidebar = useUIStore(state => state.toggleLeftSidebar)
 
   return (
     <div className="flex items-center gap-1">
-      {/* Sidebar toggle hidden for now
       <Button
         onClick={toggleLeftSidebar}
         variant="ghost"
@@ -39,7 +38,6 @@ export function TitleBarLeftActions() {
           <PanelLeft className="h-3 w-3" />
         )}
       </Button>
-      */}
     </div>
   )
 }
