@@ -80,10 +80,23 @@ export function CreateDerivedDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)}>
+          <Button
+            variant="outline"
+            onMouseDown={e => {
+              e.preventDefault()
+              handleOpenChange(false)
+            }}
+          >
             {t('common.cancel')}
           </Button>
-          <Button onClick={handleConfirm}>{t('common.create')}</Button>
+          <Button
+            onMouseDown={e => {
+              e.preventDefault()
+              handleConfirm()
+            }}
+          >
+            {t('common.create')}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

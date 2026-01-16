@@ -443,6 +443,10 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
       <div
         ref={containerRef}
         className="h-full w-full"
+        onMouseDown={e => {
+          e.preventDefault()
+          terminalRef.current?.focus()
+        }}
         style={{
           padding: '8px 8px 16px 8px',
           backgroundColor: isDark ? '#1e1e1e' : '#ffffff',

@@ -486,7 +486,10 @@ export function TerminalPage() {
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
-                onClick={handleCreateTerminalWithDir}
+                onMouseDown={e => {
+                  e.preventDefault()
+                  handleCreateTerminalWithDir()
+                }}
               >
                 <FolderOpen className="h-4 w-4" />
               </Button>
@@ -495,7 +498,14 @@ export function TerminalPage() {
               {t('droid.terminal.newTerminalInDir')}
             </TooltipContent>
           </Tooltip>
-          <Button variant="outline" size="sm" onClick={handleCreateTerminal}>
+          <Button
+            variant="outline"
+            size="sm"
+            onMouseDown={e => {
+              e.preventDefault()
+              handleCreateTerminal()
+            }}
+          >
             <Plus className="h-4 w-4 mr-2" />
             {t('droid.terminal.newTerminal')}
           </Button>
@@ -516,7 +526,10 @@ export function TerminalPage() {
                   <ContextMenu key={terminal.id}>
                     <ContextMenuTrigger>
                       <button
-                        onClick={() => selectTerminal(terminal.id)}
+                        onMouseDown={e => {
+                          e.preventDefault()
+                          selectTerminal(terminal.id)
+                        }}
                         className={cn(
                           'relative w-full text-start p-2 rounded-lg hover:bg-accent transition-colors overflow-hidden',
                           selectedTerminalId === terminal.id && 'bg-accent'

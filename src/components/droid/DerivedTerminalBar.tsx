@@ -40,7 +40,10 @@ export function DerivedTerminalBar({
     <div className="flex items-center gap-1 px-2 py-1 border-b bg-muted/30 overflow-x-auto">
       {/* Main terminal tab - always first, with distinct styling */}
       <button
-        onClick={() => onSelectDerived(null)}
+        onMouseDown={e => {
+          e.preventDefault()
+          onSelectDerived(null)
+        }}
         className={cn(
           'flex items-center gap-1.5 px-3 py-1 rounded text-sm whitespace-nowrap transition-colors',
           selectedDerivedId === null
@@ -61,7 +64,10 @@ export function DerivedTerminalBar({
       {derivedTerminals.map(derived => (
         <div
           key={derived.id}
-          onClick={() => onSelectDerived(derived.id)}
+          onMouseDown={e => {
+            e.preventDefault()
+            onSelectDerived(derived.id)
+          }}
           className={cn(
             'group relative flex items-center gap-1.5 px-3 py-1 rounded text-sm whitespace-nowrap transition-colors cursor-pointer',
             selectedDerivedId === derived.id
@@ -104,7 +110,10 @@ export function DerivedTerminalBar({
             variant="ghost"
             size="icon"
             className="h-6 w-6 ml-1"
-            onClick={() => setDialogOpen(true)}
+            onMouseDown={e => {
+              e.preventDefault()
+              setDialogOpen(true)
+            }}
           >
             <Plus className="h-3.5 w-3.5" />
           </Button>

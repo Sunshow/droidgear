@@ -165,7 +165,10 @@ export function TerminalSnippetDialog({
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 opacity-0 group-hover:opacity-100"
-                      onClick={() => handleEdit(snippet)}
+                      onMouseDown={e => {
+                        e.preventDefault()
+                        handleEdit(snippet)
+                      }}
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -173,7 +176,10 @@ export function TerminalSnippetDialog({
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 opacity-0 group-hover:opacity-100 text-destructive"
-                      onClick={() => handleDelete(snippet.id)}
+                      onMouseDown={e => {
+                        e.preventDefault()
+                        handleDelete(snippet.id)
+                      }}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -182,7 +188,12 @@ export function TerminalSnippetDialog({
               </div>
             )}
             <DialogFooter className="mt-4">
-              <Button onClick={handleAdd}>
+              <Button
+                onMouseDown={e => {
+                  e.preventDefault()
+                  handleAdd()
+                }}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 {t('droid.terminal.snippets.add')}
               </Button>
@@ -224,11 +235,20 @@ export function TerminalSnippetDialog({
               />
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={handleCancel}>
+              <Button
+                variant="outline"
+                onMouseDown={e => {
+                  e.preventDefault()
+                  handleCancel()
+                }}
+              >
                 {t('common.cancel')}
               </Button>
               <Button
-                onClick={handleSave}
+                onMouseDown={e => {
+                  e.preventDefault()
+                  handleSave()
+                }}
                 disabled={!name.trim() || !content.trim()}
               >
                 {t('common.save')}
