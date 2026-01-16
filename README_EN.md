@@ -124,6 +124,22 @@ DroidGear values your privacy. Your username, password, API keys, and other sens
 
 ## Changelog
 
+### v0.2.4
+
+**New Features**
+
+- Support Cmd/Ctrl+1/2/3..0 to switch terminal
+- Delete session
+- Update check improvements and downloading progress
+- Use custom ActionButton and ActionDropdownMenuItem
+- Allow Windows user specify custom terminal command
+
+**Bug Fixes**
+
+- Ensure locale is set for proper CJK character display
+- Wrong selection active if IME active
+- IME compatibility
+
 ### v0.2.3
 
 **New Features**

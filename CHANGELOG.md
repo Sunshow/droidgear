@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.2.4
+
+**New Features / 新功能**
+
+- Support Cmd/Ctrl+1/2/3..0 to switch terminal / 支持 Cmd/Ctrl+1/2/3..0 切换终端
+- Delete session / 删除会话
+- Update check improvements and downloading progress / 更新检查改进和下载进度显示
+- Use custom ActionButton and ActionDropdownMenuItem / 使用自定义 ActionButton 和 ActionDropdownMenuItem
+- Allow Windows user specify custom terminal command / 允许 Windows 用户指定自定义终端命令
+
+**Bug Fixes / 问题修复**
+
+- Ensure locale is set for proper CJK character display / 确保设置区域以正确显示 CJK 字符
+- Wrong selection active if IME active / 修复输入法激活时选择错误
+- IME compatibility / 输入法兼容性修复
+
 ## v0.2.3
 
 **New Features / 新功能**
