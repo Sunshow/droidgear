@@ -235,14 +235,11 @@ export function TerminalPage() {
   }
 
   // Keyboard shortcut to open Snippets dropdown (Ctrl/Cmd + Shift + S)
-  // and close terminal tab (Ctrl/Cmd + W)
+  // close terminal tab (Ctrl/Cmd + W), and switch tabs (Ctrl/Cmd + 1-9,0)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Only respond when Terminal page is active
       if (currentView !== 'droid' || droidSubView !== 'terminal') return
-
-      // Only respond when there's a selected terminal
-      if (!selectedTerminalId) return
 
       // Ctrl/Cmd + Shift + S to open Snippets
       if (
@@ -255,16 +252,48 @@ export function TerminalPage() {
         return
       }
 
+      // Only respond when there's a selected terminal for the following shortcuts
+      if (!selectedTerminalId) return
+
       // Ctrl/Cmd + W to close current tab
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'w') {
         e.preventDefault()
         handleCloseCurrentTab()
+        return
+      }
+
+      // Ctrl/Cmd + 1-9,0 to switch terminal tabs
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
+        const key = e.key
+        if (key >= '1' && key <= '9') {
+          const index = parseInt(key, 10) - 1
+          const terminal = terminals[index]
+          if (terminal) {
+            e.preventDefault()
+            selectTerminal(terminal.id)
+          }
+          return
+        } else if (key === '0') {
+          const terminal = terminals[9]
+          if (terminal) {
+            e.preventDefault()
+            selectTerminal(terminal.id)
+          }
+          return
+        }
       }
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [selectedTerminalId, handleCloseCurrentTab, currentView, droidSubView])
+  }, [
+    selectedTerminalId,
+    handleCloseCurrentTab,
+    currentView,
+    droidSubView,
+    terminals,
+    selectTerminal,
+  ])
 
   const handleReloadTerminal = (id: string) => {
     terminalRefs.current.get(id)?.reload()
