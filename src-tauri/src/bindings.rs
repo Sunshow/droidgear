@@ -75,6 +75,7 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         sessions::get_session_detail,
         sessions::start_sessions_watcher,
         sessions::stop_sessions_watcher,
+        sessions::delete_session,
     ])
 }
 

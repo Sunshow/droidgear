@@ -515,3 +515,27 @@ pub async fn stop_sessions_watcher(app: AppHandle) -> Result<(), String> {
 
     Ok(())
 }
+
+/// Deletes a session by removing its .jsonl and .settings.json files.
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_session(session_path: String) -> Result<(), String> {
+    log::debug!("Deleting session: {session_path}");
+
+    let jsonl_path = PathBuf::from(format!("{session_path}.jsonl"));
+    let settings_path = PathBuf::from(format!("{session_path}.settings.json"));
+
+    if !jsonl_path.exists() {
+        return Err("Session file not found".to_string());
+    }
+
+    fs::remove_file(&jsonl_path).map_err(|e| format!("Failed to delete session: {e}"))?;
+
+    // Also remove settings file if it exists (ignore errors)
+    if settings_path.exists() {
+        let _ = fs::remove_file(&settings_path);
+    }
+
+    log::info!("Deleted session: {session_path}");
+    Ok(())
+}

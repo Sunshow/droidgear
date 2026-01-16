@@ -34,6 +34,7 @@ import {
   type SessionProject,
 } from '@/lib/bindings'
 import { useTheme } from '@/hooks/use-theme'
+import { showContextMenu } from '@/lib/context-menu'
 
 type ViewMode = 'list' | 'grouped'
 
@@ -235,6 +236,33 @@ export function SessionsPage() {
     localStorage.setItem('sessions-expand-thinking', String(newExpandThinking))
   }
 
+  const handleSessionContextMenu = async (
+    e: React.MouseEvent,
+    session: SessionSummary
+  ) => {
+    e.preventDefault()
+    await showContextMenu([
+      {
+        id: 'delete',
+        label: t('common.delete'),
+        action: () => handleDeleteSession(session),
+      },
+    ])
+  }
+
+  const handleDeleteSession = async (session: SessionSummary) => {
+    const result = await commands.deleteSession(session.path)
+    if (result.status === 'ok') {
+      // Clear selection if deleted session was selected
+      if (selectedSession?.id === session.id) {
+        setSelectedSession(null)
+        setSelectedSessionPath(null)
+      }
+    } else {
+      setError(result.error)
+    }
+  }
+
   const toggleProject = (projectName: string) => {
     setExpandedProjects(prev => {
       const next = new Set(prev)
@@ -293,6 +321,7 @@ export function SessionsPage() {
     <button
       key={session.id}
       onClick={() => handleSessionSelect(session)}
+      onContextMenu={e => handleSessionContextMenu(e, session)}
       className={cn(
         'w-full text-start p-2 rounded-md hover:bg-accent transition-colors',
         isSelected && 'bg-accent'
