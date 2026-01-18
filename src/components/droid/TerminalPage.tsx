@@ -262,6 +262,40 @@ export function TerminalPage() {
         return
       }
 
+      // Cmd/Ctrl + Shift + [ to switch to previous tab (main <- derived1 <- derived2)
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === '[') {
+        e.preventDefault()
+        const terminal = terminals.find(t => t.id === selectedTerminalId)
+        if (!terminal) return
+
+        const allTabs: (string | null)[] = [
+          null,
+          ...terminal.derivedTerminals.map(d => d.id),
+        ]
+        const currentIndex = allTabs.indexOf(terminal.selectedDerivedId)
+        if (currentIndex > 0) {
+          selectDerivedTerminal(terminal.id, allTabs[currentIndex - 1] ?? null)
+        }
+        return
+      }
+
+      // Cmd/Ctrl + Shift + ] to switch to next tab (main -> derived1 -> derived2)
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === ']') {
+        e.preventDefault()
+        const terminal = terminals.find(t => t.id === selectedTerminalId)
+        if (!terminal) return
+
+        const allTabs: (string | null)[] = [
+          null,
+          ...terminal.derivedTerminals.map(d => d.id),
+        ]
+        const currentIndex = allTabs.indexOf(terminal.selectedDerivedId)
+        if (currentIndex < allTabs.length - 1) {
+          selectDerivedTerminal(terminal.id, allTabs[currentIndex + 1] ?? null)
+        }
+        return
+      }
+
       // Ctrl/Cmd + 1-9,0 to switch terminal tabs
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
         const key = e.key
@@ -293,6 +327,7 @@ export function TerminalPage() {
     droidSubView,
     terminals,
     selectTerminal,
+    selectDerivedTerminal,
   ])
 
   const handleReloadTerminal = (id: string) => {
