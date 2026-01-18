@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.2.5
+
+**New Features / 新功能**
+
+- Cmd/Ctrl + Shift + [ to switch to previous tab / Cmd/Ctrl + Shift + [ 切换到上一个标签页
+
+**Bug Fixes / 问题修复**
+
+- Fix session list not refreshing after deletion / 修复删除会话后列表不刷新的问题 #7
+
 ## v0.2.4
 
 **New Features / 新功能**

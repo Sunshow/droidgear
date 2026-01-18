@@ -124,6 +124,16 @@ DroidGear values your privacy. Your username, password, API keys, and other sens
 
 ## Changelog
 
+### v0.2.5
+
+**New Features**
+
+- Cmd/Ctrl + Shift + [ to switch to previous tab
+
+**Bug Fixes**
+
+- Fix session list not refreshing after deletion #7
+
 ### v0.2.4
 
 **New Features**
