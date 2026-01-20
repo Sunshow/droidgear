@@ -31,6 +31,13 @@ import {
   getDefaultMaxOutputTokens,
   isOfficialModelName,
 } from '@/lib/utils'
+import { useModelStore } from '@/store/model-store'
+import { BatchModelSelector } from './BatchModelSelector'
+import {
+  buildModelsFromBatch,
+  isBatchValid,
+  type BatchModelConfig,
+} from '@/lib/batch-model-utils'
 
 interface ModelDialogProps {
   open: boolean
@@ -38,6 +45,7 @@ interface ModelDialogProps {
   model?: CustomModel
   mode: 'add' | 'edit' | 'duplicate'
   onSave: (model: CustomModel) => void
+  onSaveBatch?: (models: CustomModel[]) => void
 }
 
 const defaultBaseUrls: Record<Provider, string> = {
@@ -48,12 +56,22 @@ const defaultBaseUrls: Record<Provider, string> = {
 
 interface ModelFormProps {
   model?: CustomModel
+  mode: 'add' | 'edit' | 'duplicate'
   onSave: (model: CustomModel) => void
+  onSaveBatch?: (models: CustomModel[]) => void
   onCancel: () => void
 }
 
-function ModelForm({ model, onSave, onCancel }: ModelFormProps) {
+function ModelForm({
+  model,
+  mode,
+  onSave,
+  onSaveBatch,
+  onCancel,
+}: ModelFormProps) {
   const { t } = useTranslation()
+  const existingModels = useModelStore(state => state.models)
+
   const [provider, setProvider] = useState<Provider>(
     model?.provider ?? 'anthropic'
   )
@@ -74,6 +92,16 @@ function ModelForm({ model, onSave, onCancel }: ModelFormProps) {
   const [isFetching, setIsFetching] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
 
+  // Batch mode state
+  const [batchMode, setBatchMode] = useState(false)
+  const [selectedModels, setSelectedModels] = useState<
+    Map<string, BatchModelConfig>
+  >(new Map())
+  const [prefix, setPrefix] = useState('')
+  const [suffix, setSuffix] = useState('')
+  const [batchMaxTokens, setBatchMaxTokens] = useState('')
+  const [batchSupportsImages, setBatchSupportsImages] = useState(false)
+
   const handleModelIdChange = (newModelId: string) => {
     setModelId(newModelId)
     setDisplayName(newModelId)
@@ -84,11 +112,11 @@ function ModelForm({ model, onSave, onCancel }: ModelFormProps) {
 
   const handleProviderChange = (value: Provider) => {
     setProvider(value)
-    // Preserve user-entered baseUrl when switching provider type.
-    // Only fall back to provider defaults if baseUrl is currently empty.
     setBaseUrl(current => current || defaultBaseUrls[value])
     setAvailableModels([])
     setFetchError(null)
+    setBatchMode(false)
+    setSelectedModels(new Map())
   }
 
   const handleFetchModels = async () => {
@@ -108,10 +136,53 @@ function ModelForm({ model, onSave, onCancel }: ModelFormProps) {
       setAvailableModels(result.data)
       if (result.data.length === 0) {
         setFetchError(t('models.noModelsFound'))
+      } else if (result.data.length > 1 && mode === 'add' && onSaveBatch) {
+        setBatchMode(true)
       }
     } else {
       setFetchError(result.error)
     }
+  }
+
+  const handleToggleModel = (modelIdToToggle: string) => {
+    setSelectedModels(prev => {
+      const next = new Map(prev)
+      if (next.has(modelIdToToggle)) {
+        next.delete(modelIdToToggle)
+      } else {
+        next.set(modelIdToToggle, { alias: '', provider })
+      }
+      return next
+    })
+  }
+
+  const handleConfigChange = (
+    modelIdToChange: string,
+    config: Partial<BatchModelConfig>
+  ) => {
+    setSelectedModels(prev => {
+      const next = new Map(prev)
+      const current = next.get(modelIdToChange)
+      if (current) {
+        next.set(modelIdToChange, { ...current, ...config })
+      }
+      return next
+    })
+  }
+
+  const handleSelectAll = () => {
+    const newMap = new Map<string, BatchModelConfig>()
+    const selectableModels = availableModels.filter(
+      m => !existingModels.some(em => em.model === m.id && em.apiKey === apiKey)
+    )
+    selectableModels.forEach(m => {
+      newMap.set(m.id, { alias: '', provider })
+    })
+    setSelectedModels(newMap)
+  }
+
+  const handleDeselectAll = () => {
+    setSelectedModels(new Map())
   }
 
   const handleSave = () => {
@@ -130,6 +201,25 @@ function ModelForm({ model, onSave, onCancel }: ModelFormProps) {
     onSave(newModel)
   }
 
+  const handleSaveBatch = () => {
+    if (!onSaveBatch || selectedModels.size === 0) return
+
+    const models = buildModelsFromBatch(
+      selectedModels,
+      baseUrl,
+      apiKey,
+      prefix,
+      suffix,
+      batchMaxTokens,
+      batchSupportsImages,
+      existingModels
+    )
+
+    if (models.length > 0) {
+      onSaveBatch(models)
+    }
+  }
+
   const isValid =
     modelId &&
     baseUrl &&
@@ -137,6 +227,8 @@ function ModelForm({ model, onSave, onCancel }: ModelFormProps) {
     (!displayName ||
       (!containsRegexSpecialChars(displayName) &&
         !isOfficialModelName(displayName)))
+
+  const batchValid = isBatchValid(selectedModels, prefix, suffix)
 
   return (
     <>
@@ -183,88 +275,118 @@ function ModelForm({ model, onSave, onCancel }: ModelFormProps) {
                 placeholder="sk-..."
                 className="flex-1"
               />
-              <Button
-                variant="outline"
-                onClick={handleFetchModels}
-                disabled={isFetching || !baseUrl || !apiKey}
-              >
-                {isFetching ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  t('models.fetchModels')
-                )}
-              </Button>
+              {mode === 'add' && (
+                <Button
+                  variant="outline"
+                  onClick={handleFetchModels}
+                  disabled={isFetching || !baseUrl || !apiKey}
+                >
+                  {isFetching ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    t('models.fetchModels')
+                  )}
+                </Button>
+              )}
             </div>
             {fetchError && (
               <p className="text-sm text-destructive">{fetchError}</p>
             )}
           </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="model">{t('models.model')}</Label>
-            {availableModels.length > 0 ? (
-              <Select value={modelId} onValueChange={handleModelIdChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('models.selectModel')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableModels.map(m => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.name || m.id}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <Input
-                id="model"
-                value={modelId}
-                onChange={e => handleModelIdChange(e.target.value)}
-                placeholder="claude-sonnet-4-5-20250929"
-              />
-            )}
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="displayName">{t('models.displayName')}</Label>
-            <Input
-              id="displayName"
-              value={displayName}
-              onChange={e => setDisplayName(e.target.value)}
-              placeholder="My Custom Model"
+          {batchMode ? (
+            <BatchModelSelector
+              models={availableModels}
+              apiKey={apiKey}
+              existingModels={existingModels}
+              defaultProvider={provider}
+              prefix={prefix}
+              suffix={suffix}
+              batchMaxTokens={batchMaxTokens}
+              batchSupportsImages={batchSupportsImages}
+              selectedModels={selectedModels}
+              onPrefixChange={setPrefix}
+              onSuffixChange={setSuffix}
+              onBatchMaxTokensChange={setBatchMaxTokens}
+              onBatchSupportsImagesChange={setBatchSupportsImages}
+              onToggleModel={handleToggleModel}
+              onConfigChange={handleConfigChange}
+              onSelectAll={handleSelectAll}
+              onDeselectAll={handleDeselectAll}
             />
-            {containsRegexSpecialChars(displayName) && (
-              <p className="text-sm text-destructive">
-                {t('validation.bracketsNotAllowed')}
-              </p>
-            )}
-            {isOfficialModelName(displayName) && (
-              <p className="text-sm text-destructive">
-                {t('validation.officialModelNameNotAllowed')}
-              </p>
-            )}
-          </div>
+          ) : (
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="model">{t('models.model')}</Label>
+                {availableModels.length > 0 ? (
+                  <Select value={modelId} onValueChange={handleModelIdChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('models.selectModel')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableModels.map(m => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.name || m.id}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    id="model"
+                    value={modelId}
+                    onChange={e => handleModelIdChange(e.target.value)}
+                    placeholder="claude-sonnet-4-5-20250929"
+                  />
+                )}
+              </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="maxTokens">{t('models.maxTokens')}</Label>
-            <Input
-              id="maxTokens"
-              type="number"
-              value={maxTokens}
-              onChange={e => setMaxTokens(e.target.value)}
-              placeholder="8192"
-              step={8192}
-            />
-          </div>
+              <div className="grid gap-2">
+                <Label htmlFor="displayName">{t('models.displayName')}</Label>
+                <Input
+                  id="displayName"
+                  value={displayName}
+                  onChange={e => setDisplayName(e.target.value)}
+                  placeholder="My Custom Model"
+                />
+                {containsRegexSpecialChars(displayName) && (
+                  <p className="text-sm text-destructive">
+                    {t('validation.bracketsNotAllowed')}
+                  </p>
+                )}
+                {isOfficialModelName(displayName) && (
+                  <p className="text-sm text-destructive">
+                    {t('validation.officialModelNameNotAllowed')}
+                  </p>
+                )}
+              </div>
 
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="supportsImages"
-              checked={supportsImages}
-              onCheckedChange={checked => setSupportsImages(checked === true)}
-            />
-            <Label htmlFor="supportsImages">{t('models.supportsImages')}</Label>
-          </div>
+              <div className="grid gap-2">
+                <Label htmlFor="maxTokens">{t('models.maxTokens')}</Label>
+                <Input
+                  id="maxTokens"
+                  type="number"
+                  value={maxTokens}
+                  onChange={e => setMaxTokens(e.target.value)}
+                  placeholder="8192"
+                  step={8192}
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="supportsImages"
+                  checked={supportsImages}
+                  onCheckedChange={checked =>
+                    setSupportsImages(checked === true)
+                  }
+                />
+                <Label htmlFor="supportsImages">
+                  {t('models.supportsImages')}
+                </Label>
+              </div>
+            </>
+          )}
         </div>
       </ResizableDialogBody>
 
@@ -272,9 +394,17 @@ function ModelForm({ model, onSave, onCancel }: ModelFormProps) {
         <Button variant="outline" onClick={onCancel}>
           {t('common.cancel')}
         </Button>
-        <Button onClick={handleSave} disabled={!isValid}>
-          {model ? t('common.save') : t('common.add')}
-        </Button>
+        {batchMode ? (
+          <Button onClick={handleSaveBatch} disabled={!batchValid}>
+            {selectedModels.size === 1
+              ? t('models.addCount', { count: selectedModels.size })
+              : t('models.addCountPlural', { count: selectedModels.size })}
+          </Button>
+        ) : (
+          <Button onClick={handleSave} disabled={!isValid}>
+            {model ? t('common.save') : t('common.add')}
+          </Button>
+        )}
       </ResizableDialogFooter>
     </>
   )
@@ -286,12 +416,18 @@ export function ModelDialog({
   model,
   mode,
   onSave,
+  onSaveBatch,
 }: ModelDialogProps) {
   const { t } = useTranslation()
   const formKey = model ? `edit-${model.model}` : 'new'
 
   const handleSave = (newModel: CustomModel) => {
     onSave(newModel)
+    onOpenChange(false)
+  }
+
+  const handleSaveBatch = (models: CustomModel[]) => {
+    onSaveBatch?.(models)
     onOpenChange(false)
   }
 
@@ -305,10 +441,10 @@ export function ModelDialog({
   return (
     <ResizableDialog open={open} onOpenChange={onOpenChange}>
       <ResizableDialogContent
-        defaultWidth={600}
-        defaultHeight={580}
-        minWidth={500}
-        minHeight={400}
+        defaultWidth={700}
+        defaultHeight={680}
+        minWidth={600}
+        minHeight={500}
       >
         <ResizableDialogHeader>
           <ResizableDialogTitle>{t(titleKey)}</ResizableDialogTitle>
@@ -317,7 +453,9 @@ export function ModelDialog({
           <ModelForm
             key={formKey}
             model={model}
+            mode={mode}
             onSave={handleSave}
+            onSaveBatch={onSaveBatch ? handleSaveBatch : undefined}
             onCancel={() => onOpenChange(false)}
           />
         )}

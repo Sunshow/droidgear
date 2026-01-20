@@ -173,6 +173,13 @@ export function ModelConfigPage() {
     await saveModels()
   }
 
+  const handleSaveBatchModels = async (batchModels: CustomModel[]) => {
+    for (const model of batchModels) {
+      addModel(model)
+    }
+    await saveModels()
+  }
+
   const handleConfirmDelete = () => {
     if (deleteIndex !== null) {
       deleteModel(deleteIndex)
@@ -493,6 +500,7 @@ export function ModelConfigPage() {
               : 'add'
         }
         onSave={handleSaveModel}
+        onSaveBatch={handleSaveBatchModels}
       />
 
       {/* Delete Confirmation */}
