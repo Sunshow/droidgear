@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.2.6
+
+**New Features / 新功能**
+
+- Universal multi models component for byok and channels / 通用多模型组件，支持 BYOK 和频道
+- Add new preset mcp server exa to replace droid websearch / 添加新的预设 MCP 服务器 exa 替代 droid websearch
+
+**Bug Fixes / 问题修复**
+
+- Auto flush saveModels action #8 / 自动刷新 saveModels 操作 #8
+
 ## v0.2.5
 
 **New Features / 新功能**

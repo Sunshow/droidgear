@@ -124,6 +124,17 @@ DroidGear values your privacy. Your username, password, API keys, and other sens
 
 ## Changelog
 
+### v0.2.6
+
+**New Features**
+
+- Universal multi models component for byok and channels
+- Add new preset mcp server exa to replace droid websearch
+
+**Bug Fixes**
+
+- Auto flush saveModels action #8
+
 ### v0.2.5
 
 **New Features**
