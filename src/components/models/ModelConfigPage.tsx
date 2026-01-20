@@ -164,12 +164,13 @@ export function ModelConfigPage() {
     }
   }
 
-  const handleSaveModel = (model: CustomModel) => {
+  const handleSaveModel = async (model: CustomModel) => {
     if (editingIndex !== null) {
       updateModel(editingIndex, model)
     } else {
       addModel(model)
     }
+    await saveModels()
   }
 
   const handleConfirmDelete = () => {
