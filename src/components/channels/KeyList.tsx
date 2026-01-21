@@ -126,12 +126,19 @@ export function KeyList({
                   <TableCell>{getStatusBadge(apiKey.status, t)}</TableCell>
                   <TableCell>
                     {apiKey.platform ? (
-                      <Badge
-                        variant="outline"
-                        className={platformColors[apiKey.platform] || ''}
-                      >
-                        {apiKey.platform}
-                      </Badge>
+                      <div className="flex flex-col gap-1">
+                        <Badge
+                          variant="outline"
+                          className={platformColors[apiKey.platform] || ''}
+                        >
+                          {apiKey.platform}
+                        </Badge>
+                        {apiKey.groupName && (
+                          <span className="text-xs text-muted-foreground">
+                            {apiKey.groupName}
+                          </span>
+                        )}
+                      </div>
                     ) : (
                       <span className="text-muted-foreground">-</span>
                     )}

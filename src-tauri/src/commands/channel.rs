@@ -62,6 +62,8 @@ pub struct ChannelToken {
     pub unlimited_quota: bool,
     /// Platform type (openai, anthropic, gemini, etc.) - from Sub2API
     pub platform: Option<String>,
+    /// Group name - from Sub2API
+    pub group_name: Option<String>,
 }
 
 /// Channel authentication data (stored in ~/.droidgear/auth/)
@@ -368,6 +370,7 @@ async fn fetch_new_api_tokens(
                                 .and_then(|v| v.as_bool())
                                 .unwrap_or(false),
                             platform: None, // New API doesn't provide platform info
+                            group_name: None,
                         })
                     })
                     .collect()
@@ -446,8 +449,8 @@ async fn fetch_sub2api_tokens(
         .await
         .map_err(|e| format!("Failed to fetch groups: {e}"))?;
 
-    // Build group_id -> platform map
-    let group_platforms: std::collections::HashMap<i64, String> =
+    // Build group_id -> (platform, name) map
+    let group_info: std::collections::HashMap<i64, (String, String)> =
         if groups_response.status().is_success() {
             let groups_data: Value = groups_response.json().await.unwrap_or_default();
             groups_data
@@ -458,7 +461,8 @@ async fn fetch_sub2api_tokens(
                         .filter_map(|g| {
                             let id = g.get("id")?.as_i64()?;
                             let platform = g.get("platform")?.as_str()?.to_string();
-                            Some((id, platform))
+                            let name = g.get("name")?.as_str()?.to_string();
+                            Some((id, (platform, name)))
                         })
                         .collect()
                 })
@@ -468,10 +472,7 @@ async fn fetch_sub2api_tokens(
             std::collections::HashMap::new()
         };
 
-    log::debug!(
-        "Fetched {} groups with platform info",
-        group_platforms.len()
-    );
+    log::debug!("Fetched {} groups with platform info", group_info.len());
 
     // Fetch keys list with pagination
     let keys_url = format!("{base}/api/v1/keys");
@@ -564,11 +565,22 @@ async fn fetch_sub2api_tokens(
                 _ => 0,
             };
 
-            // Get platform from group_id
-            let platform = k
-                .get("group_id")
-                .and_then(|g| g.as_i64())
-                .and_then(|group_id| group_platforms.get(&group_id).cloned());
+            // Get platform and group_name from embedded group object or fallback to group_info map
+            let (platform, group_name) = k
+                .get("group")
+                .map(|g| {
+                    let platform = g.get("platform").and_then(|p| p.as_str()).map(String::from);
+                    let name = g.get("name").and_then(|n| n.as_str()).map(String::from);
+                    (platform, name)
+                })
+                .unwrap_or_else(|| {
+                    // Fallback to group_info map if group object not embedded
+                    k.get("group_id")
+                        .and_then(|g| g.as_i64())
+                        .and_then(|group_id| group_info.get(&group_id).cloned())
+                        .map(|(platform, name)| (Some(platform), Some(name)))
+                        .unwrap_or((None, None))
+                });
 
             Some(ChannelToken {
                 id,
@@ -582,6 +594,7 @@ async fn fetch_sub2api_tokens(
                     .unwrap_or(0.0),
                 unlimited_quota: true,
                 platform,
+                group_name,
             })
         })
         .collect();

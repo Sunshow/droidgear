@@ -883,7 +883,11 @@ unlimitedQuota: boolean;
 /**
  * Platform type (openai, anthropic, gemini, etc.) - from Sub2API
  */
-platform: string | null }
+platform: string | null; 
+/**
+ * Group name - from Sub2API
+ */
+groupName: string | null }
 /**
  * Channel types supported
  */
