@@ -409,6 +409,8 @@ DroidGear values your privacy. Your username, password, API keys, and other sens
 
 This project is based on [tauri-template](https://github.com/dannysmith/tauri-template) by Danny Smith. Thanks for the excellent template!
 
+Thanks to [@xb0or](https://github.com/xb0or) for contributing Codex CLI config support.
+
 ## License
 
 [MIT](LICENSE.md)
