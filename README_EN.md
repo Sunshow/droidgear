@@ -137,6 +137,10 @@ DroidGear values your privacy. Your username, password, API keys, and other sens
 
 ## Changelog
 
+### v0.2.8
+
+- Support custom config path for WSL
+
 ### v0.2.7
 
 - Codex CLI config support

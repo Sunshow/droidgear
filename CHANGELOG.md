@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.8
+
+**New Features / 新功能**
+
+- Support custom config path for WSL / 支持 WSL 自定义配置路径 #10
+
 ## v0.2.7
 
 **New Features / 新功能**

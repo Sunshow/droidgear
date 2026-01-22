@@ -6,12 +6,12 @@ DroidGear supports customizing configuration directory paths for Droid/Factory, 
 
 ## 默认路径 / Default Paths
 
-| 工具 / Tool | 默认路径 / Default Path |
-|-------------|-------------------------|
-| Droid/Factory | `~/.factory/` |
-| OpenCode Config | `~/.config/opencode/` |
-| OpenCode Auth | `~/.local/share/opencode/` |
-| Codex | `~/.codex/` |
+| 工具 / Tool     | 默认路径 / Default Path    |
+| --------------- | -------------------------- |
+| Droid/Factory   | `~/.factory/`              |
+| OpenCode Config | `~/.config/opencode/`      |
+| OpenCode Auth   | `~/.local/share/opencode/` |
+| Codex           | `~/.codex/`                |
 
 ## 如何设置 / How to Configure
 
@@ -20,10 +20,10 @@ DroidGear supports customizing configuration directory paths for Droid/Factory, 
 3. 点击 📁 图标浏览选择目录，或直接输入路径
 4. 点击 **Save** 保存
 
-1. Open **Preferences** (Mac: `Cmd+,` / Windows: `Ctrl+,`)
-2. Select the **Paths** pane
-3. Click the 📁 icon to browse for a directory, or type the path directly
-4. Click **Save** to apply
+5. Open **Preferences** (Mac: `Cmd+,` / Windows: `Ctrl+,`)
+6. Select the **Paths** pane
+7. Click the 📁 icon to browse for a directory, or type the path directly
+8. Click **Save** to apply
 
 ## WSL 用户指南 / WSL User Guide
 
@@ -54,6 +54,7 @@ Custom paths are stored in the `configPaths` field of `~/.droidgear/settings.jso
 ```
 
 **注意 / Notes:**
+
 - 只有明确设置的路径才会写入配置文件
 - 未设置的路径使用默认值
 - 重置路径会从配置中删除该条目
@@ -74,6 +75,6 @@ In the Paths settings pane, click the **Reset** button to restore a single path 
 2. **目录权限**: 确保 DroidGear 对自定义目录有读写权限
 3. **符号链接**: 支持符号链接路径
 
-1. **Restart Required**: After changing configuration paths, you may need to restart the app for changes to take full effect
-2. **Directory Permissions**: Ensure DroidGear has read/write access to custom directories
-3. **Symlinks**: Symbolic link paths are supported
+4. **Restart Required**: After changing configuration paths, you may need to restart the app for changes to take full effect
+5. **Directory Permissions**: Ensure DroidGear has read/write access to custom directories
+6. **Symlinks**: Symbolic link paths are supported
