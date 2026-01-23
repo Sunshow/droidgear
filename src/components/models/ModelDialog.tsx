@@ -136,7 +136,7 @@ function ModelForm({
       setAvailableModels(result.data)
       if (result.data.length === 0) {
         setFetchError(t('models.noModelsFound'))
-      } else if (result.data.length > 1 && mode === 'add' && onSaveBatch) {
+      } else if (result.data.length > 1 && mode !== 'edit' && onSaveBatch) {
         setBatchMode(true)
       }
     } else {
@@ -275,19 +275,17 @@ function ModelForm({
                 placeholder="sk-..."
                 className="flex-1"
               />
-              {mode === 'add' && (
-                <Button
-                  variant="outline"
-                  onClick={handleFetchModels}
-                  disabled={isFetching || !baseUrl || !apiKey}
-                >
-                  {isFetching ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    t('models.fetchModels')
-                  )}
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                onClick={handleFetchModels}
+                disabled={isFetching || !baseUrl || !apiKey}
+              >
+                {isFetching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  t('models.fetchModels')
+                )}
+              </Button>
             </div>
             {fetchError && (
               <p className="text-sm text-destructive">{fetchError}</p>
