@@ -434,18 +434,6 @@ async removeEnvVar(name: string) : Promise<void> {
     await TAURI_INVOKE("remove_env_var", { name });
 },
 /**
- * Sets up an environment variable in the user's shell configuration file.
- * Returns the path of the file that was modified on success.
- */
-async setupEnvInShellConfig(key: string, value: string) : Promise<Result<string, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("setup_env_in_shell_config", { key, value }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
  * Gets environment variables from a login shell.
  * This is useful for GUI apps that don't inherit shell environment.
  * Uses non-interactive mode for faster execution.

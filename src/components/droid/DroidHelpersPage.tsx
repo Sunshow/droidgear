@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AlertCircle, Copy, Check } from 'lucide-react'
+import { AlertCircle, Copy, Check, RefreshCw } from 'lucide-react'
 import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 import { toast } from 'sonner'
 import { Label } from '@/components/ui/label'
@@ -23,7 +23,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { commands } from '@/lib/bindings'
-import { useIsWindows } from '@/hooks/use-platform'
 
 const ENV_VAR_NAME = 'FACTORY_API_KEY'
 
@@ -36,14 +35,81 @@ function generateRandomKey(): string {
   return result
 }
 
+type ShellType = 'bash' | 'zsh' | 'powershell'
+
+function CopyableCommand({
+  command,
+  onCopy,
+}: {
+  command: string
+  onCopy: () => void
+}) {
+  const [copied, setCopied] = useState(false)
+  const { t } = useTranslation()
+
+  const handleCopy = async () => {
+    await writeText(command)
+    setCopied(true)
+    onCopy()
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <code className="flex-1 p-2 bg-muted rounded-md text-sm font-mono overflow-x-auto">
+        {command}
+      </code>
+      <Button
+        variant="outline"
+        size="icon"
+        className="shrink-0"
+        onClick={handleCopy}
+        title={t('common.copy')}
+      >
+        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+      </Button>
+    </div>
+  )
+}
+
+function ShellCommandSection({
+  shell,
+  apiKeyValue,
+}: {
+  shell: ShellType
+  apiKeyValue: string
+}) {
+  const { t } = useTranslation()
+
+  const getCommand = () => {
+    if (shell === 'powershell') {
+      return `$env:${ENV_VAR_NAME} = "${apiKeyValue}"`
+    }
+    return `export ${ENV_VAR_NAME}="${apiKeyValue}"`
+  }
+
+  const labelKey = `droid.helpers.skipLogin.instructions.${shell}`
+  const pathKey = `droid.helpers.skipLogin.instructions.${shell}Path`
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-sm">
+        <span className="font-medium">{t(labelKey)}</span>
+        <span className="text-muted-foreground">- {t(pathKey)}</span>
+      </div>
+      <CopyableCommand
+        command={getCommand()}
+        onCopy={() => toast.success(t('common.copied'))}
+      />
+    </div>
+  )
+}
+
 export function DroidHelpersPage() {
   const { t } = useTranslation()
-  const isWindows = useIsWindows()
 
   const [setupDialogOpen, setSetupDialogOpen] = useState(false)
   const [apiKeyValue, setApiKeyValue] = useState('')
-  const [manualSetupError, setManualSetupError] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
   const [cloudSessionSync, setCloudSessionSync] = useState(true)
 
   // Session settings states
@@ -111,40 +177,7 @@ export function DroidHelpersPage() {
 
   const handleOpenSetupDialog = () => {
     setApiKeyValue(generateRandomKey())
-    setManualSetupError(null)
     setSetupDialogOpen(true)
-  }
-
-  const handleSetup = async () => {
-    if (!apiKeyValue.trim()) return
-
-    const result = await commands.setupEnvInShellConfig(
-      ENV_VAR_NAME,
-      apiKeyValue.trim()
-    )
-    if (result.status === 'ok') {
-      setSetupDialogOpen(false)
-      toast.success(t('droid.helpers.skipLogin.success', { file: result.data }))
-    } else {
-      // Show manual setup instructions
-      setManualSetupError(result.error)
-    }
-  }
-
-  const handleCopyCommand = async () => {
-    const command = isWindows
-      ? `$env:${ENV_VAR_NAME} = "${apiKeyValue}"`
-      : `export ${ENV_VAR_NAME}="${apiKeyValue}"`
-    await writeText(command)
-    setCopied(true)
-    toast.success(t('common.copied'))
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  const getManualSetupCommand = () => {
-    return isWindows
-      ? `$env:${ENV_VAR_NAME} = "${apiKeyValue}"`
-      : `export ${ENV_VAR_NAME}="${apiKeyValue}"`
   }
 
   const handleCloudSessionSyncToggle = async (enabled: boolean) => {
@@ -442,7 +475,7 @@ export function DroidHelpersPage() {
 
       {/* Setup Dialog */}
       <Dialog open={setupDialogOpen} onOpenChange={setSetupDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{t('droid.helpers.skipLogin.title')}</DialogTitle>
             <DialogDescription>
@@ -453,12 +486,22 @@ export function DroidHelpersPage() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>{t('droid.helpers.skipLogin.apiKeyLabel')}</Label>
-              <Input
-                value={apiKeyValue}
-                onChange={e => setApiKeyValue(e.target.value)}
-                placeholder={t('droid.helpers.skipLogin.apiKeyPlaceholder')}
-                className="font-mono"
-              />
+              <div className="flex gap-2">
+                <Input
+                  value={apiKeyValue}
+                  onChange={e => setApiKeyValue(e.target.value)}
+                  placeholder={t('droid.helpers.skipLogin.apiKeyPlaceholder')}
+                  className="font-mono flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setApiKeyValue(generateRandomKey())}
+                  title={t('common.refresh')}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
@@ -467,43 +510,23 @@ export function DroidHelpersPage() {
               </p>
             </div>
 
-            {manualSetupError && (
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  {isWindows
-                    ? t('droid.helpers.skipLogin.manualSetupWindows')
-                    : t('droid.helpers.skipLogin.manualSetupUnix')}
-                </p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 p-2 bg-muted rounded-md text-sm font-mono overflow-x-auto">
-                    {getManualSetupCommand()}
-                  </code>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="shrink-0"
-                    onClick={handleCopyCommand}
-                  >
-                    {copied ? (
-                      <Check className="h-4 w-4" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-            )}
+            <div className="space-y-4 pt-2">
+              <p className="text-sm font-medium">
+                {t('droid.helpers.skipLogin.instructions.title')}
+              </p>
+              <ShellCommandSection shell="zsh" apiKeyValue={apiKeyValue} />
+              <ShellCommandSection shell="bash" apiKeyValue={apiKeyValue} />
+              <ShellCommandSection
+                shell="powershell"
+                apiKeyValue={apiKeyValue}
+              />
+            </div>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setSetupDialogOpen(false)}>
-              {t('common.cancel')}
+              {t('common.dismiss')}
             </Button>
-            {!manualSetupError && (
-              <Button onClick={handleSetup}>
-                {t('droid.helpers.skipLogin.confirm')}
-              </Button>
-            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
