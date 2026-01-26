@@ -33,3 +33,18 @@ export function isOfficialModelName(value: string): boolean {
     name => name.toLowerCase() === trimmed.toLowerCase()
   )
 }
+
+const PREFIX_SEPARATORS = /^[\s\-_]/
+
+export function hasOfficialModelNamePrefix(value: string): boolean {
+  const trimmed = value.trim().toLowerCase()
+  return DROID_OFFICIAL_MODEL_NAMES.some(name => {
+    const nameLower = name.toLowerCase()
+    if (trimmed === nameLower) return true
+    if (trimmed.startsWith(nameLower)) {
+      const suffix = trimmed.slice(nameLower.length)
+      return PREFIX_SEPARATORS.test(suffix)
+    }
+    return false
+  })
+}

@@ -29,7 +29,7 @@ import {
 import {
   containsRegexSpecialChars,
   getDefaultMaxOutputTokens,
-  isOfficialModelName,
+  hasOfficialModelNamePrefix,
 } from '@/lib/utils'
 import { useModelStore } from '@/store/model-store'
 import { BatchModelSelector } from './BatchModelSelector'
@@ -226,7 +226,7 @@ function ModelForm({
     apiKey &&
     (!displayName ||
       (!containsRegexSpecialChars(displayName) &&
-        !isOfficialModelName(displayName)))
+        !hasOfficialModelNamePrefix(displayName)))
 
   const batchValid = isBatchValid(selectedModels, prefix, suffix)
 
@@ -352,7 +352,7 @@ function ModelForm({
                     {t('validation.bracketsNotAllowed')}
                   </p>
                 )}
-                {isOfficialModelName(displayName) && (
+                {hasOfficialModelNamePrefix(displayName) && (
                   <p className="text-sm text-destructive">
                     {t('validation.officialModelNameNotAllowed')}
                   </p>

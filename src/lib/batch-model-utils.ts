@@ -2,7 +2,7 @@ import type { CustomModel, Provider } from '@/lib/bindings'
 import {
   containsRegexSpecialChars,
   getDefaultMaxOutputTokens,
-  isOfficialModelName,
+  hasOfficialModelNamePrefix,
 } from '@/lib/utils'
 
 export interface BatchModelConfig {
@@ -78,6 +78,6 @@ export function isBatchValid(
   return Array.from(selectedModels.values()).every(
     config =>
       !containsRegexSpecialChars(config.alias) &&
-      !isOfficialModelName(config.alias)
+      !hasOfficialModelNamePrefix(config.alias)
   )
 }

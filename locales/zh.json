@@ -471,7 +471,7 @@
   "update.failed": "更新失败：自动下载出现问题。\n\n{{error}}",
 
   "validation.bracketsNotAllowed": "不建议使用可能影响正则表达式的特殊字符，可能导致不可预期的问题",
-  "validation.officialModelNameNotAllowed": "此名称为官方模型保留名称",
+  "validation.officialModelNameNotAllowed": "显示名称不能与官方模型名相同或以其为前缀（如 Opus 4.5、Sonnet 4.5）",
 
   "sidebar.opencode": "OpenCode",
 

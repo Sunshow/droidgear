@@ -471,7 +471,7 @@
   "update.failed": "Update failed: There was a problem with the automatic download.\n\n{{error}}",
 
   "validation.bracketsNotAllowed": "Special characters that may affect regex are not recommended and may cause unexpected issues",
-  "validation.officialModelNameNotAllowed": "This name is reserved for official models",
+  "validation.officialModelNameNotAllowed": "Display name cannot match or start with official model names (e.g., Opus 4.5, Sonnet 4.5)",
 
   "sidebar.opencode": "OpenCode",
 

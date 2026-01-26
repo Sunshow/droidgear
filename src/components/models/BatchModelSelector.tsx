@@ -16,7 +16,7 @@ import type { CustomModel, Provider, ModelInfo } from '@/lib/bindings'
 import {
   containsRegexSpecialChars,
   getDefaultMaxOutputTokens,
-  isOfficialModelName,
+  hasOfficialModelNamePrefix,
 } from '@/lib/utils'
 import type { BatchModelConfig } from '@/lib/batch-model-utils'
 
@@ -280,7 +280,7 @@ export function BatchModelSelector({
                         {t('validation.bracketsNotAllowed')}
                       </p>
                     )}
-                    {isOfficialModelName(modelConfig.alias) && (
+                    {hasOfficialModelNamePrefix(modelConfig.alias) && (
                       <p className="text-xs text-destructive">
                         {t('validation.officialModelNameNotAllowed')}
                       </p>
