@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { locale, platform } from '@tauri-apps/plugin-os'
+import { locale } from '@tauri-apps/plugin-os'
 import { getSystemFonts } from 'tauri-plugin-system-fonts-api'
 import { toast } from 'sonner'
 import {
@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input'
 import { useTheme } from '@/hooks/use-theme'
 import { SettingsField, SettingsSection } from '../shared/SettingsComponents'
 import { usePreferences, useSavePreferences } from '@/services/preferences'
+import { useIsWindows } from '@/hooks/use-platform'
 import { availableLanguages } from '@/i18n'
 import { logger } from '@/lib/logger'
 
@@ -30,13 +31,8 @@ export function AppearancePane() {
   const savePreferences = useSavePreferences()
   const [systemFonts, setSystemFonts] = useState<string[]>([])
   const [fontsLoading, setFontsLoading] = useState(true)
-  const [isWindows, setIsWindows] = useState(false)
+  const isWindows = useIsWindows()
   const [shellCommand, setShellCommand] = useState('')
-
-  // Detect platform on mount
-  useEffect(() => {
-    setIsWindows(platform() === 'windows')
-  }, [])
 
   // Sync shell command with preferences
   useEffect(() => {
