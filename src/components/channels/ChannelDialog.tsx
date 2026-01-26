@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Loader2, ScanSearch } from 'lucide-react'
 import {
   ResizableDialog,
   ResizableDialogContent,
@@ -52,6 +53,11 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
   const [password, setPassword] = useState('')
   const [enabled, setEnabled] = useState(channel?.enabled ?? true)
   const [isLoadingCredentials, setIsLoadingCredentials] = useState(!!channel)
+  const [isDetecting, setIsDetecting] = useState(false)
+  const [detectMessage, setDetectMessage] = useState<{
+    type: 'success' | 'error'
+    text: string
+  } | null>(null)
 
   // Load credentials from storage for existing channels
   useEffect(() => {
@@ -73,9 +79,38 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
 
   const handleTypeChange = (value: ChannelType) => {
     setChannelType(value)
+    setDetectMessage(null)
     if (!channel) {
       setBaseUrl(defaultBaseUrls[value])
     }
+  }
+
+  const handleDetectType = async () => {
+    if (!baseUrl.trim()) return
+
+    setIsDetecting(true)
+    setDetectMessage(null)
+
+    const result = await commands.detectChannelType(baseUrl.trim())
+
+    if (result.status === 'ok') {
+      setChannelType(result.data)
+      const typeName =
+        result.data === 'new-api'
+          ? t('channels.typeNewApi')
+          : t('channels.typeSub2Api')
+      setDetectMessage({
+        type: 'success',
+        text: t('channels.detectSuccess', { type: typeName }),
+      })
+    } else {
+      setDetectMessage({
+        type: 'error',
+        text: t('channels.detectFailed'),
+      })
+    }
+
+    setIsDetecting(false)
   }
 
   const handleSave = () => {
@@ -129,12 +164,39 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
 
           <div className="grid gap-2">
             <Label htmlFor="baseUrl">{t('channels.apiUrl')}</Label>
-            <Input
-              id="baseUrl"
-              value={baseUrl}
-              onChange={e => setBaseUrl(e.target.value)}
-              placeholder="https://api.example.com"
-            />
+            <div className="flex gap-2">
+              <Input
+                id="baseUrl"
+                value={baseUrl}
+                onChange={e => {
+                  setBaseUrl(e.target.value)
+                  setDetectMessage(null)
+                }}
+                placeholder="https://api.example.com"
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={handleDetectType}
+                disabled={!baseUrl.trim() || isDetecting}
+                title={t('channels.detectType')}
+              >
+                {isDetecting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ScanSearch className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            {detectMessage && (
+              <p
+                className={`text-xs ${detectMessage.type === 'success' ? 'text-green-600' : 'text-destructive'}`}
+              >
+                {detectMessage.text}
+              </p>
+            )}
           </div>
 
           <div className="grid gap-2">

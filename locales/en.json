@@ -367,6 +367,9 @@
   "channels.enterPassword": "Enter password",
   "channels.credentialsHint": "Credentials are stored locally in ~/.droidgear/auth/",
   "channels.privacyNotice": "Your username, password, and other private data are stored locally on your device only and are never uploaded to any server.",
+  "channels.detectType": "Auto Detect Type",
+  "channels.detectSuccess": "Detected as {{type}}",
+  "channels.detectFailed": "Detection failed, please select type manually",
   "channels.selectChannelHint": "Select a channel from the sidebar or add a new one",
 
   "keys.title": "API Keys",

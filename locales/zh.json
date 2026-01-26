@@ -367,6 +367,9 @@
   "channels.enterPassword": "输入密码",
   "channels.credentialsHint": "凭据存储在本地 ~/.droidgear/auth/",
   "channels.privacyNotice": "您的用户名、密码等隐私数据仅存储在本地设备，不会上传至任何服务器。",
+  "channels.detectType": "自动检测类型",
+  "channels.detectSuccess": "已检测为 {{type}}",
+  "channels.detectFailed": "检测失败，请手动选择类型",
   "channels.selectChannelHint": "从侧边栏选择一个渠道或添加新渠道",
 
   "keys.title": "API 密钥",

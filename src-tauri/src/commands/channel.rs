@@ -249,6 +249,42 @@ pub async fn delete_channel_credentials(channel_id: String) -> Result<(), String
     Ok(())
 }
 
+/// Detects channel type by probing characteristic endpoints
+#[tauri::command]
+#[specta::specta]
+pub async fn detect_channel_type(base_url: String) -> Result<ChannelType, String> {
+    log::debug!("Detecting channel type for: {base_url}");
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
+
+    let base = base_url.trim_end_matches('/');
+
+    // 1. Check for Sub2API: GET /health returns {"status":"ok"}
+    if let Ok(resp) = client.get(format!("{base}/health")).send().await {
+        if resp.status().is_success() {
+            if let Ok(data) = resp.json::<Value>().await {
+                if data.get("status").and_then(|s| s.as_str()) == Some("ok") {
+                    log::info!("Detected channel type: Sub2API");
+                    return Ok(ChannelType::Sub2Api);
+                }
+            }
+        }
+    }
+
+    // 2. Check for New API: GET /api/status
+    if let Ok(resp) = client.get(format!("{base}/api/status")).send().await {
+        if resp.status().is_success() {
+            log::info!("Detected channel type: NewApi");
+            return Ok(ChannelType::NewApi);
+        }
+    }
+
+    Err("Unable to auto-detect channel type".to_string())
+}
+
 /// Fetches tokens from a channel (dispatches based on channel type)
 #[tauri::command]
 #[specta::specta]

@@ -391,6 +391,17 @@ async deleteChannelCredentials(channelId: string) : Promise<Result<null, string>
 }
 },
 /**
+ * Detects channel type by probing characteristic endpoints
+ */
+async detectChannelType(baseUrl: string) : Promise<Result<ChannelType, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("detect_channel_type", { baseUrl }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Fetches tokens from a channel (dispatches based on channel type)
  */
 async fetchChannelTokens(channelType: ChannelType, baseUrl: string, username: string, password: string) : Promise<Result<ChannelToken[], string>> {
