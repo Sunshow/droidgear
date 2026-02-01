@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.3.2
+
+**New Features / 新功能**
+
+- OpenClaw streaming settings support / OpenClaw 流式设置支持
+- OpenClaw models providers more options / OpenClaw 模型服务商更多选项
+
+**Bug Fixes / 问题修复**
+
+- Fix OpenClaw apply mode / 修复 OpenClaw 应用模式
+
 ## v0.3.1
 
 **New Features / 新功能**
