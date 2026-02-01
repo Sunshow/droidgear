@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Plus,
-  Save,
   AlertCircle,
   RefreshCw,
   Play,
@@ -49,7 +48,6 @@ export function OpenClawConfigPage() {
   const profiles = useOpenClawStore(state => state.profiles)
   const activeProfileId = useOpenClawStore(state => state.activeProfileId)
   const currentProfile = useOpenClawStore(state => state.currentProfile)
-  const hasChanges = useOpenClawStore(state => state.hasChanges)
   const isLoading = useOpenClawStore(state => state.isLoading)
   const error = useOpenClawStore(state => state.error)
   const configStatus = useOpenClawStore(state => state.configStatus)
@@ -61,7 +59,6 @@ export function OpenClawConfigPage() {
   const loadConfigStatus = useOpenClawStore(state => state.loadConfigStatus)
   const selectProfile = useOpenClawStore(state => state.selectProfile)
   const createProfile = useOpenClawStore(state => state.createProfile)
-  const saveProfile = useOpenClawStore(state => state.saveProfile)
   const deleteProfile = useOpenClawStore(state => state.deleteProfile)
   const duplicateProfile = useOpenClawStore(state => state.duplicateProfile)
   const applyProfile = useOpenClawStore(state => state.applyProfile)
@@ -72,7 +69,6 @@ export function OpenClawConfigPage() {
   )
   const updateDefaultModel = useOpenClawStore(state => state.updateDefaultModel)
   const deleteProvider = useOpenClawStore(state => state.deleteProvider)
-  const resetChanges = useOpenClawStore(state => state.resetChanges)
   const setError = useOpenClawStore(state => state.setError)
 
   const [providerDialogOpen, setProviderDialogOpen] = useState(false)
@@ -87,6 +83,21 @@ export function OpenClawConfigPage() {
   const [showDuplicateProfileDialog, setShowDuplicateProfileDialog] =
     useState(false)
   const [newProfileName, setNewProfileName] = useState('')
+
+  // Use profile id as key to reset local editing state
+  const profileKey = currentProfile?.id ?? ''
+  const [editingName, setEditingName] = useState(currentProfile?.name ?? '')
+  const [editingDescription, setEditingDescription] = useState(
+    currentProfile?.description ?? ''
+  )
+
+  // Reset local state when profile changes
+  const [lastProfileKey, setLastProfileKey] = useState(profileKey)
+  if (profileKey !== lastProfileKey) {
+    setLastProfileKey(profileKey)
+    setEditingName(currentProfile?.name ?? '')
+    setEditingDescription(currentProfile?.description ?? '')
+  }
 
   useEffect(() => {
     const init = async () => {
@@ -119,11 +130,6 @@ export function OpenClawConfigPage() {
     if (!currentProfile) return
     await deleteProfile(currentProfile.id)
     setShowDeleteProfileConfirm(false)
-  }
-
-  const handleSave = async () => {
-    await saveProfile()
-    toast.success(t('openclaw.actions.saveSuccess'))
   }
 
   const handleApply = async () => {
@@ -159,6 +165,15 @@ export function OpenClawConfigPage() {
     ? Object.entries(currentProfile.providers)
     : []
 
+  // Build available model refs from all configured providers/models
+  const availableModelRefs = useMemo(() => {
+    if (!currentProfile) return []
+    return Object.entries(currentProfile.providers).flatMap(
+      ([providerId, config]) =>
+        (config?.models ?? []).map(m => `${providerId}/${m.id}`)
+    )
+  }, [currentProfile])
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -166,14 +181,6 @@ export function OpenClawConfigPage() {
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-semibold">{t('openclaw.title')}</h1>
           <div className="flex items-center gap-2 mt-1">
-            {hasChanges && (
-              <Badge
-                variant="secondary"
-                className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-              >
-                {t('models.unsavedChanges')}
-              </Badge>
-            )}
             {currentProfile && activeProfileId === currentProfile.id && (
               <Badge variant="outline">{t('openclaw.profile.active')}</Badge>
             )}
@@ -191,21 +198,6 @@ export function OpenClawConfigPage() {
             title={t('common.refresh')}
           >
             <RefreshCw className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            onClick={resetChanges}
-            disabled={!hasChanges || isLoading}
-          >
-            {t('common.reset')}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleSave}
-            disabled={!hasChanges || isLoading}
-          >
-            <Save className="h-4 w-4 mr-2" />
-            {t('common.save')}
           </Button>
           <Button
             onClick={() => setShowApplyConfirm(true)}
@@ -292,8 +284,13 @@ export function OpenClawConfigPage() {
               <div className="flex items-center gap-2">
                 <Label className="w-20">{t('openclaw.profile.name')}</Label>
                 <Input
-                  value={currentProfile.name}
-                  onChange={e => updateProfileName(e.target.value)}
+                  value={editingName}
+                  onChange={e => setEditingName(e.target.value)}
+                  onBlur={() => {
+                    if (editingName !== currentProfile.name) {
+                      updateProfileName(editingName)
+                    }
+                  }}
                   placeholder={t('openclaw.profile.name')}
                 />
               </div>
@@ -302,8 +299,15 @@ export function OpenClawConfigPage() {
                   {t('openclaw.profile.description')}
                 </Label>
                 <Input
-                  value={currentProfile.description ?? ''}
-                  onChange={e => updateProfileDescription(e.target.value)}
+                  value={editingDescription}
+                  onChange={e => setEditingDescription(e.target.value)}
+                  onBlur={() => {
+                    if (
+                      editingDescription !== (currentProfile.description ?? '')
+                    ) {
+                      updateProfileDescription(editingDescription)
+                    }
+                  }}
                   placeholder={t('openclaw.profile.descriptionPlaceholder')}
                 />
               </div>
@@ -318,12 +322,28 @@ export function OpenClawConfigPage() {
           </h2>
           <div className="flex items-center gap-2">
             <Label className="w-32">{t('openclaw.defaultModel.label')}</Label>
-            <Input
+            <Select
               value={currentProfile?.defaultModel ?? ''}
-              onChange={e => updateDefaultModel(e.target.value)}
-              placeholder="anthropic/claude-sonnet-4-20250514"
-              disabled={!currentProfile}
-            />
+              onValueChange={updateDefaultModel}
+              disabled={!currentProfile || availableModelRefs.length === 0}
+            >
+              <SelectTrigger className="flex-1">
+                <SelectValue
+                  placeholder={
+                    availableModelRefs.length === 0
+                      ? t('openclaw.defaultModel.noModelsConfigured')
+                      : t('openclaw.defaultModel.selectPlaceholder')
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {availableModelRefs.map(ref => (
+                  <SelectItem key={ref} value={ref}>
+                    {ref}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <p className="text-xs text-muted-foreground">
             {t('openclaw.defaultModel.hint')}
@@ -390,7 +410,9 @@ export function OpenClawConfigPage() {
                 <code className="text-xs bg-muted px-1 py-0.5 rounded">
                   {configStatus.configPath}
                 </code>
-                <Badge variant={configStatus.configExists ? 'default' : 'outline'}>
+                <Badge
+                  variant={configStatus.configExists ? 'default' : 'outline'}
+                >
                   {configStatus.configExists
                     ? t('common.exists')
                     : t('common.missing')}
@@ -434,9 +456,7 @@ export function OpenClawConfigPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t('openclaw.provider.delete')}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{t('openclaw.provider.delete')}</AlertDialogTitle>
             <AlertDialogDescription>
               {t('openclaw.provider.deleteConfirm')}
             </AlertDialogDescription>
@@ -457,9 +477,7 @@ export function OpenClawConfigPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t('openclaw.profile.delete')}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{t('openclaw.profile.delete')}</AlertDialogTitle>
             <AlertDialogDescription>
               {t('openclaw.profile.deleteConfirm')}
             </AlertDialogDescription>

@@ -11,8 +11,6 @@ interface OpenClawState {
   profiles: OpenClawProfile[]
   activeProfileId: string | null
   currentProfile: OpenClawProfile | null
-  originalProfile: OpenClawProfile | null
-  hasChanges: boolean
   isLoading: boolean
   error: string | null
   configStatus: OpenClawConfigStatus | null
@@ -27,22 +25,13 @@ interface OpenClawState {
   duplicateProfile: (id: string, newName: string) => Promise<void>
   applyProfile: (id: string) => Promise<void>
   loadFromLiveConfig: () => Promise<void>
-  updateProfileName: (name: string) => void
-  updateProfileDescription: (description: string) => void
-  updateDefaultModel: (model: string) => void
-  addProvider: (id: string, config: OpenClawProviderConfig) => void
-  updateProvider: (id: string, config: OpenClawProviderConfig) => void
-  deleteProvider: (id: string) => void
-  resetChanges: () => void
+  updateProfileName: (name: string) => Promise<void>
+  updateProfileDescription: (description: string) => Promise<void>
+  updateDefaultModel: (model: string) => Promise<void>
+  addProvider: (id: string, config: OpenClawProviderConfig) => Promise<void>
+  updateProvider: (id: string, config: OpenClawProviderConfig) => Promise<void>
+  deleteProvider: (id: string) => Promise<void>
   setError: (error: string | null) => void
-}
-
-function profilesEqual(
-  a: OpenClawProfile | null,
-  b: OpenClawProfile | null
-): boolean {
-  if (!a || !b) return a === b
-  return JSON.stringify(a) === JSON.stringify(b)
 }
 
 export const useOpenClawStore = create<OpenClawState>()(
@@ -51,8 +40,6 @@ export const useOpenClawStore = create<OpenClawState>()(
       profiles: [],
       activeProfileId: null,
       currentProfile: null,
-      originalProfile: null,
-      hasChanges: false,
       isLoading: false,
       error: null,
       configStatus: null,
@@ -132,10 +119,6 @@ export const useOpenClawStore = create<OpenClawState>()(
             currentProfile: profile
               ? JSON.parse(JSON.stringify(profile))
               : null,
-            originalProfile: profile
-              ? JSON.parse(JSON.stringify(profile))
-              : null,
-            hasChanges: false,
           },
           undefined,
           'openclaw/selectProfile'
@@ -202,18 +185,10 @@ export const useOpenClawStore = create<OpenClawState>()(
       applyProfile: async id => {
         const result = await commands.applyOpenclawProfile(id)
         if (result.status !== 'ok') {
-          set(
-            { error: result.error },
-            undefined,
-            'openclaw/applyProfile/error'
-          )
+          set({ error: result.error }, undefined, 'openclaw/applyProfile/error')
           return
         }
-        set(
-          { activeProfileId: id },
-          undefined,
-          'openclaw/applyProfile/success'
-        )
+        set({ activeProfileId: id }, undefined, 'openclaw/applyProfile/success')
         await get().loadConfigStatus()
       },
 
@@ -237,16 +212,15 @@ export const useOpenClawStore = create<OpenClawState>()(
           updatedAt: new Date().toISOString(),
         }
         set(
-          {
-            currentProfile: updated,
-            hasChanges: !profilesEqual(updated, get().originalProfile),
-          },
+          { currentProfile: updated },
           undefined,
           'openclaw/loadFromLiveConfig/success'
         )
+        // Auto-save after loading from live config
+        await get().saveProfile()
       },
 
-      updateProfileName: name => {
+      updateProfileName: async name => {
         const { currentProfile } = get()
         if (!currentProfile) return
         const updated = {
@@ -255,16 +229,14 @@ export const useOpenClawStore = create<OpenClawState>()(
           updatedAt: new Date().toISOString(),
         }
         set(
-          {
-            currentProfile: updated,
-            hasChanges: !profilesEqual(updated, get().originalProfile),
-          },
+          { currentProfile: updated },
           undefined,
           'openclaw/updateProfileName'
         )
+        await get().saveProfile()
       },
 
-      updateProfileDescription: description => {
+      updateProfileDescription: async description => {
         const { currentProfile } = get()
         if (!currentProfile) return
         const updated = {
@@ -273,16 +245,14 @@ export const useOpenClawStore = create<OpenClawState>()(
           updatedAt: new Date().toISOString(),
         }
         set(
-          {
-            currentProfile: updated,
-            hasChanges: !profilesEqual(updated, get().originalProfile),
-          },
+          { currentProfile: updated },
           undefined,
           'openclaw/updateProfileDescription'
         )
+        await get().saveProfile()
       },
 
-      updateDefaultModel: model => {
+      updateDefaultModel: async model => {
         const { currentProfile } = get()
         if (!currentProfile) return
         const updated = {
@@ -291,16 +261,14 @@ export const useOpenClawStore = create<OpenClawState>()(
           updatedAt: new Date().toISOString(),
         }
         set(
-          {
-            currentProfile: updated,
-            hasChanges: !profilesEqual(updated, get().originalProfile),
-          },
+          { currentProfile: updated },
           undefined,
           'openclaw/updateDefaultModel'
         )
+        await get().saveProfile()
       },
 
-      addProvider: (id, config) => {
+      addProvider: async (id, config) => {
         const { currentProfile } = get()
         if (!currentProfile) return
         const updated = {
@@ -308,17 +276,11 @@ export const useOpenClawStore = create<OpenClawState>()(
           providers: { ...currentProfile.providers, [id]: config },
           updatedAt: new Date().toISOString(),
         }
-        set(
-          {
-            currentProfile: updated,
-            hasChanges: !profilesEqual(updated, get().originalProfile),
-          },
-          undefined,
-          'openclaw/addProvider'
-        )
+        set({ currentProfile: updated }, undefined, 'openclaw/addProvider')
+        await get().saveProfile()
       },
 
-      updateProvider: (id, config) => {
+      updateProvider: async (id, config) => {
         const { currentProfile } = get()
         if (!currentProfile) return
         const updated = {
@@ -326,17 +288,11 @@ export const useOpenClawStore = create<OpenClawState>()(
           providers: { ...currentProfile.providers, [id]: config },
           updatedAt: new Date().toISOString(),
         }
-        set(
-          {
-            currentProfile: updated,
-            hasChanges: !profilesEqual(updated, get().originalProfile),
-          },
-          undefined,
-          'openclaw/updateProvider'
-        )
+        set({ currentProfile: updated }, undefined, 'openclaw/updateProvider')
+        await get().saveProfile()
       },
 
-      deleteProvider: id => {
+      deleteProvider: async id => {
         const { currentProfile } = get()
         if (!currentProfile) return
         const { [id]: _removed, ...providers } = currentProfile.providers
@@ -345,29 +301,8 @@ export const useOpenClawStore = create<OpenClawState>()(
           providers,
           updatedAt: new Date().toISOString(),
         }
-        set(
-          {
-            currentProfile: updated,
-            hasChanges: !profilesEqual(updated, get().originalProfile),
-          },
-          undefined,
-          'openclaw/deleteProvider'
-        )
-      },
-
-      resetChanges: () => {
-        const { originalProfile } = get()
-        set(
-          {
-            currentProfile: originalProfile
-              ? JSON.parse(JSON.stringify(originalProfile))
-              : null,
-            hasChanges: false,
-            error: null,
-          },
-          undefined,
-          'openclaw/resetChanges'
-        )
+        set({ currentProfile: updated }, undefined, 'openclaw/deleteProvider')
+        await get().saveProfile()
       },
 
       setError: error => set({ error }, undefined, 'openclaw/setError'),

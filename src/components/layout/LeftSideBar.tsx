@@ -37,7 +37,6 @@ import { useChannelStore } from '@/store/channel-store'
 import { useModelStore } from '@/store/model-store'
 import { useOpenCodeStore } from '@/store/opencode-store'
 import { useCodexStore } from '@/store/codex-store'
-import { useOpenClawStore } from '@/store/openclaw-store'
 import { commands, type Channel } from '@/lib/bindings'
 
 type NavigationView = 'droid' | 'channels' | 'opencode' | 'codex' | 'openclaw'
@@ -59,7 +58,6 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
   const modelHasChanges = useModelStore(state => state.hasChanges)
   const opencodeHasChanges = useOpenCodeStore(state => state.hasChanges)
   const codexHasChanges = useCodexStore(state => state.hasChanges)
-  const openclawHasChanges = useOpenClawStore(state => state.hasChanges)
 
   const [channelDialogOpen, setChannelDialogOpen] = useState(false)
   const [editingChannel, setEditingChannel] = useState<Channel | undefined>()
@@ -105,8 +103,7 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
       (currentView === 'droid' && modelHasChanges) ||
       (currentView === 'channels' && channelHasChanges) ||
       (currentView === 'opencode' && opencodeHasChanges) ||
-      (currentView === 'codex' && codexHasChanges) ||
-      (currentView === 'openclaw' && openclawHasChanges)
+      (currentView === 'codex' && codexHasChanges)
 
     if (hasUnsavedChanges) {
       setPendingView(view)
@@ -124,8 +121,6 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
       await useOpenCodeStore.getState().saveProfile()
     } else if (currentView === 'codex') {
       await useCodexStore.getState().saveProfile()
-    } else if (currentView === 'openclaw') {
-      await useOpenClawStore.getState().saveProfile()
     }
     if (pendingView) {
       setCurrentView(pendingView)
@@ -142,8 +137,6 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
       useOpenCodeStore.getState().resetChanges()
     } else if (currentView === 'codex') {
       useCodexStore.getState().resetChanges()
-    } else if (currentView === 'openclaw') {
-      useOpenClawStore.getState().resetChanges()
     }
     if (pendingView) {
       setCurrentView(pendingView)

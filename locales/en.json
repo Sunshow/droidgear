@@ -603,7 +603,9 @@
 
   "openclaw.defaultModel.title": "Default Model",
   "openclaw.defaultModel.label": "Model Ref",
-  "openclaw.defaultModel.hint": "Format: provider/model (e.g., anthropic/claude-sonnet-4-20250514)",
+  "openclaw.defaultModel.hint": "Select a model from configured providers",
+  "openclaw.defaultModel.selectPlaceholder": "Select a model...",
+  "openclaw.defaultModel.noModelsConfigured": "No models configured",
 
   "openclaw.provider.add": "Add Provider",
   "openclaw.provider.edit": "Edit Provider",
@@ -622,6 +624,12 @@
   "openclaw.provider.model": "Model",
   "openclaw.provider.addModel": "Add Model",
   "openclaw.provider.noModels": "No models defined",
+  "openclaw.provider.fetchModels": "Fetch Models",
+  "openclaw.provider.fetchModelsError": "Please enter Base URL and API Key first",
+  "openclaw.provider.noModelsFound": "No models found from API",
+  "openclaw.provider.availableModels": "Available Models",
+  "openclaw.provider.addSelected": "Add Selected",
+  "openclaw.provider.alreadyAdded": "already added",
   "openclaw.provider.modelId": "Model ID",
   "openclaw.provider.modelName": "Display Name",
   "openclaw.provider.contextWindow": "Context Window",

@@ -603,7 +603,9 @@
 
   "openclaw.defaultModel.title": "默认模型",
   "openclaw.defaultModel.label": "模型引用",
-  "openclaw.defaultModel.hint": "格式：provider/model（例如：anthropic/claude-sonnet-4-20250514）",
+  "openclaw.defaultModel.hint": "从已配置的 Provider 中选择模型",
+  "openclaw.defaultModel.selectPlaceholder": "选择模型...",
+  "openclaw.defaultModel.noModelsConfigured": "暂无已配置的模型",
 
   "openclaw.provider.add": "添加 Provider",
   "openclaw.provider.edit": "编辑 Provider",
@@ -622,6 +624,12 @@
   "openclaw.provider.model": "模型",
   "openclaw.provider.addModel": "添加模型",
   "openclaw.provider.noModels": "暂无模型定义",
+  "openclaw.provider.fetchModels": "获取模型",
+  "openclaw.provider.fetchModelsError": "请先填写 Base URL 和 API Key",
+  "openclaw.provider.noModelsFound": "未从 API 获取到模型",
+  "openclaw.provider.availableModels": "可用模型",
+  "openclaw.provider.addSelected": "添加选中",
+  "openclaw.provider.alreadyAdded": "已添加",
   "openclaw.provider.modelId": "模型 ID",
   "openclaw.provider.modelName": "显示名称",
   "openclaw.provider.contextWindow": "上下文窗口",

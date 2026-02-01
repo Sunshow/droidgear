@@ -33,9 +33,7 @@ export function ProviderCard({
           )}
         </div>
         <div className="text-sm text-muted-foreground mt-1 space-y-0.5">
-          {config?.baseUrl && (
-            <div className="truncate">{config.baseUrl}</div>
-          )}
+          {config?.baseUrl && <div className="truncate">{config.baseUrl}</div>}
           {config?.models && config.models.length > 0 && (
             <div className="text-xs">
               {t('openclaw.provider.modelsCount', {
