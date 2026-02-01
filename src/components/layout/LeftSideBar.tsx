@@ -1,6 +1,14 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Server, Bot, Terminal, Code, ChevronDown, Check } from 'lucide-react'
+import {
+  Server,
+  Bot,
+  Terminal,
+  Code,
+  ChevronDown,
+  Check,
+  Cog,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ActionButton } from '@/components/ui/action-button'
 import { ActionDropdownMenuItem } from '@/components/ui/action-dropdown-menu-item'
@@ -23,14 +31,16 @@ import { ChannelList, ChannelDialog } from '@/components/channels'
 import { DroidFeatureList } from '@/components/droid'
 import { OpenCodeFeatureList } from '@/components/opencode'
 import { CodexFeatureList } from '@/components/codex'
+import { OpenClawFeatureList } from '@/components/openclaw'
 import { useUIStore } from '@/store/ui-store'
 import { useChannelStore } from '@/store/channel-store'
 import { useModelStore } from '@/store/model-store'
 import { useOpenCodeStore } from '@/store/opencode-store'
 import { useCodexStore } from '@/store/codex-store'
+import { useOpenClawStore } from '@/store/openclaw-store'
 import { commands, type Channel } from '@/lib/bindings'
 
-type NavigationView = 'droid' | 'channels' | 'opencode' | 'codex'
+type NavigationView = 'droid' | 'channels' | 'opencode' | 'codex' | 'openclaw'
 
 interface LeftSideBarProps {
   children?: React.ReactNode
@@ -49,6 +59,7 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
   const modelHasChanges = useModelStore(state => state.hasChanges)
   const opencodeHasChanges = useOpenCodeStore(state => state.hasChanges)
   const codexHasChanges = useCodexStore(state => state.hasChanges)
+  const openclawHasChanges = useOpenClawStore(state => state.hasChanges)
 
   const [channelDialogOpen, setChannelDialogOpen] = useState(false)
   const [editingChannel, setEditingChannel] = useState<Channel | undefined>()
@@ -71,6 +82,11 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
           <Code className="h-4 w-4 mr-2" />
           {t('sidebar.codex')}
         </>
+      ) : lastToolView === 'openclaw' ? (
+        <>
+          <Cog className="h-4 w-4 mr-2" />
+          {t('sidebar.openclaw')}
+        </>
       ) : (
         <>
           <Bot className="h-4 w-4 mr-2" />
@@ -89,7 +105,8 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
       (currentView === 'droid' && modelHasChanges) ||
       (currentView === 'channels' && channelHasChanges) ||
       (currentView === 'opencode' && opencodeHasChanges) ||
-      (currentView === 'codex' && codexHasChanges)
+      (currentView === 'codex' && codexHasChanges) ||
+      (currentView === 'openclaw' && openclawHasChanges)
 
     if (hasUnsavedChanges) {
       setPendingView(view)
@@ -107,6 +124,8 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
       await useOpenCodeStore.getState().saveProfile()
     } else if (currentView === 'codex') {
       await useCodexStore.getState().saveProfile()
+    } else if (currentView === 'openclaw') {
+      await useOpenClawStore.getState().saveProfile()
     }
     if (pendingView) {
       setCurrentView(pendingView)
@@ -123,6 +142,8 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
       useOpenCodeStore.getState().resetChanges()
     } else if (currentView === 'codex') {
       useCodexStore.getState().resetChanges()
+    } else if (currentView === 'openclaw') {
+      useOpenClawStore.getState().resetChanges()
     }
     if (pendingView) {
       setCurrentView(pendingView)
@@ -249,6 +270,18 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
                   <Check className="h-4 w-4 ml-auto" />
                 )}
               </ActionDropdownMenuItem>
+              <ActionDropdownMenuItem
+                onClick={() => {
+                  handleViewChange('openclaw')
+                  setDropdownOpen(false)
+                }}
+              >
+                <Cog className="h-4 w-4 mr-2" />
+                {t('sidebar.openclaw')}
+                {lastToolView === 'openclaw' && (
+                  <Check className="h-4 w-4 ml-auto" />
+                )}
+              </ActionDropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         )}
@@ -262,6 +295,8 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
           <DroidFeatureList />
         ) : currentView === 'opencode' ? (
           <OpenCodeFeatureList />
+        ) : currentView === 'openclaw' ? (
+          <OpenClawFeatureList />
         ) : (
           <CodexFeatureList />
         )}

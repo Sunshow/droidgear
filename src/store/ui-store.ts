@@ -1,8 +1,8 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 
-type NavigationView = 'droid' | 'channels' | 'opencode' | 'codex'
-type ToolView = 'droid' | 'opencode' | 'codex'
+type NavigationView = 'droid' | 'channels' | 'opencode' | 'codex' | 'openclaw'
+type ToolView = 'droid' | 'opencode' | 'codex' | 'openclaw'
 export type DroidSubView =
   | 'models'
   | 'helpers'
@@ -12,6 +12,7 @@ export type DroidSubView =
   | 'terminal'
 export type OpenCodeSubView = 'providers'
 export type CodexSubView = 'config' | 'mcp' | 'sessions' | 'terminal'
+export type OpenClawSubView = 'providers'
 
 export interface PendingUpdate {
   version: string
@@ -28,6 +29,7 @@ interface UIState {
   droidSubView: DroidSubView
   opencodeSubView: OpenCodeSubView
   codexSubView: CodexSubView
+  openclawSubView: OpenClawSubView
   lastSpecExportPath: string | null
   pendingUpdate: PendingUpdate | null
 
@@ -43,6 +45,7 @@ interface UIState {
   setDroidSubView: (view: DroidSubView) => void
   setOpenCodeSubView: (view: OpenCodeSubView) => void
   setCodexSubView: (view: CodexSubView) => void
+  setOpenClawSubView: (view: OpenClawSubView) => void
   setLastSpecExportPath: (path: string) => void
   setPendingUpdate: (update: PendingUpdate | null) => void
   clearPendingUpdate: () => void
@@ -61,6 +64,7 @@ export const useUIStore = create<UIState>()(
         droidSubView: 'models',
         opencodeSubView: 'providers',
         codexSubView: 'config',
+        openclawSubView: 'providers',
         lastSpecExportPath: null,
         pendingUpdate: null,
 
@@ -118,7 +122,10 @@ export const useUIStore = create<UIState>()(
               currentView: view,
               // Update lastToolView when switching tools
               lastToolView:
-                view === 'droid' || view === 'opencode' || view === 'codex'
+                view === 'droid' ||
+                view === 'opencode' ||
+                view === 'codex' ||
+                view === 'openclaw'
                   ? view
                   : state.lastToolView,
             }),
@@ -134,6 +141,9 @@ export const useUIStore = create<UIState>()(
 
         setCodexSubView: view =>
           set({ codexSubView: view }, undefined, 'setCodexSubView'),
+
+        setOpenClawSubView: view =>
+          set({ openclawSubView: view }, undefined, 'setOpenClawSubView'),
 
         setLastSpecExportPath: path =>
           set({ lastSpecExportPath: path }, undefined, 'setLastSpecExportPath'),

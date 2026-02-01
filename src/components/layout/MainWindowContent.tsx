@@ -11,6 +11,7 @@ import {
 } from '@/components/droid'
 import { OpenCodeConfigPage } from '@/components/opencode'
 import { CodexConfigPage } from '@/components/codex'
+import { OpenClawConfigPage } from '@/components/openclaw'
 import { ChannelDetail, ChannelDialog } from '@/components/channels'
 import { useUIStore } from '@/store/ui-store'
 import { useChannelStore } from '@/store/channel-store'
@@ -78,6 +79,10 @@ export function MainWindowContent({
           {codexSubView === 'sessions' && <SessionsPage />}
         </>
       )
+    }
+
+    if (currentView === 'openclaw') {
+      return <OpenClawConfigPage />
     }
 
     // Channels view

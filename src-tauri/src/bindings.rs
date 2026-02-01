@@ -2,8 +2,8 @@ use tauri_specta::{collect_commands, Builder};
 
 pub fn generate_bindings() -> Builder<tauri::Wry> {
     use crate::commands::{
-        channel, codex, config, env, mcp, notifications, opencode, paths, preferences, recovery,
-        sessions, specs,
+        channel, codex, config, env, mcp, notifications, openclaw, opencode, paths, preferences,
+        recovery, sessions, specs,
     };
 
     Builder::<tauri::Wry>::new().commands(collect_commands![
@@ -81,6 +81,16 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         opencode::get_opencode_provider_templates,
         opencode::test_opencode_provider_connection,
         opencode::read_opencode_current_config,
+        openclaw::list_openclaw_profiles,
+        openclaw::get_openclaw_profile,
+        openclaw::save_openclaw_profile,
+        openclaw::delete_openclaw_profile,
+        openclaw::duplicate_openclaw_profile,
+        openclaw::create_default_openclaw_profile,
+        openclaw::get_active_openclaw_profile_id,
+        openclaw::apply_openclaw_profile,
+        openclaw::get_openclaw_config_status,
+        openclaw::read_openclaw_current_config,
         sessions::list_session_projects,
         sessions::list_sessions,
         sessions::get_session_detail,

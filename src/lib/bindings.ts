@@ -827,6 +827,116 @@ async readOpencodeCurrentConfig() : Promise<Result<OpenCodeCurrentConfig, string
 }
 },
 /**
+ * List all OpenClaw Profiles
+ */
+async listOpenclawProfiles() : Promise<Result<OpenClawProfile[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_openclaw_profiles") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get a single OpenClaw profile by ID
+ */
+async getOpenclawProfile(id: string) : Promise<Result<OpenClawProfile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_openclaw_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Save an OpenClaw profile (create or update)
+ */
+async saveOpenclawProfile(profile: OpenClawProfile) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_openclaw_profile", { profile }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Delete an OpenClaw profile
+ */
+async deleteOpenclawProfile(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_openclaw_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Duplicate an OpenClaw profile
+ */
+async duplicateOpenclawProfile(id: string, newName: string) : Promise<Result<OpenClawProfile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("duplicate_openclaw_profile", { id, newName }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Create default OpenClaw profile (when no profiles exist)
+ */
+async createDefaultOpenclawProfile() : Promise<Result<OpenClawProfile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("create_default_openclaw_profile") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get active OpenClaw profile ID
+ */
+async getActiveOpenclawProfileId() : Promise<Result<string | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_active_openclaw_profile_id") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Apply an OpenClaw profile to ~/.openclaw/openclaw.json
+ */
+async applyOpenclawProfile(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("apply_openclaw_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get OpenClaw config status
+ */
+async getOpenclawConfigStatus() : Promise<Result<OpenClawConfigStatus, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_openclaw_config_status") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Read current OpenClaw configuration from config file
+ */
+async readOpenclawCurrentConfig() : Promise<Result<OpenClawCurrentConfig, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("read_openclaw_current_config") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Lists all session projects from ~/.factory/sessions directory.
  */
 async listSessionProjects() : Promise<Result<SessionProject[], string>> {
@@ -1064,6 +1174,26 @@ export type CodexConfigStatus = { authExists: boolean; configExists: boolean; au
  * 当前 Codex Live 配置（从 `~/.codex/*` 读取）
  */
 export type CodexCurrentConfig = { auth?: Partial<{ [key in string]: JsonValue }>; configToml?: string }
+/**
+ * OpenClaw Model definition
+ */
+export type OpenClawModel = { id: string; name?: string | null; reasoning: boolean; input: string[]; contextWindow?: number | null; maxTokens?: number | null }
+/**
+ * OpenClaw Provider configuration
+ */
+export type OpenClawProviderConfig = { baseUrl?: string | null; apiKey?: string | null; api?: string | null; models: OpenClawModel[] }
+/**
+ * OpenClaw Profile
+ */
+export type OpenClawProfile = { id: string; name: string; description?: string | null; createdAt: string; updatedAt: string; defaultModel?: string | null; providers: Partial<{ [key in string]: OpenClawProviderConfig }> }
+/**
+ * OpenClaw config status
+ */
+export type OpenClawConfigStatus = { configExists: boolean; configPath: string }
+/**
+ * Current OpenClaw configuration
+ */
+export type OpenClawCurrentConfig = { defaultModel?: string | null; providers: Partial<{ [key in string]: OpenClawProviderConfig }> }
 /**
  * Codex Profile（用于在 DroidGear 内部保存并切换）
  */

@@ -132,6 +132,10 @@ fn default_codex_home() -> Result<PathBuf, String> {
     Ok(get_home_dir()?.join(".codex"))
 }
 
+fn default_openclaw_home() -> Result<PathBuf, String> {
+    Ok(get_home_dir()?.join(".openclaw"))
+}
+
 // ============================================================================
 // Public Path Getters (used by other modules)
 // ============================================================================
@@ -170,6 +174,11 @@ pub fn get_codex_home() -> Result<PathBuf, String> {
         Some(custom) => Ok(PathBuf::from(custom)),
         None => default_codex_home(),
     }
+}
+
+/// Gets the OpenClaw home directory (~/.openclaw)
+pub fn get_openclaw_home() -> Result<PathBuf, String> {
+    default_openclaw_home()
 }
 
 // ============================================================================
