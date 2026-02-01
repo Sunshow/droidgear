@@ -295,7 +295,7 @@ export const useOpenClawStore = create<OpenClawState>()(
       deleteProvider: async id => {
         const { currentProfile } = get()
         if (!currentProfile) return
-        const { [id]: _removed, ...providers } = currentProfile.providers
+        const { [id]: _removed, ...providers } = currentProfile.providers ?? {}
         const updated = {
           ...currentProfile,
           providers,

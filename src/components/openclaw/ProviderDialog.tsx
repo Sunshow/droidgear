@@ -58,7 +58,7 @@ function ProviderForm({
 
   const isEditing = editingProviderId !== null
   const existingConfig = editingProviderId
-    ? currentProfile?.providers[editingProviderId]
+    ? currentProfile?.providers?.[editingProviderId]
     : null
 
   const [providerId, setProviderId] = useState(editingProviderId ?? '')

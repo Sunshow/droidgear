@@ -162,13 +162,13 @@ export function OpenClawConfigPage() {
   }
 
   const providerEntries = currentProfile
-    ? Object.entries(currentProfile.providers)
+    ? Object.entries(currentProfile.providers ?? {})
     : []
 
   // Build available model refs from all configured providers/models
   const availableModelRefs = useMemo(() => {
     if (!currentProfile) return []
-    return Object.entries(currentProfile.providers).flatMap(
+    return Object.entries(currentProfile.providers ?? {}).flatMap(
       ([providerId, config]) =>
         (config?.models ?? []).map(m => `${providerId}/${m.id}`)
     )
