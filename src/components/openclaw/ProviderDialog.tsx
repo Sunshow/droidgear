@@ -185,7 +185,21 @@ function ProviderForm({
     const updated = [...models]
     const model = updated[index]
     if (!model) return
-    updated[index] = { ...model, [field]: value }
+
+    // When modifying id, auto-sync name if name is empty or equals current id
+    if (field === 'id' && typeof value === 'string') {
+      const currentName = model.name
+      const currentId = model.id
+      // Sync if name is empty or name equals current id (user hasn't manually changed it)
+      if (!currentName || currentName === currentId) {
+        updated[index] = { ...model, id: value, name: value || null }
+      } else {
+        updated[index] = { ...model, id: value }
+      }
+    } else {
+      updated[index] = { ...model, [field]: value }
+    }
+
     setModels(updated)
   }
 
