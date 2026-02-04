@@ -47,6 +47,7 @@ import { isBatchValid, type BatchModelConfig } from '@/lib/batch-model-utils'
 const channelTypeI18nKeys: Record<ChannelType, string> = {
   'new-api': 'channels.typeNewApi',
   'sub-2-api': 'channels.typeSub2Api',
+  'cli-proxy-api': 'channels.typeCliProxyApi',
 }
 
 interface ChannelDetailProps {
@@ -91,9 +92,11 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
   }
 
   const inferProvider = (modelId: string): Provider => {
-    return channel.type === 'new-api'
-      ? inferProviderForNewApi(modelId)
-      : inferProviderFromPlatformAndModel(selectedKey?.platform, modelId)
+    // CLI Proxy API and New API use the same logic
+    if (channel.type === 'new-api' || channel.type === 'cli-proxy-api') {
+      return inferProviderForNewApi(modelId)
+    }
+    return inferProviderFromPlatformAndModel(selectedKey?.platform, modelId)
   }
 
   const handleSelectKey = async (apiKey: ChannelToken) => {
@@ -178,7 +181,7 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
       }
 
       const baseUrl =
-        channel.type === 'new-api'
+        channel.type === 'new-api' || channel.type === 'cli-proxy-api'
           ? getBaseUrlForNewApi(config.provider, channel.baseUrl)
           : getBaseUrlForSub2Api(
               config.provider,

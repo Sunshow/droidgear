@@ -32,6 +32,7 @@ interface ChannelDialogProps {
 const defaultBaseUrls: Record<ChannelType, string> = {
   'new-api': 'https://api.newapi.ai',
   'sub-2-api': '',
+  'cli-proxy-api': '',
 }
 
 interface ChannelFormProps {
@@ -51,6 +52,7 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
   )
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [apiKey, setApiKey] = useState('')
   const [enabled, setEnabled] = useState(channel?.enabled ?? true)
   const [isLoadingCredentials, setIsLoadingCredentials] = useState(!!channel)
   const [isDetecting, setIsDetecting] = useState(false)
@@ -59,18 +61,30 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
     text: string
   } | null>(null)
 
+  const isCliProxyApi = channelType === 'cli-proxy-api'
+
   // Load credentials from storage for existing channels
   useEffect(() => {
     let cancelled = false
     if (channel) {
-      commands.getChannelCredentials(channel.id).then(result => {
-        if (cancelled) return
-        if (result.status === 'ok' && result.data) {
-          setUsername(result.data[0])
-          setPassword(result.data[1])
-        }
-        setIsLoadingCredentials(false)
-      })
+      if (channel.type === 'cli-proxy-api') {
+        commands.getChannelApiKey(channel.id).then(result => {
+          if (cancelled) return
+          if (result.status === 'ok' && result.data) {
+            setApiKey(result.data)
+          }
+          setIsLoadingCredentials(false)
+        })
+      } else {
+        commands.getChannelCredentials(channel.id).then(result => {
+          if (cancelled) return
+          if (result.status === 'ok' && result.data) {
+            setUsername(result.data[0])
+            setPassword(result.data[1])
+          }
+          setIsLoadingCredentials(false)
+        })
+      }
     }
     return () => {
       cancelled = true
@@ -95,10 +109,18 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
 
     if (result.status === 'ok') {
       setChannelType(result.data)
-      const typeName =
-        result.data === 'new-api'
-          ? t('channels.typeNewApi')
-          : t('channels.typeSub2Api')
+      let typeName: string
+      switch (result.data) {
+        case 'new-api':
+          typeName = t('channels.typeNewApi')
+          break
+        case 'sub-2-api':
+          typeName = t('channels.typeSub2Api')
+          break
+        case 'cli-proxy-api':
+          typeName = t('channels.typeCliProxyApi')
+          break
+      }
       setDetectMessage({
         type: 'success',
         text: t('channels.detectSuccess', { type: typeName }),
@@ -125,11 +147,17 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
       createdAt: channel?.createdAt ?? Date.now(),
     }
 
-    onSave(newChannel, username, password)
+    // For CLI Proxy API, pass empty username and apiKey as password
+    if (isCliProxyApi) {
+      onSave(newChannel, '', apiKey)
+    } else {
+      onSave(newChannel, username, password)
+    }
   }
 
-  const isValid =
-    name.trim() && baseUrl.trim() && username.trim() && password.trim()
+  const isValid = isCliProxyApi
+    ? name.trim() && baseUrl.trim() && apiKey.trim()
+    : name.trim() && baseUrl.trim() && username.trim() && password.trim()
 
   return (
     <>
@@ -157,6 +185,9 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
                 </SelectItem>
                 <SelectItem value="sub-2-api">
                   {t('channels.typeSub2Api')}
+                </SelectItem>
+                <SelectItem value="cli-proxy-api">
+                  {t('channels.typeCliProxyApi')}
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -199,39 +230,62 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
             )}
           </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="username">{t('channels.username')}</Label>
-            <Input
-              id="username"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              placeholder={
-                isLoadingCredentials
-                  ? t('common.loading')
-                  : t('channels.enterUsername')
-              }
-              disabled={isLoadingCredentials}
-            />
-          </div>
+          {isCliProxyApi ? (
+            <div className="grid gap-2">
+              <Label htmlFor="apiKey">{t('channels.apiKey')}</Label>
+              <Input
+                id="apiKey"
+                type="password"
+                value={apiKey}
+                onChange={e => setApiKey(e.target.value)}
+                placeholder={
+                  isLoadingCredentials
+                    ? t('common.loading')
+                    : t('channels.enterApiKey')
+                }
+                disabled={isLoadingCredentials}
+              />
+              <p className="text-xs text-muted-foreground">
+                {t('channels.apiKeyHint')}
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="username">{t('channels.username')}</Label>
+                <Input
+                  id="username"
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  placeholder={
+                    isLoadingCredentials
+                      ? t('common.loading')
+                      : t('channels.enterUsername')
+                  }
+                  disabled={isLoadingCredentials}
+                />
+              </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="password">{t('channels.password')}</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder={
-                isLoadingCredentials
-                  ? t('common.loading')
-                  : t('channels.enterPassword')
-              }
-              disabled={isLoadingCredentials}
-            />
-            <p className="text-xs text-muted-foreground">
-              {t('channels.credentialsHint')}
-            </p>
-          </div>
+              <div className="grid gap-2">
+                <Label htmlFor="password">{t('channels.password')}</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder={
+                    isLoadingCredentials
+                      ? t('common.loading')
+                      : t('channels.enterPassword')
+                  }
+                  disabled={isLoadingCredentials}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t('channels.credentialsHint')}
+                </p>
+              </div>
+            </>
+          )}
 
           <div className="flex items-center justify-between">
             <Label htmlFor="enabled">{t('common.enabled')}</Label>

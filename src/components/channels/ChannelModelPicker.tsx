@@ -129,20 +129,30 @@ export function ChannelModelPicker({
 
   const inferProvider = (modelId: string): Provider => {
     if (!selectedChannel || !selectedKey) return 'generic-chat-completion-api'
-    return selectedChannel.type === 'new-api'
-      ? inferProviderForNewApi(modelId)
-      : inferProviderFromPlatformAndModel(selectedKey.platform, modelId)
+    // CLI Proxy API and New API use the same logic
+    if (
+      selectedChannel.type === 'new-api' ||
+      selectedChannel.type === 'cli-proxy-api'
+    ) {
+      return inferProviderForNewApi(modelId)
+    }
+    return inferProviderFromPlatformAndModel(selectedKey.platform, modelId)
   }
 
   const getBaseUrl = (provider: Provider): string => {
     if (!selectedChannel || !selectedKey) return ''
-    return selectedChannel.type === 'new-api'
-      ? getBaseUrlForNewApi(provider, selectedChannel.baseUrl)
-      : getBaseUrlForSub2Api(
-          provider,
-          selectedChannel.baseUrl,
-          selectedKey.platform
-        )
+    // CLI Proxy API and New API use the same baseUrl logic
+    if (
+      selectedChannel.type === 'new-api' ||
+      selectedChannel.type === 'cli-proxy-api'
+    ) {
+      return getBaseUrlForNewApi(provider, selectedChannel.baseUrl)
+    }
+    return getBaseUrlForSub2Api(
+      provider,
+      selectedChannel.baseUrl,
+      selectedKey.platform
+    )
   }
 
   const isModelExisting = (modelId: string): boolean => {

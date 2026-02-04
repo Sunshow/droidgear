@@ -40,6 +40,8 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         channel::save_channels,
         channel::save_channel_credentials,
         channel::get_channel_credentials,
+        channel::save_channel_api_key,
+        channel::get_channel_api_key,
         channel::delete_channel_credentials,
         channel::detect_channel_type,
         channel::fetch_channel_tokens,

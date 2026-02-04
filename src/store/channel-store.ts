@@ -172,23 +172,45 @@ export const useChannelStore = create<ChannelState>()(
       fetchKeys: async (channelId, channelType, baseUrl) => {
         set({ isLoading: true, error: null }, undefined, 'fetchKeys/start')
         try {
-          // Get credentials from storage
-          const credResult = await commands.getChannelCredentials(channelId)
-          if (credResult.status !== 'ok' || !credResult.data) {
-            set(
-              state => ({
-                keys: { ...state.keys, [channelId]: [] },
-                error:
-                  'Credentials not found. Please set the username and password first.',
-                isLoading: false,
-              }),
-              undefined,
-              'fetchKeys/noCredentials'
-            )
-            return
+          let username = ''
+          let password = ''
+
+          if (channelType === 'cli-proxy-api') {
+            // For CLI Proxy API, get API key
+            const apiKeyResult = await commands.getChannelApiKey(channelId)
+            if (apiKeyResult.status !== 'ok' || !apiKeyResult.data) {
+              set(
+                state => ({
+                  keys: { ...state.keys, [channelId]: [] },
+                  error: 'API key not found. Please set the API key first.',
+                  isLoading: false,
+                }),
+                undefined,
+                'fetchKeys/noApiKey'
+              )
+              return
+            }
+            // Pass API key as password (username is empty)
+            password = apiKeyResult.data
+          } else {
+            // Get credentials from storage for other channel types
+            const credResult = await commands.getChannelCredentials(channelId)
+            if (credResult.status !== 'ok' || !credResult.data) {
+              set(
+                state => ({
+                  keys: { ...state.keys, [channelId]: [] },
+                  error:
+                    'Credentials not found. Please set the username and password first.',
+                  isLoading: false,
+                }),
+                undefined,
+                'fetchKeys/noCredentials'
+              )
+              return
+            }
+            ;[username, password] = credResult.data
           }
 
-          const [username, password] = credResult.data
           const result = await commands.fetchChannelTokens(
             channelType,
             baseUrl,

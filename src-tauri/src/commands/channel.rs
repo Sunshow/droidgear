@@ -17,10 +17,12 @@ use super::config::{read_config_file, ConfigReadResult, ModelInfo};
 /// Channel types supported
 #[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq)]
 #[serde(rename_all = "kebab-case")]
+#[allow(clippy::enum_variant_names)]
 pub enum ChannelType {
     NewApi,
     #[serde(rename = "sub-2-api")]
     Sub2Api,
+    CliProxyApi,
 }
 
 /// Channel configuration
@@ -71,6 +73,7 @@ pub struct ChannelToken {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ChannelAuth {
     Credentials { username: String, password: String },
+    ApiKey { api_key: String },
 }
 
 // ============================================================================
@@ -234,7 +237,32 @@ pub async fn get_channel_credentials(
 
     match read_channel_auth(&channel_id)? {
         Some(ChannelAuth::Credentials { username, password }) => Ok(Some((username, password))),
-        None => Ok(None),
+        _ => Ok(None),
+    }
+}
+
+/// Saves a channel's API key to ~/.droidgear/auth/
+#[tauri::command]
+#[specta::specta]
+pub async fn save_channel_api_key(channel_id: String, api_key: String) -> Result<(), String> {
+    log::debug!("Saving API key for channel {channel_id}");
+
+    let auth = ChannelAuth::ApiKey { api_key };
+    write_channel_auth(&channel_id, &auth)?;
+
+    log::info!("API key saved for channel {channel_id}");
+    Ok(())
+}
+
+/// Gets a channel's API key from ~/.droidgear/auth/
+#[tauri::command]
+#[specta::specta]
+pub async fn get_channel_api_key(channel_id: String) -> Result<Option<String>, String> {
+    log::debug!("Getting API key for channel {channel_id}");
+
+    match read_channel_auth(&channel_id)? {
+        Some(ChannelAuth::ApiKey { api_key }) => Ok(Some(api_key)),
+        _ => Ok(None),
     }
 }
 
@@ -282,6 +310,21 @@ pub async fn detect_channel_type(base_url: String) -> Result<ChannelType, String
         }
     }
 
+    // 3. Check for CLI Proxy API: GET /v1/models returns OpenAI format
+    if let Ok(resp) = client.get(format!("{base}/v1/models")).send().await {
+        if resp.status().is_success() {
+            if let Ok(data) = resp.json::<Value>().await {
+                // Check if it's OpenAI format: has "data" array with "id" fields
+                if let Some(arr) = data.get("data").and_then(|d| d.as_array()) {
+                    if arr.iter().any(|m| m.get("id").is_some()) {
+                        log::info!("Detected channel type: CliProxyApi");
+                        return Ok(ChannelType::CliProxyApi);
+                    }
+                }
+            }
+        }
+    }
+
     Err("Unable to auto-detect channel type".to_string())
 }
 
@@ -297,6 +340,21 @@ pub async fn fetch_channel_tokens(
     match channel_type {
         ChannelType::NewApi => fetch_new_api_tokens(&base_url, &username, &password).await,
         ChannelType::Sub2Api => fetch_sub2api_tokens(&base_url, &username, &password).await,
+        ChannelType::CliProxyApi => {
+            // For CliProxyApi, username is empty and password contains the API key
+            // Return a single virtual token
+            Ok(vec![ChannelToken {
+                id: 0.0,
+                name: "API Key".to_string(),
+                key: password,
+                status: 1,
+                remain_quota: 0.0,
+                used_quota: 0.0,
+                unlimited_quota: true,
+                platform: None,
+                group_name: None,
+            }])
+        }
     }
 }
 

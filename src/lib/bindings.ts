@@ -380,6 +380,28 @@ async getChannelCredentials(channelId: string) : Promise<Result<[string, string]
 }
 },
 /**
+ * Saves a channel's API key to ~/.droidgear/auth/
+ */
+async saveChannelApiKey(channelId: string, apiKey: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_channel_api_key", { channelId, apiKey }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Gets a channel's API key from ~/.droidgear/auth/
+ */
+async getChannelApiKey(channelId: string) : Promise<Result<string | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_channel_api_key", { channelId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Deletes a channel's credentials from ~/.droidgear/auth/
  */
 async deleteChannelCredentials(channelId: string) : Promise<Result<null, string>> {
@@ -1178,7 +1200,7 @@ groupName: string | null }
 /**
  * Channel types supported
  */
-export type ChannelType = "new-api" | "sub-2-api"
+export type ChannelType = "new-api" | "sub-2-api" | "cli-proxy-api"
 /**
  * Codex Live 配置状态
  */

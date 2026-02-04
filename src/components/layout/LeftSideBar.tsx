@@ -154,23 +154,24 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
     username: string,
     password: string
   ) => {
-    // Save credentials to storage
-    console.log(
-      'Saving credentials for channel:',
-      channel.id,
-      'username:',
-      username
-    )
-    const credResult = await commands.saveChannelCredentials(
-      channel.id,
-      username,
-      password
-    )
-    console.log('Save credentials result:', credResult)
-
-    if (credResult.status !== 'ok') {
-      console.error('Failed to save credentials:', credResult.error)
-      return
+    // Save credentials/API key to storage based on channel type
+    if (channel.type === 'cli-proxy-api') {
+      // For CLI Proxy API, password contains the API key
+      const result = await commands.saveChannelApiKey(channel.id, password)
+      if (result.status !== 'ok') {
+        console.error('Failed to save API key:', result.error)
+        return
+      }
+    } else {
+      const credResult = await commands.saveChannelCredentials(
+        channel.id,
+        username,
+        password
+      )
+      if (credResult.status !== 'ok') {
+        console.error('Failed to save credentials:', credResult.error)
+        return
+      }
     }
 
     // Check if this is an edit or new channel
