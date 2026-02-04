@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, Trash2, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Loader2, FolderInput } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -27,7 +27,9 @@ import {
   type OpenClawProfile,
   type OpenClawModel,
   type ModelInfo,
+  type CustomModel,
 } from '@/lib/bindings'
+import { ChannelModelPickerDialog } from '@/components/channels/ChannelModelPickerDialog'
 
 interface ProviderDialogProps {
   open: boolean
@@ -76,6 +78,9 @@ function ProviderForm({
   )
   const [isFetching, setIsFetching] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
+
+  // Channel picker state
+  const [channelPickerOpen, setChannelPickerOpen] = useState(false)
 
   const handleAddModel = () => {
     setModels([
@@ -151,6 +156,21 @@ function ProviderForm({
     const uniqueNewModels = newModels.filter(m => !existingIds.has(m.id))
     setModels([...models, ...uniqueNewModels])
     setSelectedModelIds(new Set())
+  }
+
+  const handleImportFromChannel = (importedModels: CustomModel[]) => {
+    const newModels: OpenClawModel[] = importedModels.map(m => ({
+      id: m.model,
+      name: m.displayName ?? null,
+      reasoning: true,
+      input: ['text', 'image'],
+      contextWindow: 200000,
+      maxTokens: m.maxOutputTokens ?? 8192,
+    }))
+    // Merge with existing models, avoiding duplicates
+    const existingIds = new Set(models.map(m => m.id))
+    const uniqueNewModels = newModels.filter(m => !existingIds.has(m.id))
+    setModels([...models, ...uniqueNewModels])
   }
 
   const handleRemoveModel = (index: number) => {
@@ -313,15 +333,26 @@ function ProviderForm({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>{t('openclaw.provider.models')}</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleAddModel}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                {t('openclaw.provider.addModel')}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setChannelPickerOpen(true)}
+                >
+                  <FolderInput className="h-4 w-4 mr-1" />
+                  {t('channels.importFromChannel')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddModel}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  {t('openclaw.provider.addModel')}
+                </Button>
+              </div>
             </div>
 
             {models.length === 0 ? (
@@ -493,6 +524,15 @@ function ProviderForm({
           {t('common.save')}
         </Button>
       </ResizableDialogFooter>
+
+      {/* Channel Model Picker Dialog */}
+      <ChannelModelPickerDialog
+        open={channelPickerOpen}
+        onOpenChange={setChannelPickerOpen}
+        mode="multiple"
+        onSelect={handleImportFromChannel}
+        showBatchConfig={false}
+      />
     </>
   )
 }

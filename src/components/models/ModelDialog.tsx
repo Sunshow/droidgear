@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Loader2 } from 'lucide-react'
+import { Loader2, FolderInput } from 'lucide-react'
 import {
   ResizableDialog,
   ResizableDialogContent,
@@ -38,6 +38,7 @@ import {
   isBatchValid,
   type BatchModelConfig,
 } from '@/lib/batch-model-utils'
+import { ChannelModelPickerDialog } from '@/components/channels/ChannelModelPickerDialog'
 
 interface ModelDialogProps {
   open: boolean
@@ -101,6 +102,9 @@ function ModelForm({
   const [suffix, setSuffix] = useState('')
   const [batchMaxTokens, setBatchMaxTokens] = useState('')
   const [batchSupportsImages, setBatchSupportsImages] = useState(false)
+
+  // Channel picker state
+  const [channelPickerOpen, setChannelPickerOpen] = useState(false)
 
   const handleModelIdChange = (newModelId: string) => {
     setModelId(newModelId)
@@ -224,6 +228,12 @@ function ModelForm({
     }
   }
 
+  const handleImportFromChannel = (models: CustomModel[]) => {
+    if (models.length > 0 && onSaveBatch) {
+      onSaveBatch(models)
+    }
+  }
+
   const isValid =
     modelId &&
     baseUrl &&
@@ -238,6 +248,18 @@ function ModelForm({
     <>
       <ResizableDialogBody>
         <div className="grid gap-4">
+          {/* Import from Channel button - only show in add mode with batch support */}
+          {mode === 'add' && onSaveBatch && (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setChannelPickerOpen(true)}
+            >
+              <FolderInput className="h-4 w-4 mr-2" />
+              {t('channels.importFromChannel')}
+            </Button>
+          )}
+
           <div className="grid gap-2">
             <Label htmlFor="provider">{t('models.provider')}</Label>
             <Select value={provider} onValueChange={handleProviderChange}>
@@ -408,6 +430,16 @@ function ModelForm({
           </Button>
         )}
       </ResizableDialogFooter>
+
+      {/* Channel Model Picker Dialog */}
+      <ChannelModelPickerDialog
+        open={channelPickerOpen}
+        onOpenChange={setChannelPickerOpen}
+        mode="multiple"
+        existingModels={existingModels}
+        onSelect={handleImportFromChannel}
+        showBatchConfig={true}
+      />
     </>
   )
 }
