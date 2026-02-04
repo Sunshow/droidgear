@@ -42,17 +42,27 @@ import {
 // MCP Server Presets for Quick Add
 interface McpPresetApiKeyConfig {
   placeholder: string
-  urlParam: string
   getKeyUrl: string
   getKeyUrlLabelKey: string
+}
+
+interface McpPresetVariant {
+  id: McpServerType
+  descriptionKey: string
+  config: Omit<McpServerConfig, 'disabled'>
+  apiKeyConfig?: {
+    type: 'env' | 'urlParam' | 'header' | 'arg'
+    key: string
+  }
 }
 
 interface McpPreset {
   id: string
   name: string
   descriptionKey: string
-  config: Omit<McpServerConfig, 'disabled'>
+  config?: Omit<McpServerConfig, 'disabled'>
   requiresApiKey?: McpPresetApiKeyConfig
+  variants?: McpPresetVariant[]
 }
 
 const MCP_PRESETS: McpPreset[] = [
@@ -80,16 +90,57 @@ const MCP_PRESETS: McpPreset[] = [
     id: 'exa',
     name: 'Exa Web Search',
     descriptionKey: 'mcp.presets.exa.description',
-    config: {
-      type: 'http',
-      url: 'https://mcp.exa.ai/mcp',
-    },
     requiresApiKey: {
       placeholder: 'exa-xxx...',
-      urlParam: 'exaApiKey',
       getKeyUrl: 'https://dashboard.exa.ai/api-keys',
       getKeyUrlLabelKey: 'mcp.presets.exa.getKeyLink',
     },
+    variants: [
+      {
+        id: 'stdio',
+        descriptionKey: 'mcp.presets.exa.variant.stdio.description',
+        config: {
+          type: 'stdio',
+          command: 'npx',
+          args: ['-y', 'exa-mcp-server'],
+        },
+        apiKeyConfig: { type: 'env', key: 'EXA_API_KEY' },
+      },
+      {
+        id: 'http',
+        descriptionKey: 'mcp.presets.exa.variant.http.description',
+        config: { type: 'http', url: 'https://mcp.exa.ai/mcp' },
+        apiKeyConfig: { type: 'urlParam', key: 'exaApiKey' },
+      },
+    ],
+  },
+  {
+    id: 'context7',
+    name: 'Context7',
+    descriptionKey: 'mcp.presets.context7.description',
+    requiresApiKey: {
+      placeholder: 'ctx7-xxx...',
+      getKeyUrl: 'https://context7.com/dashboard',
+      getKeyUrlLabelKey: 'mcp.presets.context7.getKeyLink',
+    },
+    variants: [
+      {
+        id: 'stdio',
+        descriptionKey: 'mcp.presets.context7.variant.stdio.description',
+        config: {
+          type: 'stdio',
+          command: 'npx',
+          args: ['-y', '@upstash/context7-mcp'],
+        },
+        apiKeyConfig: { type: 'arg', key: '--api-key' },
+      },
+      {
+        id: 'http',
+        descriptionKey: 'mcp.presets.context7.variant.http.description',
+        config: { type: 'http', url: 'https://mcp.context7.com/mcp' },
+        apiKeyConfig: { type: 'header', key: 'CONTEXT7_API_KEY' },
+      },
+    ],
   },
 ]
 
@@ -121,6 +172,7 @@ export function McpPage() {
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false)
   const [apiKeyInput, setApiKeyInput] = useState('')
   const [pendingPreset, setPendingPreset] = useState<McpPreset | null>(null)
+  const [selectedVariantId, setSelectedVariantId] = useState<string>('')
 
   useEffect(() => {
     let cancelled = false
@@ -323,6 +375,9 @@ export function McpPage() {
     if (preset.requiresApiKey) {
       setPendingPreset(preset)
       setApiKeyInput('')
+      // Set default variant if preset has variants
+      const firstVariant = preset.variants?.[0]
+      setSelectedVariantId(firstVariant?.id ?? '')
       setApiKeyDialogOpen(true)
     } else {
       savePresetDirectly(preset)
@@ -330,6 +385,8 @@ export function McpPage() {
   }
 
   const savePresetDirectly = async (preset: McpPreset) => {
+    if (!preset.config) return
+
     const result = await commands.saveMcpServer({
       name: preset.id,
       config: { ...preset.config, disabled: false } as McpServerConfig,
@@ -351,26 +408,78 @@ export function McpPage() {
       return
     }
 
-    const baseUrl = pendingPreset.config.url ?? ''
-    const urlWithKey = `${baseUrl}?${pendingPreset.requiresApiKey.urlParam}=${apiKeyInput.trim()}`
+    // Handle presets with variants
+    if (pendingPreset.variants && pendingPreset.variants.length > 0) {
+      const selectedVariant = pendingPreset.variants.find(
+        v => v.id === selectedVariantId
+      )
+      if (!selectedVariant) return
 
-    const result = await commands.saveMcpServer({
-      name: pendingPreset.id,
-      config: {
-        ...pendingPreset.config,
-        url: urlWithKey,
-        disabled: false,
-      } as McpServerConfig,
-    })
+      let finalConfig: McpServerConfig
 
-    if (result.status === 'ok') {
-      toast.success(t('common.save'))
-      loadServers()
-      setApiKeyDialogOpen(false)
-      setPendingPreset(null)
-      setApiKeyInput('')
-    } else {
-      toast.error(result.error)
+      if (selectedVariant.apiKeyConfig?.type === 'urlParam') {
+        // HTTP variant: add API key as URL parameter
+        const baseUrl =
+          selectedVariant.config.type === 'http'
+            ? (selectedVariant.config.url ?? '')
+            : ''
+        const urlWithKey = `${baseUrl}?${selectedVariant.apiKeyConfig.key}=${apiKeyInput.trim()}`
+        finalConfig = {
+          ...selectedVariant.config,
+          url: urlWithKey,
+          disabled: false,
+        } as McpServerConfig
+      } else if (selectedVariant.apiKeyConfig?.type === 'header') {
+        // HTTP variant: add API key as header
+        finalConfig = {
+          ...selectedVariant.config,
+          headers: { [selectedVariant.apiKeyConfig.key]: apiKeyInput.trim() },
+          disabled: false,
+        } as McpServerConfig
+      } else if (selectedVariant.apiKeyConfig?.type === 'env') {
+        // Stdio variant: add API key as environment variable
+        finalConfig = {
+          ...selectedVariant.config,
+          env: { [selectedVariant.apiKeyConfig.key]: apiKeyInput.trim() },
+          disabled: false,
+        } as McpServerConfig
+      } else if (selectedVariant.apiKeyConfig?.type === 'arg') {
+        // Stdio variant: add API key as command line argument
+        const baseArgs =
+          selectedVariant.config.type === 'stdio'
+            ? (selectedVariant.config.args ?? [])
+            : []
+        finalConfig = {
+          ...selectedVariant.config,
+          args: [
+            ...baseArgs,
+            selectedVariant.apiKeyConfig.key,
+            apiKeyInput.trim(),
+          ],
+          disabled: false,
+        } as McpServerConfig
+      } else {
+        finalConfig = {
+          ...selectedVariant.config,
+          disabled: false,
+        } as McpServerConfig
+      }
+
+      const result = await commands.saveMcpServer({
+        name: pendingPreset.id,
+        config: finalConfig,
+      })
+
+      if (result.status === 'ok') {
+        toast.success(t('common.save'))
+        loadServers()
+        setApiKeyDialogOpen(false)
+        setPendingPreset(null)
+        setApiKeyInput('')
+        setSelectedVariantId('')
+      } else {
+        toast.error(result.error)
+      }
     }
   }
 
@@ -699,6 +808,7 @@ export function McpPage() {
           if (!open) {
             setPendingPreset(null)
             setApiKeyInput('')
+            setSelectedVariantId('')
           }
         }}
       >
@@ -725,6 +835,37 @@ export function McpPage() {
                 <ExternalLink className="h-4 w-4 mr-2" />
                 {t(pendingPreset.requiresApiKey.getKeyUrlLabelKey)}
               </Button>
+            )}
+
+            {/* Variant selection for presets with multiple variants */}
+            {pendingPreset?.variants && pendingPreset.variants.length > 0 && (
+              <div className="space-y-2">
+                <Label>{t('mcp.serverType')}</Label>
+                <Select
+                  value={selectedVariantId}
+                  onValueChange={setSelectedVariantId}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pendingPreset.variants.map(variant => (
+                      <SelectItem key={variant.id} value={variant.id}>
+                        {t(`mcp.type.${variant.id}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedVariantId && (
+                  <p className="text-sm text-muted-foreground">
+                    {t(
+                      pendingPreset.variants.find(
+                        v => v.id === selectedVariantId
+                      )?.descriptionKey ?? ''
+                    )}
+                  </p>
+                )}
+              </div>
             )}
 
             <div className="space-y-2">
