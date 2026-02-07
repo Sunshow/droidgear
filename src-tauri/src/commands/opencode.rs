@@ -31,6 +31,26 @@ pub struct OpenCodeProviderOptions {
     pub headers: Option<HashMap<String, String>>,
 }
 
+/// OpenCode Model limit configuration
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenCodeModelLimit {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output: Option<u32>,
+}
+
+/// OpenCode Model configuration
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenCodeModelConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<OpenCodeModelLimit>,
+}
+
 /// OpenCode Provider configuration
 #[derive(Debug, Clone, Serialize, Deserialize, Type, Default)]
 #[serde(rename_all = "camelCase")]
@@ -41,6 +61,8 @@ pub struct OpenCodeProviderConfig {
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub options: Option<OpenCodeProviderOptions>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub models: Option<HashMap<String, OpenCodeModelConfig>>,
 }
 
 /// OpenCode Profile

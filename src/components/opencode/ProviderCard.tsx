@@ -52,6 +52,12 @@ export function ProviderCard({
               {t('opencode.provider.apiKeyNotConfigured')}
             </Badge>
           )}
+          {config?.models && Object.keys(config.models).length > 0 && (
+            <Badge variant="outline" className="text-xs">
+              {Object.keys(config.models).length}{' '}
+              {t('opencode.provider.modelsCount')}
+            </Badge>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-1 ml-2">

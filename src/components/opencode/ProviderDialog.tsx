@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Loader2, CheckCircle, XCircle, FolderInput } from 'lucide-react'
+import { Loader2, CheckCircle, XCircle, FolderInput, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -25,11 +25,14 @@ import {
   commands,
   type OpenCodeProfile,
   type OpenCodeProviderConfig,
+  type OpenCodeModelConfig,
   type CustomModel,
 } from '@/lib/bindings'
 import { ChannelModelPickerDialog } from '@/components/channels/ChannelModelPickerDialog'
 import type { ChannelProviderContext } from '@/components/channels'
 import { inferModelProtocol, protocolToOpenCodeNpm } from '@/lib/model-protocol'
+import { ModelItem } from './ModelItem'
+import { ModelEditDialog } from './ModelEditDialog'
 
 interface ProviderDialogProps {
   open: boolean
@@ -55,9 +58,12 @@ export function ProviderDialog({
   const [baseUrl, setBaseUrl] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [timeout, setTimeout] = useState('')
+  const [models, setModels] = useState<Record<string, OpenCodeModelConfig>>({})
   const [isTesting, setIsTesting] = useState(false)
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null)
   const [channelPickerOpen, setChannelPickerOpen] = useState(false)
+  const [modelEditOpen, setModelEditOpen] = useState(false)
+  const [editingModelId, setEditingModelId] = useState<string | null>(null)
 
   const isEditing = editingProviderId !== null
 
@@ -77,6 +83,15 @@ export function ProviderDialog({
             ? String(auth.key)
             : ''
         )
+        // Initialize models from config
+        const configModels = config?.models ?? {}
+        const cleanModels: Record<string, OpenCodeModelConfig> = {}
+        for (const [id, modelConfig] of Object.entries(configModels)) {
+          if (modelConfig) {
+            cleanModels[id] = modelConfig
+          }
+        }
+        setModels(cleanModels)
       } else {
         setProviderId('')
         setNpm('')
@@ -84,6 +99,7 @@ export function ProviderDialog({
         setBaseUrl('')
         setApiKey('')
         setTimeout('')
+        setModels({})
       }
     }
   }, [open, editingProviderId, currentProfile])
@@ -105,7 +121,7 @@ export function ProviderDialog({
   }
 
   const handleImportFromChannel = (
-    _models: CustomModel[],
+    selectedModels: CustomModel[],
     context: ChannelProviderContext
   ) => {
     if (!isEditing) {
@@ -128,8 +144,18 @@ export function ProviderDialog({
       setApiKey(context.apiKey)
       setNpm(npmPackage)
     }
-    // Note: OpenCode doesn't have a models field in provider config like OpenClaw
-    // Models are configured separately in the models section
+
+    // Import selected models into provider config
+    const importedModels: Record<string, OpenCodeModelConfig> = {}
+    for (const m of selectedModels) {
+      importedModels[m.model] = {
+        name: m.displayName || null,
+        limit: null,
+      }
+    }
+    setModels(prev =>
+      isEditing ? { ...prev, ...importedModels } : importedModels
+    )
   }
 
   const handleTestConnection = async () => {
@@ -166,6 +192,7 @@ export function ProviderDialog({
         timeout: timeout ? parseInt(timeout, 10) : null,
         headers: null,
       },
+      models: Object.keys(models).length > 0 ? models : null,
     }
 
     const auth = apiKey.trim() ? { type: 'api', key: apiKey.trim() } : undefined
@@ -177,6 +204,34 @@ export function ProviderDialog({
     }
 
     onOpenChange(false)
+  }
+
+  const handleAddModel = () => {
+    setEditingModelId(null)
+    setModelEditOpen(true)
+  }
+
+  const handleEditModel = (modelId: string) => {
+    setEditingModelId(modelId)
+    setModelEditOpen(true)
+  }
+
+  const handleDeleteModel = (modelId: string) => {
+    setModels(prev => {
+      const { [modelId]: _removed, ...rest } = prev
+      return rest
+    })
+  }
+
+  const handleSaveModel = (modelId: string, config: OpenCodeModelConfig) => {
+    setModels(prev => {
+      // If editing and ID changed, remove old ID
+      if (editingModelId && editingModelId !== modelId) {
+        const { [editingModelId]: _removed, ...rest } = prev
+        return { ...rest, [modelId]: config }
+      }
+      return { ...prev, [modelId]: config }
+    })
   }
 
   return (
@@ -297,6 +352,40 @@ export function ProviderDialog({
               />
             </div>
 
+            {/* Models Section */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>{t('opencode.provider.models')}</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddModel}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  {t('opencode.provider.addModel')}
+                </Button>
+              </div>
+
+              {Object.keys(models).length === 0 ? (
+                <div className="text-sm text-muted-foreground text-center py-4 border rounded-md">
+                  {t('opencode.provider.noModels')}
+                </div>
+              ) : (
+                <div className="space-y-2 border rounded-md p-2 max-h-[200px] overflow-y-auto">
+                  {Object.entries(models).map(([modelId, modelConfig]) => (
+                    <ModelItem
+                      key={modelId}
+                      modelId={modelId}
+                      config={modelConfig}
+                      onEdit={() => handleEditModel(modelId)}
+                      onDelete={() => handleDeleteModel(modelId)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Test Connection */}
             <div className="flex items-center gap-2">
               <Button
@@ -339,12 +428,23 @@ export function ProviderDialog({
       <ChannelModelPickerDialog
         open={channelPickerOpen}
         onOpenChange={setChannelPickerOpen}
-        mode="single"
+        mode="multiple"
         onSelect={_models => {
           // Provider-level import handled by onSelectWithContext
         }}
         onSelectWithContext={handleImportFromChannel}
         showBatchConfig={false}
+      />
+
+      {/* Model Edit Dialog */}
+      <ModelEditDialog
+        key={editingModelId || 'new'}
+        open={modelEditOpen}
+        onOpenChange={setModelEditOpen}
+        modelId={editingModelId}
+        config={editingModelId ? (models[editingModelId] ?? null) : null}
+        existingModelIds={Object.keys(models)}
+        onSave={handleSaveModel}
       />
     </ResizableDialog>
   )

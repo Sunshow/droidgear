@@ -1359,13 +1359,21 @@ export type OpenCodeConfigStatus = { configExists: boolean; authExists: boolean;
  */
 export type OpenCodeCurrentConfig = { providers: Partial<{ [key in string]: OpenCodeProviderConfig }>; auth: Partial<{ [key in string]: JsonValue }> }
 /**
+ * OpenCode Model configuration
+ */
+export type OpenCodeModelConfig = { name?: string | null; limit?: OpenCodeModelLimit | null }
+/**
+ * OpenCode Model limit configuration
+ */
+export type OpenCodeModelLimit = { context?: number | null; output?: number | null }
+/**
  * OpenCode Profile
  */
 export type OpenCodeProfile = { id: string; name: string; description?: string | null; createdAt: string; updatedAt: string; providers: Partial<{ [key in string]: OpenCodeProviderConfig }>; auth: Partial<{ [key in string]: JsonValue }> }
 /**
  * OpenCode Provider configuration
  */
-export type OpenCodeProviderConfig = { npm?: string | null; name?: string | null; options?: OpenCodeProviderOptions | null }
+export type OpenCodeProviderConfig = { npm?: string | null; name?: string | null; options?: OpenCodeProviderOptions | null; models?: Partial<{ [key in string]: OpenCodeModelConfig }> | null }
 /**
  * OpenCode Provider options
  */
