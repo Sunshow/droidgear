@@ -72,4 +72,7 @@ export function inferModelProtocolInfo(
 export * from './types'
 export { inferProtocolFromModelId } from './global-inference'
 export { getInferrer } from './inferrer-registry'
-export { protocolToOpenCodeNpm } from './opencode-npm'
+export {
+  protocolToOpenCodeNpm,
+  normalizeBaseUrlForOpenCode,
+} from './opencode-npm'

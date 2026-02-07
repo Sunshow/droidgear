@@ -35,8 +35,8 @@ export function ProviderCard({
           )}
         </div>
         <div className="text-sm text-muted-foreground mt-1 space-y-0.5">
-          {config?.options?.baseUrl && (
-            <div className="truncate">{config.options.baseUrl}</div>
+          {config?.options?.baseURL && (
+            <div className="truncate">{config.options.baseURL}</div>
           )}
           {config?.npm && <div className="text-xs">npm: {config.npm}</div>}
         </div>

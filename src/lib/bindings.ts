@@ -1377,7 +1377,7 @@ export type OpenCodeProviderConfig = { npm?: string | null; name?: string | null
 /**
  * OpenCode Provider options
  */
-export type OpenCodeProviderOptions = { baseUrl?: string | null; apiKey?: string | null; timeout?: number | null; headers?: Partial<{ [key in string]: string }> | null }
+export type OpenCodeProviderOptions = { baseURL?: string | null; apiKey?: string | null; timeout?: number | null; headers?: Partial<{ [key in string]: string }> | null }
 /**
  * Provider types supported by Factory BYOK
  */

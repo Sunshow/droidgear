@@ -30,7 +30,11 @@ import {
 } from '@/lib/bindings'
 import { ChannelModelPickerDialog } from '@/components/channels/ChannelModelPickerDialog'
 import type { ChannelProviderContext } from '@/components/channels'
-import { inferModelProtocol, protocolToOpenCodeNpm } from '@/lib/model-protocol'
+import {
+  inferModelProtocol,
+  protocolToOpenCodeNpm,
+  normalizeBaseUrlForOpenCode,
+} from '@/lib/model-protocol'
 import { ModelItem } from './ModelItem'
 import { ModelEditDialog } from './ModelEditDialog'
 
@@ -55,7 +59,7 @@ export function ProviderDialog({
   const [providerId, setProviderId] = useState('')
   const [npm, setNpm] = useState('')
   const [name, setName] = useState('')
-  const [baseUrl, setBaseUrl] = useState('')
+  const [baseURL, setBaseURL] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [timeout, setTimeout] = useState('')
   const [models, setModels] = useState<Record<string, OpenCodeModelConfig>>({})
@@ -76,7 +80,7 @@ export function ProviderDialog({
         setProviderId(editingProviderId)
         setNpm(config?.npm ?? '')
         setName(config?.name ?? '')
-        setBaseUrl(config?.options?.baseUrl ?? '')
+        setBaseURL(config?.options?.baseURL ?? '')
         setTimeout(config?.options?.timeout?.toString() ?? '')
         setApiKey(
           auth && typeof auth === 'object' && 'key' in auth
@@ -96,7 +100,7 @@ export function ProviderDialog({
         setProviderId('')
         setNpm('')
         setName('')
-        setBaseUrl('')
+        setBaseURL('')
         setApiKey('')
         setTimeout('')
         setModels({})
@@ -109,7 +113,7 @@ export function ProviderDialog({
     if (template) {
       setProviderId(template.id)
       setName(template.name)
-      setBaseUrl(template.defaultBaseUrl ?? '')
+      setBaseURL(template.defaultBaseUrl ?? '')
     }
   }
 
@@ -138,9 +142,15 @@ export function ProviderDialog({
       // Map protocol to npm package
       const npmPackage = protocolToOpenCodeNpm(protocol)
 
+      // Normalize baseURL for OpenCode (e.g., append /v1 for Anthropic)
+      const normalizedBaseUrl = normalizeBaseUrlForOpenCode(
+        protocol,
+        context.baseUrl
+      )
+
       setProviderId(sanitizedId)
       setName(context.channelName)
-      setBaseUrl(context.baseUrl)
+      setBaseURL(normalizedBaseUrl)
       setApiKey(context.apiKey)
       setNpm(npmPackage)
     }
@@ -159,13 +169,13 @@ export function ProviderDialog({
   }
 
   const handleTestConnection = async () => {
-    if (!providerId || !baseUrl || !apiKey) return
+    if (!providerId || !baseURL || !apiKey) return
     setIsTesting(true)
     setTestResult(null)
     try {
       const result = await commands.testOpencodeProviderConnection(
         providerId,
-        baseUrl,
+        baseURL,
         apiKey
       )
       if (result.status === 'ok' && result.data) {
@@ -187,7 +197,7 @@ export function ProviderDialog({
       npm: npm.trim() || null,
       name: name.trim() || null,
       options: {
-        baseUrl: baseUrl.trim() || null,
+        baseURL: baseURL.trim() || null,
         apiKey: null,
         timeout: timeout ? parseInt(timeout, 10) : null,
         headers: null,
@@ -324,8 +334,8 @@ export function ProviderDialog({
             <div className="space-y-2">
               <Label>{t('opencode.provider.baseUrl')}</Label>
               <Input
-                value={baseUrl}
-                onChange={e => setBaseUrl(e.target.value)}
+                value={baseURL}
+                onChange={e => setBaseURL(e.target.value)}
                 placeholder="https://api.anthropic.com"
               />
             </div>
@@ -393,7 +403,7 @@ export function ProviderDialog({
                 variant="outline"
                 size="sm"
                 onClick={handleTestConnection}
-                disabled={!providerId || !baseUrl || !apiKey || isTesting}
+                disabled={!providerId || !baseURL || !apiKey || isTesting}
               >
                 {isTesting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 {t('opencode.provider.testConnection')}

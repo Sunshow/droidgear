@@ -22,6 +22,7 @@ use super::paths;
 #[serde(rename_all = "camelCase")]
 pub struct OpenCodeProviderOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "baseURL")]
     pub base_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api_key: Option<String>,
@@ -554,16 +555,19 @@ pub async fn read_opencode_current_config() -> Result<OpenCodeCurrentConfig, Str
     Ok(OpenCodeCurrentConfig { providers, auth })
 }
 
-/// Normalize provider options: convert baseURL to baseUrl for consistency
+/// Normalize provider options: ensure baseURL is present (backward compatibility)
+/// Supports both baseURL (correct) and baseUrl (legacy) from config files
 fn normalize_provider_options(provider_value: &Value) -> Value {
     let mut result = provider_value.clone();
     if let Some(providers) = result.as_object_mut() {
         for (_provider_id, provider_config) in providers.iter_mut() {
             if let Some(options) = provider_config.get_mut("options") {
                 if let Some(options_obj) = options.as_object_mut() {
-                    // Convert baseURL to baseUrl
-                    if let Some(base_url) = options_obj.remove("baseURL") {
-                        options_obj.insert("baseUrl".to_string(), base_url);
+                    // If baseUrl exists but baseURL doesn't, copy baseUrl to baseURL
+                    if options_obj.contains_key("baseUrl") && !options_obj.contains_key("baseURL") {
+                        if let Some(base_url) = options_obj.get("baseUrl").cloned() {
+                            options_obj.insert("baseURL".to_string(), base_url);
+                        }
                     }
                 }
             }

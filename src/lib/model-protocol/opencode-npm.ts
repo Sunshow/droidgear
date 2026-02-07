@@ -21,3 +21,28 @@ export function protocolToOpenCodeNpm(protocol: ModelProtocol): string {
       return '@ai-sdk/openai-compatible'
   }
 }
+
+/**
+ * Normalize baseURL for OpenCode provider based on protocol
+ *
+ * @ai-sdk/anthropic expects baseURL to include /v1 (e.g., https://api.anthropic.com/v1)
+ * because it appends /messages to make requests to /v1/messages
+ *
+ * Other protocols (openai, google-ai, openai-compatible) don't need this adjustment
+ */
+export function normalizeBaseUrlForOpenCode(
+  protocol: ModelProtocol,
+  baseUrl: string
+): string {
+  if (protocol === 'anthropic') {
+    // Ensure baseURL ends with /v1 for Anthropic
+    const trimmed = baseUrl.replace(/\/+$/, '') // Remove trailing slashes
+    if (!trimmed.endsWith('/v1')) {
+      return `${trimmed}/v1`
+    }
+    return trimmed
+  }
+
+  // Other protocols use baseURL as-is
+  return baseUrl
+}

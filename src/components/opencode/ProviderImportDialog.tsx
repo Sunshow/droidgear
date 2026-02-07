@@ -209,8 +209,8 @@ export function ProviderImportDialog({
                         </div>
                         <div className="text-xs text-muted-foreground truncate">
                           {id}
-                          {config?.options?.baseUrl &&
-                            ` · ${config.options.baseUrl}`}
+                          {config?.options?.baseURL &&
+                            ` · ${config.options.baseURL}`}
                         </div>
                       </div>
                     </div>
