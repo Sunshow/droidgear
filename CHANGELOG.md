@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.3.5
+
+**New Features / 新功能**
+
+- Auto-save providers like OpenClaw, remove Reset/Save buttons in OpenCode / OpenCode 中自动保存服务商（类似 OpenClaw），移除重置/保存按钮
+- Add models support with multi-select channel import in OpenCode / OpenCode 中添加模型支持，支持多选频道导入
+- Add Import from Channel with model protocol inference in OpenCode / OpenCode 中添加从频道导入功能，支持模型协议推断
+
+**Bug Fixes / 问题修复**
+
+- Correct baseURL field name and add /v1 for anthropic protocol in OpenCode / 修复 OpenCode 中 baseURL 字段名称并为 anthropic 协议添加 /v1
+
 ## v0.3.4
 
 **New Features / 新功能**
