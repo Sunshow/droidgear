@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.3.4
+
+**New Features / 新功能**
+
+- Validate default model before applying OpenClaw profile / 应用 OpenClaw 配置前验证默认模型
+- Promote Import from Channel to provider-level operation in OpenClaw / OpenClaw 中将从频道导入提升为服务商级别操作
+- Require at least one model when saving OpenClaw provider / 保存 OpenClaw 服务商时要求至少一个模型
+- Add Exa and Context7 MCP presets with stdio/http variants / 添加 Exa 和 Context7 MCP 预设，支持 stdio/http 变体
+- Auto-sync model display name when entering model ID in OpenClaw / OpenClaw 中输入模型 ID 时自动同步显示名称
+
+**Bug Fixes / 问题修复**
+
+- Isolate per-channel fetch state to fix infinite retry loop / 隔离每个频道的获取状态以修复无限重试循环
+
 ## v0.3.3
 
 **New Features / 新功能**
