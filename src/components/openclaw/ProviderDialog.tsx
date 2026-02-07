@@ -31,6 +31,7 @@ import {
   type CustomModel,
 } from '@/lib/bindings'
 import { ChannelModelPickerDialog } from '@/components/channels/ChannelModelPickerDialog'
+import type { ChannelProviderContext } from '@/components/channels'
 
 interface ProviderDialogProps {
   open: boolean
@@ -159,7 +160,23 @@ function ProviderForm({
     setSelectedModelIds(new Set())
   }
 
-  const handleImportFromChannel = (importedModels: CustomModel[]) => {
+  const handleImportFromChannel = (
+    importedModels: CustomModel[],
+    context: ChannelProviderContext
+  ) => {
+    // Fill provider-level fields
+    if (!isEditing) {
+      setProviderId(context.channelName)
+    }
+    setBaseUrl(context.baseUrl)
+    setApiKey(context.apiKey)
+    setApi(
+      context.platform === 'anthropic'
+        ? 'anthropic-messages'
+        : 'openai-completions'
+    )
+
+    // Import models
     const newModels: OpenClawModel[] = importedModels.map(m => ({
       id: m.model,
       name: m.displayName ?? null,
@@ -233,6 +250,17 @@ function ProviderForm({
     <>
       <ResizableDialogBody data-models-container>
         <div className="space-y-4">
+          {/* Import from Channel */}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => setChannelPickerOpen(true)}
+          >
+            <FolderInput className="h-4 w-4 mr-2" />
+            {t('openclaw.provider.importFromChannel')}
+          </Button>
+
           {/* Provider ID */}
           <div className="space-y-2">
             <Label>{t('openclaw.provider.id')} *</Label>
@@ -355,15 +383,6 @@ function ProviderForm({
             <div className="flex items-center justify-between">
               <Label>{t('openclaw.provider.models')}</Label>
               <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setChannelPickerOpen(true)}
-                >
-                  <FolderInput className="h-4 w-4 mr-1" />
-                  {t('channels.importFromChannel')}
-                </Button>
                 <Button
                   type="button"
                   variant="outline"
@@ -551,7 +570,10 @@ function ProviderForm({
         open={channelPickerOpen}
         onOpenChange={setChannelPickerOpen}
         mode="multiple"
-        onSelect={handleImportFromChannel}
+        onSelect={_models => {
+          // Provider-level import handled by onSelectWithContext
+        }}
+        onSelectWithContext={handleImportFromChannel}
         showBatchConfig={false}
       />
     </>

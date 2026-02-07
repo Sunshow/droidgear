@@ -7,7 +7,10 @@ import {
   ResizableDialogBody,
   ResizableDialogTitle,
 } from '@/components/ui/resizable-dialog'
-import { ChannelModelPicker } from './ChannelModelPicker'
+import {
+  ChannelModelPicker,
+  type ChannelProviderContext,
+} from './ChannelModelPicker'
 import type { CustomModel } from '@/lib/bindings'
 
 interface ChannelModelPickerDialogProps {
@@ -16,6 +19,10 @@ interface ChannelModelPickerDialogProps {
   mode: 'single' | 'multiple'
   existingModels?: CustomModel[]
   onSelect: (models: CustomModel[]) => void
+  onSelectWithContext?: (
+    models: CustomModel[],
+    context: ChannelProviderContext
+  ) => void
   showBatchConfig?: boolean
 }
 
@@ -25,6 +32,7 @@ export function ChannelModelPickerDialog({
   mode,
   existingModels,
   onSelect,
+  onSelectWithContext,
   showBatchConfig = false,
 }: ChannelModelPickerDialogProps) {
   const { t } = useTranslation()
@@ -33,6 +41,13 @@ export function ChannelModelPickerDialog({
     onSelect(models)
     onOpenChange(false)
   }
+
+  const handleSelectWithContext = onSelectWithContext
+    ? (models: CustomModel[], context: ChannelProviderContext) => {
+        onSelectWithContext(models, context)
+        onOpenChange(false)
+      }
+    : undefined
 
   return (
     <ResizableDialog open={open} onOpenChange={onOpenChange}>
@@ -57,6 +72,7 @@ export function ChannelModelPickerDialog({
               mode={mode}
               existingModels={existingModels}
               onSelect={handleSelect}
+              onSelectWithContext={handleSelectWithContext}
               showBatchConfig={showBatchConfig}
             />
           )}

@@ -661,6 +661,7 @@
   "openclaw.provider.load": "Load",
   "openclaw.provider.loadFromConfig": "Load from config file",
   "openclaw.provider.modelsRequired": "Please add at least one model",
+  "openclaw.provider.importFromChannel": "Import from Channel",
 
   "openclaw.configStatus.title": "Config Status",
   "openclaw.configStatus.configPath": "Config Path",

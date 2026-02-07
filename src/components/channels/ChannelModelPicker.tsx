@@ -33,10 +33,21 @@ import {
   getDefaultMaxOutputTokens,
 } from '@/lib/utils'
 
+export interface ChannelProviderContext {
+  channelName: string
+  baseUrl: string
+  apiKey: string
+  platform: string | null
+}
+
 interface ChannelModelPickerProps {
   mode: 'single' | 'multiple'
   existingModels?: CustomModel[]
   onSelect: (models: CustomModel[]) => void
+  onSelectWithContext?: (
+    models: CustomModel[],
+    context: ChannelProviderContext
+  ) => void
   showBatchConfig?: boolean
 }
 
@@ -44,6 +55,7 @@ export function ChannelModelPicker({
   mode,
   existingModels = [],
   onSelect,
+  onSelectWithContext,
   showBatchConfig = false,
 }: ChannelModelPickerProps) {
   const { t } = useTranslation()
@@ -188,9 +200,26 @@ export function ChannelModelPicker({
     }
   }
 
+  const buildProviderContext = (): ChannelProviderContext | null => {
+    if (!selectedChannel || !selectedKey) return null
+    return {
+      channelName: selectedChannel.name,
+      baseUrl: selectedChannel.baseUrl,
+      apiKey: selectedKey.key,
+      platform: selectedKey.platform,
+    }
+  }
+
   const handleSingleSelect = (modelId: string) => {
     setSingleSelectedId(modelId)
     const model = buildCustomModel(modelId)
+    if (onSelectWithContext) {
+      const context = buildProviderContext()
+      if (context) {
+        onSelectWithContext([model], context)
+        return
+      }
+    }
     onSelect([model])
   }
 
@@ -220,6 +249,13 @@ export function ChannelModelPicker({
     const models = Array.from(selectedModelIds)
       .filter(id => !isModelExisting(id))
       .map(id => buildCustomModel(id))
+    if (onSelectWithContext) {
+      const context = buildProviderContext()
+      if (context) {
+        onSelectWithContext(models, context)
+        return
+      }
+    }
     onSelect(models)
   }
 

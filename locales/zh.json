@@ -661,6 +661,7 @@
   "openclaw.provider.load": "读取",
   "openclaw.provider.loadFromConfig": "从配置文件读取",
   "openclaw.provider.modelsRequired": "请至少添加一个模型",
+  "openclaw.provider.importFromChannel": "从 Channel 导入",
 
   "openclaw.configStatus.title": "配置状态",
   "openclaw.configStatus.configPath": "配置路径",
