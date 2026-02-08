@@ -98,12 +98,18 @@ export const useOpenClawStore = create<OpenClawState>()(
               undefined,
               'openclaw/loadActiveProfileId'
             )
-            // Select active profile if it exists in profiles list
+            // Auto-select active profile
             if (activeId) {
               const { profiles } = get()
               const activeProfile = profiles.find(p => p.id === activeId)
               if (activeProfile) {
                 get().selectProfile(activeId)
+              }
+            } else {
+              // Select first profile if no active
+              const { profiles } = get()
+              if (profiles.length > 0 && profiles[0]) {
+                get().selectProfile(profiles[0].id)
               }
             }
           }

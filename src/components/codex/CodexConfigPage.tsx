@@ -1,12 +1,27 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Save, RefreshCw, Upload, Download, Copy } from 'lucide-react'
+import {
+  Plus,
+  AlertCircle,
+  RefreshCw,
+  Play,
+  Copy,
+  Trash2,
+  Download,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,22 +33,21 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useCodexStore } from '@/store/codex-store'
 import type { JsonValue } from '@/lib/bindings'
 
 export function CodexConfigPage() {
   const { t } = useTranslation()
-
   const profiles = useCodexStore(state => state.profiles)
   const activeProfileId = useCodexStore(state => state.activeProfileId)
   const currentProfile = useCodexStore(state => state.currentProfile)
-  const hasChanges = useCodexStore(state => state.hasChanges)
   const isLoading = useCodexStore(state => state.isLoading)
   const error = useCodexStore(state => state.error)
   const configStatus = useCodexStore(state => state.configStatus)
@@ -42,24 +56,41 @@ export function CodexConfigPage() {
   const loadActiveProfileId = useCodexStore(state => state.loadActiveProfileId)
   const loadConfigStatus = useCodexStore(state => state.loadConfigStatus)
   const selectProfile = useCodexStore(state => state.selectProfile)
-  const saveProfile = useCodexStore(state => state.saveProfile)
+  const createProfile = useCodexStore(state => state.createProfile)
+  const deleteProfile = useCodexStore(state => state.deleteProfile)
+  const duplicateProfile = useCodexStore(state => state.duplicateProfile)
   const applyProfile = useCodexStore(state => state.applyProfile)
-  const resetChanges = useCodexStore(state => state.resetChanges)
+  const loadFromLiveConfig = useCodexStore(state => state.loadFromLiveConfig)
   const updateProfileName = useCodexStore(state => state.updateProfileName)
   const updateProfileDescription = useCodexStore(
     state => state.updateProfileDescription
   )
   const updateAuthValue = useCodexStore(state => state.updateAuthValue)
   const updateConfigToml = useCodexStore(state => state.updateConfigToml)
-  const loadFromLiveConfig = useCodexStore(state => state.loadFromLiveConfig)
   const setError = useCodexStore(state => state.setError)
-  const duplicateProfile = useCodexStore(state => state.duplicateProfile)
-  const deleteProfile = useCodexStore(state => state.deleteProfile)
-  const createProfile = useCodexStore(state => state.createProfile)
 
-  const [applyConfirmOpen, setApplyConfirmOpen] = useState(false)
+  const [showApplyConfirm, setShowApplyConfirm] = useState(false)
+  const [showDeleteProfileConfirm, setShowDeleteProfileConfirm] =
+    useState(false)
+  const [showCreateProfileDialog, setShowCreateProfileDialog] = useState(false)
+  const [showDuplicateProfileDialog, setShowDuplicateProfileDialog] =
+    useState(false)
   const [newProfileName, setNewProfileName] = useState('')
-  const [duplicateName, setDuplicateName] = useState('')
+
+  // Use profile id as key to reset local editing state
+  const profileKey = currentProfile?.id ?? ''
+  const [editingName, setEditingName] = useState(currentProfile?.name ?? '')
+  const [editingDescription, setEditingDescription] = useState(
+    currentProfile?.description ?? ''
+  )
+
+  // Reset local state when profile changes
+  const [lastProfileKey, setLastProfileKey] = useState(profileKey)
+  if (profileKey !== lastProfileKey) {
+    setLastProfileKey(profileKey)
+    setEditingName(currentProfile?.name ?? '')
+    setEditingDescription(currentProfile?.description ?? '')
+  }
 
   const apiKey = useMemo(() => {
     const auth = (currentProfile?.auth || {}) as Record<
@@ -71,244 +102,192 @@ export function CodexConfigPage() {
   }, [currentProfile])
 
   useEffect(() => {
-    let cancelled = false
-    void (async () => {
+    const init = async () => {
       await loadProfiles()
       await loadActiveProfileId()
-      await loadConfigStatus()
-      if (cancelled) return
-      const state = useCodexStore.getState()
-      if (!state.currentProfile && state.profiles[0])
-        state.selectProfile(state.profiles[0].id)
-    })()
-    return () => {
-      cancelled = true
     }
-  }, [loadActiveProfileId, loadConfigStatus, loadProfiles])
+    init()
+    loadConfigStatus()
+  }, [loadProfiles, loadActiveProfileId, loadConfigStatus])
 
-  useEffect(() => {
-    if (error) toast.error(error)
-  }, [error])
-
-  const handleCopyPath = async (text?: string) => {
-    if (!text) return
-    try {
-      await navigator.clipboard.writeText(text)
-      toast.success(t('common.copied'))
-    } catch (e) {
-      toast.error(String(e))
-    }
+  const handleProfileChange = (profileId: string) => {
+    selectProfile(profileId)
   }
 
   const handleCreateProfile = async () => {
     if (!newProfileName.trim()) return
     await createProfile(newProfileName.trim())
     setNewProfileName('')
-    await loadProfiles()
-    toast.success(t('codex.profile.created'))
+    setShowCreateProfileDialog(false)
   }
 
   const handleDuplicateProfile = async () => {
-    if (!currentProfile || !duplicateName.trim()) return
-    await duplicateProfile(currentProfile.id, duplicateName.trim())
-    setDuplicateName('')
-    toast.success(t('codex.profile.duplicated'))
+    if (!currentProfile || !newProfileName.trim()) return
+    await duplicateProfile(currentProfile.id, newProfileName.trim())
+    setNewProfileName('')
+    setShowDuplicateProfileDialog(false)
   }
 
   const handleDeleteProfile = async () => {
     if (!currentProfile) return
     await deleteProfile(currentProfile.id)
-    toast.success(t('codex.profile.deleted'))
+    setShowDeleteProfileConfirm(false)
   }
 
-  const headerBadges = useMemo(() => {
-    if (!currentProfile) return null
-    const isActive = activeProfileId === currentProfile.id
-    return (
-      <div className="flex items-center gap-2">
-        {isActive && (
-          <Badge variant="outline">{t('codex.profile.active')}</Badge>
-        )}
-        {hasChanges && <Badge variant="secondary">{t('common.unsaved')}</Badge>}
-      </div>
-    )
-  }, [activeProfileId, currentProfile, hasChanges, t])
+  const handleApply = async () => {
+    if (!currentProfile) return
+    await applyProfile(currentProfile.id)
+    setShowApplyConfirm(false)
+    toast.success(t('codex.actions.applySuccess'))
+  }
 
-  if (!currentProfile) {
-    return (
-      <div className="flex items-center justify-center h-full text-muted-foreground">
-        <p>{t('codex.profile.noProfile')}</p>
-      </div>
-    )
+  const handleLoadFromConfig = async () => {
+    await loadFromLiveConfig()
+    toast.success(t('codex.actions.loadedFromLive'))
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 p-4 border-b">
+        <div className="min-w-0 flex-1">
           <h1 className="text-xl font-semibold">{t('codex.title')}</h1>
-          {headerBadges}
+          <div className="flex items-center gap-2 mt-1">
+            {currentProfile && activeProfileId === currentProfile.id && (
+              <Badge variant="outline">{t('codex.profile.active')}</Badge>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <Button
             variant="outline"
-            size="sm"
-            onClick={async () => {
-              await loadFromLiveConfig()
-              toast.success(t('codex.actions.loadedFromLive'))
-            }}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            {t('codex.actions.loadFromLive')}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={async () => {
-              await saveProfile()
-              toast.success(t('common.saved'))
-            }}
-            disabled={!hasChanges}
-          >
-            <Save className="h-4 w-4 mr-2" />
-            {t('common.save')}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
+            size="icon"
             onClick={() => {
-              resetChanges()
-              toast.success(t('common.reset'))
+              loadProfiles()
+              loadConfigStatus()
             }}
-            disabled={!hasChanges}
+            disabled={isLoading}
+            title={t('common.refresh')}
           >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            {t('common.reset')}
+            <RefreshCw className="h-4 w-4" />
           </Button>
           <Button
-            size="sm"
-            onClick={() => setApplyConfirmOpen(true)}
-            disabled={isLoading}
+            onClick={() => setShowApplyConfirm(true)}
+            disabled={!currentProfile || isLoading}
           >
-            <Upload className="h-4 w-4 mr-2" />
+            <Play className="h-4 w-4 mr-2" />
             {t('codex.actions.apply')}
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>{t('codex.profile.select')}</Label>
-            <Select value={currentProfile.id} onValueChange={selectProfile}>
-              <SelectTrigger>
+      {/* Error Alert */}
+      {error && (
+        <div className="mx-4 mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 text-destructive" />
+          <span className="text-sm text-destructive">{error}</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto"
+            onClick={() => setError(null)}
+          >
+            {t('common.dismiss')}
+          </Button>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-auto p-4 space-y-4">
+        {/* Profile Section */}
+        <div className="space-y-3 p-4 border rounded-lg">
+          <div className="flex items-center gap-2">
+            <Label className="w-20">{t('codex.profile.select')}</Label>
+            <Select
+              value={currentProfile?.id ?? ''}
+              onValueChange={handleProfileChange}
+            >
+              <SelectTrigger className="flex-1">
                 <SelectValue placeholder={t('codex.profile.select')} />
               </SelectTrigger>
               <SelectContent>
-                {profiles.map(p => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
+                {profiles.map(profile => (
+                  <SelectItem key={profile.id} value={profile.id}>
+                    {profile.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>{t('codex.profile.name')}</Label>
-            <Input
-              value={currentProfile.name}
-              onChange={e => updateProfileName(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>{t('codex.profile.description')}</Label>
-            <Input
-              value={currentProfile.description ?? ''}
-              onChange={e => updateProfileDescription(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>{t('codex.profile.create')}</Label>
-            <div className="flex gap-2">
-              <Input
-                value={newProfileName}
-                onChange={e => setNewProfileName(e.target.value)}
-                placeholder={t('codex.profile.createPlaceholder')}
-              />
-              <Button variant="secondary" onClick={handleCreateProfile}>
-                {t('codex.profile.createAction')}
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>{t('codex.profile.duplicate')}</Label>
-            <div className="flex gap-2">
-              <Input
-                value={duplicateName}
-                onChange={e => setDuplicateName(e.target.value)}
-                placeholder={t('codex.profile.duplicatePlaceholder')}
-              />
-              <Button variant="secondary" onClick={handleDuplicateProfile}>
-                {t('codex.profile.duplicateAction')}
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>{t('codex.profile.delete')}</Label>
-            <Button variant="destructive" onClick={handleDeleteProfile}>
-              {t('codex.profile.deleteAction')}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowCreateProfileDialog(true)}
+              title={t('codex.profile.create')}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                setNewProfileName(
+                  currentProfile?.name ? `${currentProfile.name} (Copy)` : ''
+                )
+                setShowDuplicateProfileDialog(true)
+              }}
+              disabled={!currentProfile}
+              title={t('codex.profile.duplicate')}
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowDeleteProfileConfirm(true)}
+              disabled={!currentProfile || profiles.length <= 1}
+              title={t('codex.profile.delete')}
+            >
+              <Trash2 className="h-4 w-4" />
             </Button>
           </div>
 
-          <div className="space-y-2">
-            <Label>{t('codex.live.status')}</Label>
-            <div className="text-xs text-muted-foreground space-y-1">
-              <div className="flex items-center justify-between gap-2">
-                <span>{t('codex.live.authPath')}</span>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">
-                    {configStatus?.authExists
-                      ? t('common.exists')
-                      : t('common.missing')}
-                  </Badge>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleCopyPath(configStatus?.authPath)}
-                    title={t('common.copy')}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
+          {currentProfile && (
+            <>
+              <div className="flex items-center gap-2">
+                <Label className="w-20">{t('codex.profile.name')}</Label>
+                <Input
+                  value={editingName}
+                  onChange={e => setEditingName(e.target.value)}
+                  onBlur={() => {
+                    if (editingName !== currentProfile.name) {
+                      updateProfileName(editingName)
+                    }
+                  }}
+                  placeholder={t('codex.profile.name')}
+                />
               </div>
-              <div className="flex items-center justify-between gap-2">
-                <span>{t('codex.live.configPath')}</span>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">
-                    {configStatus?.configExists
-                      ? t('common.exists')
-                      : t('common.missing')}
-                  </Badge>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleCopyPath(configStatus?.configPath)}
-                    title={t('common.copy')}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
+              <div className="flex items-center gap-2">
+                <Label className="w-20">{t('codex.profile.description')}</Label>
+                <Input
+                  value={editingDescription}
+                  onChange={e => setEditingDescription(e.target.value)}
+                  onBlur={() => {
+                    if (
+                      editingDescription !== (currentProfile.description ?? '')
+                    ) {
+                      updateProfileDescription(editingDescription)
+                    }
+                  }}
+                  placeholder={t('codex.profile.descriptionPlaceholder')}
+                />
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
 
-        <div className="lg:col-span-2 space-y-4">
+        {/* Auth Section */}
+        <div className="space-y-3 p-4 border rounded-lg">
+          <h2 className="text-lg font-medium">{t('codex.auth.title')}</h2>
           <div className="space-y-2">
             <Label>{t('codex.auth.apiKey')}</Label>
             <Input
@@ -317,28 +296,84 @@ export function CodexConfigPage() {
               placeholder={t('codex.auth.apiKeyPlaceholder')}
               type="password"
               autoComplete="off"
+              disabled={!currentProfile}
             />
-            <div className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {t('codex.auth.apiKeyHint')}
-            </div>
+            </p>
           </div>
+        </div>
 
+        {/* Config Section */}
+        <div className="space-y-3 p-4 border rounded-lg">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-medium">{t('codex.config.title')}</h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLoadFromConfig}
+              disabled={!currentProfile || !configStatus?.configExists}
+              title={t('codex.config.loadFromLive')}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              {t('codex.actions.loadFromLive')}
+            </Button>
+          </div>
           <div className="space-y-2">
             <Label>{t('codex.configToml')}</Label>
             <Textarea
-              value={currentProfile.configToml}
+              value={currentProfile?.configToml ?? ''}
               onChange={e => updateConfigToml(e.target.value)}
               className="min-h-[320px] font-mono text-xs"
               spellCheck={false}
+              disabled={!currentProfile}
             />
-            <div className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {t('codex.configTomlHint')}
-            </div>
+            </p>
           </div>
         </div>
+
+        {/* Config Status */}
+        {configStatus && (
+          <div className="p-4 border rounded-lg">
+            <h2 className="text-lg font-medium mb-2">
+              {t('codex.configStatus.title')}
+            </h2>
+            <div className="text-sm text-muted-foreground space-y-1">
+              <div className="flex items-center gap-2">
+                <span>{t('codex.live.authPath')}:</span>
+                <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                  {configStatus.authPath}
+                </code>
+                <Badge
+                  variant={configStatus.authExists ? 'default' : 'outline'}
+                >
+                  {configStatus.authExists
+                    ? t('common.exists')
+                    : t('common.missing')}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <span>{t('codex.live.configPath')}:</span>
+                <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                  {configStatus.configPath}
+                </code>
+                <Badge
+                  variant={configStatus.configExists ? 'default' : 'outline'}
+                >
+                  {configStatus.configExists
+                    ? t('common.exists')
+                    : t('common.missing')}
+                </Badge>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      <AlertDialog open={applyConfirmOpen} onOpenChange={setApplyConfirmOpen}>
+      {/* Apply Confirmation */}
+      <AlertDialog open={showApplyConfirm} onOpenChange={setShowApplyConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('codex.actions.apply')}</AlertDialogTitle>
@@ -347,21 +382,108 @@ export function CodexConfigPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setError(null)}>
-              {t('common.cancel')}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => {
-                await applyProfile(currentProfile.id)
-                setApplyConfirmOpen(false)
-                toast.success(t('codex.actions.applied'))
-              }}
-            >
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleApply}>
               {t('codex.actions.apply')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Delete Profile Confirmation */}
+      <AlertDialog
+        open={showDeleteProfileConfirm}
+        onOpenChange={setShowDeleteProfileConfirm}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('codex.profile.delete')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('codex.profile.deleteConfirm')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteProfile}>
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Create Profile Dialog */}
+      <Dialog
+        open={showCreateProfileDialog}
+        onOpenChange={setShowCreateProfileDialog}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('codex.profile.create')}</DialogTitle>
+            <DialogDescription>
+              {t('codex.profile.createDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              value={newProfileName}
+              onChange={e => setNewProfileName(e.target.value)}
+              placeholder={t('codex.profile.namePlaceholder')}
+              onKeyDown={e => e.key === 'Enter' && handleCreateProfile()}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowCreateProfileDialog(false)}
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={handleCreateProfile}
+              disabled={!newProfileName.trim()}
+            >
+              {t('common.add')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Duplicate Profile Dialog */}
+      <Dialog
+        open={showDuplicateProfileDialog}
+        onOpenChange={setShowDuplicateProfileDialog}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('codex.profile.duplicate')}</DialogTitle>
+            <DialogDescription>
+              {t('codex.profile.duplicateDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              value={newProfileName}
+              onChange={e => setNewProfileName(e.target.value)}
+              placeholder={t('codex.profile.namePlaceholder')}
+              onKeyDown={e => e.key === 'Enter' && handleDuplicateProfile()}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDuplicateProfileDialog(false)}
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={handleDuplicateProfile}
+              disabled={!newProfileName.trim()}
+            >
+              {t('codex.profile.duplicate')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

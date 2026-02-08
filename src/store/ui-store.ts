@@ -11,7 +11,6 @@ export type DroidSubView =
   | 'sessions'
   | 'terminal'
 export type OpenCodeSubView = 'providers'
-export type CodexSubView = 'config' | 'mcp' | 'sessions' | 'terminal'
 export type OpenClawSubView = 'providers' | 'helpers'
 
 export interface PendingUpdate {
@@ -28,7 +27,6 @@ interface UIState {
   lastToolView: ToolView
   droidSubView: DroidSubView
   opencodeSubView: OpenCodeSubView
-  codexSubView: CodexSubView
   openclawSubView: OpenClawSubView
   lastSpecExportPath: string | null
   pendingUpdate: PendingUpdate | null
@@ -44,7 +42,6 @@ interface UIState {
   setCurrentView: (view: NavigationView) => void
   setDroidSubView: (view: DroidSubView) => void
   setOpenCodeSubView: (view: OpenCodeSubView) => void
-  setCodexSubView: (view: CodexSubView) => void
   setOpenClawSubView: (view: OpenClawSubView) => void
   setLastSpecExportPath: (path: string) => void
   setPendingUpdate: (update: PendingUpdate | null) => void
@@ -63,7 +60,6 @@ export const useUIStore = create<UIState>()(
         lastToolView: 'droid',
         droidSubView: 'models',
         opencodeSubView: 'providers',
-        codexSubView: 'config',
         openclawSubView: 'providers',
         lastSpecExportPath: null,
         pendingUpdate: null,
@@ -139,9 +135,6 @@ export const useUIStore = create<UIState>()(
         setOpenCodeSubView: view =>
           set({ opencodeSubView: view }, undefined, 'setOpenCodeSubView'),
 
-        setCodexSubView: view =>
-          set({ codexSubView: view }, undefined, 'setCodexSubView'),
-
         setOpenClawSubView: view =>
           set({ openclawSubView: view }, undefined, 'setOpenClawSubView'),
 
@@ -160,7 +153,6 @@ export const useUIStore = create<UIState>()(
           lastSpecExportPath: state.lastSpecExportPath,
           currentView: state.currentView,
           lastToolView: state.lastToolView,
-          codexSubView: state.codexSubView,
           leftSidebarVisible: state.leftSidebarVisible,
           rightSidebarVisible: state.rightSidebarVisible,
         }),

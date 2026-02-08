@@ -29,7 +29,6 @@ export function MainWindowContent({
   const { t } = useTranslation()
   const currentView = useUIStore(state => state.currentView)
   const droidSubView = useUIStore(state => state.droidSubView)
-  const codexSubView = useUIStore(state => state.codexSubView)
   const openclawSubView = useUIStore(state => state.openclawSubView)
   const channels = useChannelStore(state => state.channels)
   const selectedChannelId = useChannelStore(state => state.selectedChannelId)
@@ -73,13 +72,7 @@ export function MainWindowContent({
     }
 
     if (currentView === 'codex') {
-      return (
-        <>
-          {codexSubView === 'config' && <CodexConfigPage />}
-          {codexSubView === 'mcp' && <McpPage />}
-          {codexSubView === 'sessions' && <SessionsPage />}
-        </>
-      )
+      return <CodexConfigPage />
     }
 
     if (currentView === 'openclaw') {
@@ -121,10 +114,7 @@ export function MainWindowContent({
       {/* Terminal is always mounted across all views, hidden when not active */}
       <div
         className={cn(
-          !(
-            (currentView === 'droid' && droidSubView === 'terminal') ||
-            (currentView === 'codex' && codexSubView === 'terminal')
-          ) && 'hidden',
+          !(currentView === 'droid' && droidSubView === 'terminal') && 'hidden',
           'absolute inset-0'
         )}
       >
