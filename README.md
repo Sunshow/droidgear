@@ -149,8 +149,6 @@ DroidGear 重视您的隐私安全。您的用户名、密码、API 密钥等敏
 
 本项目基于 [tauri-template](https://github.com/dannysmith/tauri-template) 开发，感谢 Danny Smith 提供的优秀模板。
 
-感谢 [@xb0or](https://github.com/xb0or) 贡献 Codex CLI 配置支持功能。
-
 ## 许可证
 
 [MIT](LICENSE.md)

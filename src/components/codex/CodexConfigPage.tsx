@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Plus,
@@ -14,7 +14,6 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -41,7 +40,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useCodexStore } from '@/store/codex-store'
-import type { JsonValue } from '@/lib/bindings'
+import type { CodexProviderConfig } from '@/lib/bindings'
+import { ProviderCard } from './ProviderCard'
+import { ProviderDialog } from './ProviderDialog'
+import { ConfigStatus } from './ConfigStatus'
 
 export function CodexConfigPage() {
   const { t } = useTranslation()
@@ -65,8 +67,8 @@ export function CodexConfigPage() {
   const updateProfileDescription = useCodexStore(
     state => state.updateProfileDescription
   )
-  const updateAuthValue = useCodexStore(state => state.updateAuthValue)
-  const updateConfigToml = useCodexStore(state => state.updateConfigToml)
+  const deleteProvider = useCodexStore(state => state.deleteProvider)
+  const setActiveProvider = useCodexStore(state => state.setActiveProvider)
   const setError = useCodexStore(state => state.setError)
 
   const [showApplyConfirm, setShowApplyConfirm] = useState(false)
@@ -76,6 +78,15 @@ export function CodexConfigPage() {
   const [showDuplicateProfileDialog, setShowDuplicateProfileDialog] =
     useState(false)
   const [newProfileName, setNewProfileName] = useState('')
+  const [showProviderDialog, setShowProviderDialog] = useState(false)
+  const [editingProviderId, setEditingProviderId] = useState<string | null>(
+    null
+  )
+  const [showDeleteProviderConfirm, setShowDeleteProviderConfirm] =
+    useState(false)
+  const [deletingProviderId, setDeletingProviderId] = useState<string | null>(
+    null
+  )
 
   // Use profile id as key to reset local editing state
   const profileKey = currentProfile?.id ?? ''
@@ -92,14 +103,11 @@ export function CodexConfigPage() {
     setEditingDescription(currentProfile?.description ?? '')
   }
 
-  const apiKey = useMemo(() => {
-    const auth = (currentProfile?.auth || {}) as Record<
-      string,
-      JsonValue | undefined
-    >
-    const value = auth.OPENAI_API_KEY
-    return typeof value === 'string' ? value : ''
-  }, [currentProfile])
+  const providers = (currentProfile?.providers ?? {}) as Record<
+    string,
+    CodexProviderConfig
+  >
+  const providerIds = Object.keys(providers)
 
   useEffect(() => {
     const init = async () => {
@@ -144,6 +152,29 @@ export function CodexConfigPage() {
   const handleLoadFromConfig = async () => {
     await loadFromLiveConfig()
     toast.success(t('codex.actions.loadedFromLive'))
+  }
+
+  const handleAddProvider = () => {
+    setEditingProviderId(null)
+    setShowProviderDialog(true)
+  }
+
+  const handleEditProvider = (providerId: string) => {
+    setEditingProviderId(providerId)
+    setShowProviderDialog(true)
+  }
+
+  const handleDeleteProviderClick = (providerId: string) => {
+    setDeletingProviderId(providerId)
+    setShowDeleteProviderConfirm(true)
+  }
+
+  const handleDeleteProviderConfirm = async () => {
+    if (!deletingProviderId) return
+    await deleteProvider(deletingProviderId)
+    setShowDeleteProviderConfirm(false)
+    setDeletingProviderId(null)
+    toast.success(t('codex.provider.deleteSuccess'))
   }
 
   return (
@@ -285,91 +316,59 @@ export function CodexConfigPage() {
           )}
         </div>
 
-        {/* Auth Section */}
-        <div className="space-y-3 p-4 border rounded-lg">
-          <h2 className="text-lg font-medium">{t('codex.auth.title')}</h2>
-          <div className="space-y-2">
-            <Label>{t('codex.auth.apiKey')}</Label>
-            <Input
-              value={apiKey}
-              onChange={e => updateAuthValue('OPENAI_API_KEY', e.target.value)}
-              placeholder={t('codex.auth.apiKeyPlaceholder')}
-              type="password"
-              autoComplete="off"
-              disabled={!currentProfile}
-            />
-            <p className="text-xs text-muted-foreground">
-              {t('codex.auth.apiKeyHint')}
-            </p>
-          </div>
-        </div>
-
-        {/* Config Section */}
-        <div className="space-y-3 p-4 border rounded-lg">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-medium">{t('codex.config.title')}</h2>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleLoadFromConfig}
-              disabled={!currentProfile || !configStatus?.configExists}
-              title={t('codex.config.loadFromLive')}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              {t('codex.actions.loadFromLive')}
-            </Button>
-          </div>
-          <div className="space-y-2">
-            <Label>{t('codex.configToml')}</Label>
-            <Textarea
-              value={currentProfile?.configToml ?? ''}
-              onChange={e => updateConfigToml(e.target.value)}
-              className="min-h-[320px] font-mono text-xs"
-              spellCheck={false}
-              disabled={!currentProfile}
-            />
-            <p className="text-xs text-muted-foreground">
-              {t('codex.configTomlHint')}
-            </p>
-          </div>
-        </div>
-
-        {/* Config Status */}
-        {configStatus && (
-          <div className="p-4 border rounded-lg">
-            <h2 className="text-lg font-medium mb-2">
-              {t('codex.configStatus.title')}
-            </h2>
-            <div className="text-sm text-muted-foreground space-y-1">
+        {/* Providers Section */}
+        {currentProfile && (
+          <div className="space-y-3 p-4 border rounded-lg">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium">
+                {t('codex.provider.title')}
+              </h2>
               <div className="flex items-center gap-2">
-                <span>{t('codex.live.authPath')}:</span>
-                <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                  {configStatus.authPath}
-                </code>
-                <Badge
-                  variant={configStatus.authExists ? 'default' : 'outline'}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLoadFromConfig}
+                  disabled={!configStatus?.configExists}
+                  title={t('codex.provider.loadFromConfig')}
                 >
-                  {configStatus.authExists
-                    ? t('common.exists')
-                    : t('common.missing')}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-2">
-                <span>{t('codex.live.configPath')}:</span>
-                <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                  {configStatus.configPath}
-                </code>
-                <Badge
-                  variant={configStatus.configExists ? 'default' : 'outline'}
-                >
-                  {configStatus.configExists
-                    ? t('common.exists')
-                    : t('common.missing')}
-                </Badge>
+                  <Download className="h-4 w-4 mr-2" />
+                  {t('codex.provider.loadFromConfig')}
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleAddProvider}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t('codex.provider.add')}
+                </Button>
               </div>
             </div>
+
+            {providerIds.length === 0 ? (
+              <div className="text-sm text-muted-foreground text-center py-6 border rounded-md">
+                {t('codex.provider.noProviders')}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {providerIds.map(id => {
+                  const config = providers[id]
+                  if (!config) return null
+                  return (
+                    <ProviderCard
+                      key={id}
+                      providerId={id}
+                      config={config}
+                      isActive={currentProfile.modelProvider === id}
+                      onEdit={() => handleEditProvider(id)}
+                      onDelete={() => handleDeleteProviderClick(id)}
+                      onSetActive={() => setActiveProvider(id)}
+                    />
+                  )
+                })}
+              </div>
+            )}
           </div>
         )}
+
+        {/* Config Status */}
+        <ConfigStatus status={configStatus} />
       </div>
 
       {/* Apply Confirmation */}
@@ -484,6 +483,34 @@ export function CodexConfigPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Provider Dialog */}
+      <ProviderDialog
+        open={showProviderDialog}
+        onOpenChange={setShowProviderDialog}
+        editingProviderId={editingProviderId}
+      />
+
+      {/* Delete Provider Confirmation */}
+      <AlertDialog
+        open={showDeleteProviderConfirm}
+        onOpenChange={setShowDeleteProviderConfirm}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('codex.provider.delete')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('codex.provider.deleteConfirm')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteProviderConfirm}>
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

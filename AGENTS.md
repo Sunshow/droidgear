@@ -122,6 +122,18 @@ When using Radix UI components (Dialog, DropdownMenu, Popover, etc.), be aware o
 
 This applies to: `DialogContent`, `DropdownMenuContent`, `PopoverContent`, `AlertDialogContent`, etc.
 
+**For ResizableDialog**: Always pass `onCloseAutoFocus` to `ResizableDialogContent` to prevent double-click-to-close issues caused by focus returning to the drag handle:
+
+```tsx
+<ResizableDialogContent
+  onCloseAutoFocus={e => {
+    e.preventDefault()
+  }}
+>
+```
+
+**IME (Input Method Editor) Compatibility**: When dialogs contain input fields, always use `onCloseAutoFocus={e => e.preventDefault()}` to prevent issues with Chinese/Japanese/Korean IME. Without this, clicking Cancel while IME is active requires two clicks: first to commit IME composition, second to actually close the dialog. This is because Radix's default focus return behavior interferes with IME blur events.
+
 ## Architecture Patterns
 
 ### State Management Onion

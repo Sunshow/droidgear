@@ -681,6 +681,9 @@ async getActiveCodexProfileId() : Promise<Result<string | null, string>> {
 },
 /**
  * 应用指定 Profile 到 `~/.codex/*`
+ * 
+ * 只替换 config.toml 中的模型相关配置（model_provider, model, model_reasoning_effort,
+ * [model_providers]），保留其他所有配置（projects, network_access 等）。
  */
 async applyCodexProfile(id: string) : Promise<Result<null, string>> {
     try {
@@ -702,7 +705,7 @@ async getCodexConfigStatus() : Promise<Result<CodexConfigStatus, string>> {
 }
 },
 /**
- * 读取当前 `~/.codex/*` 配置（若不存在则返回空）
+ * 读取当前 `~/.codex/*` 配置（解析 providers 和 model selection）
  */
 async readCodexCurrentConfig() : Promise<Result<CodexCurrentConfig, string>> {
     try {
@@ -1208,11 +1211,15 @@ export type CodexConfigStatus = { authExists: boolean; configExists: boolean; au
 /**
  * 当前 Codex Live 配置（从 `~/.codex/*` 读取）
  */
-export type CodexCurrentConfig = { auth?: Partial<{ [key in string]: JsonValue }>; configToml?: string }
+export type CodexCurrentConfig = { providers?: Partial<{ [key in string]: CodexProviderConfig }>; modelProvider: string; model: string; modelReasoningEffort?: string | null; apiKey?: string | null }
 /**
  * Codex Profile（用于在 DroidGear 内部保存并切换）
  */
-export type CodexProfile = { id: string; name: string; description?: string | null; createdAt: string; updatedAt: string; auth?: Partial<{ [key in string]: JsonValue }>; configToml?: string }
+export type CodexProfile = { id: string; name: string; description?: string | null; createdAt: string; updatedAt: string; providers?: Partial<{ [key in string]: CodexProviderConfig }>; modelProvider: string; model: string; modelReasoningEffort?: string | null; apiKey?: string | null }
+/**
+ * Codex Provider 配置（对应 config.toml 中的 [model_providers.<id>]）
+ */
+export type CodexProviderConfig = { name?: string | null; baseUrl?: string | null; wireApi?: string | null; requiresOpenaiAuth?: boolean | null; envKey?: string | null; envKeyInstructions?: string | null; httpHeaders?: Partial<{ [key in string]: string }> | null; queryParams?: Partial<{ [key in string]: string }> | null; model?: string | null; modelReasoningEffort?: string | null; apiKey?: string | null }
 /**
  * User-defined configuration paths (only stores explicitly set paths)
  */

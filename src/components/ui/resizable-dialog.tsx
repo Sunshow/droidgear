@@ -60,6 +60,7 @@ interface ResizableDialogContentProps extends React.ComponentPropsWithoutRef<
   minHeight?: number
   maxWidth?: number
   maxHeight?: number
+  onCloseAutoFocus?: (event: Event) => void
 }
 
 const ResizableDialogContent = React.forwardRef<
@@ -77,6 +78,7 @@ const ResizableDialogContent = React.forwardRef<
       minHeight = 300,
       maxWidth,
       maxHeight,
+      onCloseAutoFocus,
       ...props
     },
     ref
@@ -130,6 +132,7 @@ const ResizableDialogContent = React.forwardRef<
           ref={ref}
           data-slot="resizable-dialog-content"
           className="fixed inset-0 z-50 pointer-events-none"
+          onCloseAutoFocus={onCloseAutoFocus}
           {...props}
         >
           <Rnd

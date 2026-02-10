@@ -5,7 +5,7 @@ import {
   type CodexProfile,
   type CodexConfigStatus,
   type CodexCurrentConfig,
-  type JsonValue,
+  type CodexProviderConfig,
 } from '@/lib/bindings'
 
 interface CodexState {
@@ -28,8 +28,13 @@ interface CodexState {
   loadFromLiveConfig: () => Promise<void>
   updateProfileName: (name: string) => Promise<void>
   updateProfileDescription: (description: string) => Promise<void>
-  updateAuthValue: (key: string, value: JsonValue) => Promise<void>
-  updateConfigToml: (toml: string) => Promise<void>
+
+  // Provider management
+  addProvider: (id: string, config: CodexProviderConfig) => Promise<void>
+  updateProvider: (id: string, config: CodexProviderConfig) => Promise<void>
+  deleteProvider: (id: string) => Promise<void>
+  setActiveProvider: (providerId: string) => Promise<void>
+
   setError: (error: string | null) => void
 }
 
@@ -142,8 +147,11 @@ export const useCodexStore = create<CodexState>()(
           description: '',
           createdAt: now,
           updatedAt: now,
-          auth: { OPENAI_API_KEY: '' } as Record<string, JsonValue>,
-          configToml: '',
+          providers: {},
+          modelProvider: 'custom',
+          model: '',
+          modelReasoningEffort: null,
+          apiKey: '',
         }
         const result = await commands.saveCodexProfile(profile)
         if (result.status !== 'ok') throw new Error(result.error)
@@ -188,6 +196,19 @@ export const useCodexStore = create<CodexState>()(
       },
 
       applyProfile: async id => {
+        // Ensure the current profile is saved to disk before applying
+        const { currentProfile } = get()
+        if (currentProfile && currentProfile.id === id) {
+          const saveResult = await commands.saveCodexProfile(currentProfile)
+          if (saveResult.status !== 'ok') {
+            set(
+              { error: saveResult.error },
+              undefined,
+              'codex/applyProfile/saveError'
+            )
+            return
+          }
+        }
         const result = await commands.applyCodexProfile(id)
         if (result.status !== 'ok') {
           set({ error: result.error }, undefined, 'codex/applyProfile/error')
@@ -212,8 +233,14 @@ export const useCodexStore = create<CodexState>()(
         const live: CodexCurrentConfig = result.data
         const updated: CodexProfile = {
           ...currentProfile,
-          auth: live.auth as Record<string, JsonValue>,
-          configToml: live.configToml ?? '',
+          providers: (live.providers ?? {}) as Record<
+            string,
+            CodexProviderConfig
+          >,
+          modelProvider: live.modelProvider,
+          model: live.model,
+          modelReasoningEffort: live.modelReasoningEffort ?? null,
+          apiKey: live.apiKey ?? null,
           updatedAt: new Date().toISOString(),
         }
         set(
@@ -252,29 +279,91 @@ export const useCodexStore = create<CodexState>()(
         await get().saveProfile()
       },
 
-      updateAuthValue: async (key, value) => {
+      // Provider management
+      addProvider: async (id, config) => {
         const { currentProfile } = get()
         if (!currentProfile) return
-        const auth = { ...(currentProfile.auth as Record<string, JsonValue>) }
-        auth[key] = value
+        const providers = {
+          ...((currentProfile.providers ?? {}) as Record<
+            string,
+            CodexProviderConfig
+          >),
+        }
+        providers[id] = config
         const updated = {
           ...currentProfile,
-          auth,
+          providers,
           updatedAt: new Date().toISOString(),
         }
-        set({ currentProfile: updated }, undefined, 'codex/updateAuthValue')
+        set({ currentProfile: updated }, undefined, 'codex/addProvider')
         await get().saveProfile()
       },
 
-      updateConfigToml: async toml => {
+      updateProvider: async (id, config) => {
         const { currentProfile } = get()
         if (!currentProfile) return
+        const providers = {
+          ...((currentProfile.providers ?? {}) as Record<
+            string,
+            CodexProviderConfig
+          >),
+        }
+        providers[id] = config
+        const isActiveProvider = currentProfile.modelProvider === id
         const updated = {
           ...currentProfile,
-          configToml: toml,
+          providers,
+          ...(isActiveProvider && {
+            model: config.model ?? currentProfile.model,
+            modelReasoningEffort:
+              config.modelReasoningEffort ??
+              currentProfile.modelReasoningEffort,
+            apiKey: config.apiKey ?? currentProfile.apiKey,
+          }),
           updatedAt: new Date().toISOString(),
         }
-        set({ currentProfile: updated }, undefined, 'codex/updateConfigToml')
+        set({ currentProfile: updated }, undefined, 'codex/updateProvider')
+        await get().saveProfile()
+      },
+
+      deleteProvider: async id => {
+        const { currentProfile } = get()
+        if (!currentProfile) return
+        const oldProviders = (currentProfile.providers ?? {}) as Record<
+          string,
+          CodexProviderConfig
+        >
+        const providers = Object.fromEntries(
+          Object.entries(oldProviders).filter(([key]) => key !== id)
+        )
+        const updated = {
+          ...currentProfile,
+          providers,
+          updatedAt: new Date().toISOString(),
+        }
+        set({ currentProfile: updated }, undefined, 'codex/deleteProvider')
+        await get().saveProfile()
+      },
+
+      setActiveProvider: async providerId => {
+        const { currentProfile } = get()
+        if (!currentProfile) return
+        const providers = (currentProfile.providers ?? {}) as Record<
+          string,
+          CodexProviderConfig
+        >
+        const providerConfig = providers[providerId]
+        const updated = {
+          ...currentProfile,
+          modelProvider: providerId,
+          model: providerConfig?.model ?? currentProfile.model,
+          modelReasoningEffort:
+            providerConfig?.modelReasoningEffort ??
+            currentProfile.modelReasoningEffort,
+          apiKey: providerConfig?.apiKey ?? currentProfile.apiKey,
+          updatedAt: new Date().toISOString(),
+        }
+        set({ currentProfile: updated }, undefined, 'codex/setActiveProvider')
         await get().saveProfile()
       },
 

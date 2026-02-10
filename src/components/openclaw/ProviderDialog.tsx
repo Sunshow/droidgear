@@ -597,6 +597,7 @@ export function ProviderDialog({
         defaultHeight={600}
         minWidth={500}
         minHeight={400}
+        onCloseAutoFocus={e => e.preventDefault()}
       >
         <ResizableDialogHeader>
           <ResizableDialogTitle>

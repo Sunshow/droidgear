@@ -51,6 +51,7 @@ interface ChannelModelPickerProps {
     context: ChannelProviderContext
   ) => void
   showBatchConfig?: boolean
+  platformFilter?: (platform: string | null) => boolean
 }
 
 export function ChannelModelPicker({
@@ -59,6 +60,7 @@ export function ChannelModelPicker({
   onSelect,
   onSelectWithContext,
   showBatchConfig = false,
+  platformFilter,
 }: ChannelModelPickerProps) {
   const { t } = useTranslation()
 
@@ -90,7 +92,12 @@ export function ChannelModelPicker({
   const selectedChannel = enabledChannels.find(
     ch => ch.id === selectedChannelId
   )
-  const channelKeys = selectedChannelId ? (keys[selectedChannelId] ?? []) : []
+  const allChannelKeys = selectedChannelId
+    ? (keys[selectedChannelId] ?? [])
+    : []
+  const channelKeys = platformFilter
+    ? allChannelKeys.filter(k => platformFilter(k.platform))
+    : allChannelKeys
   const selectedKey = channelKeys.find(k => String(k.id) === selectedKeyId)
 
   useEffect(() => {

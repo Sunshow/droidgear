@@ -1,6 +1,7 @@
 //! Codex CLI 配置管理命令。
 //!
 //! 提供 Profile CRUD，并支持将 Profile 应用到 `~/.codex/auth.json` 与 `~/.codex/config.toml`。
+//! 采用结构化 Provider 管理，支持多 Provider 配置，apply 时只替换模型相关配置。
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -16,6 +17,35 @@ use super::paths;
 // Types
 // ============================================================================
 
+/// Codex Provider 配置（对应 config.toml 中的 [model_providers.<id>]）
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct CodexProviderConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wire_api: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requires_openai_auth: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub env_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub env_key_instructions: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub http_headers: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub query_params: Option<HashMap<String, String>>,
+    // DroidGear-only 字段（不写入 config.toml 的 [model_providers] 中）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_reasoning_effort: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub api_key: Option<String>,
+}
+
 /// Codex Profile（用于在 DroidGear 内部保存并切换）
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
@@ -27,9 +57,13 @@ pub struct CodexProfile {
     pub created_at: String,
     pub updated_at: String,
     #[serde(default)]
-    pub auth: HashMap<String, Value>,
-    #[serde(default)]
-    pub config_toml: String,
+    pub providers: HashMap<String, CodexProviderConfig>,
+    pub model_provider: String,
+    pub model: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_reasoning_effort: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub api_key: Option<String>,
 }
 
 /// Codex Live 配置状态
@@ -47,9 +81,13 @@ pub struct CodexConfigStatus {
 #[serde(rename_all = "camelCase")]
 pub struct CodexCurrentConfig {
     #[serde(default)]
-    pub auth: HashMap<String, Value>,
-    #[serde(default)]
-    pub config_toml: String,
+    pub providers: HashMap<String, CodexProviderConfig>,
+    pub model_provider: String,
+    pub model: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_reasoning_effort: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub api_key: Option<String>,
 }
 
 // ============================================================================
@@ -161,58 +199,118 @@ fn write_json_object_file(path: &Path, obj: &HashMap<String, Value>) -> Result<(
     atomic_write(path, s.as_bytes())
 }
 
-fn read_text_file(path: &Path) -> Result<String, String> {
-    if !path.exists() {
-        return Ok(String::new());
+/// Convert CodexProviderConfig to toml::Value
+fn provider_config_to_toml(config: &CodexProviderConfig) -> Result<toml::Value, String> {
+    let mut table = toml::map::Map::new();
+
+    if let Some(ref name) = config.name {
+        table.insert("name".to_string(), toml::Value::String(name.clone()));
     }
-    std::fs::read_to_string(path).map_err(|e| format!("Failed to read file: {e}"))
+    if let Some(ref base_url) = config.base_url {
+        table.insert(
+            "base_url".to_string(),
+            toml::Value::String(base_url.clone()),
+        );
+    }
+    if let Some(ref wire_api) = config.wire_api {
+        table.insert(
+            "wire_api".to_string(),
+            toml::Value::String(wire_api.clone()),
+        );
+    }
+    if let Some(requires_openai_auth) = config.requires_openai_auth {
+        table.insert(
+            "requires_openai_auth".to_string(),
+            toml::Value::Boolean(requires_openai_auth),
+        );
+    }
+    if let Some(ref env_key) = config.env_key {
+        table.insert("env_key".to_string(), toml::Value::String(env_key.clone()));
+    }
+    if let Some(ref env_key_instructions) = config.env_key_instructions {
+        table.insert(
+            "env_key_instructions".to_string(),
+            toml::Value::String(env_key_instructions.clone()),
+        );
+    }
+    if let Some(ref http_headers) = config.http_headers {
+        let mut headers_table = toml::map::Map::new();
+        for (k, v) in http_headers {
+            headers_table.insert(k.clone(), toml::Value::String(v.clone()));
+        }
+        table.insert(
+            "http_headers".to_string(),
+            toml::Value::Table(headers_table),
+        );
+    }
+    if let Some(ref query_params) = config.query_params {
+        let mut params_table = toml::map::Map::new();
+        for (k, v) in query_params {
+            params_table.insert(k.clone(), toml::Value::String(v.clone()));
+        }
+        table.insert("query_params".to_string(), toml::Value::Table(params_table));
+    }
+
+    Ok(toml::Value::Table(table))
 }
 
-fn validate_toml(text: &str) -> Result<(), String> {
-    if text.trim().is_empty() {
-        return Ok(());
-    }
-    toml::from_str::<toml::Table>(text)
-        .map(|_| ())
-        .map_err(|e| format!("Invalid TOML: {e}"))
-}
+/// Parse CodexProviderConfig from toml::Value
+fn toml_to_provider_config(value: &toml::Value) -> Result<CodexProviderConfig, String> {
+    let table = value.as_table().ok_or("Provider config must be a table")?;
 
-fn write_codex_live_atomic(auth: &HashMap<String, Value>, config_toml: &str) -> Result<(), String> {
-    validate_toml(config_toml)?;
+    let name = table
+        .get("name")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let base_url = table
+        .get("base_url")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let wire_api = table
+        .get("wire_api")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let requires_openai_auth = table.get("requires_openai_auth").and_then(|v| v.as_bool());
+    let env_key = table
+        .get("env_key")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let env_key_instructions = table
+        .get("env_key_instructions")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
 
-    let auth_path = get_codex_auth_path()?;
-    let config_path = get_codex_config_path()?;
+    let http_headers = table
+        .get("http_headers")
+        .and_then(|v| v.as_table())
+        .map(|t| {
+            t.iter()
+                .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                .collect()
+        });
 
-    let old_auth = if auth_path.exists() {
-        Some(std::fs::read(&auth_path).map_err(|e| format!("Failed to read auth.json: {e}"))?)
-    } else {
-        None
-    };
-    let old_config = if config_path.exists() {
-        Some(std::fs::read(&config_path).map_err(|e| format!("Failed to read config.toml: {e}"))?)
-    } else {
-        None
-    };
+    let query_params = table
+        .get("query_params")
+        .and_then(|v| v.as_table())
+        .map(|t| {
+            t.iter()
+                .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                .collect()
+        });
 
-    // 1) 写 auth.json
-    write_json_object_file(&auth_path, auth)?;
-
-    // 2) 写 config.toml（失败回滚 auth.json 与 config.toml）
-    if let Err(e) = atomic_write(&config_path, config_toml.as_bytes()) {
-        if let Some(bytes) = old_auth {
-            let _ = atomic_write(&auth_path, &bytes);
-        } else {
-            let _ = std::fs::remove_file(&auth_path);
-        }
-        if let Some(bytes) = old_config {
-            let _ = atomic_write(&config_path, &bytes);
-        } else {
-            let _ = std::fs::remove_file(&config_path);
-        }
-        return Err(e);
-    }
-
-    Ok(())
+    Ok(CodexProviderConfig {
+        name,
+        base_url,
+        wire_api,
+        requires_openai_auth,
+        env_key,
+        env_key_instructions,
+        http_headers,
+        query_params,
+        model: None,
+        model_reasoning_effort: None,
+        api_key: None,
+    })
 }
 
 // ============================================================================
@@ -221,21 +319,6 @@ fn write_codex_live_atomic(auth: &HashMap<String, Value>, config_toml: &str) -> 
 
 fn now_rfc3339() -> String {
     Utc::now().to_rfc3339()
-}
-
-fn default_codex_template_config() -> String {
-    // 参考 cc-switch 的 Codex 自定义模板，作为 DroidGear 默认 Profile 初始值。
-    r#"model_provider = "custom"
-model = "gpt-5.2"
-model_reasoning_effort = "high"
-disable_response_storage = true
-
-[model_providers.custom]
-name = "custom"
-wire_api = "responses"
-requires_openai_auth = true
-"#
-    .to_string()
 }
 
 fn read_profile_file(path: &Path) -> Result<CodexProfile, String> {
@@ -347,17 +430,36 @@ pub async fn duplicate_codex_profile(id: String, new_name: String) -> Result<Cod
 pub async fn create_default_codex_profile() -> Result<CodexProfile, String> {
     let id = Uuid::new_v4().to_string();
     let now = now_rfc3339();
-    let mut auth = HashMap::new();
-    auth.insert("OPENAI_API_KEY".to_string(), Value::String(String::new()));
+
+    let mut providers = HashMap::new();
+    providers.insert(
+        "custom".to_string(),
+        CodexProviderConfig {
+            name: Some("Custom Provider".to_string()),
+            base_url: None,
+            wire_api: Some("responses".to_string()),
+            requires_openai_auth: Some(true),
+            env_key: None,
+            env_key_instructions: None,
+            http_headers: None,
+            query_params: None,
+            model: Some("gpt-5.2".to_string()),
+            model_reasoning_effort: Some("high".to_string()),
+            api_key: Some(String::new()),
+        },
+    );
 
     let profile = CodexProfile {
         id,
         name: "默认".to_string(),
-        description: Some("Codex 自定义模板（需填写 API Key）".to_string()),
+        description: None,
         created_at: now.clone(),
         updated_at: now,
-        auth,
-        config_toml: default_codex_template_config(),
+        providers,
+        model_provider: "custom".to_string(),
+        model: "gpt-5.2".to_string(),
+        model_reasoning_effort: Some("high".to_string()),
+        api_key: Some(String::new()),
     };
 
     write_profile_file(&profile)?;
@@ -392,11 +494,104 @@ fn set_active_profile_id(id: &str) -> Result<(), String> {
 }
 
 /// 应用指定 Profile 到 `~/.codex/*`
+///
+/// 只替换 config.toml 中的模型相关配置（model_provider, model, model_reasoning_effort,
+/// [model_providers]），保留其他所有配置（projects, network_access 等）。
 #[tauri::command]
 #[specta::specta]
 pub async fn apply_codex_profile(id: String) -> Result<(), String> {
     let profile = load_profile_by_id(&id)?;
-    write_codex_live_atomic(&profile.auth, &profile.config_toml)?;
+
+    // If model_provider points to a non-existent provider, fall back to first available
+    let (effective_provider_id, active_provider) =
+        if profile.providers.contains_key(&profile.model_provider) {
+            (
+                profile.model_provider.clone(),
+                profile.providers.get(&profile.model_provider),
+            )
+        } else if let Some((first_id, first_config)) = profile.providers.iter().next() {
+            (first_id.clone(), Some(first_config))
+        } else {
+            (profile.model_provider.clone(), None)
+        };
+
+    // Resolve model/effort/apiKey from active provider (fallback to profile-level for compat)
+    let resolved_model = active_provider
+        .and_then(|p| p.model.as_deref())
+        .filter(|s| !s.is_empty())
+        .unwrap_or(&profile.model);
+    let resolved_effort = active_provider
+        .and_then(|p| p.model_reasoning_effort.clone())
+        .or(profile.model_reasoning_effort.clone());
+    let resolved_api_key = active_provider
+        .and_then(|p| p.api_key.clone())
+        .or(profile.api_key.clone());
+
+    // 1. 读取现有 config.toml 为 toml::Table
+    let config_path = get_codex_config_path()?;
+    let mut config = if config_path.exists() {
+        let s = std::fs::read_to_string(&config_path)
+            .map_err(|e| format!("Failed to read config.toml: {e}"))?;
+        if s.trim().is_empty() {
+            toml::map::Map::new()
+        } else {
+            toml::from_str::<toml::map::Map<String, toml::Value>>(&s)
+                .map_err(|e| format!("Failed to parse config.toml: {e}"))?
+        }
+    } else {
+        toml::map::Map::new()
+    };
+
+    // 2. 替换顶层模型配置
+    config.insert(
+        "model_provider".to_string(),
+        toml::Value::String(effective_provider_id),
+    );
+    config.insert(
+        "model".to_string(),
+        toml::Value::String(resolved_model.to_string()),
+    );
+    if let Some(ref effort) = resolved_effort {
+        config.insert(
+            "model_reasoning_effort".to_string(),
+            toml::Value::String(effort.clone()),
+        );
+    } else {
+        config.remove("model_reasoning_effort");
+    }
+
+    // 3. 替换整个 [model_providers] section
+    config.remove("model_providers");
+    if !profile.providers.is_empty() {
+        let mut providers_table = toml::map::Map::new();
+        for (provider_id, provider_config) in &profile.providers {
+            providers_table.insert(
+                provider_id.clone(),
+                provider_config_to_toml(provider_config)?,
+            );
+        }
+        config.insert(
+            "model_providers".to_string(),
+            toml::Value::Table(providers_table),
+        );
+    }
+
+    // 4. 写回 config.toml
+    let toml_str = toml::to_string_pretty(&config)
+        .map_err(|e| format!("Failed to serialize config.toml: {e}"))?;
+    atomic_write(&config_path, toml_str.as_bytes())?;
+
+    // 5. 写 auth.json
+    let auth_path = get_codex_auth_path()?;
+    let mut auth = HashMap::new();
+    if let Some(ref key) = resolved_api_key {
+        if !key.is_empty() {
+            auth.insert("OPENAI_API_KEY".to_string(), Value::String(key.clone()));
+        }
+    }
+    write_json_object_file(&auth_path, &auth)?;
+
+    // 6. 更新 active profile
     set_active_profile_id(&id)?;
     Ok(())
 }
@@ -415,15 +610,92 @@ pub async fn get_codex_config_status() -> Result<CodexConfigStatus, String> {
     })
 }
 
-/// 读取当前 `~/.codex/*` 配置（若不存在则返回空）
+/// 读取当前 `~/.codex/*` 配置（解析 providers 和 model selection）
 #[tauri::command]
 #[specta::specta]
 pub async fn read_codex_current_config() -> Result<CodexCurrentConfig, String> {
-    let auth_path = get_codex_auth_path()?;
     let config_path = get_codex_config_path()?;
+    let auth_path = get_codex_auth_path()?;
 
-    let auth = read_json_object_file(&auth_path)?;
-    let config_toml = read_text_file(&config_path)?;
+    // 解析 config.toml
+    let (providers, model_provider, model, model_reasoning_effort) = if config_path.exists() {
+        let s = std::fs::read_to_string(&config_path)
+            .map_err(|e| format!("Failed to read config.toml: {e}"))?;
+        if s.trim().is_empty() {
+            (HashMap::new(), "openai".to_string(), String::new(), None)
+        } else {
+            let config: toml::map::Map<String, toml::Value> =
+                toml::from_str(&s).map_err(|e| format!("Failed to parse config.toml: {e}"))?;
 
-    Ok(CodexCurrentConfig { auth, config_toml })
+            let providers = config
+                .get("model_providers")
+                .and_then(|v| v.as_table())
+                .map(|table| {
+                    table
+                        .iter()
+                        .filter_map(|(k, v)| {
+                            toml_to_provider_config(v).ok().map(|c| (k.clone(), c))
+                        })
+                        .collect::<HashMap<_, _>>()
+                })
+                .unwrap_or_default();
+
+            let model_provider = config
+                .get("model_provider")
+                .and_then(|v| v.as_str())
+                .unwrap_or("openai")
+                .to_string();
+
+            let model = config
+                .get("model")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+
+            let model_reasoning_effort = config
+                .get("model_reasoning_effort")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+
+            (providers, model_provider, model, model_reasoning_effort)
+        }
+    } else {
+        (HashMap::new(), "openai".to_string(), String::new(), None)
+    };
+
+    // Populate active provider's DroidGear-only fields from top-level config
+    let mut providers = providers;
+    if let Some(provider) = providers.get_mut(&model_provider) {
+        if provider.model.is_none() {
+            provider.model = Some(model.clone());
+        }
+        if provider.model_reasoning_effort.is_none() {
+            provider.model_reasoning_effort = model_reasoning_effort.clone();
+        }
+    }
+
+    // 读取 auth.json
+    let api_key = if auth_path.exists() {
+        let auth = read_json_object_file(&auth_path)?;
+        auth.get("OPENAI_API_KEY")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+    } else {
+        None
+    };
+
+    // Populate active provider's api_key from auth.json
+    if let Some(provider) = providers.get_mut(&model_provider) {
+        if provider.api_key.is_none() {
+            provider.api_key = api_key.clone();
+        }
+    }
+
+    Ok(CodexCurrentConfig {
+        providers,
+        model_provider,
+        model,
+        model_reasoning_effort,
+        api_key,
+    })
 }

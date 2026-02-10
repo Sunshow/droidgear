@@ -24,6 +24,7 @@ interface ChannelModelPickerDialogProps {
     context: ChannelProviderContext
   ) => void
   showBatchConfig?: boolean
+  platformFilter?: (platform: string | null) => boolean
 }
 
 export function ChannelModelPickerDialog({
@@ -34,6 +35,7 @@ export function ChannelModelPickerDialog({
   onSelect,
   onSelectWithContext,
   showBatchConfig = false,
+  platformFilter,
 }: ChannelModelPickerDialogProps) {
   const { t } = useTranslation()
 
@@ -74,6 +76,7 @@ export function ChannelModelPickerDialog({
               onSelect={handleSelect}
               onSelectWithContext={handleSelectWithContext}
               showBatchConfig={showBatchConfig}
+              platformFilter={platformFilter}
             />
           )}
         </ResizableDialogBody>
