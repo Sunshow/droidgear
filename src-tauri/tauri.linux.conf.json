@@ -3,7 +3,7 @@
   "app": {
     "windows": [
       {
-        "title": "tauri-app",
+        "title": "DroidGear",
         "width": 1050,
         "height": 700,
         "minWidth": 1050,
