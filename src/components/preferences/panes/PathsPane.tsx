@@ -10,6 +10,9 @@ import { SettingsField, SettingsSection } from '../shared/SettingsComponents'
 import { commands } from '@/lib/tauri-bindings'
 import { logger } from '@/lib/logger'
 import { toast } from 'sonner'
+import { useOpenClawStore } from '@/store/openclaw-store'
+import { useCodexStore } from '@/store/codex-store'
+import { useOpenCodeStore } from '@/store/opencode-store'
 
 type PathKey = 'factory' | 'opencode' | 'opencodeAuth' | 'codex' | 'openclaw'
 
@@ -67,6 +70,14 @@ function PathEditor({
   const { t } = useTranslation()
   const [editValue, setEditValue] = useState(currentPath)
   const [isEditing, setIsEditing] = useState(false)
+
+  // Sync editValue when currentPath changes (e.g. after save/reset)
+  const [lastCurrentPath, setLastCurrentPath] = useState(currentPath)
+  if (currentPath !== lastCurrentPath) {
+    setLastCurrentPath(currentPath)
+    setEditValue(currentPath)
+    setIsEditing(false)
+  }
 
   const hasChanges = editValue !== currentPath
 
@@ -183,6 +194,12 @@ export function PathsPane() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
 
+  const reloadAllConfigStatus = () => {
+    useOpenClawStore.getState().loadConfigStatus()
+    useCodexStore.getState().loadConfigStatus()
+    useOpenCodeStore.getState().loadConfigStatus()
+  }
+
   const { data: effectivePaths, isLoading: isLoadingEffective } = useQuery({
     queryKey: ['effective-paths'],
     queryFn: async () => {
@@ -214,6 +231,7 @@ export function PathsPane() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['effective-paths'] })
+      reloadAllConfigStatus()
       toast.success(t('toast.success.pathSaved'))
     },
     onError: error => {
@@ -231,6 +249,7 @@ export function PathsPane() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['effective-paths'] })
+      reloadAllConfigStatus()
       toast.success(t('toast.success.pathReset'))
     },
     onError: error => {
