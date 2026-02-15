@@ -1223,7 +1223,7 @@ export type CodexProviderConfig = { name?: string | null; baseUrl?: string | nul
 /**
  * User-defined configuration paths (only stores explicitly set paths)
  */
-export type ConfigPaths = { factory?: string | null; opencode?: string | null; opencodeAuth?: string | null; codex?: string | null }
+export type ConfigPaths = { factory?: string | null; opencode?: string | null; opencodeAuth?: string | null; codex?: string | null; openclaw?: string | null }
 /**
  * Message content block
  */
@@ -1283,7 +1283,7 @@ export type EffectivePath = { key: string; path: string; isDefault: boolean }
 /**
  * All effective paths
  */
-export type EffectivePaths = { factory: EffectivePath; opencode: EffectivePath; opencodeAuth: EffectivePath; codex: EffectivePath }
+export type EffectivePaths = { factory: EffectivePath; opencode: EffectivePath; opencodeAuth: EffectivePath; codex: EffectivePath; openclaw: EffectivePath }
 export type JsonValue = null | boolean | number | string | JsonValue[] | Partial<{ [key in string]: JsonValue }>
 /**
  * MCP server entry with name

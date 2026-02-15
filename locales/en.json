@@ -81,7 +81,7 @@
 
   "preferences.paths": "Paths",
   "preferences.paths.title": "Configuration Paths",
-  "preferences.paths.description": "Customize the configuration directories for Droid, OpenCode, and Codex. Leave empty to use default paths.",
+  "preferences.paths.description": "Customize the configuration directories for Droid, OpenCode, Codex, and OpenClaw. Leave empty to use default paths.",
   "preferences.paths.factory": "Droid/Factory",
   "preferences.paths.factoryDescription": "Configuration directory for Factory Droid (~/.factory)",
   "preferences.paths.opencode": "OpenCode Config",
@@ -90,6 +90,8 @@
   "preferences.paths.opencodeAuthDescription": "Auth directory for OpenCode (~/.local/share/opencode)",
   "preferences.paths.codex": "Codex",
   "preferences.paths.codexDescription": "Configuration directory for Codex CLI (~/.codex)",
+  "preferences.paths.openclaw": "OpenClaw",
+  "preferences.paths.openclawDescription": "Configuration directory for OpenClaw (~/.openclaw)",
   "preferences.paths.browse": "Browse",
   "preferences.paths.default": "Default",
   "preferences.paths.custom": "Custom",

@@ -11,7 +11,7 @@ import { commands } from '@/lib/tauri-bindings'
 import { logger } from '@/lib/logger'
 import { toast } from 'sonner'
 
-type PathKey = 'factory' | 'opencode' | 'opencodeAuth' | 'codex'
+type PathKey = 'factory' | 'opencode' | 'opencodeAuth' | 'codex' | 'openclaw'
 
 interface PathItem {
   key: PathKey
@@ -39,6 +39,11 @@ const pathItems: PathItem[] = [
     key: 'codex',
     labelKey: 'preferences.paths.codex',
     descriptionKey: 'preferences.paths.codexDescription',
+  },
+  {
+    key: 'openclaw',
+    labelKey: 'preferences.paths.openclaw',
+    descriptionKey: 'preferences.paths.openclawDescription',
   },
 ]
 

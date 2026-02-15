@@ -81,7 +81,7 @@
 
   "preferences.paths": "路径",
   "preferences.paths.title": "配置路径",
-  "preferences.paths.description": "自定义 Droid、OpenCode 和 Codex 的配置目录。留空将使用默认路径。",
+  "preferences.paths.description": "自定义 Droid、OpenCode、Codex 和 OpenClaw 的配置目录。留空将使用默认路径。",
   "preferences.paths.factory": "Droid/Factory",
   "preferences.paths.factoryDescription": "Factory Droid 的配置目录 (~/.factory)",
   "preferences.paths.opencode": "OpenCode 配置",
@@ -90,6 +90,8 @@
   "preferences.paths.opencodeAuthDescription": "OpenCode 的认证目录 (~/.local/share/opencode)",
   "preferences.paths.codex": "Codex",
   "preferences.paths.codexDescription": "Codex CLI 的配置目录 (~/.codex)",
+  "preferences.paths.openclaw": "OpenClaw",
+  "preferences.paths.openclawDescription": "OpenClaw 的配置目录 (~/.openclaw)",
   "preferences.paths.browse": "浏览",
   "preferences.paths.default": "默认",
   "preferences.paths.custom": "自定义",

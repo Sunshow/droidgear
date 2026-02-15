@@ -1,6 +1,6 @@
 //! Configuration paths management.
 //!
-//! Provides centralized path management for Droid/Factory, OpenCode, and Codex configurations.
+//! Provides centralized path management for Droid/Factory, OpenCode, Codex, and OpenClaw configurations.
 //! Supports custom path overrides stored in ~/.droidgear/settings.json.
 
 use serde::{Deserialize, Serialize};
@@ -24,6 +24,8 @@ pub struct ConfigPaths {
     pub opencode_auth: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub codex: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub openclaw: Option<String>,
 }
 
 /// Effective path info with default indicator
@@ -43,6 +45,7 @@ pub struct EffectivePaths {
     pub opencode: EffectivePath,
     pub opencode_auth: EffectivePath,
     pub codex: EffectivePath,
+    pub openclaw: EffectivePath,
 }
 
 // ============================================================================
@@ -176,9 +179,13 @@ pub fn get_codex_home() -> Result<PathBuf, String> {
     }
 }
 
-/// Gets the OpenClaw home directory (~/.openclaw)
+/// Gets the OpenClaw home directory (~/.openclaw or custom path)
 pub fn get_openclaw_home() -> Result<PathBuf, String> {
-    default_openclaw_home()
+    let config = load_config_paths_internal();
+    match config.openclaw {
+        Some(custom) => Ok(PathBuf::from(custom)),
+        None => default_openclaw_home(),
+    }
 }
 
 // ============================================================================
@@ -202,6 +209,7 @@ pub async fn get_effective_paths() -> Result<EffectivePaths, String> {
     let opencode_path = get_opencode_config_dir()?;
     let opencode_auth_path = get_opencode_auth_dir()?;
     let codex_path = get_codex_home()?;
+    let openclaw_path = get_openclaw_home()?;
 
     Ok(EffectivePaths {
         factory: EffectivePath {
@@ -223,6 +231,11 @@ pub async fn get_effective_paths() -> Result<EffectivePaths, String> {
             key: "codex".to_string(),
             path: codex_path.to_string_lossy().to_string(),
             is_default: config.codex.is_none(),
+        },
+        openclaw: EffectivePath {
+            key: "openclaw".to_string(),
+            path: openclaw_path.to_string_lossy().to_string(),
+            is_default: config.openclaw.is_none(),
         },
     })
 }
@@ -255,6 +268,7 @@ pub async fn save_config_path(key: String, path: String) -> Result<(), String> {
         "opencode" => "opencode",
         "opencodeAuth" => "opencodeAuth",
         "codex" => "codex",
+        "openclaw" => "openclaw",
         _ => return Err(format!("Unknown config path key: {key}")),
     };
 
@@ -282,6 +296,7 @@ pub async fn reset_config_path(key: String) -> Result<(), String> {
                     "opencode" => "opencode",
                     "opencodeAuth" => "opencodeAuth",
                     "codex" => "codex",
+                    "openclaw" => "openclaw",
                     _ => return Err(format!("Unknown config path key: {key}")),
                 };
                 paths_obj.remove(storage_key);
@@ -322,6 +337,11 @@ pub async fn get_default_paths() -> Result<EffectivePaths, String> {
         codex: EffectivePath {
             key: "codex".to_string(),
             path: default_codex_home()?.to_string_lossy().to_string(),
+            is_default: true,
+        },
+        openclaw: EffectivePath {
+            key: "openclaw".to_string(),
+            path: default_openclaw_home()?.to_string_lossy().to_string(),
             is_default: true,
         },
     })
