@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.7
+
+**New Features / 新功能**
+
+- Add OpenClaw path configuration to system settings / 在系统设置中添加 OpenClaw 路径配置
+
+**Bug Fixes / 问题修复**
+
+- Auto-refresh UI after path save/reset / 路径保存/重置后自动刷新 UI
+
 ## v0.3.6
 
 **Refactoring / 重构**
