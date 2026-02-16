@@ -42,6 +42,7 @@ interface ProviderDialogProps {
 
 const API_TYPES = [
   { value: 'openai-completions', label: 'OpenAI Completions' },
+  { value: 'openai-responses', label: 'OpenAI Responses' },
   { value: 'anthropic-messages', label: 'Anthropic Messages' },
 ]
 
@@ -173,7 +174,9 @@ function ProviderForm({
     setApi(
       context.platform === 'anthropic'
         ? 'anthropic-messages'
-        : 'openai-completions'
+        : context.platform === 'openai'
+          ? 'openai-responses'
+          : 'openai-completions'
     )
 
     // Import models
