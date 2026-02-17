@@ -16,7 +16,8 @@
         "alwaysOnTop": false,
         "transparent": false,
         "shadow": true,
-        "dragDropEnabled": true
+        "dragDropEnabled": true,
+        "backgroundColor": "#0f0f0f"
       }
     ]
   }

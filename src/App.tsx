@@ -16,10 +16,26 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { LegacyConfigDialog } from './components/LegacyConfigDialog'
 
 /**
+ * Hide the initial loader spinner
+ */
+function hideAppLoader() {
+  const loader = document.getElementById('app-loader')
+  if (loader) {
+    loader.classList.add('hidden')
+    // Remove from DOM after transition
+    setTimeout(() => {
+      loader.remove()
+    }, 300)
+  }
+}
+
+/**
  * Show main window after frontend is ready
  */
 async function showMainWindow() {
   try {
+    // Hide loader first, then show window for smooth transition
+    hideAppLoader()
     const mainWindow = getCurrentWindow()
     await mainWindow.show()
     await mainWindow.setFocus()
