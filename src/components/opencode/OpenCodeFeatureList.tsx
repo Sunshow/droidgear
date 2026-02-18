@@ -62,7 +62,9 @@ export function OpenCodeFeatureList() {
             <code
               className="block bg-muted p-2 rounded text-xs break-all cursor-pointer hover:bg-muted/80 transition-colors"
               onClick={() =>
-                handleCopyCommand('curl -fsSL https://opencode.ai/install | bash')
+                handleCopyCommand(
+                  'curl -fsSL https://opencode.ai/install | bash'
+                )
               }
             >
               curl -fsSL https://opencode.ai/install | bash
