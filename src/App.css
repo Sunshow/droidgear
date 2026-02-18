@@ -6,6 +6,16 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* 防止白屏：设置初始背景色 */
+html {
+  background-color: #0f0f0f;
+}
+
+#root {
+  background-color: #0f0f0f;
+  min-height: 100vh;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

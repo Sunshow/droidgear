@@ -86,7 +86,7 @@ export function WindowsWindowControls() {
     'flex h-8 w-12 items-center justify-center transition-colors'
 
   return (
-    <div className="flex">
+    <div className="flex overflow-hidden">
       {/* Minimize */}
       <button
         type="button"

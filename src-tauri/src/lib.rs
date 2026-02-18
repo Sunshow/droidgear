@@ -10,7 +10,7 @@ mod types;
 mod utils;
 
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{Manager, WebviewWindowBuilder};
 
 /// Application entry point. Sets up all plugins and initializes the app.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -96,6 +96,60 @@ pub fn run() {
                 "App handle initialized for package: {}",
                 app.package_info().name
             );
+
+            // Create main window manually to control state restoration timing
+            // Window state plugin will automatically restore position after build()
+            // Since window is created with visible: false, no "jump" effect will occur
+            #[cfg(desktop)]
+            {
+                // Check if window state file exists
+                let app_dir = app.path().app_data_dir()?;
+                let state_file = app_dir.join("window-state.json");
+                let has_saved_state = state_file.exists();
+
+                // Create window with visible: false initially
+                // Window state plugin will restore position automatically after build()
+                let window = WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("/".into()))
+                    .title("DroidGear")
+                    .inner_size(1150.0, 700.0)
+                    .min_inner_size(1150.0, 700.0)
+                    .resizable(true)
+                    .fullscreen(false)
+                    .maximized(false)
+                    .visible(false);  // Start hidden, frontend will show it
+
+                // Platform-specific settings
+                #[cfg(target_os = "windows")]
+                let window = window
+                    .decorations(false)
+                    .transparent(false);
+
+                #[cfg(target_os = "macos")]
+                let window = window
+                    .decorations(false)
+                    .transparent(true);
+
+                #[cfg(target_os = "linux")]
+                let window = window
+                    .decorations(true)
+                    .transparent(false);
+
+                let _window = window.build()?;
+
+                // Give window state plugin time to restore state
+                // This happens while window is still invisible
+                std::thread::sleep(std::time::Duration::from_millis(50));
+
+                if !has_saved_state {
+                    // First launch - center the window
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.center();
+                        log::debug!("First launch: window centered");
+                    }
+                } else {
+                    log::debug!("Window state restored by plugin");
+                }
+            }
 
             // Set up global shortcut plugin (without any shortcuts - we register them separately)
             #[cfg(desktop)]

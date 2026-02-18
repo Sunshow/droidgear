@@ -1,29 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "app": {
-    "windows": [
-      {
-        "title": "DroidGear",
-        "width": 1050,
-        "height": 700,
-        "minWidth": 1050,
-        "minHeight": 700,
-        "resizable": true,
-        "fullscreen": false,
-        "maximized": false,
-        "center": true,
-        "decorations": false,
-        "alwaysOnTop": false,
-        "transparent": true,
-        "shadow": true,
-        "dragDropEnabled": true,
-        "visible": false,
-        "windowEffects": {
-          "effects": ["hudWindow"],
-          "radius": 12.0,
-          "state": "active"
-        }
-      }
-    ]
+    "windows": []
   }
 }

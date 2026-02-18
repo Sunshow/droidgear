@@ -11,26 +11,7 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [
-      {
-        "label": "main",
-        "title": "DroidGear",
-        "width": 1150,
-        "height": 700,
-        "minWidth": 1150,
-        "minHeight": 700,
-        "resizable": true,
-        "fullscreen": false,
-        "maximized": false,
-        "center": true,
-        "decorations": true,
-        "alwaysOnTop": false,
-        "transparent": false,
-        "shadow": true,
-        "dragDropEnabled": true,
-        "visible": false
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' tauri: ipc: http://ipc.localhost"
     },
