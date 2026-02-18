@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.3.8
+
+**New Features / 新功能**
+
+- Add OpenAI Responses message type support for OpenClaw / OpenClaw 添加 OpenAI Responses 消息类型支持
+
+**Bug Fixes / 问题修复**
+
+- Use bash instead of sh for OpenCode install command / OpenCode 安装命令使用 bash 替代 sh
+- Fix ugly close button / 修复关闭按钮样式问题
+- Reduce white splash screen / 减少白色闪屏
+- Reduce UI jump glitch / 减少 UI 跳动问题
+- Fix CSS build warning / 修复 CSS 构建警告
+
 ## v0.3.7
 
 **New Features / 新功能**

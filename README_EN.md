@@ -143,6 +143,20 @@ DroidGear values your privacy. Your username, password, API keys, and other sens
 
 ## Changelog
 
+### v0.3.8
+
+**New Features**
+
+- Add OpenAI Responses message type support for OpenClaw
+
+**Bug Fixes**
+
+- Use bash instead of sh for OpenCode install command
+- Fix ugly close button
+- Reduce white splash screen
+- Reduce UI jump glitch
+- Fix CSS build warning
+
 See full changelog at [CHANGELOG.md](CHANGELOG.md)
 
 ## Acknowledgements

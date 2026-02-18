@@ -143,6 +143,20 @@ DroidGear 重视您的隐私安全。您的用户名、密码、API 密钥等敏
 
 ## 更新日志
 
+### v0.3.8
+
+**新功能**
+
+- OpenClaw 添加 OpenAI Responses 消息类型支持
+
+**问题修复**
+
+- OpenCode 安装命令使用 bash 替代 sh
+- 修复关闭按钮样式问题
+- 减少白色闪屏
+- 减少 UI 跳动问题
+- 修复 CSS 构建警告
+
 查看完整更新日志请访问 [CHANGELOG.md](CHANGELOG.md)
 
 ## 致谢
