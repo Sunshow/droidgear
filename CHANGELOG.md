@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.9
+
+**New Features / 新功能**
+
+- Add General channel type with API key auth / 添加通用频道类型，支持 API 密钥认证
+
 ## v0.3.8
 
 **New Features / 新功能**
