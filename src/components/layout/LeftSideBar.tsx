@@ -141,8 +141,8 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
     password: string
   ) => {
     // Save credentials/API key to storage based on channel type
-    if (channel.type === 'cli-proxy-api') {
-      // For CLI Proxy API, password contains the API key
+    if (channel.type === 'cli-proxy-api' || channel.type === 'general') {
+      // For CLI Proxy API and General, password contains the API key
       const result = await commands.saveChannelApiKey(channel.id, password)
       if (result.status !== 'ok') {
         console.error('Failed to save API key:', result.error)

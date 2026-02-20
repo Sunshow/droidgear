@@ -150,10 +150,11 @@ export function ChannelModelPicker({
 
   const inferProvider = (modelId: string): Provider => {
     if (!selectedChannel || !selectedKey) return 'generic-chat-completion-api'
-    // CLI Proxy API and New API use the same logic
+    // CLI Proxy API, General, and New API use the same logic
     if (
       selectedChannel.type === 'new-api' ||
-      selectedChannel.type === 'cli-proxy-api'
+      selectedChannel.type === 'cli-proxy-api' ||
+      selectedChannel.type === 'general'
     ) {
       return inferProviderForNewApi(modelId)
     }
@@ -162,10 +163,11 @@ export function ChannelModelPicker({
 
   const getBaseUrl = (provider: Provider): string => {
     if (!selectedChannel || !selectedKey) return ''
-    // CLI Proxy API and New API use the same baseUrl logic
+    // CLI Proxy API, General, and New API use the same baseUrl logic
     if (
       selectedChannel.type === 'new-api' ||
-      selectedChannel.type === 'cli-proxy-api'
+      selectedChannel.type === 'cli-proxy-api' ||
+      selectedChannel.type === 'general'
     ) {
       return getBaseUrlForNewApi(provider, selectedChannel.baseUrl)
     }

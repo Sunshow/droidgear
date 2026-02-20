@@ -23,6 +23,7 @@ pub enum ChannelType {
     #[serde(rename = "sub-2-api")]
     Sub2Api,
     CliProxyApi,
+    General,
 }
 
 /// Channel configuration
@@ -340,8 +341,8 @@ pub async fn fetch_channel_tokens(
     match channel_type {
         ChannelType::NewApi => fetch_new_api_tokens(&base_url, &username, &password).await,
         ChannelType::Sub2Api => fetch_sub2api_tokens(&base_url, &username, &password).await,
-        ChannelType::CliProxyApi => {
-            // For CliProxyApi, username is empty and password contains the API key
+        ChannelType::CliProxyApi | ChannelType::General => {
+            // For CliProxyApi and General, username is empty and password contains the API key
             // Return a single virtual token
             Ok(vec![ChannelToken {
                 id: 0.0,

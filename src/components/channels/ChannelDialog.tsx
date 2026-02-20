@@ -33,6 +33,7 @@ const defaultBaseUrls: Record<ChannelType, string> = {
   'new-api': 'https://api.newapi.ai',
   'sub-2-api': '',
   'cli-proxy-api': '',
+  general: '',
 }
 
 interface ChannelFormProps {
@@ -45,10 +46,10 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
   const { t } = useTranslation()
   const [name, setName] = useState(channel?.name ?? '')
   const [channelType, setChannelType] = useState<ChannelType>(
-    channel?.type ?? 'new-api'
+    channel?.type ?? 'general'
   )
   const [baseUrl, setBaseUrl] = useState(
-    channel?.baseUrl ?? defaultBaseUrls['new-api']
+    channel?.baseUrl ?? defaultBaseUrls['general']
   )
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -61,13 +62,14 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
     text: string
   } | null>(null)
 
-  const isCliProxyApi = channelType === 'cli-proxy-api'
+  const isApiKeyAuth =
+    channelType === 'cli-proxy-api' || channelType === 'general'
 
   // Load credentials from storage for existing channels
   useEffect(() => {
     let cancelled = false
     if (channel) {
-      if (channel.type === 'cli-proxy-api') {
+      if (channel.type === 'cli-proxy-api' || channel.type === 'general') {
         commands.getChannelApiKey(channel.id).then(result => {
           if (cancelled) return
           if (result.status === 'ok' && result.data) {
@@ -95,7 +97,11 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
     setChannelType(value)
     setDetectMessage(null)
     if (!channel) {
-      setBaseUrl(defaultBaseUrls[value])
+      // Only set default URL if current URL is empty or matches another type's default
+      const isDefaultUrl = Object.values(defaultBaseUrls).includes(baseUrl)
+      if (!baseUrl || isDefaultUrl) {
+        setBaseUrl(defaultBaseUrls[value])
+      }
     }
   }
 
@@ -120,6 +126,9 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
           break
         case 'cli-proxy-api':
           typeName = t('channels.typeCliProxyApi')
+          break
+        case 'general':
+          typeName = t('channels.typeGeneral')
           break
       }
       setDetectMessage({
@@ -168,15 +177,15 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
       createdAt: channel?.createdAt ?? Date.now(),
     }
 
-    // For CLI Proxy API, pass empty username and apiKey as password
-    if (isCliProxyApi) {
+    // For CLI Proxy API and General, pass empty username and apiKey as password
+    if (isApiKeyAuth) {
       onSave(newChannel, '', apiKey)
     } else {
       onSave(newChannel, username, password)
     }
   }
 
-  const isValid = isCliProxyApi
+  const isValid = isApiKeyAuth
     ? name.trim() && baseUrl.trim() && apiKey.trim()
     : name.trim() && baseUrl.trim() && username.trim() && password.trim()
 
@@ -201,6 +210,9 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="general">
+                  {t('channels.typeGeneral')}
+                </SelectItem>
                 <SelectItem value="new-api">
                   {t('channels.typeNewApi')}
                 </SelectItem>
@@ -252,7 +264,7 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
             )}
           </div>
 
-          {isCliProxyApi ? (
+          {isApiKeyAuth ? (
             <div className="grid gap-2">
               <Label htmlFor="apiKey">{t('channels.apiKey')}</Label>
               <Input

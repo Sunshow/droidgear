@@ -54,9 +54,9 @@ description: Generate changelog from commits since last tag and release new vers
 
 9. Run release workflow:
 
-    ```bash
-    npm run release:prepare <version>
-    ```
+   ```bash
+   npm run release:prepare <version>
+   ```
 
 10. Execute git commands to complete release:
 
