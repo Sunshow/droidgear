@@ -15,7 +15,43 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
+  create-release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create_release.outputs.id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read changelog
+        id: changelog
+        shell: bash
+        run: |
+          VERSION="${{ github.ref_name || inputs.version }}"
+          # Extract changelog for current version (between ## vX.Y.Z and next ## vX.Y.Z)
+          # Use exact match with $ to prevent start line matching end pattern
+          NOTES=$(sed -n "/^## ${VERSION}$/,/^## v[0-9]/p" CHANGELOG.md | sed '$d')
+          # If no next version found, get everything from current version to end
+          if [ -z "$NOTES" ]; then
+            NOTES=$(sed -n "/^## ${VERSION}$/,\$p" CHANGELOG.md)
+          fi
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create draft release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name || inputs.version }}
+          name: 'DroidGear ${{ github.ref_name || inputs.version }}'
+          body: ${{ steps.changelog.outputs.notes }}
+          draft: true
+          prerelease: false
+
   publish-tauri:
+    needs: create-release
     permissions:
       contents: write
     strategy:
@@ -60,34 +96,14 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Read changelog
-        id: changelog
-        shell: bash
-        run: |
-          VERSION="${{ github.ref_name || inputs.version }}"
-          # Extract changelog for current version (between ## vX.Y.Z and next ## vX.Y.Z)
-          # Use exact match with $ to prevent start line matching end pattern
-          NOTES=$(sed -n "/^## ${VERSION}$/,/^## v[0-9]/p" CHANGELOG.md | sed '$d')
-          # If no next version found, get everything from current version to end
-          if [ -z "$NOTES" ]; then
-            NOTES=$(sed -n "/^## ${VERSION}$/,\$p" CHANGELOG.md)
-          fi
-          echo "notes<<EOF" >> $GITHUB_OUTPUT
-          echo "$NOTES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Build and release
+      - name: Build and upload
         uses: tauri-apps/tauri-action@dev
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_name || inputs.version }}
-          releaseName: 'DroidGear ${{ github.ref_name || inputs.version }}'
-          releaseBody: ${{ steps.changelog.outputs.notes }}
-          releaseDraft: true
-          prerelease: false
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           uploadUpdaterJson: true
           uploadPlainBinary: true
           args: ${{ matrix.args }}
