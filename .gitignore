@@ -25,3 +25,7 @@ jscpd-report
 *.njsproj
 *.sln
 *.sw?
+
+openspec/
+.iflow/
+.opencode/
