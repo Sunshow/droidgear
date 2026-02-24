@@ -1203,7 +1203,7 @@ groupName: string | null }
 /**
  * Channel types supported
  */
-export type ChannelType = "new-api" | "sub-2-api" | "cli-proxy-api" | "general"
+export type ChannelType = "new-api" | "sub-2-api" | "cli-proxy-api" | "ollama" | "general"
 /**
  * Codex Live 配置状态
  */

@@ -9,6 +9,7 @@ const inferrerMap = new Map<ChannelType, ChannelInferrer>([
   ['sub-2-api', new Sub2ApiInferrer()],
   ['new-api', new NewApiInferrer()],
   ['cli-proxy-api', new CliProxyInferrer()],
+  ['ollama', new CliProxyInferrer()],
   ['general', new GeneralInferrer()],
 ])
 

@@ -33,6 +33,7 @@ const defaultBaseUrls: Record<ChannelType, string> = {
   'new-api': 'https://api.newapi.ai',
   'sub-2-api': '',
   'cli-proxy-api': '',
+  'ollama': 'http://localhost:11434',
   general: '',
 }
 
@@ -63,13 +64,19 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
   } | null>(null)
 
   const isApiKeyAuth =
-    channelType === 'cli-proxy-api' || channelType === 'general'
+    channelType === 'cli-proxy-api' ||
+    channelType === 'ollama' ||
+    channelType === 'general'
 
   // Load credentials from storage for existing channels
   useEffect(() => {
     let cancelled = false
     if (channel) {
-      if (channel.type === 'cli-proxy-api' || channel.type === 'general') {
+      if (
+        channel.type === 'cli-proxy-api' ||
+        channel.type === 'ollama' ||
+        channel.type === 'general'
+      ) {
         commands.getChannelApiKey(channel.id).then(result => {
           if (cancelled) return
           if (result.status === 'ok' && result.data) {
@@ -126,6 +133,9 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
           break
         case 'cli-proxy-api':
           typeName = t('channels.typeCliProxyApi')
+          break
+        case 'ollama':
+          typeName = t('channels.typeOllama')
           break
         case 'general':
           typeName = t('channels.typeGeneral')
@@ -221,6 +231,9 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
                 </SelectItem>
                 <SelectItem value="cli-proxy-api">
                   {t('channels.typeCliProxyApi')}
+                </SelectItem>
+                <SelectItem value="ollama">
+                  {t('channels.typeOllama')}
                 </SelectItem>
               </SelectContent>
             </Select>

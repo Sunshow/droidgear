@@ -369,6 +369,7 @@
   "channels.typeNewApi": "New API",
   "channels.typeSub2Api": "Sub2API",
   "channels.typeCliProxyApi": "CLI Proxy API",
+  "channels.typeOllama": "Ollama",
   "channels.typeGeneral": "General",
   "channels.apiUrl": "API URL",
   "channels.apiKey": "API Key",

@@ -23,6 +23,7 @@ pub enum ChannelType {
     #[serde(rename = "sub-2-api")]
     Sub2Api,
     CliProxyApi,
+    Ollama,
     General,
 }
 
@@ -311,7 +312,19 @@ pub async fn detect_channel_type(base_url: String) -> Result<ChannelType, String
         }
     }
 
-    // 3. Check for CLI Proxy API: GET /v1/models returns OpenAI format
+    // 3. Check for Ollama: GET / returns response containing "Ollama"
+    if let Ok(resp) = client.get(base).send().await {
+        if resp.status().is_success() {
+            if let Ok(text) = resp.text().await {
+                if text.contains("Ollama") || text.contains("ollama") {
+                    log::info!("Detected channel type: Ollama");
+                    return Ok(ChannelType::Ollama);
+                }
+            }
+        }
+    }
+
+    // 4. Check for CLI Proxy API: GET /v1/models returns OpenAI format
     if let Ok(resp) = client.get(format!("{base}/v1/models")).send().await {
         if resp.status().is_success() {
             if let Ok(data) = resp.json::<Value>().await {
@@ -341,8 +354,8 @@ pub async fn fetch_channel_tokens(
     match channel_type {
         ChannelType::NewApi => fetch_new_api_tokens(&base_url, &username, &password).await,
         ChannelType::Sub2Api => fetch_sub2api_tokens(&base_url, &username, &password).await,
-        ChannelType::CliProxyApi | ChannelType::General => {
-            // For CliProxyApi and General, username is empty and password contains the API key
+        ChannelType::CliProxyApi | ChannelType::Ollama | ChannelType::General => {
+            // For CliProxyApi, Ollama, and General, username is empty and password contains the API key
             // Return a single virtual token
             Ok(vec![ChannelToken {
                 id: 0.0,

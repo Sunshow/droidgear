@@ -194,7 +194,7 @@ export const useChannelStore = create<ChannelState>()(
           let username = ''
           let password = ''
 
-          if (channelType === 'cli-proxy-api' || channelType === 'general') {
+          if (channelType === 'cli-proxy-api' || channelType === 'ollama' || channelType === 'general') {
             // For CLI Proxy API and General, get API key
             const apiKeyResult = await commands.getChannelApiKey(channelId)
             if (apiKeyResult.status !== 'ok' || !apiKeyResult.data) {
