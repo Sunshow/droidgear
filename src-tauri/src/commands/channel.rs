@@ -292,7 +292,21 @@ pub async fn detect_channel_type(base_url: String) -> Result<ChannelType, String
 
     let base = base_url.trim_end_matches('/');
 
-    // 1. Check for Sub2API: GET /health returns {"status":"ok"}
+    // 1. Check for Ollama first: GET / returns response containing "Ollama"
+    // This must come before New API detection because localhost:11434 might
+    // return 200 on /api/status otherwise
+    if let Ok(resp) = client.get(base).send().await {
+        if resp.status().is_success() {
+            if let Ok(text) = resp.text().await {
+                if text.contains("Ollama") || text.contains("ollama") {
+                    log::info!("Detected channel type: Ollama");
+                    return Ok(ChannelType::Ollama);
+                }
+            }
+        }
+    }
+
+    // 2. Check for Sub2API: GET /health returns {"status":"ok"}
     if let Ok(resp) = client.get(format!("{base}/health")).send().await {
         if resp.status().is_success() {
             if let Ok(data) = resp.json::<Value>().await {
@@ -304,23 +318,11 @@ pub async fn detect_channel_type(base_url: String) -> Result<ChannelType, String
         }
     }
 
-    // 2. Check for New API: GET /api/status
+    // 3. Check for New API: GET /api/status
     if let Ok(resp) = client.get(format!("{base}/api/status")).send().await {
         if resp.status().is_success() {
             log::info!("Detected channel type: NewApi");
             return Ok(ChannelType::NewApi);
-        }
-    }
-
-    // 3. Check for Ollama: GET / returns response containing "Ollama"
-    if let Ok(resp) = client.get(base).send().await {
-        if resp.status().is_success() {
-            if let Ok(text) = resp.text().await {
-                if text.contains("Ollama") || text.contains("ollama") {
-                    log::info!("Detected channel type: Ollama");
-                    return Ok(ChannelType::Ollama);
-                }
-            }
         }
     }
 
