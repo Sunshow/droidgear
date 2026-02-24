@@ -66,19 +66,34 @@ describe('normalizeBaseUrlForOpenCode', () => {
     ).toBe('https://api.example.com/v1')
   })
 
-  it('keeps baseURL as-is for openai', () => {
+  it('appends /v1 for openai protocol', () => {
     expect(
       normalizeBaseUrlForOpenCode('openai', 'https://api.openai.com')
-    ).toBe('https://api.openai.com')
+    ).toBe('https://api.openai.com/v1')
   })
 
-  it('keeps baseURL as-is for google-ai', () => {
+  it('does not duplicate /v1 for openai', () => {
+    expect(
+      normalizeBaseUrlForOpenCode('openai', 'https://api.openai.com/v1')
+    ).toBe('https://api.openai.com/v1')
+  })
+
+  it('appends /v1beta for google-ai protocol', () => {
     expect(
       normalizeBaseUrlForOpenCode(
         'google-ai',
         'https://generativelanguage.googleapis.com'
       )
-    ).toBe('https://generativelanguage.googleapis.com')
+    ).toBe('https://generativelanguage.googleapis.com/v1beta')
+  })
+
+  it('does not duplicate /v1beta for google-ai', () => {
+    expect(
+      normalizeBaseUrlForOpenCode(
+        'google-ai',
+        'https://generativelanguage.googleapis.com/v1beta'
+      )
+    ).toBe('https://generativelanguage.googleapis.com/v1beta')
   })
 
   it('keeps baseURL as-is for openai-compatible', () => {

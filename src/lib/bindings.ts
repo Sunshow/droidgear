@@ -1392,7 +1392,7 @@ export type Provider = "anthropic" | "openai" | "generic-chat-completion-api"
 /**
  * Provider template for quick setup
  */
-export type ProviderTemplate = { id: string; name: string; defaultBaseUrl?: string | null; requiresApiKey: boolean }
+export type ProviderTemplate = { id: string; name: string; npm?: string | null; defaultBaseUrl?: string | null; requiresApiKey: boolean }
 /**
  * Error types for recovery operations (typed for frontend matching)
  */
