@@ -33,7 +33,7 @@ const defaultBaseUrls: Record<ChannelType, string> = {
   'new-api': 'https://api.newapi.ai',
   'sub-2-api': '',
   'cli-proxy-api': '',
-  'ollama': 'http://localhost:11434',
+  ollama: 'http://localhost:11434',
   general: '',
 }
 

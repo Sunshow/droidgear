@@ -48,7 +48,7 @@ const channelTypeI18nKeys: Record<ChannelType, string> = {
   'new-api': 'channels.typeNewApi',
   'sub-2-api': 'channels.typeSub2Api',
   'cli-proxy-api': 'channels.typeCliProxyApi',
-  'ollama': 'channels.typeOllama',
+  ollama: 'channels.typeOllama',
   general: 'channels.typeGeneral',
 }
 

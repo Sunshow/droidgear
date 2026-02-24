@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.4.0
+
+**New Features / 新功能**
+
+- Add Ollama channel support with auto-detection / 添加 Ollama 频道支持，支持自动检测
+- Add OpenAI/Gemini provider templates and fix channel import protocol inference / 添加 OpenAI/Gemini 服务商模板，修复频道导入协议推断
+
 ## v0.3.9
 
 **New Features / 新功能**

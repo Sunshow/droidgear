@@ -30,6 +30,8 @@ Run the installer directly.
 - **API Model Discovery** - Fetch available models directly from provider APIs with auto-generated IDs and display names
 - **Import/Export** - Support configuration import/export and batch management
 - **Multi-Platform Support** - Support sub2api, antigravity and other API proxy platforms
+- **Ollama Support** - Ollama channel support with automatic local service detection
+- **Provider Templates** - Built-in OpenAI, Gemini provider templates for quick setup
 
 ### Embedded Terminal
 

@@ -30,6 +30,8 @@ xattr -cr /Applications/DroidGear.app
 - **API 模型发现** - 直接从服务商 API 获取可用模型列表，自动生成 ID 和显示名称
 - **配置导入导出** - 支持配置的导入导出和批量管理
 - **多平台支持** - 支持 sub2api、antigravity 等多种 API 代理平台
+- **Ollama 支持** - 支持 Ollama 频道，自动检测本地 Ollama 服务
+- **服务商模板** - 内置 OpenAI、Gemini 等服务商模板，快速配置
 
 ### 嵌入式终端
 
