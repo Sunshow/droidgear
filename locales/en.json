@@ -221,6 +221,12 @@
   "droid.helpers.skipLogin.instructions.powershellPath": "$PROFILE",
   "droid.helpers.skipLogin.toolLimitationHint": "After bypassing login with a Key, some tools (e.g., WebSearch) may not be available. It's recommended to log in with an actual account for full functionality. Use /status in Droid to check current authentication status.",
 
+  "droid.helpers.disableAutoUpdate.title": "Try Disable Auto Update",
+  "droid.helpers.disableAutoUpdate.setupButton": "Setup",
+  "droid.helpers.disableAutoUpdate.description": "Add FACTORY_DROID_AUTO_UPDATE_ENABLED=0 to your shell config file to disable Droid auto update.",
+  "droid.helpers.disableAutoUpdate.warning": "This may not work in all cases. You need to restart your terminal and the app for changes to take effect.",
+  "droid.helpers.disableAutoUpdate.instructions.title": "Add the following line to your shell config file:",
+
   "droid.helpers.cloudSessionSync.title": "Cloud Session Sync",
   "droid.helpers.cloudSessionSync.description": "When enabled, sessions will be automatically synced to the cloud",
 

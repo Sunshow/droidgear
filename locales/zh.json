@@ -221,6 +221,12 @@
   "droid.helpers.skipLogin.instructions.powershellPath": "$PROFILE",
   "droid.helpers.skipLogin.toolLimitationHint": "使用 Key 绕过登录后，部分工具（如 WebSearch）可能无法使用。建议登录实际账号以获得完整功能，可在 Droid 中使用 /status 命令查看当前认证状态。",
 
+  "droid.helpers.disableAutoUpdate.title": "尝试关闭自动升级",
+  "droid.helpers.disableAutoUpdate.setupButton": "设置关闭自动升级",
+  "droid.helpers.disableAutoUpdate.description": "在您的 shell 配置文件中添加 FACTORY_DROID_AUTO_UPDATE_ENABLED=0 以关闭 Droid 自动升级。",
+  "droid.helpers.disableAutoUpdate.warning": "此功能可能不会在所有情况下生效。您需要重启终端和应用程序才能使更改生效。",
+  "droid.helpers.disableAutoUpdate.instructions.title": "将以下内容添加到您的 shell 配置文件：",
+
   "droid.helpers.cloudSessionSync.title": "Session 云同步",
   "droid.helpers.cloudSessionSync.description": "启用后 Session 会自动同步到云端",
 

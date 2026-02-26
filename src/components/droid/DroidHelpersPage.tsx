@@ -25,6 +25,7 @@ import {
 import { commands } from '@/lib/bindings'
 
 const ENV_VAR_NAME = 'FACTORY_API_KEY'
+const AUTO_UPDATE_ENV_VAR_NAME = 'FACTORY_DROID_AUTO_UPDATE_ENABLED'
 
 function generateRandomKey(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
@@ -105,10 +106,47 @@ function ShellCommandSection({
   )
 }
 
+function EnvVarShellCommandSection({
+  shell,
+  envVarName,
+  envVarValue,
+}: {
+  shell: ShellType
+  envVarName: string
+  envVarValue: string
+}) {
+  const { t } = useTranslation()
+
+  const getCommand = () => {
+    if (shell === 'powershell') {
+      return `$env:${envVarName} = "${envVarValue}"`
+    }
+    return `export ${envVarName}="${envVarValue}"`
+  }
+
+  const labelKey = `droid.helpers.skipLogin.instructions.${shell}`
+  const pathKey = `droid.helpers.skipLogin.instructions.${shell}Path`
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-sm">
+        <span className="font-medium">{t(labelKey)}</span>
+        <span className="text-muted-foreground">- {t(pathKey)}</span>
+      </div>
+      <CopyableCommand
+        command={getCommand()}
+        onCopy={() => toast.success(t('common.copied'))}
+      />
+    </div>
+  )
+}
+
 export function DroidHelpersPage() {
   const { t } = useTranslation()
 
   const [setupDialogOpen, setSetupDialogOpen] = useState(false)
+  const [disableAutoUpdateDialogOpen, setDisableAutoUpdateDialogOpen] =
+    useState(false)
   const [apiKeyValue, setApiKeyValue] = useState('')
   const [cloudSessionSync, setCloudSessionSync] = useState(true)
 
@@ -305,6 +343,26 @@ export function DroidHelpersPage() {
               <p className="text-xs">
                 {t('droid.helpers.skipLogin.toolLimitationHint')}
               </p>
+            </div>
+          </div>
+
+          {/* Disable Auto Update Section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-1">
+                <Label className="text-base font-medium">
+                  {t('droid.helpers.disableAutoUpdate.title')}
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  {t('droid.helpers.disableAutoUpdate.description')}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setDisableAutoUpdateDialogOpen(true)}
+              >
+                {t('droid.helpers.disableAutoUpdate.setupButton')}
+              </Button>
             </div>
           </div>
 
@@ -525,6 +583,61 @@ export function DroidHelpersPage() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setSetupDialogOpen(false)}>
+              {t('common.dismiss')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Disable Auto Update Dialog */}
+      <Dialog
+        open={disableAutoUpdateDialogOpen}
+        onOpenChange={setDisableAutoUpdateDialogOpen}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {t('droid.helpers.disableAutoUpdate.title')}
+            </DialogTitle>
+            <DialogDescription>
+              {t('droid.helpers.disableAutoUpdate.description')}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
+              <p className="text-sm text-yellow-600 dark:text-yellow-500">
+                ⚠️ {t('droid.helpers.disableAutoUpdate.warning')}
+              </p>
+            </div>
+
+            <div className="space-y-4 pt-2">
+              <p className="text-sm font-medium">
+                {t('droid.helpers.disableAutoUpdate.instructions.title')}
+              </p>
+              <EnvVarShellCommandSection
+                shell="zsh"
+                envVarName={AUTO_UPDATE_ENV_VAR_NAME}
+                envVarValue="0"
+              />
+              <EnvVarShellCommandSection
+                shell="bash"
+                envVarName={AUTO_UPDATE_ENV_VAR_NAME}
+                envVarValue="0"
+              />
+              <EnvVarShellCommandSection
+                shell="powershell"
+                envVarName={AUTO_UPDATE_ENV_VAR_NAME}
+                envVarValue="0"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDisableAutoUpdateDialogOpen(false)}
+            >
               {t('common.dismiss')}
             </Button>
           </DialogFooter>
