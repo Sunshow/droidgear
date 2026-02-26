@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AlertCircle, Copy, Check, RefreshCw } from 'lucide-react'
 import { writeText } from '@tauri-apps/plugin-clipboard-manager'
@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { commands } from '@/lib/bindings'
+import { useUIStore } from '@/store/ui-store'
 
 const ENV_VAR_NAME = 'FACTORY_API_KEY'
 const AUTO_UPDATE_ENV_VAR_NAME = 'FACTORY_DROID_AUTO_UPDATE_ENABLED'
@@ -143,6 +144,23 @@ function EnvVarShellCommandSection({
 
 export function DroidHelpersPage() {
   const { t } = useTranslation()
+
+  const disableAutoUpdateRef = useRef<HTMLDivElement>(null)
+  const droidHelpersScrollTarget = useUIStore(
+    state => state.droidHelpersScrollTarget
+  )
+  const setDroidHelpersScrollTarget = useUIStore(
+    state => state.setDroidHelpersScrollTarget
+  )
+
+  useEffect(() => {
+    if (droidHelpersScrollTarget === 'disable-auto-update') {
+      setTimeout(() => {
+        disableAutoUpdateRef.current?.scrollIntoView({ behavior: 'smooth' })
+      }, 100)
+      setDroidHelpersScrollTarget(null)
+    }
+  }, [droidHelpersScrollTarget, setDroidHelpersScrollTarget])
 
   const [setupDialogOpen, setSetupDialogOpen] = useState(false)
   const [disableAutoUpdateDialogOpen, setDisableAutoUpdateDialogOpen] =
@@ -347,7 +365,11 @@ export function DroidHelpersPage() {
           </div>
 
           {/* Disable Auto Update Section */}
-          <div className="space-y-2">
+          <div
+            ref={disableAutoUpdateRef}
+            id="disable-auto-update"
+            className="space-y-2"
+          >
             <div className="flex items-center justify-between">
               <div className="flex flex-col gap-1">
                 <Label className="text-base font-medium">

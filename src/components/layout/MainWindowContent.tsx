@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { ModelConfigPage } from '@/components/models'
 import {
   DroidHelpersPage,
+  LegacyVersionsPage,
   SpecsPage,
   McpPage,
   SessionsPage,
@@ -63,6 +64,7 @@ export function MainWindowContent({
           {droidSubView === 'mcp' && <McpPage />}
           {droidSubView === 'sessions' && <SessionsPage />}
           {droidSubView === 'helpers' && <DroidHelpersPage />}
+          {droidSubView === 'legacy-versions' && <LegacyVersionsPage />}
         </>
       )
     }
