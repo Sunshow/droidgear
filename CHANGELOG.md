@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.4.1
+
+**New Features / 新功能**
+
+- Add legacy versions download page with auto-update disable hint / 添加历史版本下载页面，附带禁用自动更新提示
+- Add disable auto-update helper to droid helpers page / 在 Droid 助手页面添加禁用自动更新辅助功能
+- Add channel export and import with optional credentials / 添加渠道导出和导入功能，支持可选凭据
+
+**Bug Fixes / 问题修复**
+
+- Include model name in import duplicate detection to prevent overwrites / 导入去重检测中包含模型名称，防止覆盖
+- Assign id to models on load so setDefaultModel works / 加载时为模型分配 id，修复设置默认模型功能
+
 ## v0.4.0
 
 **New Features / 新功能**
