@@ -269,7 +269,11 @@ export function ModelConfigPage() {
 
       // Validate each model has required fields
       const validModels = data.models.filter(
-        m => m.model && m.baseUrl && m.apiKey && m.provider
+        m =>
+          typeof m.model === 'string' &&
+          typeof m.baseUrl === 'string' &&
+          typeof m.apiKey === 'string' &&
+          typeof m.provider === 'string'
       )
 
       if (validModels.length === 0) {
@@ -292,7 +296,9 @@ export function ModelConfigPage() {
     const findDuplicateIndex = (model: CustomModel) =>
       models.findIndex(
         existing =>
-          existing.baseUrl === model.baseUrl && existing.apiKey === model.apiKey
+          existing.model === model.model &&
+          existing.baseUrl === model.baseUrl &&
+          existing.apiKey === model.apiKey
       )
 
     selectedModels.forEach(model => {
