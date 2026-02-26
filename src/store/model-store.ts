@@ -106,10 +106,11 @@ export const useModelStore = create<ModelState>()(
           }
 
           if (modelsResult.status === 'ok') {
+            const modelsWithIds = updateModelsIndexAndId(modelsResult.data)
             set(
               {
-                models: modelsResult.data,
-                originalModels: JSON.parse(JSON.stringify(modelsResult.data)),
+                models: modelsWithIds,
+                originalModels: JSON.parse(JSON.stringify(modelsWithIds)),
                 hasChanges: false,
                 isLoading: false,
               },
