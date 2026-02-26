@@ -35,6 +35,7 @@ description: Generate changelog from commits since last tag and release new vers
    - Use bilingual format (English / 中文) for each item
    - Format: `## vX.Y.Z` followed by `**New Features / 新功能**` and `**Bug Fixes / 问题修复**` sections
    - Each item format: `- English description / 中文描述`
+   - Translation terminology: "Channel" must be translated as "渠道" (NOT "频道")
    - This file is used by GitHub Actions to generate release notes for auto-updater
 
 7. (Conditional) If this release includes significant new features or major changes, update the feature descriptions in both README files:
