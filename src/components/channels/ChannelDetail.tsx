@@ -48,6 +48,8 @@ const channelTypeI18nKeys: Record<ChannelType, string> = {
   'new-api': 'channels.typeNewApi',
   'sub-2-api': 'channels.typeSub2Api',
   'cli-proxy-api': 'channels.typeCliProxyApi',
+  ollama: 'channels.typeOllama',
+  general: 'channels.typeGeneral',
 }
 
 interface ChannelDetailProps {
@@ -92,8 +94,13 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
   }
 
   const inferProvider = (modelId: string): Provider => {
-    // CLI Proxy API and New API use the same logic
-    if (channel.type === 'new-api' || channel.type === 'cli-proxy-api') {
+    // CLI Proxy API, General, New API, and Ollama use the same logic
+    if (
+      channel.type === 'new-api' ||
+      channel.type === 'cli-proxy-api' ||
+      channel.type === 'ollama' ||
+      channel.type === 'general'
+    ) {
       return inferProviderForNewApi(modelId)
     }
     return inferProviderFromPlatformAndModel(selectedKey?.platform, modelId)
@@ -181,7 +188,10 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
       }
 
       const baseUrl =
-        channel.type === 'new-api' || channel.type === 'cli-proxy-api'
+        channel.type === 'new-api' ||
+        channel.type === 'cli-proxy-api' ||
+        channel.type === 'ollama' ||
+        channel.type === 'general'
           ? getBaseUrlForNewApi(config.provider, channel.baseUrl)
           : getBaseUrlForSub2Api(
               config.provider,

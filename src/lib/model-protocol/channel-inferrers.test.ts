@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { Sub2ApiInferrer } from './channel-inferrers/sub2api-inferrer'
 import { NewApiInferrer } from './channel-inferrers/newapi-inferrer'
 import { CliProxyInferrer } from './channel-inferrers/cliproxy-inferrer'
+import { GeneralInferrer } from './channel-inferrers/general-inferrer'
 import type { ChannelInferenceContext } from './types'
 
 describe('Sub2ApiInferrer', () => {
@@ -143,14 +144,14 @@ describe('Sub2ApiInferrer', () => {
   })
 })
 
-describe('NewApiInferrer', () => {
-  const inferrer = new NewApiInferrer()
+describe('GeneralInferrer', () => {
+  const inferrer = new GeneralInferrer()
 
   describe('inferFromChannel', () => {
     it('always returns null', () => {
       expect(
         inferrer.inferFromChannel({
-          channelType: 'new-api',
+          channelType: 'general',
           platform: null,
           baseUrl: 'https://api.example.com',
         })
@@ -160,7 +161,7 @@ describe('NewApiInferrer', () => {
 
   describe('inferFromModel', () => {
     const ctx: ChannelInferenceContext = {
-      channelType: 'new-api',
+      channelType: 'general',
       platform: null,
       baseUrl: 'https://api.example.com',
     }
@@ -212,25 +213,50 @@ describe('NewApiInferrer', () => {
   })
 })
 
+describe('NewApiInferrer', () => {
+  const inferrer = new NewApiInferrer()
+
+  it('behaves the same as GeneralInferrer', () => {
+    const general = new GeneralInferrer()
+    const ctx: ChannelInferenceContext = {
+      channelType: 'new-api',
+      platform: null,
+      baseUrl: 'https://api.example.com',
+    }
+
+    expect(inferrer.inferFromChannel(ctx)).toBe(general.inferFromChannel(ctx))
+    expect(inferrer.inferFromModel('claude-3-opus', ctx)).toBe(
+      general.inferFromModel('claude-3-opus', ctx)
+    )
+    expect(inferrer.inferFromModel('gpt-4', ctx)).toBe(
+      general.inferFromModel('gpt-4', ctx)
+    )
+    expect(inferrer.getBaseUrl('anthropic', 'https://api.example.com')).toBe(
+      general.getBaseUrl('anthropic', 'https://api.example.com')
+    )
+  })
+})
+
 describe('CliProxyInferrer', () => {
   const inferrer = new CliProxyInferrer()
 
-  it('behaves the same as NewApiInferrer', () => {
+  it('behaves the same as GeneralInferrer', () => {
+    const general = new GeneralInferrer()
     const ctx: ChannelInferenceContext = {
       channelType: 'cli-proxy-api',
       platform: null,
       baseUrl: 'https://api.example.com',
     }
 
-    expect(inferrer.inferFromChannel(ctx)).toBeNull()
-    expect(inferrer.inferFromModel('claude-3-opus', ctx)).toBe('anthropic')
-    expect(inferrer.inferFromModel('gpt-4', ctx)).toBe('openai')
-    expect(inferrer.inferFromModel('unknown', ctx)).toBeNull()
-    expect(inferrer.getBaseUrl('anthropic', 'https://api.example.com')).toBe(
-      'https://api.example.com'
+    expect(inferrer.inferFromChannel(ctx)).toBe(general.inferFromChannel(ctx))
+    expect(inferrer.inferFromModel('claude-3-opus', ctx)).toBe(
+      general.inferFromModel('claude-3-opus', ctx)
+    )
+    expect(inferrer.inferFromModel('gpt-4', ctx)).toBe(
+      general.inferFromModel('gpt-4', ctx)
     )
     expect(inferrer.getBaseUrl('openai', 'https://api.example.com')).toBe(
-      'https://api.example.com/v1'
+      general.getBaseUrl('openai', 'https://api.example.com')
     )
   })
 })

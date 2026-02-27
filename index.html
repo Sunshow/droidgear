@@ -19,7 +19,9 @@
         align-items: center;
         justify-content: center;
         z-index: 9999;
-        transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+        transition:
+          opacity 0.3s ease-out,
+          visibility 0.3s ease-out;
       }
       #app-loader.hidden {
         opacity: 0;
@@ -37,11 +39,16 @@
       .loader-text {
         margin-top: 16px;
         color: #9ca3af;
-        font-family: system-ui, -apple-system, sans-serif;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
         font-size: 14px;
       }
       @keyframes spin {
-        to { transform: rotate(360deg); }
+        to {
+          transform: rotate(360deg);
+        }
       }
     </style>
   </head>

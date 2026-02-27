@@ -7,6 +7,7 @@ import {
   Plug,
   MessageSquare,
   TerminalSquare,
+  History,
 } from 'lucide-react'
 import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 import { toast } from 'sonner'
@@ -40,6 +41,11 @@ const features: FeatureItem[] = [
   { id: 'mcp', labelKey: 'droid.features.mcp', icon: Plug },
   { id: 'sessions', labelKey: 'droid.features.sessions', icon: MessageSquare },
   { id: 'terminal', labelKey: 'droid.features.terminal', icon: TerminalSquare },
+  {
+    id: 'legacy-versions',
+    labelKey: 'droid.features.legacyVersions',
+    icon: History,
+  },
 ]
 
 export function DroidFeatureList() {

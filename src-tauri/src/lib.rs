@@ -109,30 +109,25 @@ pub fn run() {
 
                 // Create window with visible: false initially
                 // Window state plugin will restore position automatically after build()
-                let window = WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("/".into()))
-                    .title("DroidGear")
-                    .inner_size(1150.0, 700.0)
-                    .min_inner_size(1150.0, 700.0)
-                    .resizable(true)
-                    .fullscreen(false)
-                    .maximized(false)
-                    .visible(false);  // Start hidden, frontend will show it
+                let window =
+                    WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("/".into()))
+                        .title("DroidGear")
+                        .inner_size(1150.0, 700.0)
+                        .min_inner_size(1150.0, 700.0)
+                        .resizable(true)
+                        .fullscreen(false)
+                        .maximized(false)
+                        .visible(false); // Start hidden, frontend will show it
 
                 // Platform-specific settings
                 #[cfg(target_os = "windows")]
-                let window = window
-                    .decorations(false)
-                    .transparent(false);
+                let window = window.decorations(false).transparent(false);
 
                 #[cfg(target_os = "macos")]
-                let window = window
-                    .decorations(false)
-                    .transparent(true);
+                let window = window.decorations(false).transparent(true);
 
                 #[cfg(target_os = "linux")]
-                let window = window
-                    .decorations(true)
-                    .transparent(false);
+                let window = window.decorations(true).transparent(false);
 
                 let _window = window.build()?;
 

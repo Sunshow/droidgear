@@ -113,6 +113,7 @@ export function ProviderDialog({
     if (template) {
       setProviderId(template.id)
       setName(template.name)
+      setNpm(template.npm ?? '')
       setBaseURL(template.defaultBaseUrl ?? '')
     }
   }
@@ -132,11 +133,13 @@ export function ProviderDialog({
       // When adding new provider, pre-fill all fields
       const sanitizedId = sanitizeProviderId(context.channelName)
 
-      // Infer protocol from channel context
+      // Infer protocol from channel context (use first model ID for better inference)
+      const firstModelId = selectedModels[0]?.model
       const protocol = inferModelProtocol(
         context.channelType,
         context.platform,
-        context.baseUrl
+        context.baseUrl,
+        firstModelId
       )
 
       // Map protocol to npm package

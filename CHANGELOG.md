@@ -1,5 +1,45 @@
 # Changelog
 
+## v0.4.1
+
+**New Features / 新功能**
+
+- Add legacy versions download page with auto-update disable hint / 添加历史版本下载页面，附带禁用自动更新提示
+- Add disable auto-update helper to droid helpers page / 在 Droid 助手页面添加禁用自动更新辅助功能
+- Add channel export and import with optional credentials / 添加渠道导出和导入功能，支持可选凭据
+
+**Bug Fixes / 问题修复**
+
+- Include model name in import duplicate detection to prevent overwrites / 导入去重检测中包含模型名称，防止覆盖
+- Assign id to models on load so setDefaultModel works / 加载时为模型分配 id，修复设置默认模型功能
+
+## v0.4.0
+
+**New Features / 新功能**
+
+- Add Ollama channel support with auto-detection / 添加 Ollama 频道支持，支持自动检测
+- Add OpenAI/Gemini provider templates and fix channel import protocol inference / 添加 OpenAI/Gemini 服务商模板，修复频道导入协议推断
+
+## v0.3.9
+
+**New Features / 新功能**
+
+- Add General channel type with API key auth / 添加通用频道类型，支持 API 密钥认证
+
+## v0.3.8
+
+**New Features / 新功能**
+
+- Add OpenAI Responses message type support for OpenClaw / OpenClaw 添加 OpenAI Responses 消息类型支持
+
+**Bug Fixes / 问题修复**
+
+- Use bash instead of sh for OpenCode install command / OpenCode 安装命令使用 bash 替代 sh
+- Fix ugly close button / 修复关闭按钮样式问题
+- Reduce white splash screen / 减少白色闪屏
+- Reduce UI jump glitch / 减少 UI 跳动问题
+- Fix CSS build warning / 修复 CSS 构建警告
+
 ## v0.3.7
 
 **New Features / 新功能**

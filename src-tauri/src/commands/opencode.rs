@@ -97,6 +97,8 @@ pub struct ProviderTemplate {
     pub id: String,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub npm: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub default_base_url: Option<String>,
     pub requires_api_key: bool,
 }
@@ -450,12 +452,29 @@ pub async fn get_opencode_config_status() -> Result<OpenCodeConfigStatus, String
 #[tauri::command]
 #[specta::specta]
 pub async fn get_opencode_provider_templates() -> Result<Vec<ProviderTemplate>, String> {
-    Ok(vec![ProviderTemplate {
-        id: "anthropic".to_string(),
-        name: "Anthropic".to_string(),
-        default_base_url: Some("https://api.anthropic.com".to_string()),
-        requires_api_key: true,
-    }])
+    Ok(vec![
+        ProviderTemplate {
+            id: "anthropic".to_string(),
+            name: "Anthropic".to_string(),
+            npm: Some("@ai-sdk/anthropic".to_string()),
+            default_base_url: Some("https://api.anthropic.com/v1".to_string()),
+            requires_api_key: true,
+        },
+        ProviderTemplate {
+            id: "openai".to_string(),
+            name: "OpenAI".to_string(),
+            npm: Some("@ai-sdk/openai".to_string()),
+            default_base_url: Some("https://api.openai.com/v1".to_string()),
+            requires_api_key: true,
+        },
+        ProviderTemplate {
+            id: "gemini".to_string(),
+            name: "Gemini".to_string(),
+            npm: Some("@ai-sdk/google".to_string()),
+            default_base_url: Some("https://generativelanguage.googleapis.com/v1beta".to_string()),
+            requires_api_key: true,
+        },
+    ])
 }
 
 /// Test provider connection

@@ -35,26 +35,31 @@ description: Generate changelog from commits since last tag and release new vers
    - Use bilingual format (English / 中文) for each item
    - Format: `## vX.Y.Z` followed by `**New Features / 新功能**` and `**Bug Fixes / 问题修复**` sections
    - Each item format: `- English description / 中文描述`
+   - Translation terminology: "Channel" must be translated as "渠道" (NOT "频道")
    - This file is used by GitHub Actions to generate release notes for auto-updater
 
-7. Update README.md changelog section (insert new version entry after `## 更新日志` heading)
+7. (Conditional) If this release includes significant new features or major changes, update the feature descriptions in both README files:
+   - README.md — Update relevant feature sections in Chinese
+   - README_EN.md — Update relevant feature sections in English
+   - Only update feature/capability descriptions, NOT the changelog section (both READMEs already link to CHANGELOG.md for full changelog)
 
-8. Update README_EN.md changelog section if exists (insert after `## Changelog` heading)
-
-9. Commit changelog changes (required before release:prepare):
+8. Commit changelog changes (required before release:prepare):
 
    ```bash
+   # If README files were updated:
    git add CHANGELOG.md README.md README_EN.md
+   # Otherwise:
+   git add CHANGELOG.md
    git commit -m "docs: update changelog for <version>"
    ```
 
-10. Run release workflow:
+9. Run release workflow:
 
-    ```bash
-    npm run release:prepare <version>
-    ```
+   ```bash
+   npm run release:prepare <version>
+   ```
 
-11. Execute git commands to complete release:
+10. Execute git commands to complete release:
 
     ```bash
     git add .
@@ -68,6 +73,6 @@ description: Generate changelog from commits since last tag and release new vers
 - Confirm CHANGELOG.md is updated with English changelog (used for auto-updater)
 - Confirm changelog entries are correctly formatted
 - Confirm version number follows vX.Y.Z pattern
-- Confirm both README files are updated (if applicable)
+- Confirm both README files are updated if significant features were added
 - Confirm changelog is committed before running release:prepare
 - Confirm git push completes successfully
