@@ -733,6 +733,13 @@
   "openclaw.defaultModel.selectPlaceholder": "选择模型...",
   "openclaw.defaultModel.noModelsConfigured": "暂无已配置的模型",
 
+  "openclaw.failover.title": "Failover 模型",
+  "openclaw.failover.hint": "当主模型失败时，OpenClaw 将按顺序尝试以下备用模型",
+  "openclaw.failover.add": "添加 Failover 模型",
+  "openclaw.failover.remove": "移除",
+  "openclaw.failover.noModels": "未配置 Failover 模型",
+  "openclaw.failover.selectPlaceholder": "选择要添加的模型...",
+
   "openclaw.provider.add": "添加 Provider",
   "openclaw.provider.edit": "编辑 Provider",
   "openclaw.provider.delete": "删除 Provider",

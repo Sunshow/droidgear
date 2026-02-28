@@ -8,6 +8,7 @@ import {
   Copy,
   Trash2,
   Download,
+  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -68,6 +69,9 @@ export function OpenClawConfigPage() {
     state => state.updateProfileDescription
   )
   const updateDefaultModel = useOpenClawStore(state => state.updateDefaultModel)
+  const updateFailoverModels = useOpenClawStore(
+    state => state.updateFailoverModels
+  )
   const deleteProvider = useOpenClawStore(state => state.deleteProvider)
   const setError = useOpenClawStore(state => state.setError)
 
@@ -356,6 +360,89 @@ export function OpenClawConfigPage() {
           </div>
           <p className="text-xs text-muted-foreground">
             {t('openclaw.defaultModel.hint')}
+          </p>
+        </div>
+
+        {/* Failover Models Section */}
+        <div className="space-y-3 p-4 border rounded-lg">
+          <h2 className="text-lg font-medium">
+            {t('openclaw.failover.title')}
+          </h2>
+          {/* Add failover model selector */}
+          <div className="flex items-center gap-2">
+            <Select
+              value=""
+              onValueChange={ref => {
+                const current = currentProfile?.failoverModels ?? []
+                if (!current.includes(ref)) {
+                  updateFailoverModels([...current, ref])
+                }
+              }}
+              disabled={
+                !currentProfile ||
+                availableModelRefs.filter(
+                  r => !(currentProfile?.failoverModels ?? []).includes(r)
+                ).length === 0
+              }
+            >
+              <SelectTrigger className="flex-1">
+                <SelectValue
+                  placeholder={
+                    availableModelRefs.length === 0
+                      ? t('openclaw.defaultModel.noModelsConfigured')
+                      : t('openclaw.failover.selectPlaceholder')
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {availableModelRefs
+                  .filter(
+                    r => !(currentProfile?.failoverModels ?? []).includes(r)
+                  )
+                  .map(ref => (
+                    <SelectItem key={ref} value={ref}>
+                      {ref}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {/* Ordered failover list */}
+          {(currentProfile?.failoverModels ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {t('openclaw.failover.noModels')}
+            </p>
+          ) : (
+            <div className="space-y-1">
+              {(currentProfile?.failoverModels ?? []).map((ref, idx) => (
+                <div
+                  key={ref}
+                  className="flex items-center gap-2 px-3 py-2 border rounded-md bg-muted/30"
+                >
+                  <span className="text-xs text-muted-foreground w-5 shrink-0 text-center">
+                    {idx + 1}
+                  </span>
+                  <span className="flex-1 text-sm font-mono">{ref}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 shrink-0"
+                    title={t('openclaw.failover.remove')}
+                    onClick={() => {
+                      const next = (
+                        currentProfile?.failoverModels ?? []
+                      ).filter(r => r !== ref)
+                      updateFailoverModels(next)
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">
+            {t('openclaw.failover.hint')}
           </p>
         </div>
 

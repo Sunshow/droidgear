@@ -1352,7 +1352,7 @@ export type OpenClawModel = { id: string; name?: string | null; reasoning?: bool
 /**
  * OpenClaw Profile (stored in DroidGear)
  */
-export type OpenClawProfile = { id: string; name: string; description?: string | null; createdAt: string; updatedAt: string; defaultModel?: string | null; providers?: Partial<{ [key in string]: OpenClawProviderConfig }>; blockStreamingConfig?: BlockStreamingConfig | null }
+export type OpenClawProfile = { id: string; name: string; description?: string | null; createdAt: string; updatedAt: string; defaultModel?: string | null; failoverModels?: string[] | null; providers?: Partial<{ [key in string]: OpenClawProviderConfig }>; blockStreamingConfig?: BlockStreamingConfig | null }
 /**
  * OpenClaw Provider configuration
  */

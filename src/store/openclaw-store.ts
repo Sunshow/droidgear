@@ -29,6 +29,7 @@ interface OpenClawState {
   updateProfileName: (name: string) => Promise<void>
   updateProfileDescription: (description: string) => Promise<void>
   updateDefaultModel: (model: string) => Promise<void>
+  updateFailoverModels: (models: string[]) => Promise<void>
   addProvider: (id: string, config: OpenClawProviderConfig) => Promise<void>
   updateProvider: (id: string, config: OpenClawProviderConfig) => Promise<void>
   deleteProvider: (id: string) => Promise<void>
@@ -155,6 +156,7 @@ export const useOpenClawStore = create<OpenClawState>()(
           createdAt: now,
           updatedAt: now,
           defaultModel: null,
+          failoverModels: null,
           providers: {},
         }
         const result = await commands.saveOpenclawProfile(profile)
@@ -285,6 +287,22 @@ export const useOpenClawStore = create<OpenClawState>()(
           { currentProfile: updated },
           undefined,
           'openclaw/updateDefaultModel'
+        )
+        await get().saveProfile()
+      },
+
+      updateFailoverModels: async models => {
+        const { currentProfile } = get()
+        if (!currentProfile) return
+        const updated = {
+          ...currentProfile,
+          failoverModels: models.length > 0 ? models : null,
+          updatedAt: new Date().toISOString(),
+        }
+        set(
+          { currentProfile: updated },
+          undefined,
+          'openclaw/updateFailoverModels'
         )
         await get().saveProfile()
       },

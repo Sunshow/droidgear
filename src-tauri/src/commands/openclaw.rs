@@ -103,6 +103,8 @@ pub struct OpenClawProfile {
     pub updated_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_model: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub failover_models: Option<Vec<String>>,
     #[serde(default)]
     pub providers: HashMap<String, OpenClawProviderConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -297,6 +299,17 @@ fn build_openclaw_config(profile: &OpenClawProfile) -> Value {
         if let Some(ref model) = profile.default_model {
             let mut model_obj = serde_json::Map::new();
             model_obj.insert("primary".to_string(), Value::String(model.clone()));
+            // Write failover list if present and non-empty
+            if let Some(ref failover) = profile.failover_models {
+                if !failover.is_empty() {
+                    model_obj.insert(
+                        "failover".to_string(),
+                        Value::Array(
+                            failover.iter().map(|s| Value::String(s.clone())).collect(),
+                        ),
+                    );
+                }
+            }
             defaults.insert("model".to_string(), Value::Object(model_obj));
         }
 
@@ -444,8 +457,9 @@ fn build_openclaw_config(profile: &OpenClawProfile) -> Value {
 /// Parse OpenClaw config JSON into profile fields
 fn parse_openclaw_config(
     config: &Value,
-) -> (Option<String>, HashMap<String, OpenClawProviderConfig>) {
+) -> (Option<String>, Option<Vec<String>>, HashMap<String, OpenClawProviderConfig>) {
     let mut default_model = None;
+    let mut failover_models = None;
     let mut providers = HashMap::new();
 
     if let Some(agents) = config.get("agents").and_then(|v| v.as_object()) {
@@ -453,6 +467,15 @@ fn parse_openclaw_config(
             if let Some(model) = defaults.get("model").and_then(|v| v.as_object()) {
                 if let Some(primary) = model.get("primary").and_then(|v| v.as_str()) {
                     default_model = Some(primary.to_string());
+                }
+                if let Some(failover_arr) = model.get("failover").and_then(|v| v.as_array()) {
+                    let list: Vec<String> = failover_arr
+                        .iter()
+                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                        .collect();
+                    if !list.is_empty() {
+                        failover_models = Some(list);
+                    }
                 }
             }
         }
@@ -525,7 +548,7 @@ fn parse_openclaw_config(
         }
     }
 
-    (default_model, providers)
+    (default_model, failover_models, providers)
 }
 
 /// Read existing openclaw.json config file as JSON Value
@@ -649,7 +672,7 @@ pub async fn create_default_openclaw_profile() -> Result<OpenClawProfile, String
 
     // Try to read existing openclaw.json config
     let config_path = get_openclaw_config_path()?;
-    let (default_model, providers) = if config_path.exists() {
+    let (default_model, failover_models, providers) = if config_path.exists() {
         let s = std::fs::read_to_string(&config_path)
             .map_err(|e| format!("Failed to read config file: {e}"))?;
         let config: Value =
@@ -658,6 +681,7 @@ pub async fn create_default_openclaw_profile() -> Result<OpenClawProfile, String
     } else {
         (
             Some("anthropic/claude-sonnet-4-20250514".to_string()),
+            None,
             HashMap::new(),
         )
     };
@@ -669,6 +693,7 @@ pub async fn create_default_openclaw_profile() -> Result<OpenClawProfile, String
         created_at: now.clone(),
         updated_at: now,
         default_model,
+        failover_models,
         providers,
         block_streaming_config: None,
     };
@@ -743,7 +768,7 @@ pub async fn read_openclaw_current_config() -> Result<OpenClawCurrentConfig, Str
     let config: Value =
         serde_json::from_str(&s).map_err(|e| format!("Invalid config JSON: {e}"))?;
 
-    let (default_model, providers) = parse_openclaw_config(&config);
+    let (default_model, _failover_models, providers) = parse_openclaw_config(&config);
 
     Ok(OpenClawCurrentConfig {
         default_model,
