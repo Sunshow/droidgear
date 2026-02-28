@@ -1046,7 +1046,7 @@ dependencies = [
 
 [[package]]
 name = "droidgear"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "chrono",
  "dirs 5.0.1",

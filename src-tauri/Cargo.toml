@@ -1,6 +1,6 @@
 [package]
 name = "droidgear"
-version = "0.4.2"
+version = "0.4.3"
 description = "BYOK Model Configuration for Factory Droid"
 authors = ["you"]
 edition = "2021"
