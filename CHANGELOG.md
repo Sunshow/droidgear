@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.4.2
+
+**New Features / 新功能**
+
+- Model failover configuration support for OpenClaw / OpenClaw 实现模型 failover 配置支持
+
+**Bug Fixes / 问题修复**
+
+- Use sonner wrapper component to fix toast positioning and styling / 使用 sonner 包装组件修复 toast 定位和样式问题
+
 ## v0.4.1
 
 **New Features / 新功能**

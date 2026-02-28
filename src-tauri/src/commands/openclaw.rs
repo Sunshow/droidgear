@@ -304,9 +304,7 @@ fn build_openclaw_config(profile: &OpenClawProfile) -> Value {
                 if !failover.is_empty() {
                     model_obj.insert(
                         "failover".to_string(),
-                        Value::Array(
-                            failover.iter().map(|s| Value::String(s.clone())).collect(),
-                        ),
+                        Value::Array(failover.iter().map(|s| Value::String(s.clone())).collect()),
                     );
                 }
             }
@@ -457,7 +455,11 @@ fn build_openclaw_config(profile: &OpenClawProfile) -> Value {
 /// Parse OpenClaw config JSON into profile fields
 fn parse_openclaw_config(
     config: &Value,
-) -> (Option<String>, Option<Vec<String>>, HashMap<String, OpenClawProviderConfig>) {
+) -> (
+    Option<String>,
+    Option<Vec<String>>,
+    HashMap<String, OpenClawProviderConfig>,
+) {
     let mut default_model = None;
     let mut failover_models = None;
     let mut providers = HashMap::new();
