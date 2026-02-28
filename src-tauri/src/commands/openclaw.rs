@@ -237,6 +237,7 @@ fn load_profile_by_id(id: &str) -> Result<OpenClawProfile, String> {
 /// Paths that should be replaced instead of deep merged
 const REPLACE_PATHS: &[&[&str]] = &[
     &["models", "providers"],
+    &["agents", "defaults", "model"],
     &["agents", "defaults", "models"],
     &["agents", "defaults", "blockStreamingDefault"],
     &["agents", "defaults", "blockStreamingBreak"],
@@ -303,7 +304,7 @@ fn build_openclaw_config(profile: &OpenClawProfile) -> Value {
             if let Some(ref failover) = profile.failover_models {
                 if !failover.is_empty() {
                     model_obj.insert(
-                        "failover".to_string(),
+                        "fallbacks".to_string(),
                         Value::Array(failover.iter().map(|s| Value::String(s.clone())).collect()),
                     );
                 }
@@ -349,9 +350,10 @@ fn build_openclaw_config(profile: &OpenClawProfile) -> Value {
                     .map(|m| {
                         let mut model_obj = serde_json::Map::new();
                         model_obj.insert("id".to_string(), Value::String(m.id.clone()));
-                        if let Some(ref name) = m.name {
-                            model_obj.insert("name".to_string(), Value::String(name.clone()));
-                        }
+                        model_obj.insert(
+                            "name".to_string(),
+                            Value::String(m.name.as_deref().unwrap_or(&m.id).to_string()),
+                        );
                         model_obj.insert("reasoning".to_string(), Value::Bool(m.reasoning));
                         if !m.input.is_empty() {
                             model_obj.insert(
@@ -470,7 +472,7 @@ fn parse_openclaw_config(
                 if let Some(primary) = model.get("primary").and_then(|v| v.as_str()) {
                     default_model = Some(primary.to_string());
                 }
-                if let Some(failover_arr) = model.get("failover").and_then(|v| v.as_array()) {
+                if let Some(failover_arr) = model.get("fallbacks").and_then(|v| v.as_array()) {
                     let list: Vec<String> = failover_arr
                         .iter()
                         .filter_map(|v| v.as_str().map(|s| s.to_string()))
