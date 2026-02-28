@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.4.3
+
+**Bug Fixes / 问题修复**
+
+- Import sonner CSS explicitly to fix toast styling in production build / 显式导入 sonner CSS 修复生产构建中的 toast 样式问题
+- Rename failover to fallbacks and fix model config for OpenClaw / OpenClaw 重命名 failover 为 fallbacks 并修复模型配置
+
 ## v0.4.2
 
 **New Features / 新功能**
