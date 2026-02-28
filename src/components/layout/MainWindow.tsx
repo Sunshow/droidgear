@@ -9,8 +9,7 @@ import { RightSideBar } from './RightSideBar'
 import { MainWindowContent } from './MainWindowContent'
 import { CommandPalette } from '@/components/command-palette/CommandPalette'
 import { PreferencesDialog } from '@/components/preferences/PreferencesDialog'
-import { Toaster } from 'sonner'
-import { useTheme } from '@/hooks/use-theme'
+import { Toaster } from '@/components/ui/sonner'
 import { useUIStore } from '@/store/ui-store'
 import { useMainWindowEventListeners } from '@/hooks/useMainWindowEventListeners'
 import { cn } from '@/lib/utils'
@@ -28,7 +27,6 @@ const LAYOUT = {
 const MAIN_CONTENT_DEFAULT = 100 - LAYOUT.rightSidebar.default
 
 export function MainWindow() {
-  const { theme } = useTheme()
   const leftSidebarVisible = useUIStore(state => state.leftSidebarVisible)
   const rightSidebarVisible = useUIStore(state => state.rightSidebarVisible)
 
@@ -71,24 +69,7 @@ export function MainWindow() {
       {/* Global UI Components (hidden until triggered) */}
       <CommandPalette />
       <PreferencesDialog />
-      <Toaster
-        position="bottom-right"
-        theme={
-          theme === 'dark' ? 'dark' : theme === 'light' ? 'light' : 'system'
-        }
-        className="toaster group"
-        toastOptions={{
-          classNames: {
-            toast:
-              'group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg',
-            description: 'group-[.toast]:text-muted-foreground',
-            actionButton:
-              'group-[.toast]:bg-primary group-[.toast]:text-primary-foreground',
-            cancelButton:
-              'group-[.toast]:bg-muted group-[.toast]:text-muted-foreground',
-          },
-        }}
-      />
+      <Toaster position="bottom-right" />
     </div>
   )
 }
