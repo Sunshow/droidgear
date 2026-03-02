@@ -366,7 +366,7 @@ export function OpenClawConfigPage() {
         {/* Failover Models Section */}
         <div className="space-y-3 p-4 border rounded-lg">
           <h2 className="text-lg font-medium">
-            {t('openclaw.failover.title')}
+            {t('openclaw.fallbacks.title')}
           </h2>
           {/* Add failover model selector */}
           <div className="flex items-center gap-2">
@@ -390,7 +390,7 @@ export function OpenClawConfigPage() {
                   placeholder={
                     availableModelRefs.length === 0
                       ? t('openclaw.defaultModel.noModelsConfigured')
-                      : t('openclaw.failover.selectPlaceholder')
+                      : t('openclaw.fallbacks.selectPlaceholder')
                   }
                 />
               </SelectTrigger>
@@ -410,7 +410,7 @@ export function OpenClawConfigPage() {
           {/* Ordered failover list */}
           {(currentProfile?.failoverModels ?? []).length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              {t('openclaw.failover.noModels')}
+              {t('openclaw.fallbacks.noModels')}
             </p>
           ) : (
             <div className="space-y-1">
@@ -427,7 +427,7 @@ export function OpenClawConfigPage() {
                     variant="ghost"
                     size="icon"
                     className="h-6 w-6 shrink-0"
-                    title={t('openclaw.failover.remove')}
+                    title={t('openclaw.fallbacks.remove')}
                     onClick={() => {
                       const next = (
                         currentProfile?.failoverModels ?? []
@@ -442,7 +442,7 @@ export function OpenClawConfigPage() {
             </div>
           )}
           <p className="text-xs text-muted-foreground">
-            {t('openclaw.failover.hint')}
+            {t('openclaw.fallbacks.hint')}
           </p>
         </div>
 

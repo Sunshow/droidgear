@@ -12,6 +12,7 @@ DroidGear supports customizing configuration directory paths for Droid/Factory, 
 | OpenCode Config | `~/.config/opencode/`      |
 | OpenCode Auth   | `~/.local/share/opencode/` |
 | Codex           | `~/.codex/`                |
+| OpenClaw        | `~/.openclaw/`             |
 
 ## 如何设置 / How to Configure
 
@@ -20,23 +21,40 @@ DroidGear supports customizing configuration directory paths for Droid/Factory, 
 3. 点击 📁 图标浏览选择目录，或直接输入路径
 4. 点击 **Save** 保存
 
-5. Open **Preferences** (Mac: `Cmd+,` / Windows: `Ctrl+,`)
-6. Select the **Paths** pane
-7. Click the 📁 icon to browse for a directory, or type the path directly
-8. Click **Save** to apply
+1. Open **Preferences** (Mac: `Cmd+,` / Windows: `Ctrl+,`)
+2. Select the **Paths** pane
+3. Click the 📁 icon to browse for a directory, or type the path directly
+4. Click **Save** to apply
 
 ## WSL 用户指南 / WSL User Guide
 
-如果你在 WSL 环境下使用 DroidGear，可以将配置路径指向 Windows 文件系统：
+如果你在 Windows 主机上运行 DroidGear，但需要编辑 WSL2 内部的配置，可以将配置路径指向 WSL 文件系统：
 
-If you're using DroidGear in a WSL environment, you can point configuration paths to the Windows filesystem:
+If you're running DroidGear on Windows host but need to edit configurations inside WSL2, you can point configuration paths to the WSL filesystem:
 
 ```
-Factory: /mnt/c/Users/YourName/.factory
-OpenCode Config: /mnt/c/Users/YourName/.config/opencode
-OpenCode Auth: /mnt/c/Users/YourName/.local/share/opencode
-Codex: /mnt/c/Users/YourName/.codex
+Factory: \\wsl$\Ubuntu\home\username\.factory
+OpenCode Config: \\wsl$\Ubuntu\home\username\.config\opencode
+OpenCode Auth: \\wsl$\Ubuntu\home\username\.local\share\opencode
+Codex: \\wsl$\Ubuntu\home\username\.codex
+OpenClaw: \\wsl$\Ubuntu\home\username\.openclaw
 ```
+
+将 `Ubuntu` 替换为你实际的 WSL 发行版名称（可通过 `wsl -l` 查看），`username` 替换为 WSL 内的用户名。
+
+Replace `Ubuntu` with your actual WSL distro name (check with `wsl -l`), and `username` with your WSL username.
+
+### 获取 WSL 用户名 / Get WSL Username
+
+```bash
+wsl whoami
+```
+
+### 验证路径 / Verify Path
+
+在 Windows 资源管理器地址栏输入 `\\wsl$\Ubuntu` 验证是否可以访问。
+
+Type `\\wsl$\Ubuntu` in Windows Explorer address bar to verify access.
 
 ## 配置存储 / Configuration Storage
 
