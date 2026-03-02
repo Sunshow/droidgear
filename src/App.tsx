@@ -97,6 +97,13 @@ function App() {
         return
       }
 
+      // Check if auto-update is disabled in preferences
+      const prefsResult = await commands.loadPreferences()
+      if (prefsResult.status === 'ok' && prefsResult.data.disable_auto_update) {
+        logger.debug('Auto-update check disabled in preferences')
+        return
+      }
+
       try {
         const update = await check()
         if (update) {

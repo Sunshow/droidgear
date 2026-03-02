@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { check } from '@tauri-apps/plugin-updater'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { SettingsField, SettingsSection } from '../shared/SettingsComponents'
 import { commands } from '@/lib/tauri-bindings'
 import { logger } from '@/lib/logger'
@@ -12,9 +14,12 @@ import {
   setCachedUpdate,
   downloadAndInstallUpdate,
 } from '@/services/updater'
+import { usePreferences, useSavePreferences } from '@/services/preferences'
 
 export function GeneralPane() {
   const { t } = useTranslation()
+  const { data: preferences } = usePreferences()
+  const savePreferences = useSavePreferences()
 
   // Update state
   const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking'>('idle')
@@ -35,6 +40,18 @@ export function GeneralPane() {
     },
     staleTime: Infinity,
   })
+
+  // Auto-update disabled state
+  const disableAutoUpdate = preferences?.disable_auto_update ?? false
+
+  const handleDisableAutoUpdateChange = (checked: boolean) => {
+    if (preferences) {
+      savePreferences.mutate({
+        ...preferences,
+        disable_auto_update: checked || null, // Store null instead of false for cleaner serialization
+      })
+    }
+  }
 
   const handleCheckForUpdates = async () => {
     setUpdateStatus('checking')
@@ -192,6 +209,26 @@ export function GeneralPane() {
             {pendingUpdate.body}
           </div>
         )}
+
+        {/* Auto-update toggle */}
+        <SettingsField
+          label={t('preferences.general.autoUpdate')}
+          description={t('preferences.general.autoUpdateDescription')}
+        >
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="auto-update-toggle"
+              checked={!disableAutoUpdate}
+              onCheckedChange={checked => handleDisableAutoUpdateChange(!checked)}
+              disabled={savePreferences.isPending}
+            />
+            <Label htmlFor="auto-update-toggle" className="text-sm">
+              {!disableAutoUpdate
+                ? t('common.enabled')
+                : t('common.disabled')}
+            </Label>
+          </div>
+        </SettingsField>
       </SettingsSection>
     </div>
   )

@@ -39,6 +39,10 @@ pub struct AppPreferences {
     /// If None, uses default PowerShell on Windows
     #[serde(default)]
     pub terminal_shell_command: Option<String>,
+    /// Whether to disable automatic update checks at startup
+    /// If None, defaults to false (auto-update enabled)
+    #[serde(default)]
+    pub disable_auto_update: Option<bool>,
 }
 
 impl Default for AppPreferences {
@@ -49,6 +53,7 @@ impl Default for AppPreferences {
             skip_login_enabled: None,     // None means disabled (default)
             terminal_font_family: None,   // None means use default fonts
             terminal_shell_command: None, // None means use default shell
+            disable_auto_update: None,    // None means auto-update enabled (default)
         }
     }
 }

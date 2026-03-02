@@ -1119,7 +1119,12 @@ terminal_font_family?: string | null;
  * Custom shell command for terminal (Windows only, e.g., "cmd.exe", "pwsh.exe")
  * If None, uses default PowerShell on Windows
  */
-terminal_shell_command?: string | null }
+terminal_shell_command?: string | null; 
+/**
+ * Whether to disable automatic update checks at startup
+ * If None, defaults to false (auto-update enabled)
+ */
+disable_auto_update?: boolean | null }
 /**
  * Block streaming chunk configuration
  */

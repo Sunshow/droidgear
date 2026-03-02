@@ -51,6 +51,8 @@
   "preferences.general.downloading": "下载中...",
   "preferences.general.installing": "安装中...",
   "preferences.general.updateFailed": "检查更新失败",
+  "preferences.general.autoUpdate": "自动更新",
+  "preferences.general.autoUpdateDescription": "启动时自动检查更新",
 
   "preferences.appearance.theme": "主题",
   "preferences.appearance.colorTheme": "颜色主题",

@@ -51,6 +51,8 @@
   "preferences.general.downloading": "Downloading...",
   "preferences.general.installing": "Installing...",
   "preferences.general.updateFailed": "Update check failed",
+  "preferences.general.autoUpdate": "Auto Update",
+  "preferences.general.autoUpdateDescription": "Automatically check for updates on startup",
 
   "preferences.appearance.theme": "Theme",
   "preferences.appearance.colorTheme": "Color Theme",
