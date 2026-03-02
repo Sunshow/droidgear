@@ -104,6 +104,9 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         paths::save_config_path,
         paths::reset_config_path,
         paths::get_default_paths,
+        paths::get_wsl_info,
+        paths::get_wsl_username,
+        paths::build_wsl_path,
     ])
 }
 

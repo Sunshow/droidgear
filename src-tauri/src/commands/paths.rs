@@ -12,6 +12,24 @@ use std::path::PathBuf;
 // Types
 // ============================================================================
 
+/// WSL distribution info
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct WslDistro {
+    pub name: String,
+    pub is_default: bool,
+    pub version: u8,
+    pub state: String,
+}
+
+/// WSL information including distributions and current user
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct WslInfo {
+    pub available: bool,
+    pub distros: Vec<WslDistro>,
+}
+
 /// User-defined configuration paths (only stores explicitly set paths)
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
@@ -345,4 +363,168 @@ pub async fn get_default_paths() -> Result<EffectivePaths, String> {
             is_default: true,
         },
     })
+}
+
+// ============================================================================
+// WSL Commands (Windows only)
+// ============================================================================
+
+/// Checks if WSL is available and lists distributions (Windows only)
+#[tauri::command]
+#[specta::specta]
+pub async fn get_wsl_info() -> Result<WslInfo, String> {
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(WslInfo {
+            available: false,
+            distros: vec![],
+        })
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+
+        // Run wsl -l -v to get list of distributions
+        let output = Command::new("wsl")
+            .args(["-l", "-v"])
+            .output();
+
+        match output {
+            Ok(output) => {
+                if !output.status.success() {
+                    log::debug!("WSL command failed, WSL not available");
+                    return Ok(WslInfo {
+                        available: false,
+                        distros: vec![],
+                    });
+                }
+
+                // Parse WSL output (handle potential encoding issues)
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let distros = parse_wsl_list(&stdout);
+
+                Ok(WslInfo {
+                    available: !distros.is_empty(),
+                    distros,
+                })
+            }
+            Err(e) => {
+                log::debug!("WSL not found: {}", e);
+                Ok(WslInfo {
+                    available: false,
+                    distros: vec![],
+                })
+            }
+        }
+    }
+}
+
+/// Gets the WSL username for a specific distribution
+#[tauri::command]
+#[specta::specta]
+pub async fn get_wsl_username(distro: String) -> Result<String, String> {
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = distro;
+        Err("WSL is only available on Windows".to_string())
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+
+        let output = Command::new("wsl")
+            .args(["-d", &distro, "whoami"])
+            .output()
+            .map_err(|e| format!("Failed to run wsl whoami: {}", e))?;
+
+        if !output.status.success() {
+            return Err("Failed to get WSL username".to_string());
+        }
+
+        let username = String::from_utf8_lossy(&output.stdout)
+            .trim()
+            .to_string();
+
+        if username.is_empty() {
+            return Err("Empty username returned from WSL".to_string());
+        }
+
+        Ok(username)
+    }
+}
+
+/// Builds a WSL path for a config directory
+#[tauri::command]
+#[specta::specta]
+pub async fn build_wsl_path(distro: String, username: String, config_key: String) -> Result<String, String> {
+    let subdir = match config_key.as_str() {
+        "factory" => ".factory",
+        "opencode" => ".config/opencode",
+        "opencodeAuth" => ".local/share/opencode",
+        "codex" => ".codex",
+        "openclaw" => ".openclaw",
+        _ => return Err(format!("Unknown config key: {}", config_key)),
+    };
+
+    Ok(format!(r"\\wsl$\{}\home\{}\{}", distro, username, subdir))
+}
+
+// ============================================================================
+// WSL Helpers (Windows only)
+// ============================================================================
+
+#[cfg(target_os = "windows")]
+fn parse_wsl_list(output: &str) -> Vec<WslDistro> {
+    let mut distros = Vec::new();
+
+    for line in output.lines().skip(1) {
+        // Skip header line
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+
+        // Parse line like:
+        // * Ubuntu                   Running         2
+        //   Debian                   Stopped         1
+        // The format may have BOM characters or special spacing
+
+        // Remove BOM and other special characters
+        let line: String = line.chars().filter(|c| c.is_alphanumeric() || c.is_whitespace() || *c == '*' || *c == '-').collect();
+
+        // Check if default (starts with *)
+        let is_default = line.starts_with('*');
+        let line = line.trim_start_matches('*').trim();
+
+        // Split by whitespace
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() >= 3 {
+            // Name is the first part(s), state is second-to-last, version is last
+            let version: u8 = parts.last().and_then(|v| v.parse().ok()).unwrap_or(2);
+
+            // Find state (Running, Stopped, etc.)
+            let state = if parts.len() >= 3 {
+                parts[parts.len() - 2].to_string()
+            } else {
+                "Unknown".to_string()
+            };
+
+            // Name is everything before state
+            let name = parts[..parts.len() - 2].join(" ");
+
+            if !name.is_empty() {
+                distros.push(WslDistro {
+                    name,
+                    is_default,
+                    version,
+                    state,
+                });
+            }
+        }
+    }
+
+    log::debug!("Parsed {} WSL distributions", distros.len());
+    distros
 }

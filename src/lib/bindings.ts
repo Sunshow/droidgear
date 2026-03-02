@@ -1082,6 +1082,39 @@ async getDefaultPaths() : Promise<Result<EffectivePaths, string>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * Checks if WSL is available and lists distributions (Windows only)
+ */
+async getWslInfo() : Promise<Result<WslInfo, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_wsl_info") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Gets the WSL username for a specific distribution
+ */
+async getWslUsername(distro: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_wsl_username", { distro }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Builds a WSL path for a config directory
+ */
+async buildWslPath(distro: string, username: string, configKey: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("build_wsl_path", { distro, username, configKey }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -1505,6 +1538,14 @@ export type TelegramChannelConfig = { blockStreaming?: boolean | null; chunkMode
  * Token usage statistics
  */
 export type TokenUsage = { inputTokens: number; outputTokens: number; cacheCreationTokens: number; cacheReadTokens: number; thinkingTokens: number }
+/**
+ * WSL distribution info
+ */
+export type WslDistro = { name: string; isDefault: boolean; version: number; state: string }
+/**
+ * WSL information including distributions and current user
+ */
+export type WslInfo = { available: boolean; distros: WslDistro[] }
 
 /** tauri-specta globals **/
 
