@@ -16,7 +16,8 @@ import { OpenClawConfigPage, OpenClawHelpersPage } from '@/components/openclaw'
 import { ChannelDetail, ChannelDialog } from '@/components/channels'
 import { useUIStore } from '@/store/ui-store'
 import { useChannelStore } from '@/store/channel-store'
-import { commands, type Channel } from '@/lib/bindings'
+import type { Channel } from '@/lib/bindings'
+import { saveChannelAuth } from '@/lib/channel-utils'
 
 interface MainWindowContentProps {
   children?: React.ReactNode
@@ -48,7 +49,16 @@ export function MainWindowContent({
     username: string,
     password: string
   ) => {
-    await commands.saveChannelCredentials(channel.id, username, password)
+    const authResult = await saveChannelAuth(
+      channel.id,
+      channel.type,
+      username,
+      password
+    )
+    if (!authResult.ok) {
+      console.error('Failed to save channel auth:', authResult.error)
+      return
+    }
     useChannelStore.getState().updateChannel(channel.id, channel)
     await saveChannels()
   }

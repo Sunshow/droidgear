@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { commands, type Channel, type ChannelType } from '@/lib/bindings'
+import { isApiKeyAuthChannel } from '@/lib/channel-utils'
 
 interface ChannelDialogProps {
   open: boolean
@@ -63,20 +64,13 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
     text: string
   } | null>(null)
 
-  const isApiKeyAuth =
-    channelType === 'cli-proxy-api' ||
-    channelType === 'ollama' ||
-    channelType === 'general'
+  const isApiKeyAuth = isApiKeyAuthChannel(channelType)
 
   // Load credentials from storage for existing channels
   useEffect(() => {
     let cancelled = false
     if (channel) {
-      if (
-        channel.type === 'cli-proxy-api' ||
-        channel.type === 'ollama' ||
-        channel.type === 'general'
-      ) {
+      if (isApiKeyAuthChannel(channel.type)) {
         commands.getChannelApiKey(channel.id).then(result => {
           if (cancelled) return
           if (result.status === 'ok' && result.data) {

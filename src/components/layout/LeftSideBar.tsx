@@ -35,7 +35,8 @@ import { OpenClawFeatureList } from '@/components/openclaw'
 import { useUIStore } from '@/store/ui-store'
 import { useChannelStore } from '@/store/channel-store'
 import { useModelStore } from '@/store/model-store'
-import { commands, type Channel } from '@/lib/bindings'
+import type { Channel } from '@/lib/bindings'
+import { saveChannelAuth } from '@/lib/channel-utils'
 
 type NavigationView = 'droid' | 'channels' | 'opencode' | 'codex' | 'openclaw'
 
@@ -140,28 +141,15 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
     username: string,
     password: string
   ) => {
-    // Save credentials/API key to storage based on channel type
-    if (
-      channel.type === 'cli-proxy-api' ||
-      channel.type === 'ollama' ||
-      channel.type === 'general'
-    ) {
-      // For CLI Proxy API and General, password contains the API key
-      const result = await commands.saveChannelApiKey(channel.id, password)
-      if (result.status !== 'ok') {
-        console.error('Failed to save API key:', result.error)
-        return
-      }
-    } else {
-      const credResult = await commands.saveChannelCredentials(
-        channel.id,
-        username,
-        password
-      )
-      if (credResult.status !== 'ok') {
-        console.error('Failed to save credentials:', credResult.error)
-        return
-      }
+    const authResult = await saveChannelAuth(
+      channel.id,
+      channel.type,
+      username,
+      password
+    )
+    if (!authResult.ok) {
+      console.error('Failed to save channel auth:', authResult.error)
+      return
     }
 
     // Check if this is an edit or new channel

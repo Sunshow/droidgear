@@ -733,6 +733,13 @@
   "openclaw.defaultModel.selectPlaceholder": "Select a model...",
   "openclaw.defaultModel.noModelsConfigured": "No models configured",
 
+  "openclaw.failover.title": "Failover Models",
+  "openclaw.failover.hint": "If the primary model fails, OpenClaw will try these models in order",
+  "openclaw.failover.add": "Add Failover Model",
+  "openclaw.failover.remove": "Remove",
+  "openclaw.failover.noModels": "No failover models configured",
+  "openclaw.failover.selectPlaceholder": "Select a model to add...",
+
   "openclaw.provider.add": "Add Provider",
   "openclaw.provider.edit": "Edit Provider",
   "openclaw.provider.delete": "Delete Provider",

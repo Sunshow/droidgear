@@ -6,6 +6,7 @@ import {
   type ChannelToken,
   type ChannelType,
 } from '@/lib/bindings'
+import { isApiKeyAuthChannel } from '@/lib/channel-utils'
 
 interface KeysFetchState {
   isLoading: boolean
@@ -194,11 +195,7 @@ export const useChannelStore = create<ChannelState>()(
           let username = ''
           let password = ''
 
-          if (
-            channelType === 'cli-proxy-api' ||
-            channelType === 'ollama' ||
-            channelType === 'general'
-          ) {
+          if (isApiKeyAuthChannel(channelType)) {
             // For CLI Proxy API and General, get API key
             const apiKeyResult = await commands.getChannelApiKey(channelId)
             if (apiKeyResult.status !== 'ok' || !apiKeyResult.data) {

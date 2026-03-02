@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { useChannelStore } from '@/store/channel-store'
 import { commands, type Channel, type ChannelType } from '@/lib/bindings'
+import { isApiKeyAuthChannel } from '@/lib/channel-utils'
 import { ChannelExportDialog } from './ChannelExportDialog'
 import {
   ChannelImportDialog,
@@ -107,10 +108,7 @@ export function ChannelList({ onAddChannel }: ChannelListProps) {
         }
 
         if (includeCredentials) {
-          const isApiKeyAuth =
-            ch.type === 'cli-proxy-api' ||
-            ch.type === 'ollama' ||
-            ch.type === 'general'
+          const isApiKeyAuth = isApiKeyAuthChannel(ch.type)
 
           if (isApiKeyAuth) {
             const result = await commands.getChannelApiKey(ch.id)
@@ -315,10 +313,7 @@ async function saveCredentialsForEntry(
   channelId: string,
   entry: ChannelExportEntry
 ) {
-  const isApiKeyAuth =
-    entry.type === 'cli-proxy-api' ||
-    entry.type === 'ollama' ||
-    entry.type === 'general'
+  const isApiKeyAuth = isApiKeyAuthChannel(entry.type as ChannelType)
 
   if (isApiKeyAuth && entry.apiKey) {
     await commands.saveChannelApiKey(channelId, entry.apiKey)

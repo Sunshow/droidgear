@@ -253,9 +253,10 @@ export const useModelStore = create<ModelState>()(
           state => {
             const newModels = [...state.models]
             newModels[index] = model
+            const updatedModels = updateModelsIndexAndId(newModels)
             return {
-              models: newModels,
-              hasChanges: !modelsEqual(newModels, state.originalModels),
+              models: updatedModels,
+              hasChanges: !modelsEqual(updatedModels, state.originalModels),
             }
           },
           undefined,

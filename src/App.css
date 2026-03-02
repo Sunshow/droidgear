@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import './theme-variables.css';
+@import 'sonner/dist/styles.css';
 
 @source "../node_modules/streamdown/dist/*.js";
 
