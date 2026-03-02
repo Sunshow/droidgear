@@ -18,21 +18,25 @@ export function ConfigStatus({ status }: ConfigStatusProps) {
       </h3>
       <div className="space-y-1 text-sm">
         <div className="flex items-center gap-2">
-          <FileText className="h-4 w-4 text-muted-foreground" />
-          <span className="flex-1 truncate">{status.configPath}</span>
+          <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+          <code className="flex-1 truncate text-xs bg-muted px-1 py-0.5 rounded select-all cursor-text">
+            {status.configPath}
+          </code>
           {status.configExists ? (
-            <CheckCircle className="h-4 w-4 text-green-500" />
+            <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
           ) : (
-            <XCircle className="h-4 w-4 text-muted-foreground" />
+            <XCircle className="h-4 w-4 text-muted-foreground shrink-0" />
           )}
         </div>
         <div className="flex items-center gap-2">
-          <FileText className="h-4 w-4 text-muted-foreground" />
-          <span className="flex-1 truncate">{status.authPath}</span>
+          <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+          <code className="flex-1 truncate text-xs bg-muted px-1 py-0.5 rounded select-all cursor-text">
+            {status.authPath}
+          </code>
           {status.authExists ? (
-            <CheckCircle className="h-4 w-4 text-green-500" />
+            <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
           ) : (
-            <XCircle className="h-4 w-4 text-muted-foreground" />
+            <XCircle className="h-4 w-4 text-muted-foreground shrink-0" />
           )}
         </div>
       </div>

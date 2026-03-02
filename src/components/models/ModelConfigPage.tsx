@@ -336,7 +336,9 @@ export function ModelConfigPage() {
           <h1 className="text-xl font-semibold">{t('models.title')}</h1>
           <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
             <FileText className="h-4 w-4 flex-shrink-0" />
-            <span className="truncate">{configPath}</span>
+            <code className="truncate text-xs bg-muted px-1 py-0.5 rounded select-all cursor-text">
+              {configPath}
+            </code>
             {hasChanges && (
               <Badge
                 variant="secondary"
