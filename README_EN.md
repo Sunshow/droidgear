@@ -27,6 +27,7 @@ Run the installer directly.
 - **Multi-Provider Support** - Configure models from Anthropic, OpenAI, or any Generic Chat Completion API
 - **Visual Model Management** - Add, edit, delete, and reorder custom models with drag-and-drop
 - **Batch Operations** - Copy models, filter and batch delete, set default model
+- **Model Registry** - Browse and search available AI models from a built-in registry in Preferences
 - **API Model Discovery** - Fetch available models directly from provider APIs with auto-generated IDs and display names
 - **Import/Export** - Support configuration import/export and batch management
 - **Multi-Platform Support** - Support sub2api, antigravity and other API proxy platforms

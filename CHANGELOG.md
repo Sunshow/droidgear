@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.4.4
+
+**New Features / 新功能**
+
+- Add model registry with preferences pane to list and search available AI models / 添加模型注册表和偏好设置面板，支持浏览和搜索可用 AI 模型
+- Auto-append `/v1` to base URL for OpenAI Completions API when importing or changing API type / 导入或切换 API 类型时自动追加 `/v1` 到 OpenAI Completions API 的基础 URL
+- Add warning message in channel dialog when API URL ends with `/v1` or `/v1beta` / 渠道对话框中当 API URL 以 `/v1` 或 `/v1beta` 结尾时显示警告信息
+- Optimize WSL related configuration editing workflow / 优化 WSL 相关配置编辑流程
+
+**Bug Fixes / 问题修复**
+
+- Regenerate model id/index after edit to fix set-as-default / 编辑后重新生成模型 id/index，修复设置默认模型功能
+
 ## v0.4.3
 
 **Bug Fixes / 问题修复**
