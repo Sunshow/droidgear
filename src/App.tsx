@@ -7,7 +7,10 @@ import { initializeLanguage } from './i18n/language-init'
 import { logger } from './lib/logger'
 import { cleanupOldFiles } from './lib/recovery'
 import { preloadShellEnv } from './services/shell-env'
-import { showUpdateNotification, isUpdateCheckDisabled } from './services/updater'
+import {
+  showUpdateNotification,
+  isUpdateCheckDisabled,
+} from './services/updater'
 import { commands } from './lib/tauri-bindings'
 import './App.css'
 import { MainWindow } from './components/layout/MainWindow'

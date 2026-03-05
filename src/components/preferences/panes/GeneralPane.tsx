@@ -219,13 +219,13 @@ export function GeneralPane() {
             <Switch
               id="auto-update-toggle"
               checked={!disableAutoUpdate}
-              onCheckedChange={checked => handleDisableAutoUpdateChange(!checked)}
+              onCheckedChange={checked =>
+                handleDisableAutoUpdateChange(!checked)
+              }
               disabled={savePreferences.isPending}
             />
             <Label htmlFor="auto-update-toggle" className="text-sm">
-              {!disableAutoUpdate
-                ? t('common.enabled')
-                : t('common.disabled')}
+              {!disableAutoUpdate ? t('common.enabled') : t('common.disabled')}
             </Label>
           </div>
         </SettingsField>
