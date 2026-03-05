@@ -1,0 +1,38 @@
+echo "🔍 Running pre-commit checks..."
+
+# Security audit - must pass
+echo ""
+echo "🔒 Checking for security vulnerabilities..."
+if ! npm audit --audit-level=moderate; then
+    echo "❌ Security audit failed!"
+    echo "💡 Run 'npm audit fix' to automatically fix issues"
+    exit 1
+fi
+
+# TypeScript type checking
+echo ""
+echo "📘 Running TypeScript type check..."
+if ! npm run typecheck; then
+    echo "❌ TypeScript type check failed!"
+    exit 1
+fi
+
+# ESLint
+echo ""
+echo "📏 Running ESLint..."
+if ! npm run lint; then
+    echo "❌ ESLint failed!"
+    exit 1
+fi
+
+# Prettier format check
+echo ""
+echo "💅 Running Prettier format check..."
+if ! npm run format:check; then
+    echo "❌ Prettier format check failed!"
+    echo "💡 Run 'npm run format' to fix formatting issues"
+    exit 1
+fi
+
+echo ""
+echo "✅ All pre-commit checks passed!"
