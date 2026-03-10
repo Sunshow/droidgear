@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/resizable-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { SecretInput } from '@/components/ui/secret-input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import {
@@ -280,9 +281,8 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
           {isApiKeyAuth ? (
             <div className="grid gap-2">
               <Label htmlFor="apiKey">{t('channels.apiKey')}</Label>
-              <Input
+              <SecretInput
                 id="apiKey"
-                type="password"
                 value={apiKey}
                 onChange={e => setApiKey(e.target.value)}
                 placeholder={
@@ -315,9 +315,8 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
 
               <div className="grid gap-2">
                 <Label htmlFor="password">{t('channels.password')}</Label>
-                <Input
+                <SecretInput
                   id="password"
-                  type="password"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder={

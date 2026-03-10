@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/resizable-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { SecretInput } from '@/components/ui/secret-input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -293,9 +294,8 @@ function ModelForm({
           <div className="grid gap-2">
             <Label htmlFor="apiKey">{t('models.apiKey')}</Label>
             <div className="flex gap-2">
-              <Input
+              <SecretInput
                 id="apiKey"
-                type="password"
                 value={apiKey}
                 onChange={e => setApiKey(e.target.value)}
                 placeholder="sk-..."

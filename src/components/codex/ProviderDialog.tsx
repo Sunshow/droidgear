@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { FolderInput } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { SecretInput } from '@/components/ui/secret-input'
 import { Label } from '@/components/ui/label'
 import {
   ResizableDialog,
@@ -209,12 +210,10 @@ function ProviderForm({
           {/* API Key */}
           <div className="space-y-2">
             <Label>{t('codex.provider.apiKey')}</Label>
-            <Input
-              type="password"
+            <SecretInput
               value={apiKey}
               onChange={e => setApiKey(e.target.value)}
               placeholder="sk-..."
-              autoComplete="off"
             />
             <p className="text-xs text-muted-foreground">
               {t('codex.provider.apiKeyHint')}

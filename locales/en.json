@@ -113,6 +113,8 @@
   "preferences.paths.restartNote": "Note: Changes to configuration paths may require restarting the application to take full effect.",
 
   "common.enabled": "Enabled",
+  "common.showSecret": "Show",
+  "common.hideSecret": "Hide",
   "common.disabled": "Disabled",
   "common.reset": "Reset",
   "common.cancel": "Cancel",

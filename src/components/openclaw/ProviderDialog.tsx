@@ -4,6 +4,7 @@ import { Plus, Trash2, Loader2, FolderInput } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { SecretInput } from '@/components/ui/secret-input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -318,8 +319,7 @@ function ProviderForm({
           <div className="space-y-2">
             <Label>{t('openclaw.provider.apiKey')}</Label>
             <div className="flex gap-2">
-              <Input
-                type="password"
+              <SecretInput
                 value={apiKey}
                 onChange={e => setApiKey(e.target.value)}
                 placeholder="${API_KEY}"

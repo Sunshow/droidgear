@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Loader2, CheckCircle, XCircle, FolderInput, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { SecretInput } from '@/components/ui/secret-input'
 import { Label } from '@/components/ui/label'
 import {
   ResizableDialog,
@@ -347,8 +348,7 @@ export function ProviderDialog({
             {/* API Key */}
             <div className="space-y-2">
               <Label>{t('opencode.provider.apiKey')}</Label>
-              <Input
-                type="password"
+              <SecretInput
                 value={apiKey}
                 onChange={e => setApiKey(e.target.value)}
                 placeholder="sk-ant-..."
