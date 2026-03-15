@@ -13,6 +13,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || github.event.inputs.version }}
 
 jobs:
   create-release:
@@ -28,7 +29,7 @@ jobs:
         id: changelog
         shell: bash
         run: |
-          VERSION="${{ github.ref_name || inputs.version }}"
+          VERSION="${RELEASE_TAG}"
           # Extract changelog for current version (between ## vX.Y.Z and next ## vX.Y.Z)
           # Use exact match with $ to prevent start line matching end pattern
           NOTES=$(sed -n "/^## ${VERSION}$/,/^## v[0-9]/p" CHANGELOG.md | sed '$d')
@@ -44,8 +45,8 @@ jobs:
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name || inputs.version }}
-          name: 'DroidGear ${{ github.ref_name || inputs.version }}'
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: 'DroidGear ${{ env.RELEASE_TAG }}'
           body: ${{ steps.changelog.outputs.notes }}
           draft: true
           prerelease: false
@@ -60,12 +61,16 @@ jobs:
         include:
           - platform: 'macos-latest'
             args: '--bundles app,dmg --target aarch64-apple-darwin'
+            target: 'aarch64-apple-darwin'
           - platform: 'macos-latest'
             args: '--bundles app,dmg --target x86_64-apple-darwin'
+            target: 'x86_64-apple-darwin'
           - platform: 'windows-latest'
             args: '--bundles msi --config src-tauri/tauri.windows.conf.json'
+            target: 'x86_64-pc-windows-msvc'
           - platform: 'ubuntu-22.04'
             args: '--bundles appimage'
+            target: 'x86_64-unknown-linux-gnu'
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -80,7 +85,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
+          targets: ${{ matrix.target }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -107,3 +112,51 @@ jobs:
           uploadUpdaterJson: true
           uploadPlainBinary: true
           args: ${{ matrix.args }}
+
+      - name: Build droidgear-tui
+        shell: bash
+        run: |
+          cd src-tauri
+          cargo build -p droidgear-tui --release --locked --target "${{ matrix.target }}"
+
+      - name: Package droidgear-tui (tar.gz)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          BIN="src-tauri/target/${{ matrix.target }}/release/droidgear-tui"
+          if [ ! -f "$BIN" ]; then
+            echo "Missing binary: $BIN" >&2
+            exit 1
+          fi
+
+          ASSET="droidgear-tui-${RELEASE_TAG}-${{ matrix.target }}.tar.gz"
+          tar -C "$(dirname "$BIN")" -czf "$ASSET" "$(basename "$BIN")"
+          echo "TUI_ASSET=$ASSET" >> "$GITHUB_ENV"
+
+      - name: Package droidgear-tui (zip)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $bin = "src-tauri/target/${{ matrix.target }}/release/droidgear-tui.exe"
+          if (-not (Test-Path $bin)) {
+            Write-Error "Missing binary: $bin"
+            exit 1
+          }
+
+          $asset = "droidgear-tui-$env:RELEASE_TAG-${{ matrix.target }}.zip"
+          $dir = Split-Path $bin
+          Push-Location $dir
+          Compress-Archive -Path "droidgear-tui.exe" -DestinationPath "$env:GITHUB_WORKSPACE\\$asset" -Force
+          Pop-Location
+          echo "TUI_ASSET=$asset" >> $env:GITHUB_ENV
+
+      - name: Upload droidgear-tui
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          draft: true
+          prerelease: false
+          fail_on_unmatched_files: true
+          files: ${{ env.TUI_ASSET }}
