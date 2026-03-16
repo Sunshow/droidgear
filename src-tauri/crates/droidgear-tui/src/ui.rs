@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
+    widgets::{Block, Borders, List, ListItem, ListState, Padding, Paragraph, Wrap},
     Frame,
 };
 use std::sync::OnceLock;
@@ -12,6 +12,7 @@ use std::sync::OnceLock;
 struct Theme {
     border: Color,
     title: Color,
+    key: Color,
     dim: Color,
     selection_bg: Color,
     selection_fg: Color,
@@ -27,6 +28,7 @@ impl Theme {
         Self {
             border: Color::Reset,
             title: Color::Reset,
+            key: Color::Reset,
             dim: Color::Reset,
             selection_bg: Color::Reset,
             selection_fg: Color::Reset,
@@ -44,6 +46,7 @@ impl Theme {
         let nord3 = Color::Rgb(0x4c, 0x56, 0x6a);
         let nord6 = Color::Rgb(0xec, 0xef, 0xf4);
         let nord8 = Color::Rgb(0x88, 0xc0, 0xd0);
+        let nord9 = Color::Rgb(0x81, 0xa1, 0xc1);
         let nord10 = Color::Rgb(0x5e, 0x81, 0xac);
         let nord11 = Color::Rgb(0xbf, 0x61, 0x6a);
         let nord13 = Color::Rgb(0xeb, 0xcb, 0x8b);
@@ -52,6 +55,7 @@ impl Theme {
         Self {
             border: nord3,
             title: nord8,
+            key: nord9,
             dim: nord3,
             selection_bg: nord10,
             selection_fg: nord6,
@@ -71,8 +75,20 @@ impl Theme {
         Style::default().fg(self.title).add_modifier(Modifier::BOLD)
     }
 
+    fn inactive_title_style(&self) -> Style {
+        Style::default().fg(self.dim).add_modifier(Modifier::BOLD)
+    }
+
+    fn key_style(&self) -> Style {
+        Style::default().fg(self.key).add_modifier(Modifier::BOLD)
+    }
+
     fn dim_style(&self) -> Style {
         Style::default().fg(self.dim)
+    }
+
+    fn placeholder_style(&self) -> Style {
+        self.dim_style().add_modifier(Modifier::DIM)
     }
 
     fn selected_style(&self) -> Style {
@@ -80,6 +96,20 @@ impl Theme {
             .fg(self.selection_fg)
             .bg(self.selection_bg)
             .add_modifier(self.selection_mod)
+    }
+
+    fn selected_row_style(&self) -> Style {
+        Style::default()
+            .bg(self.selection_bg)
+            .add_modifier(self.selection_mod)
+    }
+
+    fn focused_border_style(&self) -> Style {
+        Style::default().fg(self.title)
+    }
+
+    fn success_fg_style(&self) -> Style {
+        Style::default().fg(self.success)
     }
 
     fn success_style(&self) -> Style {
@@ -90,6 +120,10 @@ impl Theme {
 
     fn error_style(&self) -> Style {
         Style::default().fg(self.error).add_modifier(Modifier::BOLD)
+    }
+
+    fn warning_fg_style(&self) -> Style {
+        Style::default().fg(self.warning)
     }
 
     fn warning_style(&self) -> Style {
@@ -124,9 +158,128 @@ fn block<'a>(title: impl Into<ratatui::widgets::block::Title<'a>>) -> Block<'a> 
     let t = theme();
     Block::default()
         .borders(Borders::ALL)
+        .padding(Padding::horizontal(1))
         .title(title)
         .border_style(t.border_style())
         .title_style(t.title_style())
+}
+
+fn block_focus<'a>(
+    title: impl Into<ratatui::widgets::block::Title<'a>>,
+    focused: bool,
+) -> Block<'a> {
+    let t = theme();
+    if focused {
+        block(title)
+            .border_style(t.focused_border_style())
+            .title_style(t.title_style())
+    } else {
+        block(title).title_style(t.inactive_title_style())
+    }
+}
+
+fn help_block() -> Block<'static> {
+    Block::default()
+        .borders(Borders::NONE)
+        .padding(Padding::horizontal(1))
+}
+
+fn help_line(text: &str) -> Line<'static> {
+    let t = theme();
+    let mut spans: Vec<Span<'static>> = Vec::new();
+    for (i, seg) in text
+        .split("  ")
+        .filter(|s| !s.trim().is_empty())
+        .enumerate()
+    {
+        if i > 0 {
+            spans.push(Span::raw("  "));
+        }
+        if let Some((keys, desc)) = seg.split_once(':') {
+            spans.push(Span::styled(keys.trim().to_string(), t.key_style()));
+            spans.push(Span::raw(": "));
+            spans.push(Span::raw(desc.trim().to_string()));
+        } else {
+            spans.push(Span::raw(seg.to_string()));
+        }
+    }
+    Line::from(spans)
+}
+
+fn hint_line(text: &str) -> Line<'static> {
+    let t = theme();
+    let mut spans: Vec<Span<'static>> = Vec::new();
+    for (i, seg) in text
+        .split("  ")
+        .filter(|s| !s.trim().is_empty())
+        .enumerate()
+    {
+        if i > 0 {
+            spans.push(Span::styled("  ".to_string(), t.dim_style()));
+        }
+        if let Some((keys, desc)) = seg.split_once(':') {
+            spans.push(Span::styled(keys.trim().to_string(), t.key_style()));
+            spans.push(Span::styled(": ".to_string(), t.dim_style()));
+            spans.push(Span::styled(desc.trim().to_string(), t.dim_style()));
+        } else {
+            spans.push(Span::styled(seg.to_string(), t.dim_style()));
+        }
+    }
+    Line::from(spans)
+}
+
+fn help_paragraph(text: &str) -> Paragraph<'static> {
+    let t = theme();
+    Paragraph::new(vec![help_line(text)])
+        .style(t.dim_style())
+        .block(help_block())
+        .wrap(Wrap { trim: true })
+}
+
+fn is_placeholder_value(value: &str) -> bool {
+    let v = value.trim();
+    v.is_empty() || v == "-" || (v.starts_with('(') && v.ends_with(')'))
+}
+
+fn value_style_for(value: &str) -> Style {
+    let t = theme();
+    let v = value.trim().to_ascii_lowercase();
+    match v.as_str() {
+        "yes" | "on" | "enabled" => t.success_fg_style(),
+        "no" | "off" | "disabled" => t.warning_fg_style(),
+        _ if is_placeholder_value(value) => t.placeholder_style(),
+        _ => Style::default(),
+    }
+}
+
+fn field_line_custom(
+    label: &str,
+    value: &str,
+    label_width: usize,
+    custom_value_style: Option<Style>,
+) -> Line<'static> {
+    let t = theme();
+    Line::from(vec![
+        Span::styled(
+            format!("{label:>label_width$}:", label_width = label_width),
+            t.dim_style(),
+        ),
+        Span::raw(" "),
+        Span::styled(
+            value.to_string(),
+            custom_value_style.unwrap_or_else(|| value_style_for(value)),
+        ),
+    ])
+}
+
+fn field_line(label: &str, value: &str, label_width: usize) -> Line<'static> {
+    field_line_custom(label, value, label_width, None)
+}
+
+fn render_list<'a>(frame: &mut Frame, list: List<'a>, area: Rect, selected: Option<usize>) {
+    let mut state = ListState::default();
+    state.select(selected);
+    frame.render_stateful_widget(list, area, &mut state);
 }
 
 pub fn draw(frame: &mut Frame, app: &app::App) {
@@ -150,18 +303,14 @@ fn draw_nav(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
     let items: Vec<ListItem> = app::App::nav_items()
         .iter()
-        .enumerate()
-        .map(|(i, (label, _))| {
-            let mut style = Style::default();
-            if i == app.nav_index && app.screen == app::Screen::Main {
-                style = t.selected_style();
-            }
-            ListItem::new(Line::from(Span::styled(*label, style)))
-        })
+        .map(|(label, _)| ListItem::new(Line::from(*label)))
         .collect();
 
-    let list = List::new(items).block(block("DroidGear"));
-    frame.render_widget(list, area);
+    let selected = (app.screen == app::Screen::Main).then_some(app.nav_index);
+    let list = List::new(items)
+        .block(block("DroidGear"))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, list, area, selected);
 }
 
 fn draw_main(frame: &mut Frame, app: &app::App, area: Rect) {
@@ -195,10 +344,10 @@ fn draw_main(frame: &mut Frame, app: &app::App, area: Rect) {
 
 fn draw_home(frame: &mut Frame, area: Rect) {
     let text = vec![
-        Line::from("Enter: open module"),
-        Line::from("s: module picker"),
-        Line::from("Up/Down: navigate"),
-        Line::from("q: quit"),
+        help_line("Enter: open module"),
+        help_line("s: module picker"),
+        help_line("Up/Down: navigate"),
+        help_line("q: quit"),
     ];
     let p = Paragraph::new(text)
         .block(block("Home"))
@@ -208,6 +357,11 @@ fn draw_home(frame: &mut Frame, area: Rect) {
 
 fn draw_paths(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
+
     let mut lines: Vec<Line> = Vec::new();
     if let Some(paths) = app.paths.as_ref() {
         let entries = [
@@ -219,48 +373,48 @@ fn draw_paths(frame: &mut Frame, app: &app::App, area: Rect) {
         ];
         for (i, p) in entries.iter().enumerate() {
             let selected = i == app.paths_index;
-            let style = if selected {
-                t.selected_style()
-            } else {
-                Style::default()
-            };
             let default_tag = if p.is_default { "default" } else { "custom" };
+            let key_style = if selected { t.selected_style() } else { t.dim_style() };
+            let path_style = if selected { t.selected_style() } else { Style::default() };
             let tag_style = if selected {
                 t.selected_style()
+            } else if p.is_default {
+                t.placeholder_style()
             } else {
-                t.dim_style()
+                t.warning_fg_style()
             };
             lines.push(Line::from(vec![
-                Span::styled(format!("{:>10}: ", p.key), style),
-                Span::styled(p.path.clone(), style),
+                Span::styled(format!("{:>10}: ", p.key), key_style),
+                Span::styled(p.path.clone(), path_style),
                 Span::styled(format!("  [{default_tag}]"), tag_style),
             ]));
         }
     } else {
-        lines.push(Line::from("Failed to load paths"));
+        lines.push(Line::from(Span::styled(
+            "Failed to load paths",
+            t.error_style(),
+        )));
     }
-
-    lines.push(Line::from(""));
-    lines.push(Line::from(Span::styled(
-        "Enter/e: edit  x: reset  r: refresh  q/Esc: back",
-        t.dim_style(),
-    )));
 
     let p = Paragraph::new(lines)
         .block(block("Paths"))
         .wrap(Wrap { trim: false });
-    frame.render_widget(p, area);
+    frame.render_widget(p, chunks[0]);
+
+    let help = help_paragraph("Enter/e: edit  x: reset  r: refresh  q/Esc: back");
+    frame.render_widget(help, chunks[1]);
 }
 
 fn draw_factory(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
+
     let mut items: Vec<ListItem> = Vec::new();
     for (i, m) in app.custom_models.iter().enumerate() {
         let selected = i == app.factory_models_index;
-        let mut style = Style::default();
-        if selected {
-            style = t.selected_style();
-        }
         let name = m
             .display_name
             .as_deref()
@@ -274,15 +428,28 @@ fn draw_factory(frame: &mut Frame, app: &app::App, area: Rect) {
             .factory_default_model_id
             .as_deref()
             .is_some_and(|d| d == id);
-        let default_tag = if is_default { " *" } else { "" };
-        items.push(ListItem::new(Line::from(Span::styled(
-            format!("{name}  ({id}){default_tag}"),
-            style,
-        ))));
+        if selected {
+            let default_tag = if is_default { " *" } else { "" };
+            items.push(ListItem::new(Line::from(format!(
+                "{name}  ({id}){default_tag}"
+            ))));
+        } else {
+            let mut spans = Vec::new();
+            spans.push(Span::raw(name.to_string()));
+            spans.push(Span::raw("  "));
+            spans.push(Span::styled(format!("({id})"), t.dim_style()));
+            if is_default {
+                spans.push(Span::styled(" *".to_string(), t.success_style()));
+            }
+            items.push(ListItem::new(Line::from(spans)));
+        }
     }
 
     if items.is_empty() {
-        items.push(ListItem::new(Line::from("No custom models")));
+        items.push(ListItem::new(Line::from(Span::styled(
+            "No custom models",
+            t.placeholder_style(),
+        ))));
     }
 
     let title = match app.factory_default_model_id.as_deref() {
@@ -290,29 +457,25 @@ fn draw_factory(frame: &mut Frame, app: &app::App, area: Rect) {
         None => "Factory (default model: -)".to_string(),
     };
 
+    let selected = (!app.custom_models.is_empty()).then_some(app.factory_models_index);
     let list = List::new(items)
         .block(block(title))
-        .highlight_style(t.selected_style());
-    frame.render_widget(list, area);
+        .highlight_style(t.selected_row_style());
+    render_list(frame, list, chunks[0], selected);
 
-    let help = Paragraph::new(vec![Line::from(
+    let help = help_paragraph(
         "Up/Down: select  Enter/e: open  n: new  c: copy  x: delete  d: set default  E: raw edit  r: refresh  q/Esc: back",
-    )])
-    .style(t.dim_style())
-    .block(Block::default().borders(Borders::NONE));
-    let help_area = Rect {
-        x: area.x,
-        y: area.y + area.height.saturating_sub(2),
-        width: area.width,
-        height: 2,
-    };
-    frame.render_widget(help, help_area);
+    );
+    frame.render_widget(help, chunks[1]);
 }
 
 fn draw_factory_model(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
     let Some(draft) = app.factory_draft.as_ref() else {
-        let p = Paragraph::new(vec![Line::from("No model loaded")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "No model loaded",
+            t.warning_style(),
+        ))])
             .block(block("Factory Model"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
@@ -373,14 +536,17 @@ fn draw_factory_model(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let mut items: Vec<ListItem> = Vec::new();
     for (i, (label, value)) in fields.into_iter().enumerate() {
-        let mut style = Style::default();
-        if i == app.factory_model_field_index {
-            style = t.selected_style();
-        }
-        items.push(ListItem::new(Line::from(Span::styled(
-            format!("{label:>16}: {value}"),
-            style,
-        ))));
+        let selected = i == app.factory_model_field_index;
+        let line = if selected {
+            Line::from(format!("{label:>16}: {value}"))
+        } else {
+            let custom_style = match label {
+                "API Key" if value == "********" => Some(t.success_fg_style()),
+                _ => None,
+            };
+            field_line_custom(label, &value, 16, custom_style)
+        };
+        items.push(ListItem::new(line));
     }
 
     let chunks = Layout::default()
@@ -388,62 +554,75 @@ fn draw_factory_model(frame: &mut Frame, app: &app::App, area: Rect) {
         .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
         .split(area);
 
-    let list = List::new(items).block(block(title));
-    frame.render_widget(list, chunks[0]);
+    let list = List::new(items)
+        .block(block(title))
+        .highlight_style(t.selected_row_style());
+    render_list(
+        frame,
+        list,
+        chunks[0],
+        Some(app.factory_model_field_index),
+    );
 
-    let help = Paragraph::new(vec![Line::from(
-        "Up/Down: select  Enter/e: edit/toggle  s: save  q/Esc: back",
-    )])
-    .style(t.dim_style())
-    .block(Block::default().borders(Borders::NONE));
+    let help = help_paragraph("Up/Down: select  Enter/e: edit/toggle  s: save  q/Esc: back");
     frame.render_widget(help, chunks[1]);
 }
 
 fn draw_mcp(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
+
     let mut items: Vec<ListItem> = Vec::new();
     for (i, s) in app.mcp_servers.iter().enumerate() {
         let selected = i == app.mcp_index;
-        let mut style = Style::default();
+        let status = if s.config.disabled { "disabled" } else { "enabled" };
         if selected {
-            style = t.selected_style();
-        }
-        let status = if s.config.disabled {
-            "disabled"
+            items.push(ListItem::new(Line::from(format!(
+                "{}  [{status}]",
+                s.name
+            ))));
         } else {
-            "enabled"
-        };
-        items.push(ListItem::new(Line::from(Span::styled(
-            format!("{}  [{status}]", s.name),
-            style,
-        ))));
+            let status_style = if s.config.disabled {
+                t.warning_fg_style()
+            } else {
+                t.success_fg_style()
+            };
+            items.push(ListItem::new(Line::from(vec![
+                Span::raw(s.name.clone()),
+                Span::raw("  "),
+                Span::styled(format!("[{status}]"), status_style),
+            ])));
+        }
     }
     if items.is_empty() {
-        items.push(ListItem::new(Line::from("No MCP servers")));
+        items.push(ListItem::new(Line::from(Span::styled(
+            "No MCP servers",
+            t.placeholder_style(),
+        ))));
     }
+
+    let selected = (!app.mcp_servers.is_empty()).then_some(app.mcp_index);
     let list = List::new(items)
         .block(block("MCP"))
-        .highlight_style(t.selected_style());
-    frame.render_widget(list, area);
+        .highlight_style(t.selected_row_style());
+    render_list(frame, list, chunks[0], selected);
 
-    let help = Paragraph::new(vec![Line::from(
+    let help = help_paragraph(
         "Up/Down: select  Enter/e: open  n: new  t: toggle  d: delete  r: refresh  q/Esc: back",
-    )])
-    .style(t.dim_style())
-    .block(Block::default().borders(Borders::NONE));
-    let help_area = Rect {
-        x: area.x,
-        y: area.y + area.height.saturating_sub(2),
-        width: area.width,
-        height: 2,
-    };
-    frame.render_widget(help, help_area);
+    );
+    frame.render_widget(help, chunks[1]);
 }
 
 fn draw_mcp_server(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
     let Some(server) = app.mcp_edit_draft.as_ref() else {
-        let p = Paragraph::new(vec![Line::from("No server loaded")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "No server loaded",
+            t.warning_style(),
+        ))])
             .block(block("MCP Server"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
@@ -479,14 +658,21 @@ fn draw_mcp_server(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let mut items: Vec<ListItem> = Vec::new();
     for (i, (label, value)) in fields.into_iter().enumerate() {
-        let mut style = Style::default();
-        if i == app.mcp_edit_field_index {
-            style = t.selected_style();
-        }
-        items.push(ListItem::new(Line::from(Span::styled(
-            format!("{label:>16}: {value}"),
-            style,
-        ))));
+        let selected = i == app.mcp_edit_field_index;
+        let line = if selected {
+            Line::from(format!("{label:>16}: {value}"))
+        } else {
+            let custom_style = match label {
+                "Disabled" => Some(if value.trim() == "yes" {
+                    t.warning_fg_style()
+                } else {
+                    t.success_fg_style()
+                }),
+                _ => None,
+            };
+            field_line_custom(label, &value, 16, custom_style)
+        };
+        items.push(ListItem::new(line));
     }
 
     let chunks = Layout::default()
@@ -499,14 +685,12 @@ fn draw_mcp_server(frame: &mut Frame, app: &app::App, area: Rect) {
     } else {
         format!("MCP Server: {}", server.name)
     };
-    let list = List::new(items).block(block(title));
-    frame.render_widget(list, chunks[0]);
+    let list = List::new(items)
+        .block(block(title))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, list, chunks[0], Some(app.mcp_edit_field_index));
 
-    let help = Paragraph::new(vec![Line::from(
-        "Up/Down: select  Enter/e: edit/open/toggle  s: save  q/Esc: back",
-    )])
-    .style(t.dim_style())
-    .block(Block::default().borders(Borders::NONE));
+    let help = help_paragraph("Up/Down: select  Enter/e: edit/open/toggle  s: save  q/Esc: back");
     frame.render_widget(help, chunks[1]);
 }
 
@@ -520,15 +704,14 @@ fn draw_mcp_args(frame: &mut Frame, app: &app::App, area: Rect) {
         .unwrap_or_default();
 
     let mut items: Vec<ListItem> = Vec::new();
-    for (i, a) in args.iter().enumerate() {
-        let mut style = Style::default();
-        if i == app.mcp_args_index {
-            style = t.selected_style();
-        }
-        items.push(ListItem::new(Line::from(Span::styled(a.clone(), style))));
+    for a in args.iter() {
+        items.push(ListItem::new(Line::from(Span::raw(a.clone()))));
     }
     if items.is_empty() {
-        items.push(ListItem::new(Line::from("No args")));
+        items.push(ListItem::new(Line::from(Span::styled(
+            "No args",
+            t.placeholder_style(),
+        ))));
     }
 
     let chunks = Layout::default()
@@ -536,21 +719,23 @@ fn draw_mcp_args(frame: &mut Frame, app: &app::App, area: Rect) {
         .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
         .split(area);
 
-    let list = List::new(items).block(block("MCP Args"));
-    frame.render_widget(list, chunks[0]);
+    let selected = (!args.is_empty()).then_some(app.mcp_args_index);
+    let list = List::new(items)
+        .block(block("MCP Args"))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, list, chunks[0], selected);
 
-    let help = Paragraph::new(vec![Line::from(
-        "Up/Down: select  n: add  Enter/e: edit  x: delete  q/Esc: back",
-    )])
-    .style(t.dim_style())
-    .block(Block::default().borders(Borders::NONE));
+    let help = help_paragraph("Up/Down: select  n: add  Enter/e: edit  x: delete  q/Esc: back");
     frame.render_widget(help, chunks[1]);
 }
 
 fn draw_mcp_key_values(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
     let Some(server) = app.mcp_edit_draft.as_ref() else {
-        let p = Paragraph::new(vec![Line::from("No server loaded")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "No server loaded",
+            t.warning_style(),
+        ))])
             .block(block("MCP"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
@@ -568,17 +753,22 @@ fn draw_mcp_key_values(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let mut items: Vec<ListItem> = Vec::new();
     for (i, (k, v)) in entries.iter().enumerate() {
-        let mut style = Style::default();
-        if i == app.mcp_kv_index {
-            style = t.selected_style();
+        let selected = i == app.mcp_kv_index;
+        if selected {
+            items.push(ListItem::new(Line::from(format!("{k}={v}"))));
+        } else {
+            items.push(ListItem::new(Line::from(vec![
+                Span::styled(k.clone(), t.dim_style()),
+                Span::raw("="),
+                Span::styled(v.clone(), value_style_for(v)),
+            ])));
         }
-        items.push(ListItem::new(Line::from(Span::styled(
-            format!("{k}={v}"),
-            style,
-        ))));
     }
     if items.is_empty() {
-        items.push(ListItem::new(Line::from("No entries")));
+        items.push(ListItem::new(Line::from(Span::styled(
+            "No entries",
+            t.placeholder_style(),
+        ))));
     }
 
     let chunks = Layout::default()
@@ -586,14 +776,13 @@ fn draw_mcp_key_values(frame: &mut Frame, app: &app::App, area: Rect) {
         .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
         .split(area);
 
-    let list = List::new(items).block(block(title));
-    frame.render_widget(list, chunks[0]);
+    let selected = (!entries.is_empty()).then_some(app.mcp_kv_index);
+    let list = List::new(items)
+        .block(block(title))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, list, chunks[0], selected);
 
-    let help = Paragraph::new(vec![Line::from(
-        "Up/Down: select  n: add  Enter/e: edit  x: delete  q/Esc: back",
-    )])
-    .style(t.dim_style())
-    .block(Block::default().borders(Borders::NONE));
+    let help = help_paragraph("Up/Down: select  n: add  Enter/e: edit  x: delete  q/Esc: back");
     frame.render_widget(help, chunks[1]);
 }
 
@@ -648,7 +837,10 @@ fn draw_openclaw_profiles(frame: &mut Frame, app: &app::App, area: Rect) {
 fn draw_openclaw_profile(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
     let Some(profile) = app.openclaw_detail.as_ref() else {
-        let p = Paragraph::new(vec![Line::from("Failed to load profile")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Failed to load profile",
+            t.error_style(),
+        ))])
             .block(block("OpenClaw Profile"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
@@ -688,80 +880,99 @@ fn draw_openclaw_profile(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let mut field_items: Vec<ListItem> = Vec::new();
     for (i, (label, value)) in fields.into_iter().enumerate() {
-        let mut style = Style::default();
-        if app.openclaw_detail_focus == app::OpenClawProfileFocus::Fields
-            && i == app.openclaw_detail_field_index
-        {
-            style = t.selected_style();
-        }
-        field_items.push(ListItem::new(Line::from(Span::styled(
-            format!("{label:>14}: {value}"),
-            style,
-        ))));
+        let selected = app.openclaw_detail_focus == app::OpenClawProfileFocus::Fields
+            && i == app.openclaw_detail_field_index;
+        let line = if selected {
+            Line::from(format!("{label:>14}: {value}"))
+        } else {
+            field_line(label, &value, 14)
+        };
+        field_items.push(ListItem::new(line));
     }
-    let field_list =
-        List::new(field_items).block(block(format!("OpenClaw Profile: {}", profile.name)));
-    frame.render_widget(field_list, chunks[0]);
+    let field_selected = (app.openclaw_detail_focus == app::OpenClawProfileFocus::Fields)
+        .then_some(app.openclaw_detail_field_index);
+    let field_list = List::new(field_items)
+        .block(block_focus(
+            format!("OpenClaw Profile: {}", profile.name),
+            app.openclaw_detail_focus == app::OpenClawProfileFocus::Fields,
+        ))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, field_list, chunks[0], field_selected);
 
     let failovers = profile.failover_models.as_deref().unwrap_or(&[]);
     let mut failover_items: Vec<ListItem> = Vec::new();
-    for (i, r) in failovers.iter().enumerate() {
-        let mut style = Style::default();
-        if app.openclaw_detail_focus == app::OpenClawProfileFocus::Failover
-            && i == app.openclaw_detail_failover_index
-        {
-            style = t.selected_style();
-        }
-        failover_items.push(ListItem::new(Line::from(Span::styled(r.clone(), style))));
+    for r in failovers.iter() {
+        failover_items.push(ListItem::new(Line::from(Span::raw(r.clone()))));
     }
     if failover_items.is_empty() {
-        failover_items.push(ListItem::new(Line::from("No failover models")));
+        failover_items.push(ListItem::new(Line::from(Span::styled(
+            "No failover models",
+            t.placeholder_style(),
+        ))));
     }
-    let failover_list = List::new(failover_items).block(block("Failover Models (Tab to focus)"));
-    frame.render_widget(failover_list, chunks[1]);
+    let failover_list = List::new(failover_items).block(block_focus(
+        "Failover Models (Tab to focus)",
+        app.openclaw_detail_focus == app::OpenClawProfileFocus::Failover,
+    ));
+    let failover_selected =
+        (app.openclaw_detail_focus == app::OpenClawProfileFocus::Failover && !failovers.is_empty())
+            .then_some(app.openclaw_detail_failover_index);
+    let failover_list = failover_list.highlight_style(t.selected_row_style());
+    render_list(frame, failover_list, chunks[1], failover_selected);
 
     let mut provider_items: Vec<ListItem> = Vec::new();
-    for (i, pid) in app.openclaw_detail_provider_ids.iter().enumerate() {
-        let mut style = Style::default();
-        if app.openclaw_detail_focus == app::OpenClawProfileFocus::Providers
-            && i == app.openclaw_detail_provider_index
-        {
-            style = t.selected_style();
-        }
-        provider_items.push(ListItem::new(Line::from(Span::styled(pid.clone(), style))));
+    for pid in app.openclaw_detail_provider_ids.iter() {
+        provider_items.push(ListItem::new(Line::from(Span::raw(pid.clone()))));
     }
     if provider_items.is_empty() {
-        provider_items.push(ListItem::new(Line::from("No providers")));
+        provider_items.push(ListItem::new(Line::from(Span::styled(
+            "No providers",
+            t.placeholder_style(),
+        ))));
     }
-    let provider_list = List::new(provider_items).block(block("Providers (Tab to focus)"));
-    frame.render_widget(provider_list, chunks[2]);
+    let provider_list = List::new(provider_items).block(block_focus(
+        "Providers (Tab to focus)",
+        app.openclaw_detail_focus == app::OpenClawProfileFocus::Providers,
+    ));
+    let provider_selected = (app.openclaw_detail_focus == app::OpenClawProfileFocus::Providers
+        && !app.openclaw_detail_provider_ids.is_empty())
+    .then_some(app.openclaw_detail_provider_index);
+    let provider_list = provider_list.highlight_style(t.selected_row_style());
+    render_list(frame, provider_list, chunks[2], provider_selected);
 
-    let help = Paragraph::new(vec![Line::from(
+    let help = help_paragraph(
         "Tab: switch  Up/Down: move  Enter/e: edit/open  n: add  d: delete  l: load live  h: helpers  p: preview  a: apply  q/Esc: back",
-    )])
-    .style(t.dim_style())
-    .block(Block::default().borders(Borders::NONE));
+    );
     frame.render_widget(help, chunks[3]);
 }
 
 fn draw_openclaw_provider(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
     let Some(profile) = app.openclaw_detail.as_ref() else {
-        let p = Paragraph::new(vec![Line::from("Failed to load profile")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Failed to load profile",
+            t.error_style(),
+        ))])
             .block(block("OpenClaw Provider"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
         return;
     };
     let Some(provider_id) = app.openclaw_provider_id.as_deref() else {
-        let p = Paragraph::new(vec![Line::from("No provider selected")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "No provider selected",
+            t.warning_style(),
+        ))])
             .block(block("OpenClaw Provider"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
         return;
     };
     let Some(config) = profile.providers.get(provider_id) else {
-        let p = Paragraph::new(vec![Line::from("Provider not found")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Provider not found",
+            t.error_style(),
+        ))])
             .block(block("OpenClaw Provider"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
@@ -804,70 +1015,91 @@ fn draw_openclaw_provider(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let mut field_items: Vec<ListItem> = Vec::new();
     for (i, (label, value)) in provider_fields.into_iter().enumerate() {
-        let mut style = Style::default();
-        if app.openclaw_provider_focus == app::CodexDetailFocus::Fields
-            && i == app.openclaw_provider_field_index
-        {
-            style = t.selected_style();
-        }
-        field_items.push(ListItem::new(Line::from(Span::styled(
-            format!("{label:>14}: {value}"),
-            style,
-        ))));
+        let selected = app.openclaw_provider_focus == app::CodexDetailFocus::Fields
+            && i == app.openclaw_provider_field_index;
+        let line = if selected {
+            Line::from(format!("{label:>14}: {value}"))
+        } else {
+            let custom_style = match label {
+                "API Key" if value == "********" => Some(t.success_fg_style()),
+                _ => None,
+            };
+            field_line_custom(label, &value, 14, custom_style)
+        };
+        field_items.push(ListItem::new(line));
     }
-    let fields_list =
-        List::new(field_items).block(block(format!("OpenClaw Provider: {provider_id}")));
-    frame.render_widget(fields_list, chunks[0]);
+    let fields_list = List::new(field_items).block(block_focus(
+        format!("OpenClaw Provider: {provider_id}"),
+        app.openclaw_provider_focus == app::CodexDetailFocus::Fields,
+    ));
+    let fields_selected = (app.openclaw_provider_focus == app::CodexDetailFocus::Fields)
+        .then_some(app.openclaw_provider_field_index);
+    let fields_list = fields_list.highlight_style(t.selected_row_style());
+    render_list(frame, fields_list, chunks[0], fields_selected);
 
     let mut model_items: Vec<ListItem> = Vec::new();
-    for (i, m) in config.models.iter().enumerate() {
-        let mut style = Style::default();
-        if app.openclaw_provider_focus == app::CodexDetailFocus::Providers
-            && i == app.openclaw_provider_model_index
-        {
-            style = t.selected_style();
-        }
-        model_items.push(ListItem::new(Line::from(Span::styled(m.id.clone(), style))));
+    for m in config.models.iter() {
+        model_items.push(ListItem::new(Line::from(Span::raw(m.id.clone()))));
     }
     if model_items.is_empty() {
-        model_items.push(ListItem::new(Line::from("No models")));
+        model_items.push(ListItem::new(Line::from(Span::styled(
+            "No models",
+            t.placeholder_style(),
+        ))));
     }
-    let models_list = List::new(model_items).block(block("Models (Tab to focus)"));
-    frame.render_widget(models_list, chunks[1]);
+    let models_list = List::new(model_items).block(block_focus(
+        "Models (Tab to focus)",
+        app.openclaw_provider_focus == app::CodexDetailFocus::Providers,
+    ));
+    let models_selected = (app.openclaw_provider_focus == app::CodexDetailFocus::Providers
+        && !config.models.is_empty())
+    .then_some(app.openclaw_provider_model_index);
+    let models_list = models_list.highlight_style(t.selected_row_style());
+    render_list(frame, models_list, chunks[1], models_selected);
 
-    let help = Paragraph::new(vec![Line::from(
+    let help = help_paragraph(
         "Tab: switch  Up/Down: move  Enter/e: edit/open  n: add model  d: delete model  q/Esc: back",
-    )])
-    .style(t.dim_style())
-    .block(Block::default().borders(Borders::NONE));
+    );
     frame.render_widget(help, chunks[2]);
 }
 
 fn draw_openclaw_model(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
     let Some(profile) = app.openclaw_detail.as_ref() else {
-        let p = Paragraph::new(vec![Line::from("Failed to load profile")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Failed to load profile",
+            t.error_style(),
+        ))])
             .block(block("OpenClaw Model"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
         return;
     };
     let Some(provider_id) = app.openclaw_provider_id.as_deref() else {
-        let p = Paragraph::new(vec![Line::from("No provider selected")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "No provider selected",
+            t.warning_style(),
+        ))])
             .block(block("OpenClaw Model"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
         return;
     };
     let Some(provider) = profile.providers.get(provider_id) else {
-        let p = Paragraph::new(vec![Line::from("Provider not found")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Provider not found",
+            t.error_style(),
+        ))])
             .block(block("OpenClaw Model"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
         return;
     };
     let Some(model) = provider.models.get(app.openclaw_provider_model_index) else {
-        let p = Paragraph::new(vec![Line::from("Model not found")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Model not found",
+            t.error_style(),
+        ))])
             .block(block("OpenClaw Model"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
@@ -907,37 +1139,41 @@ fn draw_openclaw_model(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let mut items: Vec<ListItem> = Vec::new();
     for (i, (label, value)) in fields.into_iter().enumerate() {
-        let mut style = Style::default();
-        if i == app.openclaw_model_field_index {
-            style = t.selected_style();
-        }
-        items.push(ListItem::new(Line::from(Span::styled(
-            format!("{label:>14}: {value}"),
-            style,
-        ))));
+        let selected = i == app.openclaw_model_field_index;
+        let line = if selected {
+            Line::from(format!("{label:>14}: {value}"))
+        } else {
+            field_line(label, &value, 14)
+        };
+        items.push(ListItem::new(line));
     }
 
-    let list = List::new(items).block(block("OpenClaw Model"));
-    frame.render_widget(list, area);
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
 
-    let help_area = Rect {
-        x: area.x,
-        y: area.y + area.height.saturating_sub(2),
-        width: area.width,
-        height: 2,
-    };
-    let help = Paragraph::new(vec![Line::from(
-        "Up/Down: select  Enter/e: edit/toggle  q/Esc: back",
-    )])
-    .style(t.dim_style())
-    .block(Block::default().borders(Borders::NONE));
-    frame.render_widget(help, help_area);
+    let list = List::new(items)
+        .block(block("OpenClaw Model"))
+        .highlight_style(t.selected_row_style());
+    render_list(
+        frame,
+        list,
+        chunks[0],
+        Some(app.openclaw_model_field_index),
+    );
+
+    let help = help_paragraph("Up/Down: select  Enter/e: edit/toggle  q/Esc: back");
+    frame.render_widget(help, chunks[1]);
 }
 
 fn draw_openclaw_helpers(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
     let Some(profile) = app.openclaw_detail.as_ref() else {
-        let p = Paragraph::new(vec![Line::from("Failed to load profile")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Failed to load profile",
+            t.error_style(),
+        ))])
             .block(block("OpenClaw Helpers"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
@@ -987,37 +1223,43 @@ fn draw_openclaw_helpers(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let mut items: Vec<ListItem> = Vec::new();
     for (i, (label, value)) in fields.into_iter().enumerate() {
-        let mut style = Style::default();
-        if i == app.openclaw_helpers_field_index {
-            style = t.selected_style();
-        }
-        items.push(ListItem::new(Line::from(Span::styled(
-            format!("{label:>14}: {value}"),
-            style,
-        ))));
+        let selected = i == app.openclaw_helpers_field_index;
+        let line = if selected {
+            Line::from(format!("{label:>14}: {value}"))
+        } else {
+            field_line(label, &value, 14)
+        };
+        items.push(ListItem::new(line));
     }
 
-    let list = List::new(items).block(block("OpenClaw Helpers"));
-    frame.render_widget(list, area);
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
 
-    let help_area = Rect {
-        x: area.x,
-        y: area.y + area.height.saturating_sub(2),
-        width: area.width,
-        height: 2,
-    };
-    let help = Paragraph::new(vec![Line::from(
+    let list = List::new(items)
+        .block(block("OpenClaw Helpers"))
+        .highlight_style(t.selected_row_style());
+    render_list(
+        frame,
+        list,
+        chunks[0],
+        Some(app.openclaw_helpers_field_index),
+    );
+
+    let help = help_paragraph(
         "Up/Down: select  Enter/e: edit/toggle  x: reset defaults  q/Esc: back",
-    )])
-    .style(t.dim_style())
-    .block(Block::default().borders(Borders::NONE));
-    frame.render_widget(help, help_area);
+    );
+    frame.render_widget(help, chunks[1]);
 }
 
 fn draw_opencode_profile(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
     let Some(profile) = app.opencode_detail.as_ref() else {
-        let p = Paragraph::new(vec![Line::from("Failed to load profile")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Failed to load profile",
+            t.error_style(),
+        ))])
             .block(block("OpenCode Profile"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
@@ -1049,66 +1291,83 @@ fn draw_opencode_profile(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let mut lines: Vec<Line> = Vec::new();
     for (i, (label, value)) in fields.into_iter().enumerate() {
-        let mut style = Style::default();
-        if app.opencode_detail_focus == app::CodexDetailFocus::Fields
-            && i == app.opencode_detail_field_index
-        {
-            style = t.selected_style();
-        }
+        let selected = app.opencode_detail_focus == app::CodexDetailFocus::Fields
+            && i == app.opencode_detail_field_index;
+        let label_style = if selected { t.selected_style() } else { t.dim_style() };
+        let value_style = if selected {
+            t.selected_style()
+        } else {
+            value_style_for(&value)
+        };
         lines.push(Line::from(vec![
-            Span::styled(format!("{label:>16}: "), style),
-            Span::raw(value),
+            Span::styled(format!("{label:>16}: "), label_style),
+            Span::styled(value, value_style),
         ]));
     }
 
     let fields_block = Paragraph::new(lines)
-        .block(block(format!("OpenCode Profile: {}", profile.name)))
+        .block(block_focus(
+            format!("OpenCode Profile: {}", profile.name),
+            app.opencode_detail_focus == app::CodexDetailFocus::Fields,
+        ))
         .wrap(Wrap { trim: false });
     frame.render_widget(fields_block, chunks[0]);
 
     let mut provider_items: Vec<ListItem> = Vec::new();
-    for (i, pid) in app.opencode_detail_provider_ids.iter().enumerate() {
-        let mut style = Style::default();
-        if app.opencode_detail_focus == app::CodexDetailFocus::Providers
-            && i == app.opencode_detail_provider_index
-        {
-            style = t.selected_style();
-        }
-        provider_items.push(ListItem::new(Line::from(Span::styled(pid.clone(), style))));
+    for pid in app.opencode_detail_provider_ids.iter() {
+        provider_items.push(ListItem::new(Line::from(Span::raw(pid.clone()))));
     }
     if provider_items.is_empty() {
-        provider_items.push(ListItem::new(Line::from("No providers")));
+        provider_items.push(ListItem::new(Line::from(Span::styled(
+            "No providers",
+            t.placeholder_style(),
+        ))));
     }
 
-    let providers_list = List::new(provider_items).block(block("Providers (Tab to focus)"));
-    frame.render_widget(providers_list, chunks[1]);
+    let providers_selected = (app.opencode_detail_focus == app::CodexDetailFocus::Providers
+        && !app.opencode_detail_provider_ids.is_empty())
+    .then_some(app.opencode_detail_provider_index);
+    let providers_list = List::new(provider_items)
+        .block(block_focus(
+        "Providers (Tab to focus)",
+        app.opencode_detail_focus == app::CodexDetailFocus::Providers,
+    ))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, providers_list, chunks[1], providers_selected);
 
-    let help = Paragraph::new(vec![Line::from(
+    let help = help_paragraph(
         "Tab: switch  Up/Down: move  Enter/e: edit/open  n: add provider  d: delete provider  i: import live  p: preview  a: apply  q/Esc: back",
-    )])
-    .style(t.dim_style())
-    .block(Block::default().borders(Borders::NONE));
+    );
     frame.render_widget(help, chunks[2]);
 }
 
 fn draw_opencode_provider(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
     let Some(profile) = app.opencode_detail.as_ref() else {
-        let p = Paragraph::new(vec![Line::from("Failed to load profile")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Failed to load profile",
+            t.error_style(),
+        ))])
             .block(block("OpenCode Provider"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
         return;
     };
     let Some(provider_id) = app.opencode_provider_id.as_deref() else {
-        let p = Paragraph::new(vec![Line::from("No provider selected")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "No provider selected",
+            t.warning_style(),
+        ))])
             .block(block("OpenCode Provider"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
         return;
     };
     let Some(config) = profile.providers.get(provider_id) else {
-        let p = Paragraph::new(vec![Line::from("Provider not found")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Provider not found",
+            t.error_style(),
+        ))])
             .block(block("OpenCode Provider"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
@@ -1165,63 +1424,81 @@ fn draw_opencode_provider(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let mut field_items: Vec<ListItem> = Vec::new();
     for (i, (label, value)) in provider_fields.into_iter().enumerate() {
-        let mut style = Style::default();
-        if app.opencode_provider_focus == app::CodexDetailFocus::Fields
-            && i == app.opencode_provider_field_index
-        {
-            style = t.selected_style();
-        }
-        field_items.push(ListItem::new(Line::from(Span::styled(
-            format!("{label:>16}: {value}"),
-            style,
-        ))));
+        let selected = app.opencode_provider_focus == app::CodexDetailFocus::Fields
+            && i == app.opencode_provider_field_index;
+        let line = if selected {
+            Line::from(format!("{label:>16}: {value}"))
+        } else {
+            let custom_style = match label {
+                "API Key" if value == "********" => Some(t.success_fg_style()),
+                _ => None,
+            };
+            field_line_custom(label, &value, 16, custom_style)
+        };
+        field_items.push(ListItem::new(line));
     }
-    let fields_list =
-        List::new(field_items).block(block(format!("OpenCode Provider: {provider_id}")));
-    frame.render_widget(fields_list, chunks[0]);
+    let fields_list = List::new(field_items).block(block_focus(
+        format!("OpenCode Provider: {provider_id}"),
+        app.opencode_provider_focus == app::CodexDetailFocus::Fields,
+    ));
+    let fields_selected = (app.opencode_provider_focus == app::CodexDetailFocus::Fields)
+        .then_some(app.opencode_provider_field_index);
+    let fields_list = fields_list.highlight_style(t.selected_row_style());
+    render_list(frame, fields_list, chunks[0], fields_selected);
 
     let mut model_items: Vec<ListItem> = Vec::new();
-    for (i, mid) in app.opencode_provider_model_ids.iter().enumerate() {
-        let mut style = Style::default();
-        if app.opencode_provider_focus == app::CodexDetailFocus::Providers
-            && i == app.opencode_provider_model_index
-        {
-            style = t.selected_style();
-        }
-        model_items.push(ListItem::new(Line::from(Span::styled(mid.clone(), style))));
+    for mid in app.opencode_provider_model_ids.iter() {
+        model_items.push(ListItem::new(Line::from(Span::raw(mid.clone()))));
     }
     if model_items.is_empty() {
-        model_items.push(ListItem::new(Line::from("No models")));
+        model_items.push(ListItem::new(Line::from(Span::styled(
+            "No models",
+            t.placeholder_style(),
+        ))));
     }
-    let models_list = List::new(model_items).block(block("Models (Tab to focus)"));
-    frame.render_widget(models_list, chunks[1]);
+    let models_list = List::new(model_items).block(block_focus(
+        "Models (Tab to focus)",
+        app.opencode_provider_focus == app::CodexDetailFocus::Providers,
+    ));
+    let models_selected = (app.opencode_provider_focus == app::CodexDetailFocus::Providers
+        && !app.opencode_provider_model_ids.is_empty())
+    .then_some(app.opencode_provider_model_index);
+    let models_list = models_list.highlight_style(t.selected_row_style());
+    render_list(frame, models_list, chunks[1], models_selected);
 
-    let help = Paragraph::new(vec![Line::from(
+    let help = help_paragraph(
         "Tab: switch  Up/Down: move  Enter/e: edit/open  n: add model  d: delete model  q/Esc: back",
-    )])
-    .style(t.dim_style())
-    .block(Block::default().borders(Borders::NONE));
+    );
     frame.render_widget(help, chunks[2]);
 }
 
 fn draw_opencode_model(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
     let Some(profile) = app.opencode_detail.as_ref() else {
-        let p = Paragraph::new(vec![Line::from("Failed to load profile")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Failed to load profile",
+            t.error_style(),
+        ))])
             .block(block("OpenCode Model"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
         return;
     };
     let Some(provider_id) = app.opencode_provider_id.as_deref() else {
-        let p = Paragraph::new(vec![Line::from("No provider selected")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "No provider selected",
+            t.warning_style(),
+        ))])
             .block(block("OpenCode Model"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
         return;
     };
     let Some(model_id) = app.opencode_model_id.as_deref() else {
-        let p = Paragraph::new(vec![Line::from("No model selected")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "No model selected",
+            t.warning_style(),
+        ))])
             .block(block("OpenCode Model"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
@@ -1233,7 +1510,10 @@ fn draw_opencode_model(frame: &mut Frame, app: &app::App, area: Rect) {
         .and_then(|p| p.models.as_ref())
         .and_then(|m| m.get(model_id));
     let Some(model) = model else {
-        let p = Paragraph::new(vec![Line::from("Model not found")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Model not found",
+            t.error_style(),
+        ))])
             .block(block("OpenCode Model"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
@@ -1264,37 +1544,36 @@ fn draw_opencode_model(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let mut items: Vec<ListItem> = Vec::new();
     for (i, (label, value)) in fields.into_iter().enumerate() {
-        let mut style = Style::default();
-        if i == app.opencode_model_field_index {
-            style = t.selected_style();
-        }
-        items.push(ListItem::new(Line::from(Span::styled(
-            format!("{label:>16}: {value}"),
-            style,
-        ))));
+        let selected = i == app.opencode_model_field_index;
+        let line = if selected {
+            Line::from(format!("{label:>16}: {value}"))
+        } else {
+            field_line(label, &value, 16)
+        };
+        items.push(ListItem::new(line));
     }
 
-    let list = List::new(items).block(block(format!("OpenCode Model: {model_id}")));
-    frame.render_widget(list, area);
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
 
-    let help_area = Rect {
-        x: area.x,
-        y: area.y + area.height.saturating_sub(2),
-        width: area.width,
-        height: 2,
-    };
-    let help = Paragraph::new(vec![Line::from(
-        "Up/Down: select  Enter/e: edit  q/Esc: back",
-    )])
-    .style(t.dim_style())
-    .block(Block::default().borders(Borders::NONE));
-    frame.render_widget(help, help_area);
+    let list = List::new(items)
+        .block(block(format!("OpenCode Model: {model_id}")))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, list, chunks[0], Some(app.opencode_model_field_index));
+
+    let help = help_paragraph("Up/Down: select  Enter/e: edit  q/Esc: back");
+    frame.render_widget(help, chunks[1]);
 }
 
 fn draw_codex_profile(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
     let Some(profile) = app.codex_detail.as_ref() else {
-        let p = Paragraph::new(vec![Line::from("Failed to load profile")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Failed to load profile",
+            t.error_style(),
+        ))])
             .block(block("Codex Profile"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
@@ -1346,73 +1625,92 @@ fn draw_codex_profile(frame: &mut Frame, app: &app::App, area: Rect) {
     ];
 
     for (i, (label, value)) in fields.into_iter().enumerate() {
-        let mut style = Style::default();
-        if app.codex_detail_focus == app::CodexDetailFocus::Fields
-            && i == app.codex_detail_field_index
-        {
-            style = t.selected_style();
-        }
+        let selected =
+            app.codex_detail_focus == app::CodexDetailFocus::Fields && i == app.codex_detail_field_index;
+        let label_style = if selected { t.selected_style() } else { t.dim_style() };
+        let value_style = if selected {
+            t.selected_style()
+        } else if label == "API Key" && value == "********" {
+            t.success_fg_style()
+        } else {
+            value_style_for(&value)
+        };
         lines.push(Line::from(vec![
-            Span::styled(format!("{label:>16}: "), style),
-            Span::raw(value),
+            Span::styled(format!("{label:>16}: "), label_style),
+            Span::styled(value, value_style),
         ]));
     }
 
     let fields_block = Paragraph::new(lines)
-        .block(block(format!("Codex Profile: {}", profile.name)))
+        .block(block_focus(
+            format!("Codex Profile: {}", profile.name),
+            app.codex_detail_focus == app::CodexDetailFocus::Fields,
+        ))
         .wrap(Wrap { trim: false });
     frame.render_widget(fields_block, chunks[0]);
 
     let mut provider_items: Vec<ListItem> = Vec::new();
-    for (i, pid) in app.codex_detail_provider_ids.iter().enumerate() {
-        let mut style = Style::default();
-        if app.codex_detail_focus == app::CodexDetailFocus::Providers
-            && i == app.codex_detail_provider_index
-        {
-            style = t.selected_style();
-        }
-        let active_tag = if pid == &profile.model_provider {
-            " *"
+    for pid in app.codex_detail_provider_ids.iter() {
+        let active_tag = if pid == &profile.model_provider { " *" } else { "" };
+        if active_tag.is_empty() {
+            provider_items.push(ListItem::new(Line::from(Span::raw(pid.clone()))));
         } else {
-            ""
-        };
-        provider_items.push(ListItem::new(Line::from(Span::styled(
-            format!("{pid}{active_tag}"),
-            style,
-        ))));
+            provider_items.push(ListItem::new(Line::from(vec![
+                Span::raw(pid.clone()),
+                Span::styled(active_tag.to_string(), t.success_style()),
+            ])));
+        }
     }
     if provider_items.is_empty() {
-        provider_items.push(ListItem::new(Line::from("No providers")));
+        provider_items.push(ListItem::new(Line::from(Span::styled(
+            "No providers",
+            t.placeholder_style(),
+        ))));
     }
-    let providers_list = List::new(provider_items).block(block("Providers (Tab to focus)"));
-    frame.render_widget(providers_list, chunks[1]);
+    let providers_selected = (app.codex_detail_focus == app::CodexDetailFocus::Providers
+        && !app.codex_detail_provider_ids.is_empty())
+    .then_some(app.codex_detail_provider_index);
+    let providers_list = List::new(provider_items)
+        .block(block_focus(
+            "Providers (Tab to focus)",
+            app.codex_detail_focus == app::CodexDetailFocus::Providers,
+        ))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, providers_list, chunks[1], providers_selected);
 
-    let help = Paragraph::new(vec![Line::from(
+    let help = help_paragraph(
         "Tab: switch  Up/Down: move  Enter/e: edit/open  n: add provider  s: set active  d: delete provider  l: load live  p: preview  a: apply  q/Esc: back",
-    )])
-    .style(t.dim_style())
-    .block(Block::default().borders(Borders::NONE));
+    );
     frame.render_widget(help, chunks[2]);
 }
 
 fn draw_codex_provider(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
     let Some(profile) = app.codex_detail.as_ref() else {
-        let p = Paragraph::new(vec![Line::from("Failed to load profile")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Failed to load profile",
+            t.error_style(),
+        ))])
             .block(block("Codex Provider"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
         return;
     };
     let Some(provider_id) = app.codex_provider_id.as_deref() else {
-        let p = Paragraph::new(vec![Line::from("No provider selected")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "No provider selected",
+            t.warning_style(),
+        ))])
             .block(block("Codex Provider"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
         return;
     };
     let Some(config) = profile.providers.get(provider_id) else {
-        let p = Paragraph::new(vec![Line::from("Provider not found")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Provider not found",
+            t.error_style(),
+        ))])
             .block(block("Codex Provider"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
@@ -1458,143 +1756,171 @@ fn draw_codex_provider(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let mut items: Vec<ListItem> = Vec::new();
     for (i, (label, value)) in fields.into_iter().enumerate() {
-        let mut style = Style::default();
-        if i == app.codex_provider_field_index {
-            style = t.selected_style();
-        }
-        items.push(ListItem::new(Line::from(Span::styled(
-            format!("{label:>16}: {value}"),
-            style,
-        ))));
+        let selected = i == app.codex_provider_field_index;
+        let line = if selected {
+            Line::from(format!("{label:>16}: {value}"))
+        } else {
+            let custom_style = match label {
+                "API Key" if value == "********" => Some(t.success_fg_style()),
+                _ => None,
+            };
+            field_line_custom(label, &value, 16, custom_style)
+        };
+        items.push(ListItem::new(line));
     }
 
-    let list = List::new(items).block(block(format!("Codex Provider: {provider_id}")));
-    frame.render_widget(list, chunks[0]);
+    let list = List::new(items)
+        .block(block(format!("Codex Provider: {provider_id}")))
+        .highlight_style(t.selected_row_style());
+    render_list(
+        frame,
+        list,
+        chunks[0],
+        Some(app.codex_provider_field_index),
+    );
 
-    let help = Paragraph::new(vec![Line::from(
-        "Up/Down: select  Enter/e: edit  q/Esc: back",
-    )])
-    .style(t.dim_style())
-    .block(Block::default().borders(Borders::NONE));
+    let help = help_paragraph("Up/Down: select  Enter/e: edit  q/Esc: back");
     frame.render_widget(help, chunks[1]);
 }
 
 fn draw_sessions(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
+
     let mut items: Vec<ListItem> = Vec::new();
     for (i, s) in app.sessions.iter().enumerate() {
         let selected = i == app.sessions_index;
-        let mut style = Style::default();
         if selected {
-            style = t.selected_style();
+            items.push(ListItem::new(Line::from(vec![
+                Span::raw(s.title.clone()),
+                Span::raw("  "),
+                Span::raw(format!("[{}]", s.project)),
+                Span::raw("  "),
+                Span::styled(s.model.clone(), t.key_style()),
+            ])));
+        } else {
+            items.push(ListItem::new(Line::from(vec![
+                Span::raw(s.title.clone()),
+                Span::raw("  "),
+                Span::styled(format!("[{}]", s.project), t.dim_style()),
+                Span::raw("  "),
+                Span::styled(s.model.clone(), t.key_style()),
+            ])));
         }
-        items.push(ListItem::new(Line::from(Span::styled(
-            format!("{}  [{}]  {}", s.title, s.project, s.model),
-            style,
-        ))));
     }
     if items.is_empty() {
-        items.push(ListItem::new(Line::from("No sessions")));
+        items.push(ListItem::new(Line::from(Span::styled(
+            "No sessions",
+            t.placeholder_style(),
+        ))));
     }
 
+    let selected = (!app.sessions.is_empty()).then_some(app.sessions_index);
     let list = List::new(items)
         .block(block("Sessions"))
-        .highlight_style(t.selected_style());
-    frame.render_widget(list, area);
+        .highlight_style(t.selected_row_style());
+    render_list(frame, list, chunks[0], selected);
 
-    let help = Paragraph::new(vec![Line::from(
-        "Up/Down: select  Enter/v: view  d: delete  r: refresh  q/Esc: back",
-    )])
-    .style(t.dim_style())
-    .block(Block::default().borders(Borders::NONE));
-    let help_area = Rect {
-        x: area.x,
-        y: area.y + area.height.saturating_sub(2),
-        width: area.width,
-        height: 2,
-    };
-    frame.render_widget(help, help_area);
+    let help = help_paragraph("Up/Down: select  Enter/v: view  d: delete  r: refresh  q/Esc: back");
+    frame.render_widget(help, chunks[1]);
 }
 
 fn draw_specs(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
+
     let mut items: Vec<ListItem> = Vec::new();
-    for (i, s) in app.specs.iter().enumerate() {
-        let selected = i == app.specs_index;
-        let mut style = Style::default();
-        if selected {
-            style = t.selected_style();
-        }
-        items.push(ListItem::new(Line::from(Span::styled(
-            s.name.clone(),
-            style,
-        ))));
+    for s in app.specs.iter() {
+        items.push(ListItem::new(Line::from(Span::raw(s.name.clone()))));
     }
     if items.is_empty() {
-        items.push(ListItem::new(Line::from("No specs")));
+        items.push(ListItem::new(Line::from(Span::styled(
+            "No specs",
+            t.placeholder_style(),
+        ))));
     }
 
+    let selected = (!app.specs.is_empty()).then_some(app.specs_index);
     let list = List::new(items)
         .block(block("Specs"))
-        .highlight_style(t.selected_style());
-    frame.render_widget(list, area);
+        .highlight_style(t.selected_row_style());
+    render_list(frame, list, chunks[0], selected);
 
-    let help = Paragraph::new(vec![Line::from(
-        "Up/Down: select  Enter/e: edit  d: delete  r: refresh  q/Esc: back",
-    )])
-    .style(t.dim_style())
-    .block(Block::default().borders(Borders::NONE));
-    let help_area = Rect {
-        x: area.x,
-        y: area.y + area.height.saturating_sub(2),
-        width: area.width,
-        height: 2,
-    };
-    frame.render_widget(help, help_area);
+    let help = help_paragraph("Up/Down: select  Enter/e: edit  d: delete  r: refresh  q/Esc: back");
+    frame.render_widget(help, chunks[1]);
 }
 
 fn draw_channels(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
+
     let mut items: Vec<ListItem> = Vec::new();
     for (i, c) in app.channels.iter().enumerate() {
         let selected = i == app.channels_index;
-        let mut style = Style::default();
-        if selected {
-            style = t.selected_style();
-        }
         let enabled = if c.enabled { "on" } else { "off" };
-        items.push(ListItem::new(Line::from(Span::styled(
-            format!("{}  [{}]  {}", c.name, enabled, c.base_url),
-            style,
-        ))));
+        if selected {
+            let enabled_style = if c.enabled {
+                t.success_fg_style()
+            } else {
+                t.warning_fg_style()
+            };
+            items.push(ListItem::new(Line::from(vec![
+                Span::raw(c.name.clone()),
+                Span::raw("  "),
+                Span::styled(format!("[{enabled}]"), enabled_style),
+                Span::raw("  "),
+                Span::raw(c.base_url.clone()),
+            ])));
+        } else {
+            let enabled_style = if c.enabled {
+                t.success_fg_style()
+            } else {
+                t.warning_fg_style()
+            };
+            items.push(ListItem::new(Line::from(vec![
+                Span::raw(c.name.clone()),
+                Span::raw("  "),
+                Span::styled(format!("[{enabled}]"), enabled_style),
+                Span::raw("  "),
+                Span::styled(c.base_url.clone(), t.dim_style()),
+            ])));
+        }
     }
     if items.is_empty() {
-        items.push(ListItem::new(Line::from("No channels")));
+        items.push(ListItem::new(Line::from(Span::styled(
+            "No channels",
+            t.placeholder_style(),
+        ))));
     }
 
+    let selected = (!app.channels.is_empty()).then_some(app.channels_index);
     let list = List::new(items)
         .block(block("Channels"))
-        .highlight_style(t.selected_style());
-    frame.render_widget(list, area);
+        .highlight_style(t.selected_row_style());
+    render_list(frame, list, chunks[0], selected);
 
-    let help = Paragraph::new(vec![Line::from(
+    let help = help_paragraph(
         "Up/Down: select  Enter/e: open  n: new  t: toggle  d: delete  E: raw list  A: raw auth  r: refresh  q/Esc: back",
-    )])
-    .style(t.dim_style())
-    .block(Block::default().borders(Borders::NONE));
-    let help_area = Rect {
-        x: area.x,
-        y: area.y + area.height.saturating_sub(2),
-        width: area.width,
-        height: 2,
-    };
-    frame.render_widget(help, help_area);
+    );
+    frame.render_widget(help, chunks[1]);
 }
 
 fn draw_channels_edit(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
     let Some(channel) = app.channels_edit_draft.as_ref() else {
-        let p = Paragraph::new(vec![Line::from("No channel loaded")])
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "No channel loaded",
+            t.warning_style(),
+        ))])
             .block(block("Channel"))
             .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
@@ -1649,14 +1975,17 @@ fn draw_channels_edit(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let mut items: Vec<ListItem> = Vec::new();
     for (i, (label, value)) in fields.into_iter().enumerate() {
-        let mut style = Style::default();
-        if i == app.channels_edit_field_index {
-            style = t.selected_style();
-        }
-        items.push(ListItem::new(Line::from(Span::styled(
-            format!("{label:>16}: {value}"),
-            style,
-        ))));
+        let selected = i == app.channels_edit_field_index;
+        let line = if selected {
+            Line::from(format!("{label:>16}: {value}"))
+        } else {
+            let custom_style = match label {
+                "API Key" | "Password" if value == "********" => Some(t.success_fg_style()),
+                _ => None,
+            };
+            field_line_custom(label, &value, 16, custom_style)
+        };
+        items.push(ListItem::new(line));
     }
 
     let chunks = Layout::default()
@@ -1669,14 +1998,17 @@ fn draw_channels_edit(frame: &mut Frame, app: &app::App, area: Rect) {
     } else {
         format!("Channel: {}", channel.name)
     };
-    let list = List::new(items).block(block(title));
-    frame.render_widget(list, chunks[0]);
+    let list = List::new(items)
+        .block(block(title))
+        .highlight_style(t.selected_row_style());
+    render_list(
+        frame,
+        list,
+        chunks[0],
+        Some(app.channels_edit_field_index),
+    );
 
-    let help = Paragraph::new(vec![Line::from(
-        "Up/Down: select  Enter/e: edit/toggle  s: save  q/Esc: back",
-    )])
-    .style(t.dim_style())
-    .block(Block::default().borders(Borders::NONE));
+    let help = help_paragraph("Up/Down: select  Enter/e: edit/toggle  s: save  q/Esc: back");
     frame.render_widget(help, chunks[1]);
 }
 
@@ -1690,42 +2022,40 @@ fn draw_profile_list<'a>(
     help_text: &str,
 ) {
     let t = theme();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
+
+    let mut has_profiles = false;
     let mut items: Vec<ListItem> = Vec::new();
-    for (i, (name, id)) in profiles.enumerate() {
-        let selected = i == selected_index;
-        let mut style = Style::default();
-        if selected {
-            style = t.selected_style();
-        }
-        let active_tag = if active_id.is_some_and(|a| a == id) {
-            " *"
+    for (name, id) in profiles {
+        has_profiles = true;
+        let active_tag = active_id.is_some_and(|a| a == id).then_some(" *").unwrap_or("");
+        if active_tag.is_empty() {
+            items.push(ListItem::new(Line::from(Span::raw(name.to_string()))));
         } else {
-            ""
-        };
-        items.push(ListItem::new(Line::from(Span::styled(
-            format!("{name}{active_tag}"),
-            style,
-        ))));
+            items.push(ListItem::new(Line::from(vec![
+                Span::raw(name.to_string()),
+                Span::styled(active_tag.to_string(), t.success_style()),
+            ])));
+        }
     }
     if items.is_empty() {
-        items.push(ListItem::new(Line::from("No profiles")));
+        items.push(ListItem::new(Line::from(Span::styled(
+            "No profiles",
+            t.placeholder_style(),
+        ))));
     }
 
+    let selected = has_profiles.then_some(selected_index);
     let list = List::new(items)
         .block(block(title))
-        .highlight_style(t.selected_style());
-    frame.render_widget(list, area);
+        .highlight_style(t.selected_row_style());
+    render_list(frame, list, chunks[0], selected);
 
-    let help = Paragraph::new(vec![Line::from(help_text)])
-        .style(t.dim_style())
-        .block(Block::default().borders(Borders::NONE));
-    let help_area = Rect {
-        x: area.x,
-        y: area.y + area.height.saturating_sub(2),
-        width: area.width,
-        height: 2,
-    };
-    frame.render_widget(help, help_area);
+    let help = help_paragraph(help_text);
+    frame.render_widget(help, chunks[1]);
 }
 
 fn draw_modal(frame: &mut Frame, modal: &app::Modal) {
@@ -1736,7 +2066,7 @@ fn draw_modal(frame: &mut Frame, modal: &app::Modal) {
             let text = vec![
                 Line::from(message.as_str()),
                 Line::from(""),
-                Line::from(Span::styled("y/Enter: yes    n/Esc: no", t.dim_style())),
+                hint_line("y/Enter: yes  n/Esc: no"),
             ];
             let block = block("Confirm")
                 .border_style(t.warning_style())
@@ -1761,10 +2091,7 @@ fn draw_modal(frame: &mut Frame, modal: &app::Modal) {
             let text = vec![
                 Line::from(body),
                 Line::from(""),
-                Line::from(Span::styled(
-                    "Type, Backspace, Enter to confirm, Esc to cancel",
-                    t.dim_style(),
-                )),
+                hint_line("Backspace: delete  Enter: confirm  Esc: cancel"),
             ];
             let block = block(title.as_str());
             let p = Paragraph::new(text)
@@ -1792,10 +2119,7 @@ fn draw_modal(frame: &mut Frame, modal: &app::Modal) {
                 }
             }
             lines.push(Line::from(""));
-            lines.push(Line::from(Span::styled(
-                "Up/Down: select    Enter: confirm    Esc: cancel",
-                t.dim_style(),
-            )));
+            lines.push(hint_line("Up/Down: select  Enter: confirm  Esc: cancel"));
             let block = block(title.as_str());
             let p = Paragraph::new(lines)
                 .block(block)
