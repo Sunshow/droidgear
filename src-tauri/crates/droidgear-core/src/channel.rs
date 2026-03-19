@@ -362,7 +362,7 @@ pub async fn fetch_channel_tokens(
     password: &str,
 ) -> Result<Vec<ChannelToken>, String> {
     match channel_type {
-        ChannelType::NewApi => fetch_new_api_tokens(base_url, username, password).await,
+        ChannelType::NewApi => fetch_new_api_keys(base_url, username, password).await,
         ChannelType::Sub2Api => fetch_sub2api_tokens(base_url, username, password).await,
         ChannelType::CliProxyApi | ChannelType::Ollama | ChannelType::General => {
             Ok(vec![ChannelToken {
@@ -380,7 +380,7 @@ pub async fn fetch_channel_tokens(
     }
 }
 
-async fn fetch_new_api_tokens(
+async fn fetch_new_api_keys(
     base_url: &str,
     username: &str,
     password: &str,
@@ -427,18 +427,18 @@ async fn fetch_new_api_tokens(
         .ok_or("Could not get user id from login response")?;
 
     // Fetch tokens with pagination
-    let keys_url = format!("{base}/api/key");
+    let keys_url = format!("{base}/api/token");
     let page_size: usize = 100;
-    let mut all_tokens: Vec<ChannelToken> = Vec::new();
+    let mut all_keys: Vec<ChannelToken> = Vec::new();
     let mut page: usize = 1;
 
     loop {
         let response = client
             .get(&keys_url)
+            .header("New-Api-User", user_id.to_string())
             .query(&[
                 ("p", page.to_string()),
                 ("size", page_size.to_string()),
-                ("user_id", user_id.to_string()),
             ])
             .send()
             .await
@@ -455,37 +455,73 @@ async fn fetch_new_api_tokens(
             .await
             .map_err(|e| format!("Failed to parse response: {e}"))?;
 
-        let tokens: Vec<ChannelToken> = data
+        let items: Vec<Value> = data
             .get("data")
             .and_then(|d| d.get("items"))
             .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|t| {
-                        Some(ChannelToken {
-                            id: t.get("id")?.as_f64()?,
-                            name: t.get("name")?.as_str()?.to_string(),
-                            key: t.get("key")?.as_str()?.to_string(),
-                            status: t.get("status")?.as_i64()? as i32,
-                            remain_quota: t
-                                .get("remain_quota")
-                                .and_then(|v| v.as_f64())
-                                .unwrap_or(0.0),
-                            used_quota: t.get("used_quota").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                            unlimited_quota: t
-                                .get("unlimited_quota")
-                                .and_then(|v| v.as_bool())
-                                .unwrap_or(false),
-                            platform: None,
-                            group_name: None,
-                        })
-                    })
-                    .collect()
-            })
+            .cloned()
             .unwrap_or_default();
 
-        let count = tokens.len();
-        all_tokens.extend(tokens);
+        let count = items.len();
+
+        for t in &items {
+            let token_id = match t.get("id").and_then(|v| v.as_i64()) {
+                Some(id) => id,
+                None => continue,
+            };
+
+            // Fetch unmasked key via POST /api/token/{id}/key
+            let raw_key = match client
+                .post(format!("{base}/api/token/{token_id}/key"))
+                .header("New-Api-User", user_id.to_string())
+                .send()
+                .await
+            {
+                Ok(resp) if resp.status().is_success() => {
+                    resp.json::<Value>()
+                        .await
+                        .ok()
+                        .and_then(|v| v.get("data").and_then(|d| d.get("key")).and_then(|k| k.as_str()).map(String::from))
+                }
+                _ => None,
+            };
+
+            let key = match raw_key {
+                Some(k) if k.starts_with("sk-") => k,
+                Some(k) => format!("sk-{k}"),
+                None => {
+                    // Fallback to masked key from list
+                    match t.get("key").and_then(|v| v.as_str()) {
+                        Some(k) if k.starts_with("sk-") => k.to_string(),
+                        Some(k) => format!("sk-{k}"),
+                        None => continue,
+                    }
+                }
+            };
+
+            if let (Some(name), Some(status)) = (
+                t.get("name").and_then(|v| v.as_str()),
+                t.get("status").and_then(|v| v.as_i64()),
+            ) {
+                all_keys.push(ChannelToken {
+                    id: token_id as f64,
+                    name: name.to_string(),
+                    key,
+                    status: status as i32,
+                    remain_quota: t
+                        .get("remain_quota")
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(0.0),
+                    used_quota: t.get("used_quota").and_then(|v| v.as_f64()).unwrap_or(0.0),
+                    unlimited_quota: t
+                        .get("unlimited_quota")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false),
+                    platform: None,
+                    group_name: None,
+                });
+            }
+        }
 
         if count < page_size {
             break;
@@ -493,7 +529,7 @@ async fn fetch_new_api_tokens(
         page += 1;
     }
 
-    Ok(all_tokens)
+    Ok(all_keys)
 }
 
 async fn fetch_sub2api_tokens(

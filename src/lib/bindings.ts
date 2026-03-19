@@ -481,7 +481,6 @@ async getShellEnv() : Promise<Result<Partial<{ [key in string]: string }>, strin
 },
 /**
  * Lists all spec files from ~/.factory/specs directory.
- * Returns files sorted by modification time (newest first).
  */
 async listSpecs() : Promise<Result<SpecFile[], string>> {
     try {
@@ -537,7 +536,6 @@ async updateSpec(path: string, content: string) : Promise<Result<SpecFile, strin
 },
 /**
  * Starts watching the specs directory for changes.
- * Emits "specs-changed" event when files are added, modified, or removed.
  */
 async startSpecsWatcher() : Promise<Result<null, string>> {
     try {
@@ -603,7 +601,7 @@ async toggleMcpServer(name: string, disabled: boolean) : Promise<Result<null, st
 }
 },
 /**
- * 列出所有 Codex Profiles
+ * List all Codex profiles
  */
 async listCodexProfiles() : Promise<Result<CodexProfile[], string>> {
     try {
@@ -614,7 +612,7 @@ async listCodexProfiles() : Promise<Result<CodexProfile[], string>> {
 }
 },
 /**
- * 获取指定 Profile
+ * Get a profile by ID
  */
 async getCodexProfile(id: string) : Promise<Result<CodexProfile, string>> {
     try {
@@ -625,7 +623,7 @@ async getCodexProfile(id: string) : Promise<Result<CodexProfile, string>> {
 }
 },
 /**
- * 保存 Profile（新建或更新）
+ * Save a profile (create or update)
  */
 async saveCodexProfile(profile: CodexProfile) : Promise<Result<null, string>> {
     try {
@@ -636,7 +634,7 @@ async saveCodexProfile(profile: CodexProfile) : Promise<Result<null, string>> {
 }
 },
 /**
- * 删除 Profile
+ * Delete a profile
  */
 async deleteCodexProfile(id: string) : Promise<Result<null, string>> {
     try {
@@ -647,7 +645,7 @@ async deleteCodexProfile(id: string) : Promise<Result<null, string>> {
 }
 },
 /**
- * 复制 Profile
+ * Duplicate a profile
  */
 async duplicateCodexProfile(id: string, newName: string) : Promise<Result<CodexProfile, string>> {
     try {
@@ -658,7 +656,7 @@ async duplicateCodexProfile(id: string, newName: string) : Promise<Result<CodexP
 }
 },
 /**
- * 创建默认 Profile（当无 Profile 时调用）
+ * Create default profile (when no profiles exist)
  */
 async createDefaultCodexProfile() : Promise<Result<CodexProfile, string>> {
     try {
@@ -669,7 +667,7 @@ async createDefaultCodexProfile() : Promise<Result<CodexProfile, string>> {
 }
 },
 /**
- * 读取 active Profile ID
+ * Get active profile ID
  */
 async getActiveCodexProfileId() : Promise<Result<string | null, string>> {
     try {
@@ -680,10 +678,7 @@ async getActiveCodexProfileId() : Promise<Result<string | null, string>> {
 }
 },
 /**
- * 应用指定 Profile 到 `~/.codex/*`
- * 
- * 只替换 config.toml 中的模型相关配置（model_provider, model, model_reasoning_effort,
- * [model_providers]），保留其他所有配置（projects, network_access 等）。
+ * Apply a profile to `~/.codex/*`
  */
 async applyCodexProfile(id: string) : Promise<Result<null, string>> {
     try {
@@ -694,7 +689,7 @@ async applyCodexProfile(id: string) : Promise<Result<null, string>> {
 }
 },
 /**
- * 获取 Codex Live 配置状态（文件是否存在及路径）
+ * Get Codex config status
  */
 async getCodexConfigStatus() : Promise<Result<CodexConfigStatus, string>> {
     try {
@@ -705,7 +700,7 @@ async getCodexConfigStatus() : Promise<Result<CodexConfigStatus, string>> {
 }
 },
 /**
- * 读取当前 `~/.codex/*` 配置（解析 providers 和 model selection）
+ * Read current Codex configuration from config files
  */
 async readCodexCurrentConfig() : Promise<Result<CodexCurrentConfig, string>> {
     try {
@@ -716,7 +711,7 @@ async readCodexCurrentConfig() : Promise<Result<CodexCurrentConfig, string>> {
 }
 },
 /**
- * List all profiles
+ * List all OpenCode profiles
  */
 async listOpencodeProfiles() : Promise<Result<OpenCodeProfile[], string>> {
     try {
@@ -727,7 +722,7 @@ async listOpencodeProfiles() : Promise<Result<OpenCodeProfile[], string>> {
 }
 },
 /**
- * Get a single profile by ID
+ * Get a profile by ID
  */
 async getOpencodeProfile(id: string) : Promise<Result<OpenCodeProfile, string>> {
     try {
@@ -738,7 +733,7 @@ async getOpencodeProfile(id: string) : Promise<Result<OpenCodeProfile, string>> 
 }
 },
 /**
- * Save a profile
+ * Save a profile (create or update)
  */
 async saveOpencodeProfile(profile: OpenCodeProfile) : Promise<Result<null, string>> {
     try {
@@ -793,8 +788,7 @@ async getActiveOpencodeProfileId() : Promise<Result<string | null, string>> {
 }
 },
 /**
- * Apply a profile to OpenCode config files (merge write)
- * Supports both .json and .jsonc files, preferring .jsonc when both exist
+ * Apply a profile to OpenCode config files
  */
 async applyOpencodeProfile(id: string) : Promise<Result<null, string>> {
     try {
@@ -806,7 +800,6 @@ async applyOpencodeProfile(id: string) : Promise<Result<null, string>> {
 },
 /**
  * Get OpenCode config status
- * Returns actual file paths, preferring .jsonc over .json when both exist
  */
 async getOpencodeConfigStatus() : Promise<Result<OpenCodeConfigStatus, string>> {
     try {
@@ -840,8 +833,6 @@ async testOpencodeProviderConnection(providerId: string, baseUrl: string, apiKey
 },
 /**
  * Read current OpenCode configuration from config files
- * Returns providers from opencode.json/jsonc and auth from auth.json/jsonc
- * Also extracts apiKey from provider.options.apiKey if auth.json doesn't have it
  */
 async readOpencodeCurrentConfig() : Promise<Result<OpenCodeCurrentConfig, string>> {
     try {
@@ -852,7 +843,7 @@ async readOpencodeCurrentConfig() : Promise<Result<OpenCodeCurrentConfig, string
 }
 },
 /**
- * List all OpenClaw Profiles
+ * List all OpenClaw profiles
  */
 async listOpenclawProfiles() : Promise<Result<OpenClawProfile[], string>> {
     try {
@@ -863,7 +854,7 @@ async listOpenclawProfiles() : Promise<Result<OpenClawProfile[], string>> {
 }
 },
 /**
- * Get a single profile by ID
+ * Get a profile by ID
  */
 async getOpenclawProfile(id: string) : Promise<Result<OpenClawProfile, string>> {
     try {
@@ -908,7 +899,6 @@ async duplicateOpenclawProfile(id: string, newName: string) : Promise<Result<Ope
 },
 /**
  * Create default profile (when no profiles exist)
- * If openclaw.json exists, initialize profile from its content
  */
 async createDefaultOpenclawProfile() : Promise<Result<OpenClawProfile, string>> {
     try {
