@@ -617,7 +617,7 @@
   "opencode.provider.noProvidersToImport": "配置中未找到 Provider",
   "opencode.provider.importCount": "导入 ({{count}})",
   "opencode.provider.importSuccess": "Provider 导入成功",
-  "opencode.provider.importFromChannel": "从 Channel 导入",
+  "opencode.provider.importFromChannel": "从渠道导入",
   "opencode.provider.models": "模型",
   "opencode.provider.addModel": "添加模型",
   "opencode.provider.editModel": "编辑模型",
@@ -713,7 +713,7 @@
   "codex.provider.apiKeyConfigured": "已配置 API Key",
   "codex.provider.apiKeyNotConfigured": "未配置 API Key",
   "codex.provider.setActive": "设为激活",
-  "codex.provider.importFromChannel": "从 Channel 导入",
+  "codex.provider.importFromChannel": "从渠道导入",
 
   "codex.auth.title": "认证",
   "codex.auth.apiKey": "OPENAI_API_KEY",
@@ -808,7 +808,7 @@
   "openclaw.provider.load": "读取",
   "openclaw.provider.loadFromConfig": "从配置文件读取",
   "openclaw.provider.modelsRequired": "请至少添加一个模型",
-  "openclaw.provider.importFromChannel": "从 Channel 导入",
+  "openclaw.provider.importFromChannel": "从渠道导入",
   "openclaw.defaultModel.required": "请先选择默认模型",
 
   "openclaw.configStatus.title": "配置状态",
