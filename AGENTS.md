@@ -31,6 +31,7 @@ Tauri v2 + React 19 desktop app. Uses npm (NOT pnpm), TypeScript strict mode, Zu
 6. **Tauri v2 docs only** — v1 patterns are incompatible
 7. **No unsolicited commits** — Only when explicitly requested
 8. **Use `rm -f`** when removing files
+9. **GUI/TUI parity** — When implementing a new GUI feature, synchronously implement the corresponding TUI version
 
 ## Version Requirements
 
