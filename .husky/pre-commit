@@ -34,5 +34,23 @@ if ! npm run format:check; then
     exit 1
 fi
 
+# Rust format check
+echo ""
+echo "🦀 Running Rust format check..."
+if ! npm run rust:fmt:check; then
+    echo "❌ Rust format check failed!"
+    echo "💡 Run 'npm run rust:fmt' to fix formatting issues"
+    exit 1
+fi
+
+# Rust clippy
+echo ""
+echo "📎 Running Rust clippy..."
+if ! npm run rust:clippy; then
+    echo "❌ Rust clippy failed!"
+    echo "💡 Run 'npm run rust:clippy:fix' to fix some issues automatically"
+    exit 1
+fi
+
 echo ""
 echo "✅ All pre-commit checks passed!"

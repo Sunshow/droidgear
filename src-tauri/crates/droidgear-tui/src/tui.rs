@@ -2758,7 +2758,9 @@ fn openclaw_reset_helpers(app: &mut app::App, profile_id: &str) -> anyhow::Resul
     Ok(())
 }
 
-fn openclaw_subagent_allowed_ids(subagents: &[droidgear_core::openclaw::OpenClawSubAgent]) -> std::collections::HashSet<String> {
+fn openclaw_subagent_allowed_ids(
+    subagents: &[droidgear_core::openclaw::OpenClawSubAgent],
+) -> std::collections::HashSet<String> {
     subagents
         .iter()
         .find(|a| a.id == "main")
@@ -2770,13 +2772,21 @@ fn openclaw_subagent_allowed_ids(subagents: &[droidgear_core::openclaw::OpenClaw
 
 fn handle_openclaw_subagents_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
     // Filter non-main subagents for navigation
-    let non_main: Vec<_> = app.openclaw_subagents.iter().filter(|a| a.id != "main").collect();
+    let non_main: Vec<_> = app
+        .openclaw_subagents
+        .iter()
+        .filter(|a| a.id != "main")
+        .collect();
     let allowed = openclaw_subagent_allowed_ids(&app.openclaw_subagents);
 
     match code {
         KeyCode::Esc | KeyCode::Char('q') => app.screen = app::Screen::OpenClawProfile,
-        KeyCode::Down => app.openclaw_subagents_index = app.openclaw_subagents_index.saturating_add(1),
-        KeyCode::Up => app.openclaw_subagents_index = app.openclaw_subagents_index.saturating_sub(1),
+        KeyCode::Down => {
+            app.openclaw_subagents_index = app.openclaw_subagents_index.saturating_add(1)
+        }
+        KeyCode::Up => {
+            app.openclaw_subagents_index = app.openclaw_subagents_index.saturating_sub(1)
+        }
         KeyCode::Char('r') => refresh_openclaw_subagents(app),
         KeyCode::Char('n') => {
             app.modal = Some(app::Modal::Input {
@@ -2875,15 +2885,8 @@ fn handle_openclaw_subagent_detail_key(app: &mut app::App, code: KeyCode) -> Opt
                 });
             }
             3 => {
-                let options = vec![
-                    "full".to_string(),
-                    "read".to_string(),
-                    "none".to_string(),
-                ];
-                let current = agent
-                    .tools
-                    .as_ref()
-                    .and_then(|t| t.profile.as_deref());
+                let options = vec!["full".to_string(), "read".to_string(), "none".to_string()];
+                let current = agent.tools.as_ref().and_then(|t| t.profile.as_deref());
                 let index = current
                     .and_then(|v| options.iter().position(|o| o == v))
                     .unwrap_or(0);
@@ -2914,9 +2917,8 @@ fn openclaw_update_subagent(
     id: &str,
     updater: impl FnOnce(&mut droidgear_core::openclaw::OpenClawSubAgent),
 ) -> anyhow::Result<()> {
-    let mut subagents =
-        droidgear_core::openclaw::read_openclaw_subagents_for_home(&app.home_dir)
-            .map_err(anyhow::Error::msg)?;
+    let mut subagents = droidgear_core::openclaw::read_openclaw_subagents_for_home(&app.home_dir)
+        .map_err(anyhow::Error::msg)?;
     if let Some(agent) = subagents.iter_mut().find(|a| a.id == id) {
         updater(agent);
     }
@@ -2926,11 +2928,8 @@ fn openclaw_update_subagent(
     // Update detail if viewing
     if let Some(detail) = app.openclaw_subagent_detail.as_ref() {
         if detail.id == id {
-            app.openclaw_subagent_detail = app
-                .openclaw_subagents
-                .iter()
-                .find(|a| a.id == id)
-                .cloned();
+            app.openclaw_subagent_detail =
+                app.openclaw_subagents.iter().find(|a| a.id == id).cloned();
         }
     }
     Ok(())
@@ -4125,11 +4124,8 @@ fn run_select_action(
             // Update detail if viewing
             if let Some(detail) = app.openclaw_subagent_detail.as_ref() {
                 if detail.id == id {
-                    app.openclaw_subagent_detail = app
-                        .openclaw_subagents
-                        .iter()
-                        .find(|a| a.id == id)
-                        .cloned();
+                    app.openclaw_subagent_detail =
+                        app.openclaw_subagents.iter().find(|a| a.id == id).cloned();
                 }
             }
             Ok(())
@@ -4362,12 +4358,12 @@ fn run_confirm_action(app: &mut app::App, action: app::ConfirmAction) -> anyhow:
             let has_main = subagents.iter().any(|a| a.id == "main");
             if has_main {
                 if let Some(main) = subagents.iter_mut().find(|a| a.id == "main") {
-                    let sa = main.subagents.get_or_insert_with(|| {
+                    let sa = main.subagents.get_or_insert(
                         droidgear_core::openclaw::OpenClawSubAgentSubagentsConfig {
                             allow_agents: None,
                             max_concurrent: None,
-                        }
-                    });
+                        },
+                    );
                     let allows = sa.allow_agents.get_or_insert_with(Vec::new);
                     if allows.contains(&id) {
                         allows.retain(|a| a != &id);
@@ -5637,12 +5633,12 @@ fn run_input_action(
             subagents.push(agent);
             // Auto-add to main's allowAgents
             if let Some(main) = subagents.iter_mut().find(|a| a.id == "main") {
-                let sa = main.subagents.get_or_insert_with(|| {
+                let sa = main.subagents.get_or_insert(
                     droidgear_core::openclaw::OpenClawSubAgentSubagentsConfig {
                         allow_agents: None,
                         max_concurrent: None,
-                    }
-                });
+                    },
+                );
                 let allows = sa.allow_agents.get_or_insert_with(Vec::new);
                 if !allows.contains(&id) {
                     allows.push(id);
@@ -5669,12 +5665,12 @@ fn run_input_action(
                 } else {
                     Some(value.trim().to_string())
                 };
-                let identity = agent.identity.get_or_insert_with(|| {
+                let identity = agent.identity.get_or_insert(
                     droidgear_core::openclaw::OpenClawSubAgentIdentity {
                         emoji: None,
                         name: None,
-                    }
-                });
+                    },
+                );
                 identity.emoji = emoji;
             })
         }
@@ -5685,12 +5681,13 @@ fn run_input_action(
                 } else {
                     Some(value.trim().to_string())
                 };
-                let model = agent.model.get_or_insert_with(|| {
-                    droidgear_core::openclaw::OpenClawSubAgentModel {
-                        primary: None,
-                        fallbacks: None,
-                    }
-                });
+                let model =
+                    agent
+                        .model
+                        .get_or_insert(droidgear_core::openclaw::OpenClawSubAgentModel {
+                            primary: None,
+                            fallbacks: None,
+                        });
                 model.primary = primary;
             })
         }
