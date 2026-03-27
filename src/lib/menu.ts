@@ -10,11 +10,11 @@ import {
   Submenu,
   PredefinedMenuItem,
 } from '@tauri-apps/api/menu'
-import { check } from '@tauri-apps/plugin-updater'
 import i18n from '@/i18n/config'
 import { useUIStore } from '@/store/ui-store'
 import { logger } from '@/lib/logger'
 import { notifications } from '@/lib/notifications'
+import { checkForUpdate, showUpdateNotification } from '@/services/updater'
 
 const APP_NAME = 'DroidGear'
 
@@ -147,13 +147,9 @@ function handleAbout(): void {
 async function handleCheckForUpdates(): Promise<void> {
   logger.info('Check for Updates menu item clicked')
   try {
-    const update = await check()
+    const update = await checkForUpdate()
     if (update) {
-      notifications.info(
-        'Update Available',
-        `Version ${update.version} is available` +
-          (update.body ? `\n\n${update.body}` : '')
-      )
+      showUpdateNotification(update, { force: true })
     } else {
       notifications.success('Up to Date', 'You are running the latest version')
     }

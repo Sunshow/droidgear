@@ -16,3 +16,4 @@ pub mod preferences;
 pub mod recovery;
 pub mod sessions;
 pub mod specs;
+pub mod updater;

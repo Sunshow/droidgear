@@ -92,15 +92,33 @@ vi.mock('@tauri-apps/plugin-updater', () => ({
   check: vi.fn().mockResolvedValue(null),
 }))
 
+vi.mock('@tauri-apps/plugin-opener', () => ({
+  openUrl: vi.fn().mockResolvedValue(undefined),
+}))
+
+vi.mock('@tauri-apps/plugin-process', () => ({
+  relaunch: vi.fn().mockResolvedValue(undefined),
+}))
+
 // Mock typed Tauri bindings (tauri-specta generated)
 vi.mock('@/lib/tauri-bindings', () => ({
   commands: {
     greet: vi.fn().mockResolvedValue('Hello, test!'),
+    getAppVersion: vi.fn().mockResolvedValue('0.5.3'),
     loadPreferences: vi
       .fn()
       .mockResolvedValue({ status: 'ok', data: { theme: 'system' } }),
     savePreferences: vi.fn().mockResolvedValue({ status: 'ok', data: null }),
     sendNativeNotification: vi
+      .fn()
+      .mockResolvedValue({ status: 'ok', data: null }),
+    getUpdateChannel: vi
+      .fn()
+      .mockResolvedValue({ status: 'ok', data: 'managed' }),
+    checkPortableUpdate: vi
+      .fn()
+      .mockResolvedValue({ status: 'ok', data: null }),
+    installPortableUpdate: vi
       .fn()
       .mockResolvedValue({ status: 'ok', data: null }),
     saveEmergencyData: vi.fn().mockResolvedValue({ status: 'ok', data: null }),

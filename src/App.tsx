@@ -1,5 +1,4 @@
 import { useEffect } from 'react'
-import { check } from '@tauri-apps/plugin-updater'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { initializeCommandSystem } from './lib/commands'
 import { buildAppMenu, setupMenuLanguageListener } from './lib/menu'
@@ -8,6 +7,7 @@ import { logger } from './lib/logger'
 import { cleanupOldFiles } from './lib/recovery'
 import { preloadShellEnv } from './services/shell-env'
 import {
+  checkForUpdate,
   showUpdateNotification,
   isUpdateCheckDisabled,
 } from './services/updater'
@@ -108,7 +108,7 @@ function App() {
       }
 
       try {
-        const update = await check()
+        const update = await checkForUpdate()
         if (update) {
           logger.info(`Update available: ${update.version}`)
           showUpdateNotification(update)

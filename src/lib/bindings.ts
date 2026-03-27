@@ -1150,6 +1150,30 @@ async buildWslPath(distro: string, username: string, configKey: string) : Promis
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async getUpdateChannel() : Promise<Result<UpdateChannel, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_update_channel") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async checkPortableUpdate() : Promise<Result<PortableUpdateInfo | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("check_portable_update") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async installPortableUpdate(update: PortableUpdateInfo) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("install_portable_update", { update }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -1482,6 +1506,7 @@ export type OpenCodeProviderConfig = { npm?: string | null; name?: string | null
  * OpenCode Provider options
  */
 export type OpenCodeProviderOptions = { baseURL?: string | null; apiKey?: string | null; timeout?: number | null; headers?: Partial<{ [key in string]: string }> | null }
+export type PortableUpdateInfo = { version: string; body: string | null; pubDate: string | null; url: string; signature: string; sha256: string; releaseUrl: string }
 /**
  * Provider types supported by Factory BYOK
  */
@@ -1602,6 +1627,7 @@ export type TelegramChannelConfig = { blockStreaming?: boolean | null; chunkMode
  * Token usage statistics
  */
 export type TokenUsage = { inputTokens: number; outputTokens: number; cacheCreationTokens: number; cacheReadTokens: number; thinkingTokens: number }
+export type UpdateChannel = "managed" | "portable"
 /**
  * WSL distribution info
  */

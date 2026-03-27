@@ -18,6 +18,8 @@ export type OpenClawSubView = 'providers' | 'helpers' | 'subagents'
 export interface PendingUpdate {
   version: string
   body?: string
+  channel: 'managed' | 'portable'
+  releaseUrl: string
 }
 
 interface UIState {

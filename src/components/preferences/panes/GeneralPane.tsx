@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
-import { check } from '@tauri-apps/plugin-updater'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -10,9 +9,10 @@ import { commands } from '@/lib/tauri-bindings'
 import { logger } from '@/lib/logger'
 import { useUIStore } from '@/store/ui-store'
 import {
-  getCachedUpdate,
-  setCachedUpdate,
+  checkForUpdate,
   downloadAndInstallUpdate,
+  hasCachedUpdate,
+  hydratePendingUpdate,
 } from '@/services/updater'
 import { usePreferences, useSavePreferences } from '@/services/preferences'
 
@@ -56,20 +56,16 @@ export function GeneralPane() {
   const handleCheckForUpdates = async () => {
     setUpdateStatus('checking')
     setUpdateError(null)
-    setHasUpdate(false)
 
     try {
-      const update = await check()
+      const update = await checkForUpdate()
       if (update) {
         setHasUpdate(true)
-        setCachedUpdate(update)
-        // Also update global store
-        useUIStore.getState().setPendingUpdate({
-          version: update.version,
-          body: update.body ?? undefined,
-        })
+        useUIStore.getState().setPendingUpdate(update)
         logger.info('Update available', { version: update.version })
       } else {
+        useUIStore.getState().clearPendingUpdate()
+        setHasUpdate(false)
         logger.info('No updates available')
       }
     } catch (error) {
@@ -82,13 +78,17 @@ export function GeneralPane() {
     }
   }
 
-  // When there's a pending update, check if we have the cached Update object
+  // When there's a pending update, ensure we still have its cached metadata
   useEffect(() => {
+    if (!pendingUpdate) {
+      hasAutoChecked.current = false
+      setHasUpdate(false)
+      return
+    }
+
     const fetchUpdate = async () => {
-      if (pendingUpdate && !hasAutoChecked.current) {
-        // Check if we already have the cached update
-        const cached = getCachedUpdate()
-        if (cached && cached.version === pendingUpdate.version) {
+      if (!hasAutoChecked.current) {
+        if (hasCachedUpdate(pendingUpdate)) {
           setHasUpdate(true)
           return
         }
@@ -102,16 +102,14 @@ export function GeneralPane() {
         setUpdateError(null)
 
         try {
-          const update = await check()
+          const update = await hydratePendingUpdate(pendingUpdate)
           if (update) {
             setHasUpdate(true)
-            setCachedUpdate(update)
-            useUIStore.getState().setPendingUpdate({
-              version: update.version,
-              body: update.body ?? undefined,
-            })
+            useUIStore.getState().setPendingUpdate(update)
             logger.info('Update available', { version: update.version })
           } else {
+            useUIStore.getState().clearPendingUpdate()
+            setHasUpdate(false)
             logger.info('No updates available')
           }
         } catch (error) {
@@ -128,8 +126,8 @@ export function GeneralPane() {
     fetchUpdate()
   }, [pendingUpdate])
 
-  const handleDownloadAndInstall = async () => {
-    downloadAndInstallUpdate()
+  const handleDownloadAndInstall = () => {
+    void downloadAndInstallUpdate()
   }
 
   return (

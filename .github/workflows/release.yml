@@ -114,6 +114,59 @@ jobs:
           uploadPlainBinary: true
           args: ${{ matrix.args }}
 
+      - name: Package portable updater assets
+        if: runner.os == 'Windows'
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_PRIVATE_KEY_PASSWORD }}
+        run: |
+          $bin = "src-tauri/target/${{ matrix.target }}/release/droidgear.exe"
+          if (-not (Test-Path $bin)) {
+            Write-Error "Missing binary: $bin"
+            exit 1
+          }
+
+          $portableAsset = "droidgear_windows_x64.exe"
+          $portableAssetPath = Join-Path $env:GITHUB_WORKSPACE $portableAsset
+          Copy-Item $bin $portableAssetPath -Force
+
+          $tauri = Join-Path $env:GITHUB_WORKSPACE "node_modules\.bin\tauri.cmd"
+          if (-not (Test-Path $tauri)) {
+            Write-Error "Missing Tauri CLI: $tauri"
+            exit 1
+          }
+
+          $signatureLines = & $tauri signer sign $portableAssetPath
+          if (-not $?) {
+            Write-Error "Failed to sign portable asset"
+            exit 1
+          }
+          $signature = ($signatureLines -join "`n")
+
+          $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+          $sigPath = Join-Path $env:GITHUB_WORKSPACE "$portableAsset.sig"
+          [System.IO.File]::WriteAllText($sigPath, $signature, $utf8NoBom)
+
+          $signatureBase64 = [Convert]::ToBase64String($utf8NoBom.GetBytes($signature))
+          $sha256 = (Get-FileHash $portableAssetPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $version = $env:RELEASE_TAG.TrimStart('v')
+          $manifestPath = Join-Path $env:GITHUB_WORKSPACE "latest-portable.json"
+          $manifest = @{
+            version = $version
+            notes = ""
+            pub_date = (Get-Date).ToUniversalTime().ToString("o")
+            url = "https://github.com/${{ github.repository }}/releases/latest/download/$portableAsset"
+            signature = $signatureBase64
+            sha256 = $sha256
+            release_url = "https://github.com/${{ github.repository }}/releases/tag/$env:RELEASE_TAG"
+          } | ConvertTo-Json -Depth 4
+
+          [System.IO.File]::WriteAllText($manifestPath, $manifest, $utf8NoBom)
+
+          gh release upload "$env:RELEASE_TAG" $portableAssetPath $sigPath $manifestPath --clobber
+
       - name: Build droidgear-tui
         shell: bash
         run: |

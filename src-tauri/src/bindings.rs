@@ -3,7 +3,7 @@ use tauri_specta::{collect_commands, Builder};
 pub fn generate_bindings() -> Builder<tauri::Wry> {
     use crate::commands::{
         channel, codex, config, env, mcp, notifications, openclaw, opencode, paths, preferences,
-        recovery, sessions, specs,
+        recovery, sessions, specs, updater,
     };
 
     Builder::<tauri::Wry>::new().commands(collect_commands![
@@ -111,6 +111,9 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         paths::get_wsl_info,
         paths::get_wsl_username,
         paths::build_wsl_path,
+        updater::get_update_channel,
+        updater::check_portable_update,
+        updater::install_portable_update,
     ])
 }
 

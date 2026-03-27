@@ -1239,16 +1239,20 @@ dependencies = [
 name = "droidgear"
 version = "0.5.3"
 dependencies = [
+ "base64 0.22.1",
  "chrono",
  "dirs 5.0.1",
  "droidgear-core",
  "json_comments",
  "log",
+ "minisign-verify",
  "notify",
  "regex",
  "reqwest",
+ "semver",
  "serde",
  "serde_json",
+ "sha2",
  "specta",
  "specta-typescript",
  "tauri",
