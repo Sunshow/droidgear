@@ -86,7 +86,7 @@ export function ChannelModelPicker({
   const [prefix, setPrefix] = useState('')
   const [suffix, setSuffix] = useState('')
   const [batchMaxTokens, setBatchMaxTokens] = useState('')
-  const [batchSupportsImages, setBatchSupportsImages] = useState(false)
+  const [batchNoImageSupport, setBatchNoImageSupport] = useState(false)
 
   const enabledChannels = channels.filter(ch => ch.enabled)
   const selectedChannel = enabledChannels.find(
@@ -207,7 +207,7 @@ export function ChannelModelPicker({
       provider,
       displayName,
       maxOutputTokens,
-      supportsImages: batchSupportsImages || undefined,
+      noImageSupport: batchNoImageSupport || undefined,
     }
   }
 
@@ -384,14 +384,14 @@ export function ChannelModelPicker({
             </div>
             <div className="flex items-end gap-2 pb-2">
               <Checkbox
-                id="picker-supports-images"
-                checked={batchSupportsImages}
+                id="picker-no-image-support"
+                checked={batchNoImageSupport}
                 onCheckedChange={checked =>
-                  setBatchSupportsImages(checked === true)
+                  setBatchNoImageSupport(checked === true)
                 }
               />
-              <Label htmlFor="picker-supports-images">
-                {t('models.batchSupportsImages')}
+              <Label htmlFor="picker-no-image-support">
+                {t('models.batchNoImageSupport')}
               </Label>
             </div>
           </div>

@@ -81,7 +81,7 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
   const [prefix, setPrefix] = useState('')
   const [suffix, setSuffix] = useState('')
   const [batchMaxTokens, setBatchMaxTokens] = useState('')
-  const [batchSupportsImages, setBatchSupportsImages] = useState(false)
+  const [batchNoImageSupport, setBatchNoImageSupport] = useState(false)
 
   useEffect(() => {
     loadModels()
@@ -115,7 +115,7 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
     setPrefix('')
     setSuffix('')
     setBatchMaxTokens('')
-    setBatchSupportsImages(false)
+    setBatchNoImageSupport(false)
 
     const result = await commands.fetchModelsByApiKey(
       channel.baseUrl,
@@ -216,12 +216,12 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
         maxOutputTokens = getDefaultMaxOutputTokens(modelId)
       }
 
-      // Determine supports images
-      let supportsImages: boolean | undefined
-      if (config.supportsImages !== undefined) {
-        supportsImages = config.supportsImages
-      } else if (batchSupportsImages) {
-        supportsImages = true
+      // Determine no image support
+      let noImageSupport: boolean | undefined
+      if (config.noImageSupport !== undefined) {
+        noImageSupport = config.noImageSupport
+      } else if (batchNoImageSupport) {
+        noImageSupport = true
       }
 
       addModel({
@@ -231,7 +231,7 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
         provider: config.provider,
         displayName,
         maxOutputTokens,
-        supportsImages: supportsImages || undefined,
+        noImageSupport: noImageSupport || undefined,
       })
     }
 
@@ -352,12 +352,12 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
                 prefix={prefix}
                 suffix={suffix}
                 batchMaxTokens={batchMaxTokens}
-                batchSupportsImages={batchSupportsImages}
+                batchNoImageSupport={batchNoImageSupport}
                 selectedModels={selectedModels}
                 onPrefixChange={setPrefix}
                 onSuffixChange={setSuffix}
                 onBatchMaxTokensChange={setBatchMaxTokens}
-                onBatchSupportsImagesChange={setBatchSupportsImages}
+                onBatchNoImageSupportChange={setBatchNoImageSupport}
                 onToggleModel={handleToggleModel}
                 onConfigChange={handleConfigChange}
                 onSelectAll={handleSelectAll}

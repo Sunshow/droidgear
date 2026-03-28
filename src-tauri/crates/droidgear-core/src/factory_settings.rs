@@ -64,9 +64,9 @@ pub struct CustomModel {
     /// Maximum output tokens
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_output_tokens: Option<u32>,
-    /// Whether the model supports image inputs
+    /// Whether to disable image support for this model (default: images supported)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub supports_images: Option<bool>,
+    pub no_image_support: Option<bool>,
     /// Additional provider-specific arguments
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extra_args: Option<HashMap<String, Value>>,

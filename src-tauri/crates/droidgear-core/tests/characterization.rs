@@ -433,7 +433,7 @@ fn factory_save_custom_models_preserves_other_fields_and_errors_on_parse() {
         api_key: "sk".to_string(),
         provider: factory_settings::Provider::Openai,
         max_output_tokens: Some(123),
-        supports_images: None,
+        no_image_support: None,
         extra_args: None,
         extra_headers: None,
     };

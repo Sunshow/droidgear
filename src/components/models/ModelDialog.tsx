@@ -88,8 +88,8 @@ function ModelForm({
   const [maxTokens, setMaxTokens] = useState(
     model?.maxOutputTokens?.toString() ?? ''
   )
-  const [supportsImages, setSupportsImages] = useState(
-    model?.supportsImages ?? false
+  const [noImageSupport, setNoImageSupport] = useState(
+    model?.noImageSupport ?? false
   )
   // Extract reasoning effort from extraArgs if present
   const extractReasoningEffort = (
@@ -134,7 +134,7 @@ function ModelForm({
   const [prefix, setPrefix] = useState('')
   const [suffix, setSuffix] = useState('')
   const [batchMaxTokens, setBatchMaxTokens] = useState('')
-  const [batchSupportsImages, setBatchSupportsImages] = useState(false)
+  const [batchNoImageSupport, setBatchNoImageSupport] = useState(false)
 
   // Channel picker state
   const [channelPickerOpen, setChannelPickerOpen] = useState(false)
@@ -273,7 +273,7 @@ function ModelForm({
       provider,
       displayName: displayName || undefined,
       maxOutputTokens: maxTokens ? parseInt(maxTokens) : undefined,
-      supportsImages: supportsImages || undefined,
+      noImageSupport: noImageSupport || undefined,
       extraArgs: (() => {
         const parsed = parseJsonSafe(extraArgs) ?? {}
         if (reasoningEffort && reasoningEffort !== 'none') {
@@ -302,7 +302,7 @@ function ModelForm({
       prefix,
       suffix,
       batchMaxTokens,
-      batchSupportsImages,
+      batchNoImageSupport,
       existingModels
     )
 
@@ -411,12 +411,12 @@ function ModelForm({
               prefix={prefix}
               suffix={suffix}
               batchMaxTokens={batchMaxTokens}
-              batchSupportsImages={batchSupportsImages}
+              batchNoImageSupport={batchNoImageSupport}
               selectedModels={selectedModels}
               onPrefixChange={setPrefix}
               onSuffixChange={setSuffix}
               onBatchMaxTokensChange={setBatchMaxTokens}
-              onBatchSupportsImagesChange={setBatchSupportsImages}
+              onBatchNoImageSupportChange={setBatchNoImageSupport}
               onToggleModel={handleToggleModel}
               onConfigChange={handleConfigChange}
               onSelectAll={handleSelectAll}
@@ -483,14 +483,14 @@ function ModelForm({
 
               <div className="flex items-center gap-2">
                 <Checkbox
-                  id="supportsImages"
-                  checked={supportsImages}
+                  id="noImageSupport"
+                  checked={noImageSupport}
                   onCheckedChange={checked =>
-                    setSupportsImages(checked === true)
+                    setNoImageSupport(checked === true)
                   }
                 />
-                <Label htmlFor="supportsImages">
-                  {t('models.supportsImages')}
+                <Label htmlFor="noImageSupport">
+                  {t('models.noImageSupport')}
                 </Label>
               </div>
 

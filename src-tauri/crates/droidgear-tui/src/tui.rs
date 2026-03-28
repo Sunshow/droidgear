@@ -514,7 +514,7 @@ fn handle_factory_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
                 api_key: String::new(),
                 provider: droidgear_core::factory_settings::Provider::Openai,
                 max_output_tokens: None,
-                supports_images: None,
+                no_image_support: None,
                 extra_args: None,
                 extra_headers: None,
             });
@@ -714,8 +714,8 @@ fn handle_factory_model_key(app: &mut app::App, code: KeyCode) -> Option<Action>
             }
             6 => {
                 if let Some(draft) = app.factory_draft.as_mut() {
-                    let current = draft.supports_images.unwrap_or(false);
-                    draft.supports_images = Some(!current);
+                    let current = draft.no_image_support.unwrap_or(false);
+                    draft.no_image_support = if !current { Some(true) } else { None };
                 }
             }
             7 => {
@@ -6014,7 +6014,7 @@ mod tests {
                 api_key: "sk-test".to_string(),
                 provider: droidgear_core::factory_settings::Provider::Openai,
                 max_output_tokens: None,
-                supports_images: None,
+                no_image_support: None,
                 extra_args: None,
                 extra_headers: None,
             },
@@ -6027,7 +6027,7 @@ mod tests {
                 api_key: "sk-test".to_string(),
                 provider: droidgear_core::factory_settings::Provider::Openai,
                 max_output_tokens: None,
-                supports_images: None,
+                no_image_support: None,
                 extra_args: None,
                 extra_headers: None,
             },

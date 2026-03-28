@@ -1362,9 +1362,9 @@ provider: Provider;
  */
 maxOutputTokens?: number | null; 
 /**
- * Whether the model supports image inputs
+ * Whether to disable image support for this model (default: images supported)
  */
-supportsImages?: boolean | null; 
+noImageSupport?: boolean | null; 
 /**
  * Additional provider-specific arguments
  */

@@ -30,14 +30,14 @@ interface BatchModelSelectorProps {
   prefix: string
   suffix: string
   batchMaxTokens: string
-  batchSupportsImages: boolean
+  batchNoImageSupport: boolean
 
   selectedModels: Map<string, BatchModelConfig>
 
   onPrefixChange: (v: string) => void
   onSuffixChange: (v: string) => void
   onBatchMaxTokensChange: (v: string) => void
-  onBatchSupportsImagesChange: (v: boolean) => void
+  onBatchNoImageSupportChange: (v: boolean) => void
   onToggleModel: (modelId: string) => void
   onConfigChange: (modelId: string, config: Partial<BatchModelConfig>) => void
   onSelectAll: () => void
@@ -53,12 +53,12 @@ export function BatchModelSelector({
   prefix,
   suffix,
   batchMaxTokens,
-  batchSupportsImages,
+  batchNoImageSupport,
   selectedModels,
   onPrefixChange,
   onSuffixChange,
   onBatchMaxTokensChange,
-  onBatchSupportsImagesChange,
+  onBatchNoImageSupportChange,
   onToggleModel,
   onConfigChange,
   onSelectAll,
@@ -138,7 +138,7 @@ export function BatchModelSelector({
         </div>
       </div>
 
-      {/* Batch settings row 2: Max Tokens and Supports Images */}
+      {/* Batch settings row 2: Max Tokens and No Image Support */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="batch-max-tokens">{t('models.batchMaxTokens')}</Label>
@@ -153,14 +153,14 @@ export function BatchModelSelector({
         </div>
         <div className="flex items-end gap-2 pb-2">
           <Checkbox
-            id="batch-supports-images"
-            checked={batchSupportsImages}
+            id="batch-no-image-support"
+            checked={batchNoImageSupport}
             onCheckedChange={checked =>
-              onBatchSupportsImagesChange(checked === true)
+              onBatchNoImageSupportChange(checked === true)
             }
           />
-          <Label htmlFor="batch-supports-images">
-            {t('models.batchSupportsImages')}
+          <Label htmlFor="batch-no-image-support">
+            {t('models.batchNoImageSupport')}
           </Label>
         </div>
       </div>
@@ -316,19 +316,19 @@ export function BatchModelSelector({
                     </div>
                     <div className="flex items-center gap-2">
                       <Checkbox
-                        id={`supports-images-${m.id}`}
-                        checked={modelConfig?.supportsImages ?? false}
+                        id={`no-image-support-${m.id}`}
+                        checked={modelConfig?.noImageSupport ?? false}
                         onCheckedChange={checked =>
                           onConfigChange(m.id, {
-                            supportsImages: checked === true ? true : undefined,
+                            noImageSupport: checked === true ? true : undefined,
                           })
                         }
                       />
                       <Label
-                        htmlFor={`supports-images-${m.id}`}
+                        htmlFor={`no-image-support-${m.id}`}
                         className="text-xs text-muted-foreground"
                       >
-                        {t('models.supportsImages')}
+                        {t('models.noImageSupport')}
                       </Label>
                     </div>
                   </div>

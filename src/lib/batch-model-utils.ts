@@ -9,7 +9,7 @@ export interface BatchModelConfig {
   alias: string
   provider: Provider
   maxTokens?: number
-  supportsImages?: boolean
+  noImageSupport?: boolean
 }
 
 export function buildModelsFromBatch(
@@ -19,7 +19,7 @@ export function buildModelsFromBatch(
   prefix: string,
   suffix: string,
   batchMaxTokens: string,
-  batchSupportsImages: boolean,
+  batchNoImageSupport: boolean,
   existingModels: CustomModel[]
 ): CustomModel[] {
   const models: CustomModel[] = []
@@ -45,11 +45,11 @@ export function buildModelsFromBatch(
       maxOutputTokens = getDefaultMaxOutputTokens(modelId)
     }
 
-    let supportsImages: boolean | undefined
-    if (config.supportsImages !== undefined) {
-      supportsImages = config.supportsImages
-    } else if (batchSupportsImages) {
-      supportsImages = true
+    let noImageSupport: boolean | undefined
+    if (config.noImageSupport !== undefined) {
+      noImageSupport = config.noImageSupport
+    } else if (batchNoImageSupport) {
+      noImageSupport = true
     }
 
     models.push({
@@ -59,7 +59,7 @@ export function buildModelsFromBatch(
       provider: config.provider,
       displayName,
       maxOutputTokens,
-      supportsImages: supportsImages || undefined,
+      noImageSupport: noImageSupport || undefined,
     })
   }
 

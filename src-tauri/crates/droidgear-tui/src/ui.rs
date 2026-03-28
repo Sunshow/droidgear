@@ -505,7 +505,7 @@ fn draw_factory_model(frame: &mut Frame, app: &app::App, area: Rect) {
         .max_output_tokens
         .map(|v| v.to_string())
         .unwrap_or_else(|| "(default)".to_string());
-    let supports_images = draft.supports_images.unwrap_or(false);
+    let no_image_support = draft.no_image_support.unwrap_or(false);
     let display_name = draft.display_name.clone().unwrap_or_default();
 
     let title = if draft.model.trim().is_empty() {
@@ -536,8 +536,8 @@ fn draw_factory_model(frame: &mut Frame, app: &app::App, area: Rect) {
         ),
         ("Max Tokens", max_tokens),
         (
-            "Supports Images",
-            if supports_images {
+            "No Image Support",
+            if no_image_support {
                 "yes".to_string()
             } else {
                 "no".to_string()
