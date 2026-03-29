@@ -67,10 +67,10 @@ jobs:
             args: '--bundles app,dmg --target x86_64-apple-darwin'
             target: 'x86_64-apple-darwin'
           - platform: 'windows-latest'
-            args: '--bundles msi --config src-tauri/tauri.windows.conf.json'
+            args: '--bundles msi --target x86_64-pc-windows-msvc --config src-tauri/tauri.windows.conf.json'
             target: 'x86_64-pc-windows-msvc'
           - platform: 'ubuntu-22.04'
-            args: '--bundles appimage'
+            args: '--bundles appimage --target x86_64-unknown-linux-gnu'
             target: 'x86_64-unknown-linux-gnu'
 
     runs-on: ${{ matrix.platform }}
