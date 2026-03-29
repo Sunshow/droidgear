@@ -1,6 +1,6 @@
 use crate::app;
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Direction, Layout, Position, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, ListState, Padding, Paragraph, Wrap},
@@ -67,6 +67,35 @@ impl Theme {
         }
     }
 
+    fn opencode() -> Self {
+        // A more vibrant, high-contrast palette inspired by modern TUIs.
+        // Designed to make keys, selections, and “needs attention” values pop.
+        let bg = Color::Rgb(0x0b, 0x0f, 0x19); // deep navy
+        let slate = Color::Rgb(0x3b, 0x42, 0x5a);
+        let cyan = Color::Rgb(0x22, 0xd3, 0xee);
+        let violet = Color::Rgb(0x8b, 0x5c, 0xf6);
+        let fuchsia = Color::Rgb(0xe8, 0x79, 0xf9);
+        let amber = Color::Rgb(0xf5, 0x9e, 0x0b);
+        let fg = Color::Rgb(0xf8, 0xfa, 0xfc);
+
+        let green = Color::Rgb(0x22, 0xc5, 0x5e);
+        let rose = Color::Rgb(0xfb, 0x71, 0x85);
+
+        Self {
+            border: slate,
+            title: cyan,
+            key: fuchsia,
+            dim: Color::Rgb(0x6b, 0x72, 0x80),
+            selection_bg: violet,
+            selection_fg: fg,
+            selection_mod: Modifier::BOLD,
+            success: green,
+            error: rose,
+            warning: amber,
+            modal_bg: bg,
+        }
+    }
+
     fn border_style(&self) -> Style {
         Style::default().fg(self.border)
     }
@@ -109,7 +138,9 @@ impl Theme {
     }
 
     fn success_fg_style(&self) -> Style {
-        Style::default().fg(self.success)
+        Style::default()
+            .fg(self.success)
+            .add_modifier(Modifier::BOLD)
     }
 
     fn success_style(&self) -> Style {
@@ -123,7 +154,9 @@ impl Theme {
     }
 
     fn warning_fg_style(&self) -> Style {
-        Style::default().fg(self.warning)
+        Style::default()
+            .fg(self.warning)
+            .add_modifier(Modifier::BOLD)
     }
 
     fn warning_style(&self) -> Style {
@@ -148,8 +181,9 @@ fn theme() -> &'static Theme {
 
         match std::env::var("DROIDGEAR_TUI_THEME").ok().as_deref() {
             Some("plain") | Some("none") | Some("no-color") => Theme::plain(),
-            Some("nord") | Some("default") | None => Theme::nord(),
-            Some(_) => Theme::nord(),
+            Some("nord") => Theme::nord(),
+            Some("opencode") | Some("default") | None => Theme::opencode(),
+            Some(_) => Theme::opencode(),
         }
     })
 }
@@ -236,6 +270,22 @@ fn help_paragraph(text: &str) -> Paragraph<'static> {
         .wrap(Wrap { trim: true })
 }
 
+fn byte_index_for_char(value: &str, char_idx: usize) -> usize {
+    value
+        .char_indices()
+        .nth(char_idx)
+        .map(|(i, _)| i)
+        .unwrap_or(value.len())
+}
+
+fn not_set_if_blank(value: &str) -> String {
+    if value.trim().is_empty() {
+        "(not set)".to_string()
+    } else {
+        value.to_string()
+    }
+}
+
 fn is_placeholder_value(value: &str) -> bool {
     let v = value.trim();
     v.is_empty() || v == "-" || (v.starts_with('(') && v.ends_with(')'))
@@ -243,10 +293,12 @@ fn is_placeholder_value(value: &str) -> bool {
 
 fn value_style_for(value: &str) -> Style {
     let t = theme();
-    let v = value.trim().to_ascii_lowercase();
+    let v_raw = value.trim();
+    let v = v_raw.to_ascii_lowercase();
     match v.as_str() {
         "yes" | "on" | "enabled" => t.success_fg_style(),
         "no" | "off" | "disabled" => t.warning_fg_style(),
+        "(not set)" | "(unset)" | "(missing)" => t.warning_style(),
         _ if is_placeholder_value(value) => t.placeholder_style(),
         _ => Style::default(),
     }
@@ -392,7 +444,7 @@ fn draw_paths(frame: &mut Frame, app: &app::App, area: Rect) {
             } else if p.is_default {
                 t.placeholder_style()
             } else {
-                t.warning_fg_style()
+                t.key_style()
             };
             lines.push(Line::from(vec![
                 Span::styled(format!("{:>10}: ", p.key), key_style),
@@ -525,7 +577,7 @@ fn draw_factory_model(frame: &mut Frame, app: &app::App, area: Rect) {
                 "(not set)".to_string()
             },
         ),
-        ("Model", draft.model.clone()),
+        ("Model", not_set_if_blank(&draft.model)),
         (
             "Display Name",
             if display_name.trim().is_empty() {
@@ -593,6 +645,11 @@ fn draw_factory_model(frame: &mut Frame, app: &app::App, area: Rect) {
         } else {
             let custom_style = match label {
                 "API Key" if value == "********" => Some(t.success_fg_style()),
+                "No Image Support" => Some(if value.trim().eq_ignore_ascii_case("yes") {
+                    t.warning_fg_style()
+                } else {
+                    t.success_fg_style()
+                }),
                 _ => None,
             };
             field_line_custom(label, &value, 16, custom_style)
@@ -683,7 +740,7 @@ fn draw_mcp_server(frame: &mut Frame, app: &app::App, area: Rect) {
     };
 
     let mut fields: Vec<(&str, String)> = vec![
-        ("Name", server.name.clone()),
+        ("Name", not_set_if_blank(&server.name)),
         ("Type", server_type.to_string()),
         ("Disabled", disabled.to_string()),
     ];
@@ -692,13 +749,16 @@ fn draw_mcp_server(frame: &mut Frame, app: &app::App, area: Rect) {
         droidgear_core::mcp::McpServerType::Stdio => {
             let args_count = server.config.args.as_ref().map(|v| v.len()).unwrap_or(0);
             let env_count = server.config.env.as_ref().map(|m| m.len()).unwrap_or(0);
-            fields.push(("Command", server.config.command.clone().unwrap_or_default()));
+            fields.push((
+                "Command",
+                not_set_if_blank(server.config.command.as_deref().unwrap_or("")),
+            ));
             fields.push(("Args", format!("{args_count}")));
             fields.push(("Env", format!("{env_count}")));
         }
         droidgear_core::mcp::McpServerType::Http => {
             let headers_count = server.config.headers.as_ref().map(|m| m.len()).unwrap_or(0);
-            fields.push(("URL", server.config.url.clone().unwrap_or_default()));
+            fields.push(("URL", not_set_if_blank(server.config.url.as_deref().unwrap_or(""))));
             fields.push(("Headers", format!("{headers_count}")));
         }
     }
@@ -1605,7 +1665,7 @@ fn draw_opencode_provider(frame: &mut Frame, app: &app::App, area: Rect) {
             "Display Name",
             config.name.clone().unwrap_or_else(|| "".to_string()),
         ),
-        ("NPM", config.npm.clone().unwrap_or_else(|| "".to_string())),
+        ("NPM", not_set_if_blank(config.npm.as_deref().unwrap_or(""))),
         ("Base URL", base_url.to_string()),
         (
             "API Key",
@@ -1945,7 +2005,7 @@ fn draw_codex_provider(frame: &mut Frame, app: &app::App, area: Rect) {
         ("Wire API", wire_api.to_string()),
         (
             "Model",
-            config.model.clone().unwrap_or_else(|| "".to_string()),
+            not_set_if_blank(config.model.as_deref().unwrap_or("")),
         ),
         ("Reasoning Effort", effort.to_string()),
         (
@@ -2145,9 +2205,9 @@ fn draw_channels_edit(frame: &mut Frame, app: &app::App, area: Rect) {
     let password_set = !app.channels_edit_password.trim().is_empty();
 
     let mut fields: Vec<(&str, String)> = vec![
-        ("Name", channel.name.clone()),
+        ("Name", not_set_if_blank(&channel.name)),
         ("Type", channel_type.to_string()),
-        ("Base URL", channel.base_url.clone()),
+        ("Base URL", not_set_if_blank(&channel.base_url)),
         ("Enabled", enabled.to_string()),
     ];
 
@@ -2234,7 +2294,7 @@ fn draw_profile_list<'a>(
             items.push(ListItem::new(Line::from(Span::raw(name.to_string()))));
         } else {
             items.push(ListItem::new(Line::from(vec![
-                Span::raw(name.to_string()),
+                Span::styled(name.to_string(), t.success_fg_style()),
                 Span::styled(active_tag.to_string(), t.success_style()),
             ])));
         }
@@ -2279,6 +2339,7 @@ fn draw_modal(frame: &mut Frame, modal: &app::Modal) {
         app::Modal::Input {
             title,
             value,
+            cursor,
             is_secret,
             ..
         } => {
@@ -2287,17 +2348,71 @@ fn draw_modal(frame: &mut Frame, modal: &app::Modal) {
             } else {
                 value.clone()
             };
-            let text = vec![
-                Line::from(body),
-                Line::from(""),
-                hint_line("Backspace: delete  Enter: confirm  Esc: cancel"),
-            ];
-            let block = block(title.as_str());
-            let p = Paragraph::new(text)
-                .block(block)
-                .wrap(Wrap { trim: false })
+
+            let block = block(title.as_str())
+                .border_style(t.focused_border_style())
                 .style(t.modal_style());
-            frame.render_widget(p, area);
+            let inner = block.inner(area);
+            frame.render_widget(block, area);
+
+            let input_area = Rect {
+                x: inner.x,
+                y: inner.y,
+                width: inner.width,
+                height: 1,
+            };
+            let hint_area = Rect {
+                x: inner.x,
+                y: inner.y.saturating_add(2),
+                width: inner.width,
+                height: 1,
+            };
+
+            let body_len = body.chars().count();
+            let cursor = (*cursor).min(body_len);
+            let cursor_byte = byte_index_for_char(&body, cursor);
+
+            let view_width = input_area.width as usize;
+            let total_width = Span::raw(body.as_str()).width();
+            let cursor_col = Span::raw(&body[..cursor_byte]).width();
+            let mut effective_cursor_col = cursor_col;
+            if cursor == body_len && total_width >= view_width && total_width > 0 && cursor_col == total_width
+            {
+                // When the cursor is at EOF and there's no extra room to render the cell after the
+                // last character, place it on the last visible cell (like most terminal inputs).
+                effective_cursor_col = total_width.saturating_sub(1);
+            }
+
+            // Keep the cursor roughly 1/3 into the viewport so you can still see some trailing text.
+            let target_x = view_width / 3;
+            let max_scroll = total_width.saturating_sub(view_width);
+            let scroll_x = effective_cursor_col
+                .saturating_sub(target_x)
+                .min(max_scroll)
+                .min(u16::MAX as usize) as u16;
+
+            let input = Paragraph::new(Line::from(Span::raw(body)))
+                .style(t.modal_style())
+                .scroll((0, scroll_x));
+            frame.render_widget(input, input_area);
+
+            let hint = Paragraph::new(vec![hint_line(
+                "Left/Right: move  Backspace: delete  Enter: confirm  Esc: cancel",
+            )])
+                .style(t.modal_style())
+                .wrap(Wrap { trim: true });
+            frame.render_widget(hint, hint_area);
+
+            if input_area.width > 0 {
+                let scroll_x_usize = scroll_x as usize;
+                let cursor_x = effective_cursor_col
+                    .saturating_sub(scroll_x_usize)
+                    .min(view_width.saturating_sub(1));
+                frame.set_cursor_position(Position {
+                    x: input_area.x.saturating_add(cursor_x as u16),
+                    y: input_area.y,
+                });
+            }
         }
         app::Modal::Select {
             title,
@@ -2319,7 +2434,7 @@ fn draw_modal(frame: &mut Frame, modal: &app::Modal) {
             }
             lines.push(Line::from(""));
             lines.push(hint_line("Up/Down: select  Enter: confirm  Esc: cancel"));
-            let block = block(title.as_str());
+            let block = block(title.as_str()).border_style(t.focused_border_style());
             let p = Paragraph::new(lines)
                 .block(block)
                 .wrap(Wrap { trim: false })

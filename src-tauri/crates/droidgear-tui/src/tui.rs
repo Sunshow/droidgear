@@ -477,6 +477,7 @@ fn handle_paths_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
             app.modal = Some(app::Modal::Input {
                 title: format!("Set path for {key}"),
                 value: current,
+                cursor: usize::MAX,
                 is_secret: false,
                 action: app::InputAction::PathsSetKey { key },
             });
@@ -673,6 +674,7 @@ fn handle_factory_model_key(app: &mut app::App, code: KeyCode) -> Option<Action>
                 app.modal = Some(app::Modal::Input {
                     title: "Base URL".to_string(),
                     value: draft.base_url.clone(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::FactoryDraftSetBaseUrl,
                 });
@@ -681,6 +683,7 @@ fn handle_factory_model_key(app: &mut app::App, code: KeyCode) -> Option<Action>
                 app.modal = Some(app::Modal::Input {
                     title: "API key".to_string(),
                     value: draft.api_key.clone(),
+                    cursor: usize::MAX,
                     is_secret: true,
                     action: app::InputAction::FactoryDraftSetApiKey,
                 });
@@ -689,6 +692,7 @@ fn handle_factory_model_key(app: &mut app::App, code: KeyCode) -> Option<Action>
                 app.modal = Some(app::Modal::Input {
                     title: "Model id".to_string(),
                     value: draft.model.clone(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::FactoryDraftSetModel,
                 });
@@ -697,6 +701,7 @@ fn handle_factory_model_key(app: &mut app::App, code: KeyCode) -> Option<Action>
                 app.modal = Some(app::Modal::Input {
                     title: "Display name".to_string(),
                     value: draft.display_name.clone().unwrap_or_default(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::FactoryDraftSetDisplayName,
                 });
@@ -708,6 +713,7 @@ fn handle_factory_model_key(app: &mut app::App, code: KeyCode) -> Option<Action>
                         .max_output_tokens
                         .map(|v| v.to_string())
                         .unwrap_or_default(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::FactoryDraftSetMaxOutputTokens,
                 });
@@ -754,6 +760,7 @@ fn handle_factory_model_key(app: &mut app::App, code: KeyCode) -> Option<Action>
                 app.modal = Some(app::Modal::Input {
                     title: "Extra Args (JSON object)".to_string(),
                     value: current,
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::FactoryDraftSetExtraArgs,
                 });
@@ -768,6 +775,7 @@ fn handle_factory_model_key(app: &mut app::App, code: KeyCode) -> Option<Action>
                 app.modal = Some(app::Modal::Input {
                     title: "Extra Headers (JSON object)".to_string(),
                     value: current,
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::FactoryDraftSetExtraHeaders,
                 });
@@ -790,6 +798,7 @@ fn handle_mcp_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
             app.modal = Some(app::Modal::Input {
                 title: "New MCP server name".to_string(),
                 value: String::new(),
+                cursor: usize::MAX,
                 is_secret: false,
                 action: app::InputAction::McpCreateServer,
             });
@@ -960,6 +969,7 @@ fn handle_mcp_server_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
                     app.modal = Some(app::Modal::Input {
                         title: "Server name".to_string(),
                         value: draft.name.clone(),
+                        cursor: usize::MAX,
                         is_secret: false,
                         action: app::InputAction::McpDraftSetName,
                     });
@@ -986,6 +996,7 @@ fn handle_mcp_server_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
                     app.modal = Some(app::Modal::Input {
                         title: "Command".to_string(),
                         value: draft.config.command.clone().unwrap_or_default(),
+                        cursor: usize::MAX,
                         is_secret: false,
                         action: app::InputAction::McpDraftSetCommand,
                     });
@@ -1006,6 +1017,7 @@ fn handle_mcp_server_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
                     app.modal = Some(app::Modal::Input {
                         title: "Server name".to_string(),
                         value: draft.name.clone(),
+                        cursor: usize::MAX,
                         is_secret: false,
                         action: app::InputAction::McpDraftSetName,
                     });
@@ -1032,6 +1044,7 @@ fn handle_mcp_server_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
                     app.modal = Some(app::Modal::Input {
                         title: "URL".to_string(),
                         value: draft.config.url.clone().unwrap_or_default(),
+                        cursor: usize::MAX,
                         is_secret: false,
                         action: app::InputAction::McpDraftSetUrl,
                     });
@@ -1059,6 +1072,7 @@ fn handle_mcp_args_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
             app.modal = Some(app::Modal::Input {
                 title: "New arg".to_string(),
                 value: String::new(),
+                cursor: usize::MAX,
                 is_secret: false,
                 action: app::InputAction::McpArgsAdd,
             });
@@ -1074,6 +1088,7 @@ fn handle_mcp_args_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
                 app.modal = Some(app::Modal::Input {
                     title: "Arg".to_string(),
                     value: current,
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::McpArgsEdit {
                         index: app.mcp_args_index,
@@ -1130,6 +1145,7 @@ fn handle_mcp_key_values_key(app: &mut app::App, code: KeyCode) -> Option<Action
             app.modal = Some(app::Modal::Input {
                 title: "key=value".to_string(),
                 value: String::new(),
+                cursor: usize::MAX,
                 is_secret: false,
                 action: app::InputAction::McpKeyValueAdd { mode },
             });
@@ -1155,6 +1171,7 @@ fn handle_mcp_key_values_key(app: &mut app::App, code: KeyCode) -> Option<Action
                 app.modal = Some(app::Modal::Input {
                     title: "key=value".to_string(),
                     value: format!("{key}={value}"),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::McpKeyValueEdit {
                         mode,
@@ -1215,6 +1232,7 @@ fn handle_codex_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
             app.modal = Some(app::Modal::Input {
                 title: "New Codex profile name".to_string(),
                 value: String::new(),
+                cursor: usize::MAX,
                 is_secret: false,
                 action: app::InputAction::CodexCreateProfile,
             });
@@ -1252,6 +1270,7 @@ fn handle_codex_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
                 app.modal = Some(app::Modal::Input {
                     title: "Duplicate profile name".to_string(),
                     value: format!("{} (copy)", p.name),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::CodexDuplicate { id: p.id.clone() },
                 });
@@ -1320,6 +1339,7 @@ fn handle_codex_profile_key(app: &mut app::App, code: KeyCode) -> Option<Action>
                 app.modal = Some(app::Modal::Input {
                     title: "New provider id".to_string(),
                     value: String::new(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::CodexAddProvider { id: profile_id },
                 });
@@ -1363,6 +1383,7 @@ fn handle_codex_profile_key(app: &mut app::App, code: KeyCode) -> Option<Action>
                     app.modal = Some(app::Modal::Input {
                         title: "Profile name".to_string(),
                         value: profile.name.clone(),
+                        cursor: usize::MAX,
                         is_secret: false,
                         action: app::InputAction::CodexSetProfileName { id: profile_id },
                     });
@@ -1371,6 +1392,7 @@ fn handle_codex_profile_key(app: &mut app::App, code: KeyCode) -> Option<Action>
                     app.modal = Some(app::Modal::Input {
                         title: "Profile description".to_string(),
                         value: profile.description.clone().unwrap_or_default(),
+                        cursor: usize::MAX,
                         is_secret: false,
                         action: app::InputAction::CodexSetProfileDescription { id: profile_id },
                     });
@@ -1396,6 +1418,7 @@ fn handle_codex_profile_key(app: &mut app::App, code: KeyCode) -> Option<Action>
                     app.modal = Some(app::Modal::Input {
                         title: "Model".to_string(),
                         value: profile.model.clone(),
+                        cursor: usize::MAX,
                         is_secret: false,
                         action: app::InputAction::CodexSetProfileModel { id: profile_id },
                     });
@@ -1427,6 +1450,7 @@ fn handle_codex_profile_key(app: &mut app::App, code: KeyCode) -> Option<Action>
                     app.modal = Some(app::Modal::Input {
                         title: "API key".to_string(),
                         value: profile.api_key.clone().unwrap_or_default(),
+                        cursor: usize::MAX,
                         is_secret: true,
                         action: app::InputAction::CodexSetProfileApiKey { id: profile_id },
                     });
@@ -1483,6 +1507,7 @@ fn handle_codex_provider_key(app: &mut app::App, code: KeyCode) -> Option<Action
                 app.modal = Some(app::Modal::Input {
                     title: "Provider name".to_string(),
                     value: config.name.clone().unwrap_or_default(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::CodexSetProviderName {
                         profile_id,
@@ -1494,6 +1519,7 @@ fn handle_codex_provider_key(app: &mut app::App, code: KeyCode) -> Option<Action
                 app.modal = Some(app::Modal::Input {
                     title: "Provider base URL".to_string(),
                     value: config.base_url.clone().unwrap_or_default(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::CodexSetProviderBaseUrl {
                         profile_id,
@@ -1522,6 +1548,7 @@ fn handle_codex_provider_key(app: &mut app::App, code: KeyCode) -> Option<Action
                 app.modal = Some(app::Modal::Input {
                     title: "Provider model".to_string(),
                     value: config.model.clone().unwrap_or_default(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::CodexSetProviderModel {
                         profile_id,
@@ -1557,6 +1584,7 @@ fn handle_codex_provider_key(app: &mut app::App, code: KeyCode) -> Option<Action
                 app.modal = Some(app::Modal::Input {
                     title: "Provider API key".to_string(),
                     value: config.api_key.clone().unwrap_or_default(),
+                    cursor: usize::MAX,
                     is_secret: true,
                     action: app::InputAction::CodexSetProviderApiKey {
                         profile_id,
@@ -1592,6 +1620,7 @@ fn handle_opencode_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
             app.modal = Some(app::Modal::Input {
                 title: "New OpenCode profile name".to_string(),
                 value: String::new(),
+                cursor: usize::MAX,
                 is_secret: false,
                 action: app::InputAction::OpenCodeCreateProfile,
             });
@@ -1633,6 +1662,7 @@ fn handle_opencode_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
                 app.modal = Some(app::Modal::Input {
                     title: "Duplicate profile name".to_string(),
                     value: format!("{} (copy)", p.name),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::OpenCodeDuplicate { id: p.id.clone() },
                 });
@@ -1705,6 +1735,7 @@ fn handle_opencode_profile_key(app: &mut app::App, code: KeyCode) -> Option<Acti
                 app.modal = Some(app::Modal::Input {
                     title: "New provider id".to_string(),
                     value: String::new(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::OpenCodeAddProvider { profile_id },
                 });
@@ -1732,6 +1763,7 @@ fn handle_opencode_profile_key(app: &mut app::App, code: KeyCode) -> Option<Acti
                     app.modal = Some(app::Modal::Input {
                         title: "Profile name".to_string(),
                         value: profile.name.clone(),
+                        cursor: usize::MAX,
                         is_secret: false,
                         action: app::InputAction::OpenCodeSetProfileName { id: profile_id },
                     });
@@ -1740,6 +1772,7 @@ fn handle_opencode_profile_key(app: &mut app::App, code: KeyCode) -> Option<Acti
                     app.modal = Some(app::Modal::Input {
                         title: "Profile description".to_string(),
                         value: profile.description.clone().unwrap_or_default(),
+                        cursor: usize::MAX,
                         is_secret: false,
                         action: app::InputAction::OpenCodeSetProfileDescription { id: profile_id },
                     });
@@ -1822,6 +1855,7 @@ fn handle_opencode_provider_key(app: &mut app::App, code: KeyCode) -> Option<Act
                 app.modal = Some(app::Modal::Input {
                     title: "New model id".to_string(),
                     value: String::new(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::OpenCodeAddModel {
                         profile_id,
@@ -1853,6 +1887,7 @@ fn handle_opencode_provider_key(app: &mut app::App, code: KeyCode) -> Option<Act
                     app.modal = Some(app::Modal::Input {
                         title: "Provider display name".to_string(),
                         value: config.name.clone().unwrap_or_default(),
+                        cursor: usize::MAX,
                         is_secret: false,
                         action: app::InputAction::OpenCodeSetProviderName {
                             profile_id,
@@ -1864,6 +1899,7 @@ fn handle_opencode_provider_key(app: &mut app::App, code: KeyCode) -> Option<Act
                     app.modal = Some(app::Modal::Input {
                         title: "Provider NPM package".to_string(),
                         value: config.npm.clone().unwrap_or_default(),
+                        cursor: usize::MAX,
                         is_secret: false,
                         action: app::InputAction::OpenCodeSetProviderNpm {
                             profile_id,
@@ -1880,6 +1916,7 @@ fn handle_opencode_provider_key(app: &mut app::App, code: KeyCode) -> Option<Act
                     app.modal = Some(app::Modal::Input {
                         title: "Provider base URL".to_string(),
                         value: base_url,
+                        cursor: usize::MAX,
                         is_secret: false,
                         action: app::InputAction::OpenCodeSetProviderBaseUrl {
                             profile_id,
@@ -1898,6 +1935,7 @@ fn handle_opencode_provider_key(app: &mut app::App, code: KeyCode) -> Option<Act
                     app.modal = Some(app::Modal::Input {
                         title: "Provider API key".to_string(),
                         value: api_key,
+                        cursor: usize::MAX,
                         is_secret: true,
                         action: app::InputAction::OpenCodeSetProviderApiKey {
                             profile_id,
@@ -1915,6 +1953,7 @@ fn handle_opencode_provider_key(app: &mut app::App, code: KeyCode) -> Option<Act
                     app.modal = Some(app::Modal::Input {
                         title: "Timeout (ms)".to_string(),
                         value: timeout,
+                        cursor: usize::MAX,
                         is_secret: false,
                         action: app::InputAction::OpenCodeSetProviderTimeout {
                             profile_id,
@@ -1981,6 +2020,7 @@ fn handle_opencode_model_key(app: &mut app::App, code: KeyCode) -> Option<Action
                 app.modal = Some(app::Modal::Input {
                     title: "Model display name".to_string(),
                     value: model.name.clone().unwrap_or_default(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::OpenCodeSetModelName {
                         profile_id,
@@ -1999,6 +2039,7 @@ fn handle_opencode_model_key(app: &mut app::App, code: KeyCode) -> Option<Action
                 app.modal = Some(app::Modal::Input {
                     title: "Context limit".to_string(),
                     value: current,
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::OpenCodeSetModelContextLimit {
                         profile_id,
@@ -2017,6 +2058,7 @@ fn handle_opencode_model_key(app: &mut app::App, code: KeyCode) -> Option<Action
                 app.modal = Some(app::Modal::Input {
                     title: "Output limit".to_string(),
                     value: current,
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::OpenCodeSetModelOutputLimit {
                         profile_id,
@@ -2053,6 +2095,7 @@ fn handle_openclaw_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
             app.modal = Some(app::Modal::Input {
                 title: "New OpenClaw profile name".to_string(),
                 value: String::new(),
+                cursor: usize::MAX,
                 is_secret: false,
                 action: app::InputAction::OpenClawCreateProfile,
             });
@@ -2095,6 +2138,7 @@ fn handle_openclaw_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
                 app.modal = Some(app::Modal::Input {
                     title: "Duplicate profile name".to_string(),
                     value: format!("{} (copy)", p.name),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::OpenClawDuplicate { id: p.id.clone() },
                 });
@@ -2233,6 +2277,7 @@ fn handle_openclaw_profile_key(app: &mut app::App, code: KeyCode) -> Option<Acti
                 app.modal = Some(app::Modal::Input {
                     title: "New provider id".to_string(),
                     value: String::new(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::OpenClawAddProvider { profile_id },
                 });
@@ -2280,6 +2325,7 @@ fn handle_openclaw_profile_key(app: &mut app::App, code: KeyCode) -> Option<Acti
                     app.modal = Some(app::Modal::Input {
                         title: "Profile name".to_string(),
                         value: profile.name.clone(),
+                        cursor: usize::MAX,
                         is_secret: false,
                         action: app::InputAction::OpenClawSetProfileName { id: profile_id },
                     });
@@ -2288,6 +2334,7 @@ fn handle_openclaw_profile_key(app: &mut app::App, code: KeyCode) -> Option<Acti
                     app.modal = Some(app::Modal::Input {
                         title: "Profile description".to_string(),
                         value: profile.description.clone().unwrap_or_default(),
+                        cursor: usize::MAX,
                         is_secret: false,
                         action: app::InputAction::OpenClawSetProfileDescription { id: profile_id },
                     });
@@ -2381,6 +2428,7 @@ fn handle_openclaw_provider_key(app: &mut app::App, code: KeyCode) -> Option<Act
                 app.modal = Some(app::Modal::Input {
                     title: "New model id".to_string(),
                     value: String::new(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::OpenClawAddModel {
                         profile_id,
@@ -2407,6 +2455,7 @@ fn handle_openclaw_provider_key(app: &mut app::App, code: KeyCode) -> Option<Act
                     app.modal = Some(app::Modal::Input {
                         title: "Provider base URL".to_string(),
                         value: config.base_url.clone().unwrap_or_default(),
+                        cursor: usize::MAX,
                         is_secret: false,
                         action: app::InputAction::OpenClawSetProviderBaseUrl {
                             profile_id,
@@ -2418,6 +2467,7 @@ fn handle_openclaw_provider_key(app: &mut app::App, code: KeyCode) -> Option<Act
                     app.modal = Some(app::Modal::Input {
                         title: "Provider API key".to_string(),
                         value: config.api_key.clone().unwrap_or_default(),
+                        cursor: usize::MAX,
                         is_secret: true,
                         action: app::InputAction::OpenClawSetProviderApiKey {
                             profile_id,
@@ -2498,6 +2548,7 @@ fn handle_openclaw_model_key(app: &mut app::App, code: KeyCode) -> Option<Action
                 app.modal = Some(app::Modal::Input {
                     title: "Model id".to_string(),
                     value: model.id.clone(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::OpenClawSetModelId {
                         profile_id,
@@ -2510,6 +2561,7 @@ fn handle_openclaw_model_key(app: &mut app::App, code: KeyCode) -> Option<Action
                 app.modal = Some(app::Modal::Input {
                     title: "Model name".to_string(),
                     value: model.name.clone().unwrap_or_default(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::OpenClawSetModelName {
                         profile_id,
@@ -2525,6 +2577,7 @@ fn handle_openclaw_model_key(app: &mut app::App, code: KeyCode) -> Option<Action
                         .context_window
                         .map(|v| v.to_string())
                         .unwrap_or_default(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::OpenClawSetModelContextWindow {
                         profile_id,
@@ -2537,6 +2590,7 @@ fn handle_openclaw_model_key(app: &mut app::App, code: KeyCode) -> Option<Action
                 app.modal = Some(app::Modal::Input {
                     title: "Max tokens".to_string(),
                     value: model.max_tokens.map(|v| v.to_string()).unwrap_or_default(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::OpenClawSetModelMaxTokens {
                         profile_id,
@@ -2700,6 +2754,7 @@ fn handle_openclaw_helpers_key(app: &mut app::App, code: KeyCode) -> Option<Acti
                 app.modal = Some(app::Modal::Input {
                     title: "Min chars".to_string(),
                     value: current,
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::OpenClawSetBlockStreamingMinChars { profile_id },
                 });
@@ -2715,6 +2770,7 @@ fn handle_openclaw_helpers_key(app: &mut app::App, code: KeyCode) -> Option<Acti
                 app.modal = Some(app::Modal::Input {
                     title: "Max chars".to_string(),
                     value: current,
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::OpenClawSetBlockStreamingMaxChars { profile_id },
                 });
@@ -2730,6 +2786,7 @@ fn handle_openclaw_helpers_key(app: &mut app::App, code: KeyCode) -> Option<Acti
                 app.modal = Some(app::Modal::Input {
                     title: "Idle ms".to_string(),
                     value: current,
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::OpenClawSetBlockStreamingIdleMs { profile_id },
                 });
@@ -2860,6 +2917,7 @@ fn handle_openclaw_subagents_key(app: &mut app::App, code: KeyCode) -> Option<Ac
             app.modal = Some(app::Modal::Input {
                 title: "New subagent id".to_string(),
                 value: String::new(),
+                cursor: usize::MAX,
                 is_secret: false,
                 action: app::InputAction::OpenClawSubagentCreate,
             });
@@ -2924,6 +2982,7 @@ fn handle_openclaw_subagent_detail_key(app: &mut app::App, code: KeyCode) -> Opt
                 app.modal = Some(app::Modal::Input {
                     title: "Name".to_string(),
                     value: agent.name.clone().unwrap_or_default(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::OpenClawSubagentSetName { id: agent_id },
                 });
@@ -2936,6 +2995,7 @@ fn handle_openclaw_subagent_detail_key(app: &mut app::App, code: KeyCode) -> Opt
                         .as_ref()
                         .and_then(|i| i.emoji.clone())
                         .unwrap_or_default(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::OpenClawSubagentSetEmoji { id: agent_id },
                 });
@@ -2948,6 +3008,7 @@ fn handle_openclaw_subagent_detail_key(app: &mut app::App, code: KeyCode) -> Opt
                         .as_ref()
                         .and_then(|m| m.primary.clone())
                         .unwrap_or_default(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::OpenClawSubagentSetPrimaryModel { id: agent_id },
                 });
@@ -2969,6 +3030,7 @@ fn handle_openclaw_subagent_detail_key(app: &mut app::App, code: KeyCode) -> Opt
                 app.modal = Some(app::Modal::Input {
                     title: "Workspace".to_string(),
                     value: agent.workspace.clone().unwrap_or_default(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::OpenClawSubagentSetWorkspace { id: agent_id },
                 });
@@ -3270,6 +3332,7 @@ fn handle_channels_edit_key(app: &mut app::App, code: KeyCode) -> Option<Action>
                 app.modal = Some(app::Modal::Input {
                     title: "Name".to_string(),
                     value: draft.name.clone(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::ChannelsDraftSetName,
                 });
@@ -3300,6 +3363,7 @@ fn handle_channels_edit_key(app: &mut app::App, code: KeyCode) -> Option<Action>
                 app.modal = Some(app::Modal::Input {
                     title: "Base URL".to_string(),
                     value: draft.base_url.clone(),
+                    cursor: usize::MAX,
                     is_secret: false,
                     action: app::InputAction::ChannelsDraftSetBaseUrl,
                 });
@@ -3314,6 +3378,7 @@ fn handle_channels_edit_key(app: &mut app::App, code: KeyCode) -> Option<Action>
                     app.modal = Some(app::Modal::Input {
                         title: "API key".to_string(),
                         value: app.channels_edit_api_key.clone(),
+                        cursor: usize::MAX,
                         is_secret: true,
                         action: app::InputAction::ChannelsDraftSetApiKey,
                     });
@@ -3321,6 +3386,7 @@ fn handle_channels_edit_key(app: &mut app::App, code: KeyCode) -> Option<Action>
                     app.modal = Some(app::Modal::Input {
                         title: "Username".to_string(),
                         value: app.channels_edit_username.clone(),
+                        cursor: usize::MAX,
                         is_secret: false,
                         action: app::InputAction::ChannelsDraftSetUsername,
                     });
@@ -3331,6 +3397,7 @@ fn handle_channels_edit_key(app: &mut app::App, code: KeyCode) -> Option<Action>
                     app.modal = Some(app::Modal::Input {
                         title: "Password".to_string(),
                         value: app.channels_edit_password.clone(),
+                        cursor: usize::MAX,
                         is_secret: true,
                         action: app::InputAction::ChannelsDraftSetPassword,
                     });
@@ -3839,6 +3906,26 @@ fn preview_openclaw_apply(home_dir: &Path, profile_id: &str) -> anyhow::Result<S
     ))
 }
 
+fn byte_index_for_char(value: &str, char_idx: usize) -> usize {
+    value
+        .char_indices()
+        .nth(char_idx)
+        .map(|(i, _)| i)
+        .unwrap_or(value.len())
+}
+
+fn remove_char_at(value: &mut String, char_idx: usize) {
+    let byte_idx = byte_index_for_char(value, char_idx);
+    if byte_idx < value.len() {
+        value.remove(byte_idx);
+    }
+}
+
+fn insert_char_at(value: &mut String, char_idx: usize, c: char) {
+    let byte_idx = byte_index_for_char(value, char_idx);
+    value.insert(byte_idx, c);
+}
+
 fn handle_modal_key(app: &mut app::App, code: KeyCode, modal: app::Modal) {
     match modal {
         app::Modal::Confirm { action, .. } => match code {
@@ -3858,38 +3945,110 @@ fn handle_modal_key(app: &mut app::App, code: KeyCode, modal: app::Modal) {
         app::Modal::Input {
             title,
             mut value,
+            mut cursor,
             is_secret,
             action,
-        } => match code {
-            KeyCode::Esc => app.modal = None,
-            KeyCode::Enter => {
-                app.modal = None;
-                if let Err(e) = run_input_action(app, action, value) {
-                    app.set_toast(e.to_string(), true);
-                } else {
-                    refresh_screen_data(app);
+        } => {
+            let value_len = value.chars().count();
+            cursor = cursor.min(value_len);
+
+            match code {
+                KeyCode::Esc => app.modal = None,
+                KeyCode::Enter => {
+                    app.modal = None;
+                    if let Err(e) = run_input_action(app, action, value) {
+                        app.set_toast(e.to_string(), true);
+                    } else {
+                        refresh_screen_data(app);
+                    }
                 }
+
+                // Cursor movement
+                KeyCode::Left => {
+                    cursor = cursor.saturating_sub(1);
+                    app.modal = Some(app::Modal::Input {
+                        title,
+                        value,
+                        cursor,
+                        is_secret,
+                        action,
+                    });
+                }
+                KeyCode::Right => {
+                    cursor = cursor.saturating_add(1).min(value_len);
+                    app.modal = Some(app::Modal::Input {
+                        title,
+                        value,
+                        cursor,
+                        is_secret,
+                        action,
+                    });
+                }
+                KeyCode::Home => {
+                    cursor = 0;
+                    app.modal = Some(app::Modal::Input {
+                        title,
+                        value,
+                        cursor,
+                        is_secret,
+                        action,
+                    });
+                }
+                KeyCode::End => {
+                    cursor = value_len;
+                    app.modal = Some(app::Modal::Input {
+                        title,
+                        value,
+                        cursor,
+                        is_secret,
+                        action,
+                    });
+                }
+
+                // Editing
+                KeyCode::Backspace => {
+                    if cursor > 0 {
+                        remove_char_at(&mut value, cursor.saturating_sub(1));
+                        cursor = cursor.saturating_sub(1);
+                        app.modal = Some(app::Modal::Input {
+                            title,
+                            value,
+                            cursor,
+                            is_secret,
+                            action,
+                        });
+                    }
+                }
+                KeyCode::Delete => {
+                    if cursor < value_len {
+                        remove_char_at(&mut value, cursor);
+                        app.modal = Some(app::Modal::Input {
+                            title,
+                            value,
+                            cursor,
+                            is_secret,
+                            action,
+                        });
+                    }
+                }
+                KeyCode::Char(c) => {
+                    if !c.is_control() {
+                        // Default: insert mode (non-destructive).
+                        insert_char_at(&mut value, cursor, c);
+                        cursor = cursor.saturating_add(1);
+                        app.modal = Some(app::Modal::Input {
+                            title,
+                            value,
+                            cursor,
+                            is_secret,
+                            action,
+                        });
+                    }
+                }
+
+                _ => {}
             }
-            KeyCode::Backspace => {
-                value.pop();
-                app.modal = Some(app::Modal::Input {
-                    title,
-                    value,
-                    is_secret,
-                    action,
-                });
-            }
-            KeyCode::Char(c) => {
-                value.push(c);
-                app.modal = Some(app::Modal::Input {
-                    title,
-                    value,
-                    is_secret,
-                    action,
-                });
-            }
-            _ => {}
-        },
+        }
         app::Modal::Select {
             title,
             options,

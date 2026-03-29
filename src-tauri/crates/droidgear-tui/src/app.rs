@@ -58,6 +58,7 @@ pub enum Modal {
     Input {
         title: String,
         value: String,
+        cursor: usize,
         is_secret: bool,
         action: InputAction,
     },
