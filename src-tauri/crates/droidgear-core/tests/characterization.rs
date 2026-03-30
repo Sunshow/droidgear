@@ -47,6 +47,16 @@ base_url = "https://api.openai.com/v1"
         base_toml.trim_start(),
     );
 
+    // Existing auth.json may contain official codex-login credentials; applying a profile must
+    // preserve non-OPENAI_API_KEY fields.
+    write_file(
+        &home.join(".codex").join("auth.json"),
+        r#"{
+  "session": "official-session-token",
+  "user": "alice@example.com"
+}"#,
+    );
+
     // Profile file
     let mut providers = HashMap::new();
     providers.insert(
@@ -134,6 +144,14 @@ base_url = "https://api.openai.com/v1"
         auth_json.get("OPENAI_API_KEY").and_then(|v| v.as_str()),
         Some("sk-test")
     );
+    assert_eq!(
+        auth_json.get("session").and_then(|v| v.as_str()),
+        Some("official-session-token")
+    );
+    assert_eq!(
+        auth_json.get("user").and_then(|v| v.as_str()),
+        Some("alice@example.com")
+    );
 
     // active profile id
     let active = read_to_string(
@@ -143,6 +161,88 @@ base_url = "https://api.openai.com/v1"
             .join("active-profile.txt"),
     );
     assert_eq!(active.trim(), "test_profile");
+}
+
+#[test]
+fn codex_apply_can_remove_openai_api_key_without_destroying_official_auth() {
+    let temp = TempDir::new().unwrap();
+    let home = home_dir(&temp);
+
+    // Pretend we have codex login credentials + an API key currently set.
+    write_file(
+        &home.join(".codex").join("auth.json"),
+        r#"{
+  "session": "official-session-token",
+  "OPENAI_API_KEY": "sk-should-be-removed"
+}"#,
+    );
+
+    // Minimal profile with no api_key configured.
+    let profile = codex::CodexProfile {
+        id: "no_key".to_string(),
+        name: "No Key".to_string(),
+        description: None,
+        created_at: "2026-01-01T00:00:00Z".to_string(),
+        updated_at: "2026-01-01T00:00:00Z".to_string(),
+        providers: HashMap::new(),
+        model_provider: "openai".to_string(),
+        model: "gpt-5.2".to_string(),
+        model_reasoning_effort: None,
+        api_key: None,
+    };
+    write_file(
+        &home
+            .join(".droidgear")
+            .join("codex")
+            .join("profiles")
+            .join("no_key.json"),
+        &serde_json::to_string_pretty(&profile).unwrap(),
+    );
+
+    codex::apply_codex_profile_for_home(home, "no_key").unwrap();
+
+    let auth_after = read_to_string(&home.join(".codex").join("auth.json"));
+    let auth_json: Value = serde_json::from_str(&auth_after).unwrap();
+    assert!(auth_json.get("OPENAI_API_KEY").is_none());
+    assert_eq!(
+        auth_json.get("session").and_then(|v| v.as_str()),
+        Some("official-session-token")
+    );
+}
+
+#[test]
+fn codex_auto_creates_official_profile_when_official_auth_exists() {
+    let temp = TempDir::new().unwrap();
+    let home = home_dir(&temp);
+
+    // Existence of any non-OPENAI_API_KEY field indicates official login credentials exist.
+    write_file(
+        &home.join(".codex").join("auth.json"),
+        r#"{
+  "session": "official-session-token"
+}"#,
+    );
+
+    // Live config present so the profile can snapshot model fields (best-effort).
+    write_file(
+        &home.join(".codex").join("config.toml"),
+        r#"
+model_provider = "openai"
+model = "gpt-5.2"
+"#
+        .trim_start(),
+    );
+
+    let profiles = codex::list_codex_profiles_for_home(home).unwrap();
+    assert!(
+        profiles.iter().any(|p| p.id == "official"),
+        "expected system official profile to exist"
+    );
+    assert_eq!(profiles[0].id, "official", "official profile should be sorted first");
+
+    // Ensure creating the default BYOK profile is still allowed when only official exists.
+    let created = codex::create_default_codex_profile_for_home(home).unwrap();
+    assert_ne!(created.id, "official");
 }
 
 #[test]

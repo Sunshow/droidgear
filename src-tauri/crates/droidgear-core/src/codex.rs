@@ -17,6 +17,9 @@ use crate::{json, paths, storage};
 // Types
 // ============================================================================
 
+const OFFICIAL_PROFILE_ID: &str = "official";
+const OPENAI_API_KEY_FIELD: &str = "OPENAI_API_KEY";
+
 /// Codex Provider 配置（对应 config.toml 中的 [model_providers.<id>]）
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
@@ -155,6 +158,64 @@ fn profile_path_for_home(home_dir: &Path, id: &str) -> Result<PathBuf, String> {
 
 fn now_rfc3339() -> String {
     Utc::now().to_rfc3339()
+}
+
+fn is_official_profile_id(id: &str) -> bool {
+    id == OFFICIAL_PROFILE_ID
+}
+
+fn has_official_auth_for_home(home_dir: &Path) -> Result<bool, String> {
+    let auth_path = codex_auth_path_for_home(home_dir)?;
+    let auth = json::read_json_object_file(&auth_path).unwrap_or_default();
+    Ok(auth.keys().any(|k| k != OPENAI_API_KEY_FIELD))
+}
+
+fn ensure_official_profile_for_home(home_dir: &Path) -> Result<(), String> {
+    if !has_official_auth_for_home(home_dir)? {
+        return Ok(());
+    }
+
+    let official_path = profile_path_for_home(home_dir, OFFICIAL_PROFILE_ID)?;
+    if official_path.exists() {
+        return Ok(());
+    }
+
+    // Best-effort: snapshot the current live config as a starting point for the official profile.
+    // The official profile intentionally never stores API keys.
+    let live = read_codex_current_config_for_home(home_dir).unwrap_or(CodexCurrentConfig {
+        providers: HashMap::new(),
+        model_provider: "openai".to_string(),
+        model: String::new(),
+        model_reasoning_effort: None,
+        api_key: None,
+    });
+
+    let mut providers = HashMap::new();
+    // Prefer preserving any explicit openai provider config from config.toml, if present.
+    if let Some(mut openai_provider) = live.providers.get("openai").cloned() {
+        openai_provider.api_key = None;
+        providers.insert("openai".to_string(), openai_provider);
+    }
+
+    let now = now_rfc3339();
+    let profile = CodexProfile {
+        id: OFFICIAL_PROFILE_ID.to_string(),
+        name: "Official Login / 官方登录".to_string(),
+        description: Some(
+            "Uses `codex login` credentials (Apply will clear OPENAI_API_KEY and preserve other fields in auth.json) / 使用 codex login 的官方认证（应用时会清除 OPENAI_API_KEY，且会保留 auth.json 里其它字段）"
+                .to_string(),
+        ),
+        created_at: now.clone(),
+        updated_at: now,
+        providers,
+        model_provider: "openai".to_string(),
+        model: live.model,
+        model_reasoning_effort: live.model_reasoning_effort,
+        api_key: None,
+    };
+
+    // Write under ~/.droidgear/codex/profiles/official.json
+    write_profile_file(home_dir, &profile)
 }
 
 // ============================================================================
@@ -297,6 +358,10 @@ fn load_profile_by_id(home_dir: &Path, id: &str) -> Result<CodexProfile, String>
 }
 
 pub fn list_codex_profiles_for_home(home_dir: &Path) -> Result<Vec<CodexProfile>, String> {
+    // Auto-create a system "official" profile if the user has codex login credentials.
+    // This keeps GUI/TUI in sync without extra UI logic.
+    let _ = ensure_official_profile_for_home(home_dir);
+
     let dir = profiles_dir_for_home(home_dir)?;
     if !dir.exists() {
         return Ok(vec![]);
@@ -317,7 +382,13 @@ pub fn list_codex_profiles_for_home(home_dir: &Path) -> Result<Vec<CodexProfile>
         }
     }
 
-    profiles.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    profiles.sort_by(|a, b| {
+        match (is_official_profile_id(&a.id), is_official_profile_id(&b.id)) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+        }
+    });
     Ok(profiles)
 }
 
@@ -345,6 +416,9 @@ pub fn save_codex_profile_for_home(
 }
 
 pub fn delete_codex_profile_for_home(home_dir: &Path, id: &str) -> Result<(), String> {
+    if is_official_profile_id(id) {
+        return Err("Cannot delete the official profile".to_string());
+    }
     let path = profile_path_for_home(home_dir, id)?;
     if path.exists() {
         std::fs::remove_file(&path).map_err(|e| format!("Failed to delete profile: {e}"))?;
@@ -375,7 +449,7 @@ pub fn duplicate_codex_profile_for_home(
 
 pub fn create_default_codex_profile_for_home(home_dir: &Path) -> Result<CodexProfile, String> {
     let profiles = list_codex_profiles_for_home(home_dir)?;
-    if !profiles.is_empty() {
+    if profiles.iter().any(|p| !is_official_profile_id(&p.id)) {
         return Err("Profiles already exist".to_string());
     }
 
@@ -526,12 +600,18 @@ pub fn apply_codex_profile_for_home(home_dir: &Path, id: &str) -> Result<(), Str
     storage::atomic_write(&config_path, toml_str.as_bytes())?;
 
     let auth_path = codex_auth_path_for_home(home_dir)?;
-    let mut auth = HashMap::new();
+    let mut auth = json::read_json_object_file(&auth_path).unwrap_or_default();
+
     if let Some(ref key) = resolved_api_key {
         if !key.is_empty() {
-            auth.insert("OPENAI_API_KEY".to_string(), Value::String(key.clone()));
+            auth.insert(OPENAI_API_KEY_FIELD.to_string(), Value::String(key.clone()));
+        } else {
+            auth.remove(OPENAI_API_KEY_FIELD);
         }
+    } else {
+        auth.remove(OPENAI_API_KEY_FIELD);
     }
+
     json::write_json_object_file(&auth_path, &auth)?;
 
     set_active_profile_id_for_home(home_dir, id)?;

@@ -108,6 +108,7 @@ export function CodexConfigPage() {
     CodexProviderConfig
   >
   const providerIds = Object.keys(providers)
+  const isOfficialProfile = currentProfile?.id === 'official'
 
   useEffect(() => {
     const init = async () => {
@@ -266,7 +267,7 @@ export function CodexConfigPage() {
                 )
                 setShowDuplicateProfileDialog(true)
               }}
-              disabled={!currentProfile}
+              disabled={!currentProfile || isOfficialProfile}
               title={t('codex.profile.duplicate')}
             >
               <Copy className="h-4 w-4" />
@@ -275,7 +276,7 @@ export function CodexConfigPage() {
               variant="outline"
               size="icon"
               onClick={() => setShowDeleteProfileConfirm(true)}
-              disabled={!currentProfile || profiles.length <= 1}
+              disabled={!currentProfile || profiles.length <= 1 || isOfficialProfile}
               title={t('codex.profile.delete')}
             >
               <Trash2 className="h-4 w-4" />
@@ -295,6 +296,7 @@ export function CodexConfigPage() {
                     }
                   }}
                   placeholder={t('codex.profile.name')}
+                  disabled={isOfficialProfile}
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -310,6 +312,7 @@ export function CodexConfigPage() {
                     }
                   }}
                   placeholder={t('codex.profile.descriptionPlaceholder')}
+                  disabled={isOfficialProfile}
                 />
               </div>
             </>
@@ -328,13 +331,18 @@ export function CodexConfigPage() {
                   variant="outline"
                   size="sm"
                   onClick={handleLoadFromConfig}
-                  disabled={!configStatus?.configExists}
+                  disabled={!configStatus?.configExists || isOfficialProfile}
                   title={t('codex.provider.loadFromConfig')}
                 >
                   <Download className="h-4 w-4 mr-2" />
                   {t('codex.provider.loadFromConfig')}
                 </Button>
-                <Button variant="outline" size="sm" onClick={handleAddProvider}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddProvider}
+                  disabled={isOfficialProfile}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   {t('codex.provider.add')}
                 </Button>
@@ -359,6 +367,7 @@ export function CodexConfigPage() {
                       onEdit={() => handleEditProvider(id)}
                       onDelete={() => handleDeleteProviderClick(id)}
                       onSetActive={() => setActiveProvider(id)}
+                      disabled={isOfficialProfile}
                     />
                   )
                 })}
