@@ -4963,7 +4963,7 @@ fn run_select_action(
             };
             // Store channel info as pending import state; prompt for API key next
             app.hermes_import_pending_base_url = Some(channel.base_url.clone());
-            app.hermes_import_pending_provider = Some("openai".to_string());
+            app.hermes_import_pending_provider = Some("custom".to_string());
             app.modal = Some(app::Modal::Input {
                 title: "API key for import".to_string(),
                 value: String::new(),

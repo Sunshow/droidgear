@@ -30,11 +30,7 @@ import {
 } from '@/components/ui/table'
 import { useChannelStore } from '@/store/channel-store'
 import { isApiKeyAuthChannel } from '@/lib/channel-utils'
-import { inferProviderForNewApi } from '@/lib/newapi-platform'
-import {
-  inferProviderFromPlatformAndModel,
-  normalizeBaseUrl,
-} from '@/lib/sub2api-platform'
+import { normalizeBaseUrl } from '@/lib/sub2api-platform'
 import {
   commands,
   type Channel,
@@ -128,13 +124,9 @@ export function ImportFromChannelDialog({
     }
   }, [selectedChannelId, selectedChannel, keysMap, fetchKeys])
 
-  const inferProvider = (modelId: string, platform?: string | null): string => {
-    if (!selectedChannel) return 'openai'
-    if (isApiKeyAuthChannel(selectedChannel.type)) {
-      return inferProviderForNewApi(modelId)
-    }
-    return inferProviderFromPlatformAndModel(platform, modelId)
-  }
+  // Hermes always uses "custom" as provider regardless of channel type or model
+  const inferProvider = (_modelId: string, _platform?: string | null): string =>
+    'custom'
 
   /** Append /v1 to baseUrl unless it already ends with it */
   const withV1 = (url: string) => normalizeBaseUrl(url, '/v1')
@@ -160,7 +152,7 @@ export function ImportFromChannelDialog({
         }
         setResolvedApiKey(result.data)
         setResolvedBaseUrl(withV1(selectedChannel.baseUrl))
-        setResolvedProvider('openai')
+        setResolvedProvider('custom')
         setIsResolvingKey(false)
         // Skip token step, go straight to model step
         await fetchModelsForKey(selectedChannel.baseUrl, result.data, null)
