@@ -29,7 +29,10 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useChannelStore } from '@/store/channel-store'
-import { isApiKeyAuthChannel } from '@/lib/channel-utils'
+import {
+  isApiKeyAuthChannel,
+  isOpenAICompatiblePlatform,
+} from '@/lib/channel-utils'
 import { normalizeBaseUrl } from '@/lib/sub2api-platform'
 import {
   commands,
@@ -326,7 +329,11 @@ export function ImportFromChannelDialog({
                   </TableHeader>
                   <TableBody>
                     {tokens
-                      .filter(tk => tk.status === 1)
+                      .filter(
+                        tk =>
+                          tk.status === 1 &&
+                          isOpenAICompatiblePlatform(tk.platform)
+                      )
                       .map(tk => (
                         <TableRow key={tk.id}>
                           <TableCell className="font-medium">
