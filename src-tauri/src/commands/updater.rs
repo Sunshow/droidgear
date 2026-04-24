@@ -135,7 +135,7 @@ pub async fn install_portable_update(
     {
         let _ = app;
         let _ = update;
-        return Err("Portable updates are only supported on Windows".to_string());
+        Err("Portable updates are only supported on Windows".to_string())
     }
 
     #[cfg(target_os = "windows")]

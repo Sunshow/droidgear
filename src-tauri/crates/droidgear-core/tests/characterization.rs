@@ -503,7 +503,7 @@ fn paths_save_and_reset_roundtrip() {
     assert_eq!(loaded.codex.as_deref(), Some("/tmp/codex"));
 
     let effective = paths::get_effective_paths_for_home(home).unwrap();
-    assert_eq!(effective.codex.is_default, false);
+    assert!(!effective.codex.is_default);
     assert_eq!(effective.codex.path, "/tmp/codex");
 
     paths::reset_config_path_for_home(home, "codex").unwrap();

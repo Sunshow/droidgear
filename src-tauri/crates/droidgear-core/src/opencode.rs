@@ -264,7 +264,7 @@ pub fn list_opencode_profiles_for_home(home_dir: &Path) -> Result<Vec<OpenCodePr
         }
     }
 
-    profiles.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    profiles.sort_by_key(|a| a.name.to_lowercase());
     Ok(profiles)
 }
 

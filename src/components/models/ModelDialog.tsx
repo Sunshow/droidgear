@@ -31,8 +31,13 @@ import {
 } from '@/lib/bindings'
 import {
   containsRegexSpecialChars,
+  effortToBudgetTokens,
   getDefaultMaxOutputTokens,
   hasOfficialModelNamePrefix,
+  isAnthropicAdaptiveThinkingModel,
+  isOpus47,
+  supportsMaxEffort,
+  supportsXhighEffort,
 } from '@/lib/utils'
 import { useModelStore } from '@/store/model-store'
 import { BatchModelSelector } from './BatchModelSelector'
@@ -91,11 +96,31 @@ function ModelForm({
   const [noImageSupport, setNoImageSupport] = useState(
     model?.noImageSupport ?? false
   )
-  // Extract reasoning effort from extraArgs if present
+  // Extract reasoning effort from extraArgs if present.
+  // Supports:
+  //   - reasoning.effort (OpenAI / generic)
+  //   - output_config.effort paired with thinking.type === 'adaptive' (Anthropic adaptive)
   const extractReasoningEffort = (
     args?: Partial<Record<string, JsonValue>> | null
   ): string => {
     if (!args) return 'none'
+    const thinking = args.thinking
+    const isAdaptive =
+      thinking &&
+      typeof thinking === 'object' &&
+      !Array.isArray(thinking) &&
+      (thinking as Record<string, JsonValue>).type === 'adaptive'
+    if (isAdaptive) {
+      const outputConfig = args.output_config
+      if (
+        outputConfig &&
+        typeof outputConfig === 'object' &&
+        !Array.isArray(outputConfig)
+      ) {
+        const effort = (outputConfig as Record<string, JsonValue>).effort
+        if (typeof effort === 'string') return effort
+      }
+    }
     const reasoning = args.reasoning
     if (
       reasoning &&
@@ -111,6 +136,11 @@ function ModelForm({
 
   const [reasoningEffort, setReasoningEffort] = useState(
     extractReasoningEffort(model?.extraArgs)
+  )
+  // Track whether maxTokens was auto-filled vs user-edited, so effort changes
+  // can re-fill only when the user hasn't manually overridden the value.
+  const [autoFilledMaxTokens, setAutoFilledMaxTokens] = useState(
+    !model?.maxOutputTokens
   )
   const [extraArgs, setExtraArgs] = useState(
     model?.extraArgs ? JSON.stringify(model.extraArgs, null, 2) : ''
@@ -139,11 +169,85 @@ function ModelForm({
   // Channel picker state
   const [channelPickerOpen, setChannelPickerOpen] = useState(false)
 
+  // If the currently selected effort isn't supported by a model, snap it down
+  // to the highest supported level. xhigh -> high, max -> xhigh -> high.
+  const clampEffortToModel = (effort: string, nextModelId: string): string => {
+    if (effort === 'max' && !supportsMaxEffort(nextModelId)) {
+      return supportsXhighEffort(nextModelId) ? 'xhigh' : 'high'
+    }
+    if (effort === 'xhigh' && !supportsXhighEffort(nextModelId)) {
+      return 'high'
+    }
+    return effort
+  }
+
+  // Rewrite the effort-encoding keys in an extraArgs JSON string to match the
+  // (provider, model, effort) triple, preserving unrelated fields. Also strips
+  // sampling params that Opus 4.7 rejects. Returns the JSON unchanged when the
+  // user has typed invalid JSON so we don't destroy in-progress edits.
+  const rewriteExtraArgsWithEffort = (
+    currentJson: string,
+    nextProvider: Provider,
+    nextModelId: string,
+    nextEffort: string
+  ): string => {
+    if (currentJson.trim() && !isJsonValid(currentJson)) return currentJson
+    const parsed = parseJsonSafe(currentJson) ?? {}
+    delete parsed.reasoning
+    delete parsed.thinking
+    delete parsed.output_config
+    if (nextEffort && nextEffort !== 'none') {
+      if (
+        nextProvider === 'anthropic' &&
+        isAnthropicAdaptiveThinkingModel(nextModelId)
+      ) {
+        parsed.thinking = { type: 'adaptive' }
+        parsed.output_config = { effort: nextEffort }
+      } else if (nextProvider === 'anthropic') {
+        parsed.thinking = {
+          type: 'enabled',
+          budget_tokens: effortToBudgetTokens(nextEffort),
+        }
+      } else {
+        parsed.reasoning = { effort: nextEffort }
+      }
+    }
+    if (isOpus47(nextModelId)) {
+      delete parsed.temperature
+      delete parsed.top_p
+      delete parsed.top_k
+    }
+    return Object.keys(parsed).length > 0 ? JSON.stringify(parsed, null, 2) : ''
+  }
+
   const handleModelIdChange = (newModelId: string) => {
     setModelId(newModelId)
     setDisplayName(newModelId)
-    if (newModelId && !maxTokens) {
-      setMaxTokens(getDefaultMaxOutputTokens(newModelId).toString())
+    const clampedEffort = clampEffortToModel(reasoningEffort, newModelId)
+    if (clampedEffort !== reasoningEffort) setReasoningEffort(clampedEffort)
+    setExtraArgs(
+      rewriteExtraArgsWithEffort(extraArgs, provider, newModelId, clampedEffort)
+    )
+    if (newModelId && (!maxTokens || autoFilledMaxTokens)) {
+      setMaxTokens(
+        getDefaultMaxOutputTokens(newModelId, clampedEffort).toString()
+      )
+      setAutoFilledMaxTokens(true)
+    }
+  }
+
+  const handleMaxTokensChange = (value: string) => {
+    setMaxTokens(value)
+    setAutoFilledMaxTokens(false)
+  }
+
+  const handleReasoningEffortChange = (value: string) => {
+    setReasoningEffort(value)
+    setExtraArgs(
+      rewriteExtraArgsWithEffort(extraArgs, provider, modelId, value)
+    )
+    if (modelId && autoFilledMaxTokens) {
+      setMaxTokens(getDefaultMaxOutputTokens(modelId, value).toString())
     }
   }
 
@@ -154,6 +258,9 @@ function ModelForm({
     setFetchError(null)
     setBatchMode(false)
     setSelectedModels(new Map())
+    setExtraArgs(
+      rewriteExtraArgsWithEffort(extraArgs, value, modelId, reasoningEffort)
+    )
   }
 
   const handleFetchModels = async () => {
@@ -246,21 +353,81 @@ function ModelForm({
     }
   }
 
-  const isJsonValid = (value: string): boolean => {
+  const validateJson = (
+    value: string
+  ):
+    | { ok: true; hasSmartQuotes: false }
+    | { ok: false; error: string; hasSmartQuotes: boolean } => {
     const trimmed = value.trim()
-    if (!trimmed) return true
+    if (!trimmed) return { ok: true, hasSmartQuotes: false }
+    // U+201C / U+201D (curly double quotes) and U+2018 / U+2019 (curly single
+    // quotes) are a very common paste hazard and JSON.parse fails on them
+    // with a generic "Unexpected token" message.
+    const hasSmartQuotes = /[‘’“”]/.test(trimmed)
     try {
       const parsed = JSON.parse(trimmed)
-      return (
-        typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
-      )
-    } catch {
-      return false
+      if (
+        typeof parsed !== 'object' ||
+        parsed === null ||
+        Array.isArray(parsed)
+      ) {
+        return {
+          ok: false,
+          error: 'Root value must be a JSON object',
+          hasSmartQuotes,
+        }
+      }
+      return { ok: true, hasSmartQuotes: false }
+    } catch (err) {
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+        hasSmartQuotes,
+      }
     }
   }
 
-  const extraArgsValid = isJsonValid(extraArgs)
-  const extraHeadersValid = isJsonValid(extraHeaders)
+  const isJsonValid = (value: string): boolean => validateJson(value).ok
+
+  const extraArgsValidation = validateJson(extraArgs)
+  const extraHeadersValidation = validateJson(extraHeaders)
+  const extraArgsValid = extraArgsValidation.ok
+  const extraHeadersValid = extraHeadersValidation.ok
+
+  const buildExtraArgs = (): Partial<Record<string, JsonValue>> | undefined => {
+    const parsed = parseJsonSafe(extraArgs) ?? {}
+
+    // Always clear every known effort-encoding key so we never ship two forms.
+    delete parsed.reasoning
+    delete parsed.thinking
+    delete parsed.output_config
+
+    if (reasoningEffort && reasoningEffort !== 'none') {
+      if (
+        provider === 'anthropic' &&
+        isAnthropicAdaptiveThinkingModel(modelId)
+      ) {
+        parsed.thinking = { type: 'adaptive' }
+        parsed.output_config = { effort: reasoningEffort }
+      } else if (provider === 'anthropic') {
+        parsed.thinking = {
+          type: 'enabled',
+          budget_tokens: effortToBudgetTokens(reasoningEffort),
+        }
+      } else {
+        parsed.reasoning = { effort: reasoningEffort }
+      }
+    }
+
+    // Opus 4.7 rejects sampling parameters — strip them rather than 400 at runtime.
+    if (isOpus47(modelId)) {
+      delete parsed.temperature
+      delete parsed.top_p
+      delete parsed.top_k
+    }
+
+    return Object.keys(parsed).length > 0 ? parsed : undefined
+  }
 
   const handleSave = () => {
     if (!modelId || !baseUrl || !apiKey) return
@@ -274,15 +441,7 @@ function ModelForm({
       displayName: displayName || undefined,
       maxOutputTokens: maxTokens ? parseInt(maxTokens) : undefined,
       noImageSupport: noImageSupport || undefined,
-      extraArgs: (() => {
-        const parsed = parseJsonSafe(extraArgs) ?? {}
-        if (reasoningEffort && reasoningEffort !== 'none') {
-          parsed.reasoning = { effort: reasoningEffort }
-        } else {
-          delete parsed.reasoning
-        }
-        return Object.keys(parsed).length > 0 ? parsed : undefined
-      })(),
+      extraArgs: buildExtraArgs(),
       extraHeaders: parseJsonSafe(extraHeaders) as
         | Record<string, string>
         | null
@@ -475,10 +634,20 @@ function ModelForm({
                   id="maxTokens"
                   type="number"
                   value={maxTokens}
-                  onChange={e => setMaxTokens(e.target.value)}
+                  onChange={e => handleMaxTokensChange(e.target.value)}
                   placeholder="8192"
                   step={8192}
                 />
+                {isOpus47(modelId) &&
+                  (reasoningEffort === 'xhigh' || reasoningEffort === 'max') &&
+                  (() => {
+                    const n = parseInt(maxTokens, 10)
+                    return Number.isFinite(n) && n < 64000 ? (
+                      <p className="text-xs text-amber-600 dark:text-amber-500">
+                        {t('models.opus47.maxTokensHint')}
+                      </p>
+                    ) : null
+                  })()}
               </div>
 
               <div className="flex items-center gap-2">
@@ -501,7 +670,7 @@ function ModelForm({
                 </Label>
                 <Select
                   value={reasoningEffort}
-                  onValueChange={setReasoningEffort}
+                  onValueChange={handleReasoningEffortChange}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -519,9 +688,16 @@ function ModelForm({
                     <SelectItem value="high">
                       {t('models.reasoningEffort.high')}
                     </SelectItem>
-                    <SelectItem value="xhigh">
-                      {t('models.reasoningEffort.xhigh')}
-                    </SelectItem>
+                    {supportsXhighEffort(modelId) && (
+                      <SelectItem value="xhigh">
+                        {t('models.reasoningEffort.xhigh')}
+                      </SelectItem>
+                    )}
+                    {supportsMaxEffort(modelId) && (
+                      <SelectItem value="max">
+                        {t('models.reasoningEffort.max')}
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
@@ -556,10 +732,34 @@ function ModelForm({
                       className="font-mono text-sm"
                     />
                     {!extraArgsValid && (
-                      <p className="text-sm text-destructive">
-                        {t('models.invalidJson')}
-                      </p>
+                      <div className="space-y-1">
+                        <p className="text-sm text-destructive">
+                          {t('models.invalidJsonWithError', {
+                            error: extraArgsValidation.error,
+                          })}
+                        </p>
+                        {extraArgsValidation.hasSmartQuotes && (
+                          <p className="text-xs text-amber-600 dark:text-amber-500">
+                            {t('models.smartQuotesHint')}
+                          </p>
+                        )}
+                      </div>
                     )}
+                    {isOpus47(modelId) &&
+                      extraArgsValid &&
+                      (() => {
+                        const parsed = parseJsonSafe(extraArgs)
+                        if (!parsed) return null
+                        const hasForbidden =
+                          'temperature' in parsed ||
+                          'top_p' in parsed ||
+                          'top_k' in parsed
+                        return hasForbidden ? (
+                          <p className="text-xs text-amber-600 dark:text-amber-500">
+                            {t('models.opus47.samplingWarning')}
+                          </p>
+                        ) : null
+                      })()}
                     <p className="text-xs text-muted-foreground">
                       {t('models.extraArgsHint')}
                     </p>
@@ -577,9 +777,18 @@ function ModelForm({
                       className="font-mono text-sm"
                     />
                     {!extraHeadersValid && (
-                      <p className="text-sm text-destructive">
-                        {t('models.invalidJson')}
-                      </p>
+                      <div className="space-y-1">
+                        <p className="text-sm text-destructive">
+                          {t('models.invalidJsonWithError', {
+                            error: extraHeadersValidation.error,
+                          })}
+                        </p>
+                        {extraHeadersValidation.hasSmartQuotes && (
+                          <p className="text-xs text-amber-600 dark:text-amber-500">
+                            {t('models.smartQuotesHint')}
+                          </p>
+                        )}
+                      </div>
                     )}
                     <p className="text-xs text-muted-foreground">
                       {t('models.extraHeadersHint')}

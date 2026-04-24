@@ -863,7 +863,7 @@ fn draw_mcp_key_values(frame: &mut Frame, app: &app::App, area: Rect) {
     let mut entries: Vec<(String, String)> = map
         .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
         .unwrap_or_default();
-    entries.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
+    entries.sort_by_key(|a| a.0.to_lowercase());
 
     let mut items: Vec<ListItem> = Vec::new();
     for (i, (k, v)) in entries.iter().enumerate() {

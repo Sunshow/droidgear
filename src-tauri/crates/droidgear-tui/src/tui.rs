@@ -590,15 +590,13 @@ fn handle_factory_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
                 app.screen = app::Screen::FactoryModel;
             }
         }
-        KeyCode::Char('x') => {
-            if !app.custom_models.is_empty() {
-                app.modal = Some(app::Modal::Confirm {
-                    message: "Delete selected custom model?".to_string(),
-                    action: app::ConfirmAction::FactoryDeleteModel {
-                        index: app.factory_models_index,
-                    },
-                });
-            }
+        KeyCode::Char('x') if !app.custom_models.is_empty() => {
+            app.modal = Some(app::Modal::Confirm {
+                message: "Delete selected custom model?".to_string(),
+                action: app::ConfirmAction::FactoryDeleteModel {
+                    index: app.factory_models_index,
+                },
+            });
         }
         KeyCode::Enter | KeyCode::Char('e') => {
             if let Some(m) = app.custom_models.get(app.factory_models_index) {
@@ -1872,31 +1870,27 @@ fn handle_opencode_profile_key(app: &mut app::App, code: KeyCode) -> Option<Acti
                 action: app::SelectAction::OpenCodeImportProviders { id: profile_id },
             });
         }
-        KeyCode::Char('n') => {
-            if app.opencode_detail_focus == app::CodexDetailFocus::Providers {
-                app.modal = Some(app::Modal::Input {
-                    title: "New provider id".to_string(),
-                    value: String::new(),
-                    cursor: usize::MAX,
-                    is_secret: false,
-                    action: app::InputAction::OpenCodeAddProvider { profile_id },
-                });
-            }
+        KeyCode::Char('n') if app.opencode_detail_focus == app::CodexDetailFocus::Providers => {
+            app.modal = Some(app::Modal::Input {
+                title: "New provider id".to_string(),
+                value: String::new(),
+                cursor: usize::MAX,
+                is_secret: false,
+                action: app::InputAction::OpenCodeAddProvider { profile_id },
+            });
         }
-        KeyCode::Char('d') => {
-            if app.opencode_detail_focus == app::CodexDetailFocus::Providers {
-                if let Some(provider_id) = app
-                    .opencode_detail_provider_ids
-                    .get(app.opencode_detail_provider_index)
-                {
-                    app.modal = Some(app::Modal::Confirm {
-                        message: format!("Delete provider '{provider_id}'?"),
-                        action: app::ConfirmAction::OpenCodeDeleteProvider {
-                            profile_id,
-                            provider_id: provider_id.clone(),
-                        },
-                    });
-                }
+        KeyCode::Char('d') if app.opencode_detail_focus == app::CodexDetailFocus::Providers => {
+            if let Some(provider_id) = app
+                .opencode_detail_provider_ids
+                .get(app.opencode_detail_provider_index)
+            {
+                app.modal = Some(app::Modal::Confirm {
+                    message: format!("Delete provider '{provider_id}'?"),
+                    action: app::ConfirmAction::OpenCodeDeleteProvider {
+                        profile_id,
+                        provider_id: provider_id.clone(),
+                    },
+                });
             }
         }
         KeyCode::Enter | KeyCode::Char('e') => match app.opencode_detail_focus {
@@ -1992,35 +1986,31 @@ fn handle_opencode_provider_key(app: &mut app::App, code: KeyCode) -> Option<Act
                     app.opencode_provider_model_index.saturating_sub(1)
             }
         },
-        KeyCode::Char('n') => {
-            if app.opencode_provider_focus == app::CodexDetailFocus::Providers {
-                app.modal = Some(app::Modal::Input {
-                    title: "New model id".to_string(),
-                    value: String::new(),
-                    cursor: usize::MAX,
-                    is_secret: false,
-                    action: app::InputAction::OpenCodeAddModel {
+        KeyCode::Char('n') if app.opencode_provider_focus == app::CodexDetailFocus::Providers => {
+            app.modal = Some(app::Modal::Input {
+                title: "New model id".to_string(),
+                value: String::new(),
+                cursor: usize::MAX,
+                is_secret: false,
+                action: app::InputAction::OpenCodeAddModel {
+                    profile_id,
+                    provider_id,
+                },
+            });
+        }
+        KeyCode::Char('d') if app.opencode_provider_focus == app::CodexDetailFocus::Providers => {
+            if let Some(model_id) = app
+                .opencode_provider_model_ids
+                .get(app.opencode_provider_model_index)
+            {
+                app.modal = Some(app::Modal::Confirm {
+                    message: format!("Delete model '{model_id}'?"),
+                    action: app::ConfirmAction::OpenCodeDeleteModel {
                         profile_id,
                         provider_id,
+                        model_id: model_id.clone(),
                     },
                 });
-            }
-        }
-        KeyCode::Char('d') => {
-            if app.opencode_provider_focus == app::CodexDetailFocus::Providers {
-                if let Some(model_id) = app
-                    .opencode_provider_model_ids
-                    .get(app.opencode_provider_model_index)
-                {
-                    app.modal = Some(app::Modal::Confirm {
-                        message: format!("Delete model '{model_id}'?"),
-                        action: app::ConfirmAction::OpenCodeDeleteModel {
-                            profile_id,
-                            provider_id,
-                            model_id: model_id.clone(),
-                        },
-                    });
-                }
             }
         }
         KeyCode::Enter | KeyCode::Char('e') => match app.opencode_provider_focus {
@@ -2565,31 +2555,27 @@ fn handle_openclaw_provider_key(app: &mut app::App, code: KeyCode) -> Option<Act
                     app.openclaw_provider_model_index.saturating_sub(1)
             }
         },
-        KeyCode::Char('n') => {
-            if app.openclaw_provider_focus == app::CodexDetailFocus::Providers {
-                app.modal = Some(app::Modal::Input {
-                    title: "New model id".to_string(),
-                    value: String::new(),
-                    cursor: usize::MAX,
-                    is_secret: false,
-                    action: app::InputAction::OpenClawAddModel {
-                        profile_id,
-                        provider_id,
-                    },
-                });
-            }
+        KeyCode::Char('n') if app.openclaw_provider_focus == app::CodexDetailFocus::Providers => {
+            app.modal = Some(app::Modal::Input {
+                title: "New model id".to_string(),
+                value: String::new(),
+                cursor: usize::MAX,
+                is_secret: false,
+                action: app::InputAction::OpenClawAddModel {
+                    profile_id,
+                    provider_id,
+                },
+            });
         }
-        KeyCode::Char('d') => {
-            if app.openclaw_provider_focus == app::CodexDetailFocus::Providers {
-                app.modal = Some(app::Modal::Confirm {
-                    message: "Delete selected model?".to_string(),
-                    action: app::ConfirmAction::OpenClawDeleteModel {
-                        profile_id,
-                        provider_id,
-                        model_index: app.openclaw_provider_model_index,
-                    },
-                });
-            }
+        KeyCode::Char('d') if app.openclaw_provider_focus == app::CodexDetailFocus::Providers => {
+            app.modal = Some(app::Modal::Confirm {
+                message: "Delete selected model?".to_string(),
+                action: app::ConfirmAction::OpenClawDeleteModel {
+                    profile_id,
+                    provider_id,
+                    model_index: app.openclaw_provider_model_index,
+                },
+            });
         }
         KeyCode::Enter | KeyCode::Char('e') => match app.openclaw_provider_focus {
             app::CodexDetailFocus::Fields => match app.openclaw_provider_field_index {
@@ -3799,16 +3785,14 @@ fn handle_channels_edit_key(app: &mut app::App, code: KeyCode) -> Option<Action>
                     });
                 }
             }
-            5 => {
-                if !uses_api_key {
-                    app.modal = Some(app::Modal::Input {
-                        title: "Password".to_string(),
-                        value: app.channels_edit_password.clone(),
-                        cursor: usize::MAX,
-                        is_secret: true,
-                        action: app::InputAction::ChannelsDraftSetPassword,
-                    });
-                }
+            5 if !uses_api_key => {
+                app.modal = Some(app::Modal::Input {
+                    title: "Password".to_string(),
+                    value: app.channels_edit_password.clone(),
+                    cursor: usize::MAX,
+                    is_secret: true,
+                    action: app::InputAction::ChannelsDraftSetPassword,
+                });
             }
             _ => {}
         },
@@ -4413,44 +4397,38 @@ fn handle_modal_key(app: &mut app::App, code: KeyCode, modal: app::Modal) {
                 }
 
                 // Editing
-                KeyCode::Backspace => {
-                    if cursor > 0 {
-                        remove_char_at(&mut value, cursor.saturating_sub(1));
-                        cursor = cursor.saturating_sub(1);
-                        app.modal = Some(app::Modal::Input {
-                            title,
-                            value,
-                            cursor,
-                            is_secret,
-                            action,
-                        });
-                    }
+                KeyCode::Backspace if cursor > 0 => {
+                    remove_char_at(&mut value, cursor.saturating_sub(1));
+                    cursor = cursor.saturating_sub(1);
+                    app.modal = Some(app::Modal::Input {
+                        title,
+                        value,
+                        cursor,
+                        is_secret,
+                        action,
+                    });
                 }
-                KeyCode::Delete => {
-                    if cursor < value_len {
-                        remove_char_at(&mut value, cursor);
-                        app.modal = Some(app::Modal::Input {
-                            title,
-                            value,
-                            cursor,
-                            is_secret,
-                            action,
-                        });
-                    }
+                KeyCode::Delete if cursor < value_len => {
+                    remove_char_at(&mut value, cursor);
+                    app.modal = Some(app::Modal::Input {
+                        title,
+                        value,
+                        cursor,
+                        is_secret,
+                        action,
+                    });
                 }
-                KeyCode::Char(c) => {
-                    if !c.is_control() {
-                        // Default: insert mode (non-destructive).
-                        insert_char_at(&mut value, cursor, c);
-                        cursor = cursor.saturating_add(1);
-                        app.modal = Some(app::Modal::Input {
-                            title,
-                            value,
-                            cursor,
-                            is_secret,
-                            action,
-                        });
-                    }
+                KeyCode::Char(c) if !c.is_control() => {
+                    // Default: insert mode (non-destructive).
+                    insert_char_at(&mut value, cursor, c);
+                    cursor = cursor.saturating_add(1);
+                    app.modal = Some(app::Modal::Input {
+                        title,
+                        value,
+                        cursor,
+                        is_secret,
+                        action,
+                    });
                 }
 
                 _ => {}

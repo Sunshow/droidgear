@@ -1,10 +1,10 @@
 [
   {
-    "id": "claude-3.5-haiku",
+    "id": "claude-3-5-haiku",
     "name": "Claude 3.5 Haiku",
     "aliases": [
       "claude-3-5-haiku-20241022",
-      "claude-3-5-haiku",
+      "claude-3.5-haiku",
       "claude-3.5-haiku-20241022"
     ],
     "platform": "anthropic-messages",
@@ -12,11 +12,11 @@
     "maxOutputTokens": 8192
   },
   {
-    "id": "claude-3.5-sonnet",
+    "id": "claude-3-5-sonnet",
     "name": "Claude 3.5 Sonnet",
     "aliases": [
       "claude-3-5-sonnet-20241022",
-      "claude-3-5-sonnet",
+      "claude-3.5-sonnet",
       "claude-3.5-sonnet-20241022"
     ],
     "platform": "anthropic-messages",
@@ -24,11 +24,11 @@
     "maxOutputTokens": 64000
   },
   {
-    "id": "claude-3.7-sonnet",
+    "id": "claude-3-7-sonnet",
     "name": "Claude 3.7 Sonnet",
     "aliases": [
       "claude-3-7-sonnet-20250219",
-      "claude-3-7-sonnet",
+      "claude-3.7-sonnet",
       "claude-3.7-sonnet-20250219"
     ],
     "platform": "anthropic-messages",
@@ -52,9 +52,9 @@
     "maxOutputTokens": 4096
   },
   {
-    "id": "claude-haiku-4.5",
+    "id": "claude-haiku-4-5",
     "name": "Claude Haiku 4.5",
-    "aliases": [],
+    "aliases": ["claude-haiku-4.5"],
     "platform": "anthropic-messages",
     "contextWindow": 200000,
     "maxOutputTokens": 64000
@@ -68,25 +68,33 @@
     "maxOutputTokens": 64000
   },
   {
-    "id": "claude-opus-4.1",
+    "id": "claude-opus-4-1",
     "name": "Claude Opus 4.1",
-    "aliases": [],
+    "aliases": ["claude-opus-4.1"],
     "platform": "anthropic-messages",
     "contextWindow": 200000,
     "maxOutputTokens": 64000
   },
   {
-    "id": "claude-opus-4.5",
+    "id": "claude-opus-4-5",
     "name": "Claude Opus 4.5",
-    "aliases": [],
+    "aliases": ["claude-opus-4.5"],
     "platform": "anthropic-messages",
     "contextWindow": 200000,
     "maxOutputTokens": 64000
   },
   {
-    "id": "claude-opus-4.6",
+    "id": "claude-opus-4-6",
     "name": "Claude Opus 4.6",
-    "aliases": [],
+    "aliases": ["claude-opus-4.6"],
+    "platform": "anthropic-messages",
+    "contextWindow": 1000000,
+    "maxOutputTokens": 128000
+  },
+  {
+    "id": "claude-opus-4-7",
+    "name": "Claude Opus 4.7",
+    "aliases": ["claude-opus-4.7"],
     "platform": "anthropic-messages",
     "contextWindow": 1000000,
     "maxOutputTokens": 128000
@@ -108,17 +116,17 @@
     "maxOutputTokens": 128000
   },
   {
-    "id": "claude-sonnet-4.5",
+    "id": "claude-sonnet-4-5",
     "name": "Claude Sonnet 4.5",
-    "aliases": [],
+    "aliases": ["claude-sonnet-4.5"],
     "platform": "anthropic-messages",
     "contextWindow": 1000000,
     "maxOutputTokens": 64000
   },
   {
-    "id": "claude-sonnet-4.6",
+    "id": "claude-sonnet-4-6",
     "name": "Claude Sonnet 4.6",
-    "aliases": [],
+    "aliases": ["claude-sonnet-4.6"],
     "platform": "anthropic-messages",
     "contextWindow": 1000000,
     "maxOutputTokens": 64000
@@ -162,6 +170,22 @@
     "platform": "openai-completions",
     "contextWindow": 163840,
     "maxOutputTokens": 64000
+  },
+  {
+    "id": "deepseek-v4-flash",
+    "name": "DeepSeek V4 Flash",
+    "aliases": [],
+    "platform": "openai-completions",
+    "contextWindow": 1000000,
+    "maxOutputTokens": 384000
+  },
+  {
+    "id": "deepseek-v4-pro",
+    "name": "DeepSeek V4 Pro",
+    "aliases": [],
+    "platform": "openai-completions",
+    "contextWindow": 1000000,
+    "maxOutputTokens": 384000
   },
   {
     "id": "gemini-1.5-flash",
