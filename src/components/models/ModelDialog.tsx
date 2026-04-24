@@ -169,12 +169,68 @@ function ModelForm({
   // Channel picker state
   const [channelPickerOpen, setChannelPickerOpen] = useState(false)
 
+  // If the currently selected effort isn't supported by a model, snap it down
+  // to the highest supported level. xhigh -> high, max -> xhigh -> high.
+  const clampEffortToModel = (effort: string, nextModelId: string): string => {
+    if (effort === 'max' && !supportsMaxEffort(nextModelId)) {
+      return supportsXhighEffort(nextModelId) ? 'xhigh' : 'high'
+    }
+    if (effort === 'xhigh' && !supportsXhighEffort(nextModelId)) {
+      return 'high'
+    }
+    return effort
+  }
+
+  // Rewrite the effort-encoding keys in an extraArgs JSON string to match the
+  // (provider, model, effort) triple, preserving unrelated fields. Also strips
+  // sampling params that Opus 4.7 rejects. Returns the JSON unchanged when the
+  // user has typed invalid JSON so we don't destroy in-progress edits.
+  const rewriteExtraArgsWithEffort = (
+    currentJson: string,
+    nextProvider: Provider,
+    nextModelId: string,
+    nextEffort: string
+  ): string => {
+    if (currentJson.trim() && !isJsonValid(currentJson)) return currentJson
+    const parsed = parseJsonSafe(currentJson) ?? {}
+    delete parsed.reasoning
+    delete parsed.thinking
+    delete parsed.output_config
+    if (nextEffort && nextEffort !== 'none') {
+      if (
+        nextProvider === 'anthropic' &&
+        isAnthropicAdaptiveThinkingModel(nextModelId)
+      ) {
+        parsed.thinking = { type: 'adaptive' }
+        parsed.output_config = { effort: nextEffort }
+      } else if (nextProvider === 'anthropic') {
+        parsed.thinking = {
+          type: 'enabled',
+          budget_tokens: effortToBudgetTokens(nextEffort),
+        }
+      } else {
+        parsed.reasoning = { effort: nextEffort }
+      }
+    }
+    if (isOpus47(nextModelId)) {
+      delete parsed.temperature
+      delete parsed.top_p
+      delete parsed.top_k
+    }
+    return Object.keys(parsed).length > 0 ? JSON.stringify(parsed, null, 2) : ''
+  }
+
   const handleModelIdChange = (newModelId: string) => {
     setModelId(newModelId)
     setDisplayName(newModelId)
+    const clampedEffort = clampEffortToModel(reasoningEffort, newModelId)
+    if (clampedEffort !== reasoningEffort) setReasoningEffort(clampedEffort)
+    setExtraArgs(
+      rewriteExtraArgsWithEffort(extraArgs, provider, newModelId, clampedEffort)
+    )
     if (newModelId && (!maxTokens || autoFilledMaxTokens)) {
       setMaxTokens(
-        getDefaultMaxOutputTokens(newModelId, reasoningEffort).toString()
+        getDefaultMaxOutputTokens(newModelId, clampedEffort).toString()
       )
       setAutoFilledMaxTokens(true)
     }
@@ -187,6 +243,9 @@ function ModelForm({
 
   const handleReasoningEffortChange = (value: string) => {
     setReasoningEffort(value)
+    setExtraArgs(
+      rewriteExtraArgsWithEffort(extraArgs, provider, modelId, value)
+    )
     if (modelId && autoFilledMaxTokens) {
       setMaxTokens(getDefaultMaxOutputTokens(modelId, value).toString())
     }
@@ -199,6 +258,9 @@ function ModelForm({
     setFetchError(null)
     setBatchMode(false)
     setSelectedModels(new Map())
+    setExtraArgs(
+      rewriteExtraArgsWithEffort(extraArgs, value, modelId, reasoningEffort)
+    )
   }
 
   const handleFetchModels = async () => {
