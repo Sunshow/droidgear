@@ -4,8 +4,6 @@ use std::str::FromStr;
 
 #[cfg(any(target_os = "windows", test))]
 use std::path::{Path, PathBuf};
-#[cfg(target_os = "windows")]
-use std::time::Duration;
 
 #[cfg(target_os = "windows")]
 use base64::{engine::general_purpose::STANDARD, Engine};
@@ -20,8 +18,6 @@ use specta::Type;
 use tauri::AppHandle;
 #[cfg(target_os = "windows")]
 use tauri::Manager;
-#[cfg(target_os = "windows")]
-use uuid::Uuid;
 
 const PORTABLE_MANIFEST_URL: &str =
     "https://github.com/Sunshow/droidgear/releases/latest/download/latest-portable.json";
@@ -140,8 +136,6 @@ pub async fn install_portable_update(
 
     #[cfg(target_os = "windows")]
     {
-        use std::process::Command;
-
         if resolve_update_channel(&app)? != UpdateChannel::Portable {
             return Err("Portable update requested for a managed installation".to_string());
         }
@@ -150,49 +144,20 @@ pub async fn install_portable_update(
             return Err("No newer portable update is available".to_string());
         }
 
-        let current_exe = std::env::current_exe()
-            .map_err(|e| format!("Failed to get current executable path: {e}"))?;
-
-        let temp_dir = std::env::temp_dir().join(format!("droidgear-updater-{}", Uuid::new_v4()));
-        std::fs::create_dir_all(&temp_dir)
-            .map_err(|e| format!("Failed to create updater temp directory: {e}"))?;
-
-        let downloaded_exe_path = temp_dir.join(PORTABLE_WINDOWS_FILENAME);
-        let helper_script_path = temp_dir.join("apply-portable-update.ps1");
-
         let bytes = download_update_bytes(&update.url).await?;
         verify_update_hash(&bytes, &update.sha256)?;
         verify_update_signature(&bytes, &update.signature)?;
 
-        std::fs::write(&downloaded_exe_path, &bytes)
+        let temp_path = std::env::temp_dir().join("droidgear-portable-update.exe");
+        std::fs::write(&temp_path, &bytes)
             .map_err(|e| format!("Failed to write downloaded update: {e}"))?;
 
-        write_helper_script(&helper_script_path)?;
+        self_replace::self_replace(&temp_path)
+            .map_err(|e| format!("Failed to replace executable: {e}"))?;
 
-        Command::new("powershell.exe")
-            .args([
-                "-NoProfile",
-                "-WindowStyle",
-                "Hidden",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-            ])
-            .arg(&helper_script_path)
-            .arg("-CurrentExe")
-            .arg(&current_exe)
-            .arg("-DownloadedExe")
-            .arg(&downloaded_exe_path)
-            .spawn()
-            .map_err(|e| format!("Failed to launch portable update helper: {e}"))?;
+        let _ = std::fs::remove_file(&temp_path);
 
-        let app_handle = app.clone();
-        std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(250));
-            app_handle.exit(0);
-        });
-
-        Ok(())
+        app.restart();
     }
 }
 
@@ -473,37 +438,6 @@ fn is_newer_version(current_version: &str, available_version: &str) -> Result<bo
         .map_err(|e| format!("Failed to parse available version: {e}"))?;
 
     Ok(available_version > current_version)
-}
-
-#[cfg(target_os = "windows")]
-fn write_helper_script(script_path: &Path) -> Result<(), String> {
-    let script = r#"
-param(
-  [Parameter(Mandatory = $true)][string]$CurrentExe,
-  [Parameter(Mandatory = $true)][string]$DownloadedExe
-)
-
-$ErrorActionPreference = 'Stop'
-
-for ($attempt = 0; $attempt -lt 120; $attempt++) {
-  try {
-    if (Test-Path -LiteralPath $CurrentExe) {
-      Remove-Item -LiteralPath $CurrentExe -Force
-    }
-
-    Move-Item -LiteralPath $DownloadedExe -Destination $CurrentExe -Force
-    Start-Process -FilePath $CurrentExe
-    exit 0
-  } catch {
-    Start-Sleep -Milliseconds 500
-  }
-}
-
-exit 1
-"#;
-
-    std::fs::write(script_path, script)
-        .map_err(|e| format!("Failed to write portable update helper script: {e}"))
 }
 
 #[cfg(test)]

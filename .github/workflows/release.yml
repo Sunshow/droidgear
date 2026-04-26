@@ -67,7 +67,7 @@ jobs:
             args: '--bundles app,dmg --target x86_64-apple-darwin'
             target: 'x86_64-apple-darwin'
           - platform: 'windows-latest'
-            args: '--bundles msi --target x86_64-pc-windows-msvc --config src-tauri/tauri.windows.conf.json'
+            args: '--bundles nsis --target x86_64-pc-windows-msvc --config src-tauri/tauri.windows.conf.json'
             target: 'x86_64-pc-windows-msvc'
           - platform: 'ubuntu-22.04'
             args: '--bundles appimage --target x86_64-unknown-linux-gnu'
@@ -150,46 +150,35 @@ jobs:
             exit 1
           }
 
+          # Read and validate signature from .sig file
+          $rawSig = Get-Content $sigPath -Raw
+          $rawSig = $rawSig.Trim()
+
+          $decoded = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($rawSig))
+          if (-not $decoded.StartsWith("untrusted comment:")) {
+            Write-Error "Portable signature is not a valid minisign signature"
+            exit 1
+          }
+
           $sha256 = (Get-FileHash $portableAssetPath -Algorithm SHA256).Hash.ToLowerInvariant()
           $version = $env:RELEASE_TAG.TrimStart('v')
           $pubDate = (Get-Date).ToUniversalTime().ToString("o")
+          $releaseUrl = "https://github.com/${{ github.repository }}/releases/tag/$env:RELEASE_TAG"
+          $downloadUrl = "https://github.com/${{ github.repository }}/releases/latest/download/$portableAsset"
+
+          # Build latest-portable.json directly
+          $manifest = @{
+            version = $version
+            notes = ""
+            pub_date = $pubDate
+            url = $downloadUrl
+            signature = $rawSig
+            sha256 = $sha256
+            release_url = $releaseUrl
+          } | ConvertTo-Json -Depth 2
+
           $manifestPath = Join-Path $env:GITHUB_WORKSPACE "latest-portable.json"
-
-          node scripts/create-portable-update-manifest.js `
-            --signature-file "$sigPath" `
-            --output "$manifestPath" `
-            --version "$version" `
-            --pub-date "$pubDate" `
-            --url "https://github.com/${{ github.repository }}/releases/latest/download/$portableAsset" `
-            --sha256 "$sha256" `
-            --release-url "https://github.com/${{ github.repository }}/releases/tag/$env:RELEASE_TAG"
-          if (-not $?) {
-            exit 1
-          }
-
-          $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
-          if ([string]::IsNullOrWhiteSpace($manifest.signature)) {
-            Write-Error "便携版 manifest 未生成 signature 字段"
-            exit 1
-          }
-
-          $decodedSignature = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($manifest.signature))
-          if (-not $decodedSignature.StartsWith("untrusted comment:")) {
-            Write-Error "便携版 manifest 的 signature 解码后未以 minisign 头开头"
-            exit 1
-          }
-          if ($decodedSignature.Contains("Public signature:")) {
-            Write-Error "便携版 manifest 的 signature 混入了 signer 控制台输出: Public signature"
-            exit 1
-          }
-          if ($decodedSignature.Contains("Your file was signed successfully")) {
-            Write-Error "便携版 manifest 的 signature 混入了 signer 控制台输出: 成功提示文案"
-            exit 1
-          }
-          if ($decodedSignature.Contains("Make sure to include this into the signature field of your update server")) {
-            Write-Error "便携版 manifest 的 signature 混入了 signer 控制台输出: 更新服务器提示文案"
-            exit 1
-          }
+          Set-Content -Path $manifestPath -Value $manifest -Encoding UTF8
 
           gh release upload "$env:RELEASE_TAG" $portableAssetPath $sigPath $manifestPath --clobber
 

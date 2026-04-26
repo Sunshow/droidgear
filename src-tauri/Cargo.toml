@@ -40,7 +40,6 @@ reqwest = { version = "0.12", features = ["json", "cookies"] }
 minisign-verify = "0.2"
 dirs = "5"
 notify = { version = "6", default-features = false, features = ["macos_fsevent"] }
-uuid = { version = "1", features = ["v4"] }
 chrono = "0.4"
 json_comments = "0.2"
 tauri-plugin-pty = "0.2.0"
@@ -58,6 +57,9 @@ tauri-plugin-system-fonts = "2.0.2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-window-state = "2"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+self-replace = "1.5"
 
 # Optimize for smaller binary size in release builds
 [profile.release]
