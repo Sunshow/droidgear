@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.6.2
+
+**New Features / 新功能**
+
+- Add 15 new models to registry: GPT-5.3/5.4/5.5, GLM-5-Turbo/5.1, MiMo-V2 Omni/Pro, MiMo-V2.5/V2.5-Pro, MiniMax-M2.7 / 模型注册表新增 15 个模型：GPT-5.3/5.4/5.5、GLM-5-Turbo/5.1、MiMo-V2 Omni/Pro、MiMo-V2.5/V2.5-Pro、MiniMax-M2.7
+- Add 1M context support toggle for Anthropic models / Anthropic 模型添加 1M 上下文支持开关
+- Add Opus 4.7 BYOK support with effort-aware encoding / 添加 Opus 4.7 BYOK 支持，带有 effort 感知编码
+- Refactor Windows portable update to use self-replace crate / 重构 Windows portable 更新使用 self-replace crate
+- Disable automatic updater JSON generation in Tauri and implement custom workflow for latest.json creation / 禁用 Tauri 自动更新 JSON 生成，改用自定义工作流生成 latest.json
+
+**Bug Fixes / 问题修复**
+
+- Surface parse error and flag curly quotes in extraArgs validation / extraArgs 验证中显示解析错误并标记弯引号
+- Keep extraArgs and effort dropdown in sync across model/provider switches / 切换模型/服务商时保持 extraArgs 和 effort 下拉框同步
+- Align xhigh/max effort gating with Anthropic docs / 对齐 xhigh/max effort 限制与 Anthropic 文档
+- Fix release actions and updater JSON generation / 修复发布流程和更新 JSON 生成
+
 ## v0.6.1
 
 **New Features / 新功能**
