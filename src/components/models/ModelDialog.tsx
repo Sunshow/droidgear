@@ -38,7 +38,13 @@ import {
   isOpus47,
   supportsMaxEffort,
   supportsXhighEffort,
+  type ReasoningEffort,
 } from '@/lib/utils'
+import {
+  getSupportedEfforts,
+  getEffortEncoding,
+  getModelReasoningConfig,
+} from '@/lib/model-registry'
 import { useModelStore } from '@/store/model-store'
 import { BatchModelSelector } from './BatchModelSelector'
 import {
@@ -112,18 +118,46 @@ function ModelForm({
   // Extract reasoning effort from extraArgs if present.
   // Supports:
   //   - reasoning.effort (OpenAI / generic)
-  //   - output_config.effort paired with thinking.type === 'adaptive' (Anthropic adaptive)
+  //   - reasoning_effort top-level key (OpenAI format for some models like DeepSeek)
+  //   - output_config.effort paired with thinking.type (Anthropic adaptive & non-adaptive)
   const extractReasoningEffort = (
-    args?: Partial<Record<string, JsonValue>> | null
+    args?: Partial<Record<string, JsonValue>> | null,
+    modelIdForLookup?: string,
+    providerForLookup?: Provider
   ): string => {
     if (!args) return 'none'
+
+    // Registry reverse-mapping: check which encoding matches the current extraArgs
+    if (modelIdForLookup && providerForLookup) {
+      const config = getModelReasoningConfig(modelIdForLookup)
+      if (config) {
+        for (const effort of config.efforts) {
+          const encoding = getEffortEncoding(
+            modelIdForLookup,
+            providerForLookup,
+            effort
+          )
+          if (encoding) {
+            const keys = Object.keys(encoding)
+            const match = keys.every(k => {
+              const a = args[k]
+              const b = encoding[k]
+              return JSON.stringify(a) === JSON.stringify(b)
+            })
+            if (match) return effort
+          }
+        }
+      }
+    }
+
     const thinking = args.thinking
-    const isAdaptive =
+    const thinkingEnabled =
       thinking &&
       typeof thinking === 'object' &&
       !Array.isArray(thinking) &&
-      (thinking as Record<string, JsonValue>).type === 'adaptive'
-    if (isAdaptive) {
+      ((thinking as Record<string, JsonValue>).type === 'adaptive' ||
+        (thinking as Record<string, JsonValue>).type === 'enabled')
+    if (thinkingEnabled) {
       const outputConfig = args.output_config
       if (
         outputConfig &&
@@ -144,12 +178,54 @@ function ModelForm({
       const effort = (reasoning as Record<string, JsonValue>).effort
       if (typeof effort === 'string') return effort
     }
+    // OpenAI format: reasoning_effort top-level key (used by DeepSeek)
+    const reasoningEffort = args.reasoning_effort
+    if (typeof reasoningEffort === 'string') return reasoningEffort
     return 'none'
   }
 
-  const [reasoningEffort, setReasoningEffort] = useState(
-    extractReasoningEffort(model?.extraArgs)
-  )
+  // If the currently selected effort isn't supported by a model, snap it down
+  // to the highest supported level. xhigh -> high, max -> xhigh -> high.
+  const clampEffortToModel = (effort: string, nextModelId: string): string => {
+    const supported = getSupportedEfforts(nextModelId, provider)
+    // Registry whitelist takes priority
+    if (supported) {
+      if (supported.includes(effort as ReasoningEffort)) return effort
+      // Find the highest supported effort to clamp to
+      const effortOrder: ReasoningEffort[] = [
+        'none',
+        'low',
+        'medium',
+        'high',
+        'xhigh',
+        'max',
+      ]
+      const idx = effortOrder.indexOf(effort as ReasoningEffort)
+      for (let i = idx - 1; i >= 0; i--) {
+        const candidate = effortOrder[i]
+        if (candidate && supported.includes(candidate)) return candidate
+      }
+      return supported[0] ?? 'high'
+    }
+    // Fallback to old logic
+    if (effort === 'max' && !supportsMaxEffort(nextModelId)) {
+      return supportsXhighEffort(nextModelId) ? 'xhigh' : 'high'
+    }
+    if (effort === 'xhigh' && !supportsXhighEffort(nextModelId)) {
+      return 'high'
+    }
+    return effort
+  }
+
+  const [reasoningEffort, setReasoningEffort] = useState(() => {
+    const extracted = extractReasoningEffort(
+      model?.extraArgs,
+      model?.model,
+      provider
+    )
+    const modelIdForClamp = model?.model ?? ''
+    return clampEffortToModel(extracted, modelIdForClamp)
+  })
   // Track whether maxTokens was auto-filled vs user-edited, so effort changes
   // can re-fill only when the user hasn't manually overridden the value.
   const [autoFilledMaxTokens, setAutoFilledMaxTokens] = useState(
@@ -185,18 +261,6 @@ function ModelForm({
   // Channel picker state
   const [channelPickerOpen, setChannelPickerOpen] = useState(false)
 
-  // If the currently selected effort isn't supported by a model, snap it down
-  // to the highest supported level. xhigh -> high, max -> xhigh -> high.
-  const clampEffortToModel = (effort: string, nextModelId: string): string => {
-    if (effort === 'max' && !supportsMaxEffort(nextModelId)) {
-      return supportsXhighEffort(nextModelId) ? 'xhigh' : 'high'
-    }
-    if (effort === 'xhigh' && !supportsXhighEffort(nextModelId)) {
-      return 'high'
-    }
-    return effort
-  }
-
   // Rewrite the effort-encoding keys in an extraArgs JSON string to match the
   // (provider, model, effort) triple, preserving unrelated fields. Also strips
   // sampling params that Opus 4.7 rejects. Returns the JSON unchanged when the
@@ -210,8 +274,25 @@ function ModelForm({
     if (currentJson.trim() && !isJsonValid(currentJson)) return currentJson
     const parsed = parseJsonSafe(currentJson) ?? {}
     delete parsed.reasoning
+    delete parsed.reasoning_effort
     delete parsed.thinking
     delete parsed.output_config
+
+    // Registry whitelist takes priority
+    const encoding = getEffortEncoding(nextModelId, nextProvider, nextEffort)
+    if (encoding) {
+      Object.assign(parsed, encoding)
+      if (isOpus47(nextModelId)) {
+        delete parsed.temperature
+        delete parsed.top_p
+        delete parsed.top_k
+      }
+      return Object.keys(parsed).length > 0
+        ? JSON.stringify(parsed, null, 2)
+        : ''
+    }
+
+    // Fallback to old logic
     if (nextEffort && nextEffort !== 'none') {
       if (
         nextProvider === 'anthropic' &&
@@ -286,8 +367,10 @@ function ModelForm({
     setFetchError(null)
     setBatchMode(false)
     setSelectedModels(new Map())
+    const clampedEffort = clampEffortToModel(reasoningEffort, modelId)
+    if (clampedEffort !== reasoningEffort) setReasoningEffort(clampedEffort)
     setExtraArgs(
-      rewriteExtraArgsWithEffort(extraArgs, value, modelId, reasoningEffort)
+      rewriteExtraArgsWithEffort(extraArgs, value, modelId, clampedEffort)
     )
   }
 
@@ -427,9 +510,23 @@ function ModelForm({
 
     // Always clear every known effort-encoding key so we never ship two forms.
     delete parsed.reasoning
+    delete parsed.reasoning_effort
     delete parsed.thinking
     delete parsed.output_config
 
+    // Registry whitelist takes priority
+    const encoding = getEffortEncoding(modelId, provider, reasoningEffort)
+    if (encoding) {
+      Object.assign(parsed, encoding)
+      if (isOpus47(modelId)) {
+        delete parsed.temperature
+        delete parsed.top_p
+        delete parsed.top_k
+      }
+      return Object.keys(parsed).length > 0 ? parsed : undefined
+    }
+
+    // Fallback to old logic
     if (reasoningEffort && reasoningEffort !== 'none') {
       if (
         provider === 'anthropic' &&
@@ -730,30 +827,45 @@ function ModelForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">
-                      {t('models.reasoningEffort.none')}
-                    </SelectItem>
-                    <SelectItem value="low">
-                      {t('models.reasoningEffort.low')}
-                    </SelectItem>
-                    <SelectItem value="medium">
-                      {t('models.reasoningEffort.medium')}
-                    </SelectItem>
-                    <SelectItem value="high">
-                      {t('models.reasoningEffort.high')}
-                    </SelectItem>
-                    {(provider === 'anthropic' ||
-                      supportsXhighEffort(modelId)) && (
-                      <SelectItem value="xhigh">
-                        {t('models.reasoningEffort.xhigh')}
-                      </SelectItem>
-                    )}
-                    {(provider === 'anthropic' ||
-                      supportsMaxEffort(modelId)) && (
-                      <SelectItem value="max">
-                        {t('models.reasoningEffort.max')}
-                      </SelectItem>
-                    )}
+                    {(() => {
+                      const supported = getSupportedEfforts(modelId, provider)
+                      if (supported) {
+                        return supported.map(effort => (
+                          <SelectItem key={effort} value={effort}>
+                            {t(`models.reasoningEffort.${effort}`)}
+                          </SelectItem>
+                        ))
+                      }
+                      // Fallback to old logic
+                      return (
+                        <>
+                          <SelectItem value="none">
+                            {t('models.reasoningEffort.none')}
+                          </SelectItem>
+                          <SelectItem value="low">
+                            {t('models.reasoningEffort.low')}
+                          </SelectItem>
+                          <SelectItem value="medium">
+                            {t('models.reasoningEffort.medium')}
+                          </SelectItem>
+                          <SelectItem value="high">
+                            {t('models.reasoningEffort.high')}
+                          </SelectItem>
+                          {(provider === 'anthropic' ||
+                            supportsXhighEffort(modelId)) && (
+                            <SelectItem value="xhigh">
+                              {t('models.reasoningEffort.xhigh')}
+                            </SelectItem>
+                          )}
+                          {(provider === 'anthropic' ||
+                            supportsMaxEffort(modelId)) && (
+                            <SelectItem value="max">
+                              {t('models.reasoningEffort.max')}
+                            </SelectItem>
+                          )}
+                        </>
+                      )
+                    })()}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">

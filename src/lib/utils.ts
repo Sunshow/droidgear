@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { getModelReasoningConfig } from './model-registry'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -49,8 +50,11 @@ export function isAnthropicAdaptiveThinkingModel(modelId: string): boolean {
 // All Anthropic models support effort via either adaptive-thinking
 // (output_config.effort) or budget_tokens (thinking.budget_tokens). Both
 // encodings accept the full range of effort values. Let the user decide.
+// Priority: registry whitelist → pattern matching fallback.
 export function supportsMaxEffort(modelId: string): boolean {
   if (!modelId) return true
+  const config = getModelReasoningConfig(modelId)
+  if (config) return config.efforts.includes('max')
   const n = normalizeModelId(modelId)
   return n.startsWith('claude.')
 }
@@ -58,8 +62,11 @@ export function supportsMaxEffort(modelId: string): boolean {
 // All Anthropic models can express xhigh-level reasoning — adaptive models
 // use output_config.effort, others map to budget_tokens. Non-Anthropic
 // reasoning models (GPT-5, o-series) also accept it via reasoning.effort.
+// Priority: registry whitelist → pattern matching fallback.
 export function supportsXhighEffort(modelId: string): boolean {
   if (!modelId) return true
+  const config = getModelReasoningConfig(modelId)
+  if (config) return config.efforts.includes('xhigh')
   const n = normalizeModelId(modelId)
   if (n.startsWith('claude.')) return true
   return (

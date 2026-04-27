@@ -185,7 +185,46 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 1000000,
-    "maxOutputTokens": 384000
+    "maxOutputTokens": 384000,
+    "reasoningConfig": {
+      "efforts": ["none", "high", "max"],
+      "encoding": {
+        "openai": {
+          "none": {
+            "extraArgsFragment": { "thinking": { "type": "disabled" } }
+          },
+          "high": {
+            "extraArgsFragment": {
+              "thinking": { "type": "enabled" },
+              "reasoning_effort": "high"
+            }
+          },
+          "max": {
+            "extraArgsFragment": {
+              "thinking": { "type": "enabled" },
+              "reasoning_effort": "max"
+            }
+          }
+        },
+        "anthropic": {
+          "none": {
+            "extraArgsFragment": { "thinking": { "type": "disabled" } }
+          },
+          "high": {
+            "extraArgsFragment": {
+              "thinking": { "type": "enabled" },
+              "output_config": { "effort": "high" }
+            }
+          },
+          "max": {
+            "extraArgsFragment": {
+              "thinking": { "type": "enabled" },
+              "output_config": { "effort": "max" }
+            }
+          }
+        }
+      }
+    }
   },
   {
     "id": "gemini-1.5-flash",

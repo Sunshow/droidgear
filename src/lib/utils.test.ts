@@ -48,6 +48,10 @@ describe('supportsMaxEffort', () => {
     expect(supportsMaxEffort('claude-haiku-4.5')).toBe(true)
   })
 
+  it('applies to registry whitelist models with max effort', () => {
+    expect(supportsMaxEffort('deepseek-v4-pro')).toBe(true)
+  })
+
   it('does not apply to openai models', () => {
     expect(supportsMaxEffort('gpt-5.2')).toBe(false)
     expect(supportsMaxEffort('o3-mini')).toBe(false)
@@ -64,6 +68,11 @@ describe('supportsXhighEffort', () => {
     expect(supportsXhighEffort('claude-haiku-4.5')).toBe(true)
     expect(supportsXhighEffort('gpt-5.2')).toBe(true)
     expect(supportsXhighEffort('o3-mini')).toBe(true)
+  })
+
+  it('respects registry whitelist for xhigh', () => {
+    // deepseek-v4-pro has whitelist: ["none", "high", "max"] — no xhigh
+    expect(supportsXhighEffort('deepseek-v4-pro')).toBe(false)
   })
 
   it('rejects xhigh on non-reasoning non-claude models', () => {
