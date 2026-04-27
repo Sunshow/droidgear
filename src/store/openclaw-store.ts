@@ -239,8 +239,6 @@ export const useOpenClawStore = create<OpenClawState>()(
           undefined,
           'openclaw/loadFromLiveConfig/success'
         )
-        // Auto-save after loading from live config
-        await get().saveProfile()
       },
 
       updateProfileName: async name => {
