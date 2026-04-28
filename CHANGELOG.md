@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.7.0
+
+**New Features / 新功能**
+
+- Add Pi (pi.dev) support with provider/model configuration management, multi-profile support, and TUI integration / 添加 Pi (pi.dev) 支持，包含 Provider/Model 配置管理、多 Profile 支持和 TUI 集成
+- Auto-load max output tokens from model registry / 从模型注册表自动加载最大输出 Token
+- Update official model name allowlist to current Factory offerings / 更新官方模型名称列表至当前 Factory 提供的模型
+
+**Bug Fixes / 问题修复**
+
+- Prevent effort encoding from re-populating cleared extraArgs / 防止 effort 编码重新填充已清空的 extraArgs
+- Prevent live config loading from auto-saving and overwriting profile / 防止从 live config 加载时自动保存并覆盖 profile
+- Update reasoning effort hint to remove GPT-series limitation / 更新推理 effort 提示，移除 GPT 系列限制
+- Clarify Max Tokens → Max Output Tokens in UI labels / 明确 UI 标签中 Max Tokens → Max Output Tokens
+
 ## v0.6.3
 
 **New Features / 新功能**
