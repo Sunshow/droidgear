@@ -8,7 +8,8 @@ type NavigationView =
   | 'codex'
   | 'openclaw'
   | 'hermes'
-type ToolView = 'droid' | 'opencode' | 'codex' | 'openclaw' | 'hermes'
+  | 'pi'
+type ToolView = 'droid' | 'opencode' | 'codex' | 'openclaw' | 'hermes' | 'pi'
 export type DroidSubView =
   | 'models'
   | 'settings'
@@ -135,7 +136,8 @@ export const useUIStore = create<UIState>()(
                 view === 'opencode' ||
                 view === 'codex' ||
                 view === 'openclaw' ||
-                view === 'hermes'
+                view === 'hermes' ||
+                view === 'pi'
                   ? view
                   : state.lastToolView,
             }),

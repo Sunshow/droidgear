@@ -39,7 +39,9 @@ export function TitleBar({ className, title, forcePlatform }: TitleBarProps) {
   const platform =
     import.meta.env.DEV && forcePlatform ? forcePlatform : detectedPlatform
 
-  // Linux uses native decorations, so render just the toolbar
+  // Linux now uses custom title bar with window controls (same pattern as Windows)
+  // to work around a WebKitGTK bug where native buttons become unclickable
+  // in non-maximized state.
   if (platform === 'linux') {
     return <LinuxTitleBar className={className} title={displayTitle} />
   }

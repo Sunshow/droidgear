@@ -14,6 +14,7 @@ pub mod notifications;
 pub mod openclaw;
 pub mod opencode;
 pub mod paths;
+pub mod pi;
 pub mod preferences;
 pub mod recovery;
 pub mod sessions;

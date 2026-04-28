@@ -936,6 +936,127 @@ async readHermesCurrentConfig() : Promise<Result<HermesCurrentConfig, string>> {
 }
 },
 /**
+ * List all Pi profiles
+ */
+async listPiProfiles() : Promise<Result<PiProfile[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_pi_profiles") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get a profile by ID
+ */
+async getPiProfile(id: string) : Promise<Result<PiProfile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_pi_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Save a profile (create or update)
+ */
+async savePiProfile(profile: PiProfile) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_pi_profile", { profile }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Delete a profile
+ */
+async deletePiProfile(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_pi_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Duplicate a profile
+ */
+async duplicatePiProfile(id: string, newName: string) : Promise<Result<PiProfile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("duplicate_pi_profile", { id, newName }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Create default profile (when no profiles exist)
+ */
+async createDefaultPiProfile() : Promise<Result<PiProfile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("create_default_pi_profile") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get active profile ID
+ */
+async getActivePiProfileId() : Promise<Result<string | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_active_pi_profile_id") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Set active profile ID
+ */
+async setActivePiProfileId(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_active_pi_profile_id", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Apply a profile to `~/.pi/agent/models.json`
+ */
+async applyPiProfile(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("apply_pi_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get Pi config status
+ */
+async getPiConfigStatus() : Promise<Result<PiConfigStatus, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_pi_config_status") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Read current Pi configuration from config files
+ */
+async readPiCurrentConfig() : Promise<Result<PiCurrentConfig, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("read_pi_current_config") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * List all OpenCode profiles
  */
 async listOpencodeProfiles() : Promise<Result<OpenCodeProfile[], string>> {
@@ -1565,7 +1686,7 @@ export type CodexProviderConfig = { name?: string | null; baseUrl?: string | nul
 /**
  * User-defined configuration paths (only stores explicitly set paths)
  */
-export type ConfigPaths = { factory?: string | null; opencode?: string | null; opencodeAuth?: string | null; codex?: string | null; openclaw?: string | null; hermes?: string | null }
+export type ConfigPaths = { factory?: string | null; opencode?: string | null; opencodeAuth?: string | null; codex?: string | null; openclaw?: string | null; hermes?: string | null; pi?: string | null }
 export type ConnectionDiagnostics = { success: boolean; provider: string; modelId: string; latencyMs: number; error?: string | null; timestamp: string; testMode: TestMode; 
 /**
  * Actual model response text (inference mode only).
@@ -1635,7 +1756,7 @@ export type EffectivePath = { key: string; path: string; isDefault: boolean }
 /**
  * All effective paths
  */
-export type EffectivePaths = { factory: EffectivePath; opencode: EffectivePath; opencodeAuth: EffectivePath; codex: EffectivePath; openclaw: EffectivePath; hermes: EffectivePath }
+export type EffectivePaths = { factory: EffectivePath; opencode: EffectivePath; opencodeAuth: EffectivePath; codex: EffectivePath; openclaw: EffectivePath; hermes: EffectivePath; pi: EffectivePath }
 /**
  * Hermes Live 配置状态
  */
@@ -1778,6 +1899,38 @@ export type OpenCodeProviderConfig = { npm?: string | null; name?: string | null
  * OpenCode Provider options
  */
 export type OpenCodeProviderOptions = { baseURL?: string | null; apiKey?: string | null; timeout?: number | null; headers?: Partial<{ [key in string]: string }> | null }
+/**
+ * Pi compatibility configuration
+ */
+export type PiCompatConfig = { supportsStore?: boolean | null; supportsDeveloperRole?: boolean | null; supportsReasoningEffort?: boolean | null; reasoningEffortMap?: Partial<{ [key in string]: JsonValue }> | null; supportsUsageInStreaming?: boolean | null; maxTokensField?: string | null; requiresToolResultName?: boolean | null; requiresAssistantAfterToolResult?: boolean | null; requiresThinkingAsText?: boolean | null; requiresReasoningContentOnAssistantMessages?: boolean | null; thinkingFormat?: string | null; cacheControlFormat?: string | null; supportsStrictMode?: boolean | null; supportsLongCacheRetention?: boolean | null; supportsEagerToolInputStreaming?: boolean | null; openRouterRouting?: JsonValue | null; vercelGatewayRouting?: JsonValue | null }
+/**
+ * Pi config status
+ */
+export type PiConfigStatus = { configExists: boolean; configPath: string }
+/**
+ * Current Pi configuration (from `~/.pi/agent/models.json`)
+ */
+export type PiCurrentConfig = { providers?: Partial<{ [key in string]: PiProviderConfig }> }
+/**
+ * Pi model definition
+ */
+export type PiModel = { id: string; name?: string | null; api?: string | null; reasoning?: boolean; input?: string[]; contextWindow?: number; maxTokens?: number; cost?: PiModelCost | null; compat?: PiCompatConfig | null }
+/**
+ * Pi model cost configuration
+ */
+export type PiModelCost = { input?: number; output?: number; cacheRead?: number; cacheWrite?: number }
+/**
+ * Pi model override (subset of PiModel fields for overriding built-in models)
+ */
+export type PiModelOverride = { name?: string | null; api?: string | null; reasoning?: boolean | null; input?: string[] | null; contextWindow?: number | null; maxTokens?: number | null; cost?: PiModelCost | null; compat?: PiCompatConfig | null }
+/**
+ * Pi profile (stored in DroidGear)
+ */
+export type PiProfile = { id: string; name: string; description?: string | null; createdAt: string; updatedAt: string; providers?: Partial<{ [key in string]: PiProviderConfig }> }
+/**
+ * Pi provider configuration
+ */
+export type PiProviderConfig = { baseUrl?: string | null; api?: string | null; apiKey?: string | null; headers?: Partial<{ [key in string]: string }> | null; authHeader?: boolean | null; models: PiModel[]; modelOverrides?: Partial<{ [key in string]: PiModelOverride }> | null; compat?: PiCompatConfig | null }
 export type PortableUpdateInfo = { version: string; body: string | null; pubDate: string | null; url: string; signature: string; sha256: string; releaseUrl: string }
 /**
  * Provider types supported by Factory BYOK

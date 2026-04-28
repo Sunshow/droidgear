@@ -9,6 +9,7 @@ use droidgear_core::{
     openclaw::{OpenClawProfile, OpenClawSubAgent},
     opencode::OpenCodeProfile,
     paths::{EffectivePath, EffectivePaths},
+    pi::PiProfile,
     sessions::SessionSummary,
     specs::SpecFile,
 };
@@ -37,6 +38,10 @@ pub enum Screen {
     OpenClawHelpers,
     OpenClawSubagents,
     OpenClawSubagentDetail,
+    Pi,
+    PiProfile,
+    PiProvider,
+    PiModel,
     Hermes,
     HermesProfile,
     HermesProvider,
@@ -147,6 +152,21 @@ pub enum ConfirmAction {
     },
     OpenClawSubagentToggleAllow {
         id: String,
+    },
+    PiApply {
+        id: String,
+    },
+    PiDelete {
+        id: String,
+    },
+    PiDeleteProvider {
+        profile_id: String,
+        provider_id: String,
+    },
+    PiDeleteModel {
+        profile_id: String,
+        provider_id: String,
+        model_index: usize,
     },
     HermesApply {
         id: String,
@@ -342,6 +362,56 @@ pub enum InputAction {
     OpenClawSubagentSetWorkspace {
         id: String,
     },
+    PiCreateProfile,
+    PiDuplicate {
+        id: String,
+    },
+    PiSetProfileName {
+        id: String,
+    },
+    PiSetProfileDescription {
+        id: String,
+    },
+    PiAddProvider {
+        profile_id: String,
+    },
+    PiSetProviderBaseUrl {
+        profile_id: String,
+        provider_id: String,
+    },
+    PiSetProviderApiKey {
+        profile_id: String,
+        provider_id: String,
+    },
+    PiAddModel {
+        profile_id: String,
+        provider_id: String,
+    },
+    PiSetModelId {
+        profile_id: String,
+        provider_id: String,
+        model_index: usize,
+    },
+    PiSetModelName {
+        profile_id: String,
+        provider_id: String,
+        model_index: usize,
+    },
+    PiSetModelContextWindow {
+        profile_id: String,
+        provider_id: String,
+        model_index: usize,
+    },
+    PiSetModelMaxTokens {
+        profile_id: String,
+        provider_id: String,
+        model_index: usize,
+    },
+    PiSetModelCost {
+        profile_id: String,
+        provider_id: String,
+        model_index: usize,
+    },
     HermesCreateProfile,
     HermesDuplicate {
         id: String,
@@ -419,6 +489,10 @@ pub enum SelectAction {
     MissionsSetWorkerReasoningEffort,
     MissionsSetValidationWorkerModel,
     MissionsSetValidationWorkerReasoningEffort,
+    PiSetProviderApi {
+        profile_id: String,
+        provider_id: String,
+    },
     HermesImportFromChannel {
         profile_id: String,
     },
@@ -525,6 +599,17 @@ pub struct App {
     pub openclaw_subagent_detail: Option<OpenClawSubAgent>,
     pub openclaw_subagent_field_index: usize,
 
+    pub pi_profiles: Vec<PiProfile>,
+    pub pi_active_id: Option<String>,
+    pub pi_index: usize,
+    pub pi_detail_id: Option<String>,
+    pub pi_detail: Option<PiProfile>,
+    pub pi_detail_field_index: usize,
+    pub pi_provider_index: usize,
+    pub pi_provider_field_index: usize,
+    pub pi_model_index: usize,
+    pub pi_model_field_index: usize,
+
     pub hermes_profiles: Vec<HermesProfile>,
     pub hermes_active_id: Option<String>,
     pub hermes_index: usize,
@@ -626,6 +711,16 @@ impl App {
             openclaw_subagents_index: 0,
             openclaw_subagent_detail: None,
             openclaw_subagent_field_index: 0,
+            pi_profiles: Vec::new(),
+            pi_active_id: None,
+            pi_index: 0,
+            pi_detail_id: None,
+            pi_detail: None,
+            pi_detail_field_index: 0,
+            pi_provider_index: 0,
+            pi_provider_field_index: 0,
+            pi_model_index: 0,
+            pi_model_field_index: 0,
             hermes_profiles: Vec::new(),
             hermes_active_id: None,
             hermes_index: 0,
@@ -664,6 +759,7 @@ impl App {
             ("Codex", Screen::Codex),
             ("OpenCode", Screen::OpenCode),
             ("OpenClaw", Screen::OpenClaw),
+            ("Pi", Screen::Pi),
             ("Hermes", Screen::Hermes),
             ("Sessions", Screen::Sessions),
             ("Specs", Screen::Specs),
@@ -681,6 +777,14 @@ impl App {
 
     pub fn clear_toast(&mut self) {
         self.toast = None;
+    }
+
+    /// Get the provider ID at the current pi_provider_index.
+    pub fn pi_current_provider_id(&self) -> Option<String> {
+        let detail = self.pi_detail.as_ref()?;
+        let mut keys: Vec<String> = detail.providers.keys().cloned().collect();
+        keys.sort_by_key(|a| a.to_lowercase());
+        keys.get(self.pi_provider_index).cloned()
     }
 
     pub fn current_paths_key(&self) -> Option<String> {
@@ -868,6 +972,51 @@ impl App {
         let subagent_fields_count = 5;
         if self.openclaw_subagent_field_index >= subagent_fields_count {
             self.openclaw_subagent_field_index = subagent_fields_count.saturating_sub(1);
+        }
+        if self.pi_index >= self.pi_profiles.len() {
+            self.pi_index = self.pi_profiles.len().saturating_sub(1);
+        }
+        // PiProfile screen: 2 fields (Name, Description) + provider list
+        let pi_detail_fields_count = 2;
+        let pi_provider_count = self
+            .pi_detail
+            .as_ref()
+            .map(|p| p.providers.len())
+            .unwrap_or(0);
+        let pi_detail_total = pi_detail_fields_count + pi_provider_count;
+        if self.pi_detail_field_index >= pi_detail_total {
+            self.pi_detail_field_index = pi_detail_total.saturating_sub(1);
+        }
+        let pi_provider_count = self
+            .pi_detail
+            .as_ref()
+            .map(|p| p.providers.len())
+            .unwrap_or(0);
+        if self.pi_provider_index >= pi_provider_count {
+            self.pi_provider_index = pi_provider_count.saturating_sub(1);
+        }
+        // PiProvider screen has 3 fields: Base URL, API, API Key
+        let pi_provider_fields_count = 3;
+        if self.pi_provider_field_index >= pi_provider_fields_count {
+            self.pi_provider_field_index = pi_provider_fields_count.saturating_sub(1);
+        }
+        let pi_model_count = self
+            .pi_detail
+            .as_ref()
+            .and_then(|p| {
+                let keys: Vec<String> = p.providers.keys().cloned().collect();
+                keys.get(self.pi_provider_index)
+                    .and_then(|pid| p.providers.get(pid))
+                    .map(|cfg| cfg.models.len())
+            })
+            .unwrap_or(0);
+        if self.pi_model_index >= pi_model_count {
+            self.pi_model_index = pi_model_count.saturating_sub(1);
+        }
+        // PiModel screen has 7 fields: id, name, reasoning, input, contextWindow, maxTokens, cost
+        let pi_model_fields_count = 7;
+        if self.pi_model_field_index >= pi_model_fields_count {
+            self.pi_model_field_index = pi_model_fields_count.saturating_sub(1);
         }
         if self.sessions_index >= self.sessions.len() {
             self.sessions_index = self.sessions.len().saturating_sub(1);

@@ -23,6 +23,8 @@ pub struct ConfigPaths {
     pub openclaw: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hermes: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pi: Option<String>,
 }
 
 /// Effective path info with default indicator
@@ -44,6 +46,7 @@ pub struct EffectivePaths {
     pub codex: EffectivePath,
     pub openclaw: EffectivePath,
     pub hermes: EffectivePath,
+    pub pi: EffectivePath,
 }
 
 /// WSL distribution info
@@ -183,6 +186,13 @@ pub fn get_default_paths_for_home(home_dir: &Path) -> Result<EffectivePaths, Str
                 .to_string(),
             is_default: true,
         },
+        pi: EffectivePath {
+            key: "pi".to_string(),
+            path: default_pi_home_for_home(home_dir)?
+                .to_string_lossy()
+                .to_string(),
+            is_default: true,
+        },
     })
 }
 
@@ -195,6 +205,7 @@ pub fn get_effective_paths_for_home(home_dir: &Path) -> Result<EffectivePaths, S
     let codex_path = get_codex_home_for_home(home_dir, &config)?;
     let openclaw_path = get_openclaw_home_for_home(home_dir, &config)?;
     let hermes_path = get_hermes_home_for_home(home_dir, &config)?;
+    let pi_path = get_pi_home_for_home(home_dir, &config)?;
 
     Ok(EffectivePaths {
         factory: EffectivePath {
@@ -226,6 +237,11 @@ pub fn get_effective_paths_for_home(home_dir: &Path) -> Result<EffectivePaths, S
             key: "hermes".to_string(),
             path: hermes_path.to_string_lossy().to_string(),
             is_default: config.hermes.is_none(),
+        },
+        pi: EffectivePath {
+            key: "pi".to_string(),
+            path: pi_path.to_string_lossy().to_string(),
+            is_default: config.pi.is_none(),
         },
     })
 }
@@ -281,6 +297,7 @@ pub fn save_config_path_for_home(home_dir: &Path, key: &str, path: &str) -> Resu
         "codex" => "codex",
         "openclaw" => "openclaw",
         "hermes" => "hermes",
+        "pi" => "pi",
         _ => return Err(format!("Unknown config path key: {key}")),
     };
 
@@ -307,6 +324,7 @@ pub fn reset_config_path_for_home(home_dir: &Path, key: &str) -> Result<(), Stri
                     "codex" => "codex",
                     "openclaw" => "openclaw",
                     "hermes" => "hermes",
+                    "pi" => "pi",
                     _ => return Err(format!("Unknown config path key: {key}")),
                 };
                 paths_obj.remove(storage_key);
@@ -348,6 +366,11 @@ fn default_openclaw_home_for_home(home_dir: &Path) -> Result<PathBuf, String> {
 
 fn default_hermes_home_for_home(home_dir: &Path) -> Result<PathBuf, String> {
     Ok(home_dir.join(".hermes"))
+}
+
+/// Pi home defaults to `~/.pi/agent`
+fn default_pi_home_for_home(home_dir: &Path) -> Result<PathBuf, String> {
+    Ok(home_dir.join(".pi").join("agent"))
 }
 
 /// On Windows, try to resolve Hermes default path via WSL since Hermes
@@ -462,6 +485,19 @@ pub fn get_hermes_home_for_home(home_dir: &Path, config: &ConfigPaths) -> Result
     }
 }
 
+pub fn get_pi_home() -> Result<PathBuf, String> {
+    let home = get_home_dir()?;
+    let config = load_config_paths_for_home(&home);
+    get_pi_home_for_home(&home, &config)
+}
+
+pub fn get_pi_home_for_home(home_dir: &Path, config: &ConfigPaths) -> Result<PathBuf, String> {
+    match &config.pi {
+        Some(custom) => Ok(PathBuf::from(custom)),
+        None => default_pi_home_for_home(home_dir),
+    }
+}
+
 // ============================================================================
 // WSL (Windows only)
 // ============================================================================
@@ -537,6 +573,7 @@ pub fn build_wsl_path(distro: &str, username: &str, config_key: &str) -> Result<
         "codex" => ".codex",
         "openclaw" => ".openclaw",
         "hermes" => ".hermes",
+        "pi" => ".pi/agent",
         _ => return Err(format!("Unknown config key: {config_key}")),
     };
 

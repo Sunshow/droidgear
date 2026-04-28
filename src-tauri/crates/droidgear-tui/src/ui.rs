@@ -389,6 +389,10 @@ fn draw_main(frame: &mut Frame, app: &app::App, area: Rect) {
         app::Screen::OpenClawHelpers => draw_openclaw_helpers(frame, app, area),
         app::Screen::OpenClawSubagents => draw_openclaw_subagents(frame, app, area),
         app::Screen::OpenClawSubagentDetail => draw_openclaw_subagent_detail(frame, app, area),
+        app::Screen::Pi => draw_pi_profiles(frame, app, area),
+        app::Screen::PiProfile => draw_pi_profile(frame, app, area),
+        app::Screen::PiProvider => draw_pi_provider(frame, app, area),
+        app::Screen::PiModel => draw_pi_model(frame, app, area),
         app::Screen::Hermes => draw_hermes_profiles(frame, app, area),
         app::Screen::HermesProfile => draw_hermes_profile(frame, app, area),
         app::Screen::HermesProvider => draw_hermes_provider(frame, app, area),
@@ -2554,6 +2558,329 @@ fn draw_missions(frame: &mut Frame, app: &app::App, area: Rect) {
     render_list(frame, list, chunks[0], Some(app.mission_field_index));
 
     let help = help_paragraph("Up/Down: select  Enter/e: edit  r: refresh  q/Esc: back");
+    frame.render_widget(help, chunks[1]);
+}
+
+fn draw_pi_profiles(frame: &mut Frame, app: &app::App, area: Rect) {
+    let active = app.pi_active_id.as_deref();
+    let selected_index = app.pi_index;
+    draw_profile_list(
+        frame,
+        area,
+        "Pi Profiles",
+        app.pi_profiles
+            .iter()
+            .map(|p| (p.name.as_str(), p.id.as_str())),
+        active,
+        selected_index,
+        "Up/Down: select  Enter/e: open  a: apply  n: new  c: copy  d: delete  r: refresh  q/Esc: back",
+    );
+}
+
+fn draw_pi_profile(frame: &mut Frame, app: &app::App, area: Rect) {
+    let t = theme();
+    let Some(profile) = app.pi_detail.as_ref() else {
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Failed to load profile",
+            t.error_style(),
+        ))])
+        .block(block("Pi Profile"))
+        .wrap(Wrap { trim: true });
+        frame.render_widget(p, area);
+        return;
+    };
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Length(4),
+                Constraint::Min(0),
+                Constraint::Length(2),
+            ]
+            .as_ref(),
+        )
+        .split(area);
+
+    let fields_count = 2usize;
+    let in_fields = app.pi_detail_field_index < fields_count;
+    let in_providers = !in_fields;
+
+    // Fields section
+    let fields: Vec<(&str, String)> = vec![
+        ("Name", profile.name.clone()),
+        (
+            "Description",
+            profile
+                .description
+                .clone()
+                .unwrap_or_else(|| "".to_string()),
+        ),
+    ];
+
+    let mut field_items: Vec<ListItem> = Vec::new();
+    for (i, (label, value)) in fields.into_iter().enumerate() {
+        let selected = in_fields && i == app.pi_detail_field_index;
+        let line = if selected {
+            Line::from(format!("{label:>14}: {value}"))
+        } else {
+            field_line(label, &value, 14)
+        };
+        field_items.push(ListItem::new(line));
+    }
+    let field_selected = in_fields.then_some(app.pi_detail_field_index);
+    let field_list = List::new(field_items)
+        .block(block(format!("Pi Profile: {}", profile.name)))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, field_list, chunks[0], field_selected);
+
+    // Providers section
+    let mut provider_ids: Vec<String> = profile.providers.keys().cloned().collect();
+    provider_ids.sort_by_key(|a| a.to_lowercase());
+
+    let mut provider_items: Vec<ListItem> = Vec::new();
+    for pid in provider_ids.iter() {
+        let model_count = profile
+            .providers
+            .get(pid)
+            .map(|c| c.models.len())
+            .unwrap_or(0);
+        provider_items.push(ListItem::new(Line::from(vec![
+            Span::raw(pid.clone()),
+            Span::styled(format!("  ({model_count} models)"), t.dim_style()),
+        ])));
+    }
+    if provider_items.is_empty() {
+        provider_items.push(ListItem::new(Line::from(Span::styled(
+            "No providers",
+            t.placeholder_style(),
+        ))));
+    }
+    let provider_highlight = if in_providers && !provider_ids.is_empty() {
+        Some(app.pi_detail_field_index - fields_count)
+    } else {
+        None
+    };
+    let provider_list = List::new(provider_items)
+        .block(block("Providers"))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, provider_list, chunks[1], provider_highlight);
+
+    let help = help_paragraph(
+        "Up/Down: move  Enter/e: edit field/open provider  p: open provider  n: add provider  d: del provider  l: load live  a: apply  q/Esc: back",
+    );
+    frame.render_widget(help, chunks[2]);
+}
+
+fn draw_pi_provider(frame: &mut Frame, app: &app::App, area: Rect) {
+    let t = theme();
+    let Some(profile) = app.pi_detail.as_ref() else {
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Failed to load profile",
+            t.error_style(),
+        ))])
+        .block(block("Pi Provider"))
+        .wrap(Wrap { trim: true });
+        frame.render_widget(p, area);
+        return;
+    };
+    let Some(provider_id) = app.pi_current_provider_id() else {
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "No provider selected",
+            t.warning_style(),
+        ))])
+        .block(block("Pi Provider"))
+        .wrap(Wrap { trim: true });
+        frame.render_widget(p, area);
+        return;
+    };
+    let Some(config) = profile.providers.get(&provider_id) else {
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Provider not found",
+            t.error_style(),
+        ))])
+        .block(block("Pi Provider"))
+        .wrap(Wrap { trim: true });
+        frame.render_widget(p, area);
+        return;
+    };
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Length(5),
+                Constraint::Min(0),
+                Constraint::Length(2),
+            ]
+            .as_ref(),
+        )
+        .split(area);
+
+    let api_key_set = config
+        .api_key
+        .as_deref()
+        .is_some_and(|k| !k.trim().is_empty());
+
+    let provider_fields: Vec<(&str, String)> = vec![
+        (
+            "Base URL",
+            config.base_url.clone().unwrap_or_else(|| "".to_string()),
+        ),
+        ("API", config.api.clone().unwrap_or_else(|| "".to_string())),
+        (
+            "API Key",
+            if api_key_set {
+                "********".to_string()
+            } else {
+                "(not set)".to_string()
+            },
+        ),
+    ];
+
+    let mut field_items: Vec<ListItem> = Vec::new();
+    for (i, (label, value)) in provider_fields.into_iter().enumerate() {
+        let selected = i == app.pi_provider_field_index;
+        let line = if selected {
+            Line::from(format!("{label:>14}: {value}"))
+        } else {
+            let custom_style = match label {
+                "API Key" if value == "********" => Some(t.success_fg_style()),
+                _ => None,
+            };
+            field_line_custom(label, &value, 14, custom_style)
+        };
+        field_items.push(ListItem::new(line));
+    }
+    let fields_list = List::new(field_items)
+        .block(block(format!("Pi Provider: {provider_id}")))
+        .highlight_style(t.selected_row_style());
+    render_list(
+        frame,
+        fields_list,
+        chunks[0],
+        Some(app.pi_provider_field_index),
+    );
+
+    // Models section
+    let mut model_items: Vec<ListItem> = Vec::new();
+    for m in config.models.iter() {
+        model_items.push(ListItem::new(Line::from(Span::raw(m.id.clone()))));
+    }
+    if model_items.is_empty() {
+        model_items.push(ListItem::new(Line::from(Span::styled(
+            "No models",
+            t.placeholder_style(),
+        ))));
+    }
+    let models_selected = (!config.models.is_empty()).then_some(app.pi_model_index);
+    let models_list = List::new(model_items)
+        .block(block("Models"))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, models_list, chunks[1], models_selected);
+
+    let help = help_paragraph(
+        "Up/Down: move  Enter/e: edit field  m: open model  n: add model  d: del model  q/Esc: back",
+    );
+    frame.render_widget(help, chunks[2]);
+}
+
+fn draw_pi_model(frame: &mut Frame, app: &app::App, area: Rect) {
+    let t = theme();
+    let Some(profile) = app.pi_detail.as_ref() else {
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Failed to load profile",
+            t.error_style(),
+        ))])
+        .block(block("Pi Model"))
+        .wrap(Wrap { trim: true });
+        frame.render_widget(p, area);
+        return;
+    };
+    let Some(provider_id) = app.pi_current_provider_id() else {
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "No provider selected",
+            t.warning_style(),
+        ))])
+        .block(block("Pi Model"))
+        .wrap(Wrap { trim: true });
+        frame.render_widget(p, area);
+        return;
+    };
+    let Some(provider) = profile.providers.get(&provider_id) else {
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Provider not found",
+            t.error_style(),
+        ))])
+        .block(block("Pi Model"))
+        .wrap(Wrap { trim: true });
+        frame.render_widget(p, area);
+        return;
+    };
+    let Some(model) = provider.models.get(app.pi_model_index) else {
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Model not found",
+            t.error_style(),
+        ))])
+        .block(block("Pi Model"))
+        .wrap(Wrap { trim: true });
+        frame.render_widget(p, area);
+        return;
+    };
+
+    let input_text = model.input.iter().any(|t| t == "text");
+    let input_image = model.input.iter().any(|t| t == "image");
+
+    let cost_str = match &model.cost {
+        Some(c) => format!(
+            "in:{} out:{} cr:{} cw:{}",
+            c.input, c.output, c.cache_read, c.cache_write
+        ),
+        None => "(none)".to_string(),
+    };
+
+    let fields: Vec<(&str, String)> = vec![
+        ("ID", model.id.clone()),
+        ("Name", model.name.clone().unwrap_or_else(|| "".to_string())),
+        (
+            "Reasoning",
+            if model.reasoning { "on" } else { "off" }.to_string(),
+        ),
+        (
+            "Input",
+            format!(
+                "{}{}",
+                if input_text { "text" } else { "" },
+                if input_image { " image" } else { "" }
+            ),
+        ),
+        ("Context Window", model.context_window.to_string()),
+        ("Max Tokens", model.max_tokens.to_string()),
+        ("Cost", cost_str),
+    ];
+
+    let mut items: Vec<ListItem> = Vec::new();
+    for (i, (label, value)) in fields.into_iter().enumerate() {
+        let selected = i == app.pi_model_field_index;
+        let line = if selected {
+            Line::from(format!("{label:>14}: {value}"))
+        } else {
+            field_line(label, &value, 14)
+        };
+        items.push(ListItem::new(line));
+    }
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
+
+    let list = List::new(items)
+        .block(block(format!("Pi Model: {}", model.id)))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, list, chunks[0], Some(app.pi_model_field_index));
+
+    let help = help_paragraph("Up/Down: select  Enter/e: edit/toggle  q/Esc: back");
     frame.render_widget(help, chunks[1]);
 }
 

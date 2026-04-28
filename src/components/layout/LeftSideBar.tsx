@@ -9,6 +9,7 @@ import {
   Check,
   Cog,
   Cpu,
+  CircuitBoard,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ActionButton } from '@/components/ui/action-button'
@@ -34,6 +35,7 @@ import { OpenCodeFeatureList } from '@/components/opencode'
 import { CodexFeatureList } from '@/components/codex'
 import { OpenClawFeatureList } from '@/components/openclaw'
 import { HermesFeatureList } from '@/components/hermes'
+import { PiFeatureList } from '@/components/pi'
 import { useUIStore } from '@/store/ui-store'
 import { useChannelStore } from '@/store/channel-store'
 import { useModelStore } from '@/store/model-store'
@@ -47,6 +49,7 @@ type NavigationView =
   | 'codex'
   | 'openclaw'
   | 'hermes'
+  | 'pi'
 
 interface LeftSideBarProps {
   children?: React.ReactNode
@@ -94,6 +97,11 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
         <>
           <Cpu className="h-4 w-4 mr-2" />
           {t('sidebar.hermes')}
+        </>
+      ) : lastToolView === 'pi' ? (
+        <>
+          <CircuitBoard className="h-4 w-4 mr-2" />
+          {t('sidebar.pi')}
         </>
       ) : (
         <>
@@ -274,6 +282,16 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
                   <Check className="h-4 w-4 ml-auto" />
                 )}
               </ActionDropdownMenuItem>
+              <ActionDropdownMenuItem
+                onClick={() => {
+                  handleViewChange('pi')
+                  setDropdownOpen(false)
+                }}
+              >
+                <CircuitBoard className="h-4 w-4 mr-2" />
+                {t('sidebar.pi')}
+                {lastToolView === 'pi' && <Check className="h-4 w-4 ml-auto" />}
+              </ActionDropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         )}
@@ -291,6 +309,8 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
           <OpenClawFeatureList />
         ) : currentView === 'hermes' ? (
           <HermesFeatureList />
+        ) : currentView === 'pi' ? (
+          <PiFeatureList />
         ) : (
           <CodexFeatureList />
         )}

@@ -127,7 +127,7 @@ pub fn run() {
                 let window = window.decorations(false).transparent(true);
 
                 #[cfg(target_os = "linux")]
-                let window = window.decorations(true).transparent(false);
+                let window = window.decorations(false).transparent(false);
 
                 let _window = window.build()?;
 
