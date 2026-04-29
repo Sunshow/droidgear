@@ -7,6 +7,7 @@ pub mod channel;
 pub mod codex;
 pub mod config;
 pub mod connectivity;
+pub mod droid_settings;
 pub mod env;
 pub mod hermes;
 pub mod mcp;

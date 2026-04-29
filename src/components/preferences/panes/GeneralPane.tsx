@@ -4,6 +4,13 @@ import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { SettingsField, SettingsSection } from '../shared/SettingsComponents'
 import { commands } from '@/lib/tauri-bindings'
 import { logger } from '@/lib/logger'
@@ -15,11 +22,14 @@ import {
   hydratePendingUpdate,
 } from '@/services/updater'
 import { usePreferences, useSavePreferences } from '@/services/preferences'
+import { useIsWindows, useIsMacOS } from '@/hooks/use-platform'
 
 export function GeneralPane() {
   const { t } = useTranslation()
   const { data: preferences } = usePreferences()
   const savePreferences = useSavePreferences()
+  const isWindows = useIsWindows()
+  const isMacOS = useIsMacOS()
 
   // Update state
   const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking'>('idle')
@@ -226,6 +236,70 @@ export function GeneralPane() {
               {!disableAutoUpdate ? t('common.enabled') : t('common.disabled')}
             </Label>
           </div>
+        </SettingsField>
+      </SettingsSection>
+
+      <SettingsSection title={t('preferences.general.terminal')}>
+        <SettingsField
+          label={t('preferences.general.preferredTerminal')}
+          description={t('preferences.general.preferredTerminalDescription')}
+        >
+          <Select
+            value={preferences?.preferred_terminal || 'system-default'}
+            onValueChange={value => {
+              if (preferences) {
+                savePreferences.mutate({
+                  ...preferences,
+                  preferred_terminal:
+                    value === 'system-default' ? null : value || null,
+                })
+              }
+            }}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue
+                placeholder={t('preferences.general.terminalSystemDefault')}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="system-default">
+                {isMacOS
+                  ? t('preferences.general.terminalSystemDefault')
+                  : isWindows
+                    ? t('preferences.general.terminalWindowsTerminal')
+                    : t('preferences.general.terminalAutoDetect')}
+              </SelectItem>
+              {isMacOS && (
+                <>
+                  <SelectItem value="terminal">
+                    {t('preferences.general.terminalApp')}
+                  </SelectItem>
+                  <SelectItem value="iterm2">iTerm2</SelectItem>
+                </>
+              )}
+              {!isMacOS && !isWindows && (
+                <>
+                  <SelectItem value="gnome-terminal">GNOME Terminal</SelectItem>
+                  <SelectItem value="konsole">Konsole</SelectItem>
+                  <SelectItem value="xfce4-terminal">XFCE Terminal</SelectItem>
+                  <SelectItem value="x-terminal-emulator">
+                    x-terminal-emulator
+                  </SelectItem>
+                </>
+              )}
+              {isWindows && (
+                <>
+                  <SelectItem value="windows-terminal">
+                    {t('preferences.general.terminalWindowsTerminal')}
+                  </SelectItem>
+                  <SelectItem value="cmd">
+                    {t('preferences.general.terminalCmd')}
+                  </SelectItem>
+                  <SelectItem value="powershell">PowerShell</SelectItem>
+                </>
+              )}
+            </SelectContent>
+          </Select>
         </SettingsField>
       </SettingsSection>
     </div>

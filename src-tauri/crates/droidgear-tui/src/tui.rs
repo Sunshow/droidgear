@@ -49,6 +49,7 @@ enum Action {
     EditSpec { path: String },
     EditChannels,
     EditChannelAuth { id: String },
+    SetActiveSettingsFile { name: Option<String> },
 }
 
 pub fn run(app: &mut app::App) -> anyhow::Result<()> {
@@ -161,12 +162,25 @@ fn refresh_screen_data(app: &mut app::App) {
         app::Screen::Channels => refresh_channels(app),
         app::Screen::ChannelsEdit => {}
         app::Screen::Missions => refresh_missions(app),
+        app::Screen::DroidSettingsFiles => refresh_droid_settings_files(app),
     }
 }
 
 fn refresh_paths(app: &mut app::App) {
     match droidgear_core::paths::get_effective_paths_for_home(&app.home_dir) {
         Ok(p) => app.paths = Some(p),
+        Err(e) => app.set_toast(e, true),
+    }
+}
+
+fn refresh_droid_settings_files(app: &mut app::App) {
+    match droidgear_core::droid_settings_files::list_settings_files() {
+        Ok(files) => {
+            app.droid_settings_files = files;
+            if app.droid_settings_files_index >= app.droid_settings_files.len() {
+                app.droid_settings_files_index = app.droid_settings_files.len().saturating_sub(1);
+            }
+        }
         Err(e) => app.set_toast(e, true),
     }
 }
@@ -502,6 +516,7 @@ fn handle_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
     match app.screen {
         app::Screen::Main => handle_main_key(app, code),
         app::Screen::Paths => handle_paths_key(app, code),
+        app::Screen::DroidSettingsFiles => handle_droid_settings_files_key(app, code),
         app::Screen::Factory => handle_factory_key(app, code),
         app::Screen::FactoryModel => handle_factory_model_key(app, code),
         app::Screen::Mcp => handle_mcp_key(app, code),
@@ -602,6 +617,31 @@ fn handle_paths_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
                 message: format!("Reset path override for {key}?"),
                 action: app::ConfirmAction::PathsResetKey { key },
             });
+        }
+        _ => {}
+    }
+    None
+}
+
+fn handle_droid_settings_files_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
+    match code {
+        KeyCode::Esc | KeyCode::Char('q') => app.screen = app::Screen::Main,
+        KeyCode::Down => {
+            app.droid_settings_files_index = app.droid_settings_files_index.saturating_add(1)
+        }
+        KeyCode::Up => {
+            app.droid_settings_files_index = app.droid_settings_files_index.saturating_sub(1)
+        }
+        KeyCode::Char('r') => refresh_droid_settings_files(app),
+        KeyCode::Enter => {
+            if let Some(file) = app.droid_settings_files.get(app.droid_settings_files_index) {
+                let name = if file.is_global {
+                    None
+                } else {
+                    Some(file.name.clone())
+                };
+                return Some(Action::SetActiveSettingsFile { name });
+            }
         }
         _ => {}
     }
@@ -4498,6 +4538,12 @@ fn run_action(app: &mut app::App, action: Action) -> anyhow::Result<()> {
                 .context("write auth template")?;
             }
             editor::open_in_editor(&auth_path)?;
+            Ok(())
+        }
+        Action::SetActiveSettingsFile { name } => {
+            droidgear_core::droid_settings_files::set_active_settings_file(name)
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            refresh_droid_settings_files(app);
             Ok(())
         }
     }

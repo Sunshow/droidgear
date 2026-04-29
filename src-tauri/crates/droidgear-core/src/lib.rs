@@ -1,6 +1,7 @@
 pub mod channel;
 pub mod codex;
 pub mod connectivity;
+pub mod droid_settings_files;
 pub mod factory_settings;
 pub mod hermes;
 pub mod json;

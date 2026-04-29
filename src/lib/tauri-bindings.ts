@@ -27,6 +27,7 @@ export type {
   JsonValue,
   PortableUpdateInfo,
   RecoveryError,
+  SettingsFileInfo,
   UpdateChannel,
 } from './bindings'
 

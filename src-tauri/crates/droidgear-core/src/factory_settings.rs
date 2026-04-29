@@ -183,6 +183,70 @@ fn write_config_file_for_home(home_dir: &Path, config: &Value) -> Result<(), Str
     Ok(())
 }
 
+// ============================================================================
+// Active file helpers — route through droid_settings_files
+// ============================================================================
+
+/// Reads the config from the active settings file (respects user's file selection)
+fn read_active_config_file() -> ConfigReadResult {
+    let config_path = match crate::droid_settings_files::get_active_settings_path() {
+        Ok(path) => path,
+        Err(_) => return ConfigReadResult::NotFound,
+    };
+
+    if !config_path.exists() {
+        return ConfigReadResult::NotFound;
+    }
+
+    let contents = match std::fs::read_to_string(&config_path) {
+        Ok(c) => c,
+        Err(e) => return ConfigReadResult::ParseError(format!("Failed to read config file: {e}")),
+    };
+
+    if contents.trim().is_empty() {
+        return ConfigReadResult::NotFound;
+    }
+
+    match serde_json::from_str(&contents) {
+        Ok(value) => ConfigReadResult::Ok(value),
+        Err(e) => ConfigReadResult::ParseError(format!("Failed to parse config JSON: {e}")),
+    }
+}
+
+/// Writes the config to the active settings file
+fn write_active_config_file(config: &Value) -> Result<(), String> {
+    let config_path = crate::droid_settings_files::get_active_settings_path()?;
+
+    // Ensure parent directory exists
+    if let Some(parent) = config_path.parent() {
+        if !parent.exists() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create directory: {e}"))?;
+        }
+    }
+
+    let actual_path = if config_path.is_symlink() {
+        std::fs::canonicalize(&config_path)
+            .map_err(|e| format!("Failed to resolve symlink: {e}"))?
+    } else {
+        config_path
+    };
+
+    let temp_path = actual_path.with_extension("tmp");
+    let json_content = serde_json::to_string_pretty(config)
+        .map_err(|e| format!("Failed to serialize config: {e}"))?;
+
+    std::fs::write(&temp_path, json_content)
+        .map_err(|e| format!("Failed to write config file: {e}"))?;
+
+    std::fs::rename(&temp_path, &actual_path).map_err(|e| {
+        let _ = std::fs::remove_file(&temp_path);
+        format!("Failed to finalize config file: {e}")
+    })?;
+
+    Ok(())
+}
+
 fn system_home_dir() -> Result<PathBuf, String> {
     dirs::home_dir().ok_or_else(|| "Failed to get home directory".to_string())
 }
@@ -198,7 +262,7 @@ pub fn get_config_path_for_home(home_dir: &Path) -> Result<String, String> {
 }
 
 pub fn get_config_path() -> Result<String, String> {
-    get_config_path_for_home(&system_home_dir()?)
+    crate::droid_settings_files::get_active_settings_path().map(|p| p.to_string_lossy().to_string())
 }
 
 pub fn reset_config_file_for_home(home_dir: &Path) -> Result<(), String> {
@@ -206,7 +270,7 @@ pub fn reset_config_file_for_home(home_dir: &Path) -> Result<(), String> {
 }
 
 pub fn reset_config_file() -> Result<(), String> {
-    reset_config_file_for_home(&system_home_dir()?)
+    write_active_config_file(&serde_json::json!({}))
 }
 
 pub fn load_custom_models_for_home(home_dir: &Path) -> Result<Vec<CustomModel>, String> {
@@ -230,7 +294,23 @@ pub fn load_custom_models_for_home(home_dir: &Path) -> Result<Vec<CustomModel>, 
 }
 
 pub fn load_custom_models() -> Result<Vec<CustomModel>, String> {
-    load_custom_models_for_home(&system_home_dir()?)
+    let config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => return Ok(vec![]),
+        ConfigReadResult::ParseError(_) => return Ok(vec![]),
+    };
+
+    let models: Vec<CustomModel> = config
+        .get("customModels")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| serde_json::from_value(v.clone()).ok())
+                .collect()
+        })
+        .unwrap_or_default();
+
+    Ok(models)
 }
 
 pub fn save_custom_models_for_home(
@@ -258,7 +338,24 @@ pub fn save_custom_models_for_home(
 }
 
 pub fn save_custom_models(models: Vec<CustomModel>) -> Result<(), String> {
-    save_custom_models_for_home(&system_home_dir()?, models)
+    let mut config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => serde_json::json!({}),
+        ConfigReadResult::ParseError(e) => {
+            return Err(format!("{CONFIG_PARSE_ERROR_PREFIX} {e}"));
+        }
+    };
+
+    let models_value =
+        serde_json::to_value(&models).map_err(|e| format!("Failed to serialize models: {e}"))?;
+
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("customModels".to_string(), models_value);
+    } else {
+        config = serde_json::json!({ "customModels": models_value });
+    }
+
+    write_active_config_file(&config)
 }
 
 pub fn check_legacy_config_for_home(home_dir: &Path) -> Result<bool, String> {
@@ -463,7 +560,19 @@ pub fn get_default_model_for_home(home_dir: &Path) -> Result<Option<String>, Str
 }
 
 pub fn get_default_model() -> Result<Option<String>, String> {
-    get_default_model_for_home(&system_home_dir()?)
+    let config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => return Ok(None),
+        ConfigReadResult::ParseError(_) => return Ok(None),
+    };
+
+    let model_id = config
+        .get("sessionDefaultSettings")
+        .and_then(|s| s.get("model"))
+        .and_then(|m| m.as_str())
+        .map(String::from);
+
+    Ok(model_id)
 }
 
 pub fn save_default_model_for_home(home_dir: &Path, model_id: &str) -> Result<(), String> {
@@ -489,7 +598,24 @@ pub fn save_default_model_for_home(home_dir: &Path, model_id: &str) -> Result<()
 }
 
 pub fn save_default_model(model_id: &str) -> Result<(), String> {
-    save_default_model_for_home(&system_home_dir()?, model_id)
+    let mut config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => serde_json::json!({}),
+        ConfigReadResult::ParseError(e) => {
+            return Err(format!("{CONFIG_PARSE_ERROR_PREFIX} {e}"));
+        }
+    };
+
+    if let Some(obj) = config.as_object_mut() {
+        let session_settings = obj
+            .entry("sessionDefaultSettings")
+            .or_insert_with(|| serde_json::json!({}));
+        if let Some(session_obj) = session_settings.as_object_mut() {
+            session_obj.insert("model".to_string(), serde_json::json!(model_id));
+        }
+    }
+
+    write_active_config_file(&config)
 }
 
 pub fn get_cloud_session_sync_for_home(home_dir: &Path) -> Result<bool, String> {
@@ -508,7 +634,16 @@ pub fn get_cloud_session_sync_for_home(home_dir: &Path) -> Result<bool, String> 
 }
 
 pub fn get_cloud_session_sync() -> Result<bool, String> {
-    get_cloud_session_sync_for_home(&system_home_dir()?)
+    let config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => return Ok(true),
+        ConfigReadResult::ParseError(_) => return Ok(true),
+    };
+    let enabled = config
+        .get("cloudSessionSync")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    Ok(enabled)
 }
 
 pub fn save_cloud_session_sync_for_home(home_dir: &Path, enabled: bool) -> Result<(), String> {
@@ -528,7 +663,17 @@ pub fn save_cloud_session_sync_for_home(home_dir: &Path, enabled: bool) -> Resul
 }
 
 pub fn save_cloud_session_sync(enabled: bool) -> Result<(), String> {
-    save_cloud_session_sync_for_home(&system_home_dir()?, enabled)
+    let mut config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => serde_json::json!({}),
+        ConfigReadResult::ParseError(e) => {
+            return Err(format!("{CONFIG_PARSE_ERROR_PREFIX} {e}"));
+        }
+    };
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("cloudSessionSync".to_string(), serde_json::json!(enabled));
+    }
+    write_active_config_file(&config)
 }
 
 pub fn get_reasoning_effort_for_home(home_dir: &Path) -> Result<Option<String>, String> {
@@ -547,7 +692,16 @@ pub fn get_reasoning_effort_for_home(home_dir: &Path) -> Result<Option<String>, 
 }
 
 pub fn get_reasoning_effort() -> Result<Option<String>, String> {
-    get_reasoning_effort_for_home(&system_home_dir()?)
+    let config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => return Ok(None),
+        ConfigReadResult::ParseError(_) => return Ok(None),
+    };
+    let value = config
+        .get("reasoningEffort")
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    Ok(value)
 }
 
 pub fn save_reasoning_effort_for_home(home_dir: &Path, value: &str) -> Result<(), String> {
@@ -567,7 +721,17 @@ pub fn save_reasoning_effort_for_home(home_dir: &Path, value: &str) -> Result<()
 }
 
 pub fn save_reasoning_effort(value: &str) -> Result<(), String> {
-    save_reasoning_effort_for_home(&system_home_dir()?, value)
+    let mut config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => serde_json::json!({}),
+        ConfigReadResult::ParseError(e) => {
+            return Err(format!("{CONFIG_PARSE_ERROR_PREFIX} {e}"));
+        }
+    };
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("reasoningEffort".to_string(), serde_json::json!(value));
+    }
+    write_active_config_file(&config)
 }
 
 pub fn get_diff_mode_for_home(home_dir: &Path) -> Result<String, String> {
@@ -587,7 +751,17 @@ pub fn get_diff_mode_for_home(home_dir: &Path) -> Result<String, String> {
 }
 
 pub fn get_diff_mode() -> Result<String, String> {
-    get_diff_mode_for_home(&system_home_dir()?)
+    let config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => return Ok("github".to_string()),
+        ConfigReadResult::ParseError(_) => return Ok("github".to_string()),
+    };
+    let value = config
+        .get("diffMode")
+        .and_then(|v| v.as_str())
+        .map(String::from)
+        .unwrap_or_else(|| "github".to_string());
+    Ok(value)
 }
 
 pub fn save_diff_mode_for_home(home_dir: &Path, value: &str) -> Result<(), String> {
@@ -607,7 +781,17 @@ pub fn save_diff_mode_for_home(home_dir: &Path, value: &str) -> Result<(), Strin
 }
 
 pub fn save_diff_mode(value: &str) -> Result<(), String> {
-    save_diff_mode_for_home(&system_home_dir()?, value)
+    let mut config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => serde_json::json!({}),
+        ConfigReadResult::ParseError(e) => {
+            return Err(format!("{CONFIG_PARSE_ERROR_PREFIX} {e}"));
+        }
+    };
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("diffMode".to_string(), serde_json::json!(value));
+    }
+    write_active_config_file(&config)
 }
 
 pub fn get_todo_display_mode_for_home(home_dir: &Path) -> Result<String, String> {
@@ -627,7 +811,17 @@ pub fn get_todo_display_mode_for_home(home_dir: &Path) -> Result<String, String>
 }
 
 pub fn get_todo_display_mode() -> Result<String, String> {
-    get_todo_display_mode_for_home(&system_home_dir()?)
+    let config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => return Ok("pinned".to_string()),
+        ConfigReadResult::ParseError(_) => return Ok("pinned".to_string()),
+    };
+    let value = config
+        .get("todoDisplayMode")
+        .and_then(|v| v.as_str())
+        .map(String::from)
+        .unwrap_or_else(|| "pinned".to_string());
+    Ok(value)
 }
 
 pub fn save_todo_display_mode_for_home(home_dir: &Path, value: &str) -> Result<(), String> {
@@ -647,7 +841,17 @@ pub fn save_todo_display_mode_for_home(home_dir: &Path, value: &str) -> Result<(
 }
 
 pub fn save_todo_display_mode(value: &str) -> Result<(), String> {
-    save_todo_display_mode_for_home(&system_home_dir()?, value)
+    let mut config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => serde_json::json!({}),
+        ConfigReadResult::ParseError(e) => {
+            return Err(format!("{CONFIG_PARSE_ERROR_PREFIX} {e}"));
+        }
+    };
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("todoDisplayMode".to_string(), serde_json::json!(value));
+    }
+    write_active_config_file(&config)
 }
 
 pub fn get_include_co_authored_by_droid_for_home(home_dir: &Path) -> Result<bool, String> {
@@ -666,7 +870,16 @@ pub fn get_include_co_authored_by_droid_for_home(home_dir: &Path) -> Result<bool
 }
 
 pub fn get_include_co_authored_by_droid() -> Result<bool, String> {
-    get_include_co_authored_by_droid_for_home(&system_home_dir()?)
+    let config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => return Ok(true),
+        ConfigReadResult::ParseError(_) => return Ok(true),
+    };
+    let value = config
+        .get("includeCoAuthoredByDroid")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    Ok(value)
 }
 
 pub fn save_include_co_authored_by_droid_for_home(
@@ -692,7 +905,20 @@ pub fn save_include_co_authored_by_droid_for_home(
 }
 
 pub fn save_include_co_authored_by_droid(enabled: bool) -> Result<(), String> {
-    save_include_co_authored_by_droid_for_home(&system_home_dir()?, enabled)
+    let mut config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => serde_json::json!({}),
+        ConfigReadResult::ParseError(e) => {
+            return Err(format!("{CONFIG_PARSE_ERROR_PREFIX} {e}"));
+        }
+    };
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert(
+            "includeCoAuthoredByDroid".to_string(),
+            serde_json::json!(enabled),
+        );
+    }
+    write_active_config_file(&config)
 }
 
 pub fn get_show_thinking_in_main_view_for_home(home_dir: &Path) -> Result<bool, String> {
@@ -711,7 +937,16 @@ pub fn get_show_thinking_in_main_view_for_home(home_dir: &Path) -> Result<bool, 
 }
 
 pub fn get_show_thinking_in_main_view() -> Result<bool, String> {
-    get_show_thinking_in_main_view_for_home(&system_home_dir()?)
+    let config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => return Ok(false),
+        ConfigReadResult::ParseError(_) => return Ok(false),
+    };
+    let value = config
+        .get("showThinkingInMainView")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    Ok(value)
 }
 
 pub fn save_show_thinking_in_main_view_for_home(
@@ -737,7 +972,20 @@ pub fn save_show_thinking_in_main_view_for_home(
 }
 
 pub fn save_show_thinking_in_main_view(enabled: bool) -> Result<(), String> {
-    save_show_thinking_in_main_view_for_home(&system_home_dir()?, enabled)
+    let mut config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => serde_json::json!({}),
+        ConfigReadResult::ParseError(e) => {
+            return Err(format!("{CONFIG_PARSE_ERROR_PREFIX} {e}"));
+        }
+    };
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert(
+            "showThinkingInMainView".to_string(),
+            serde_json::json!(enabled),
+        );
+    }
+    write_active_config_file(&config)
 }
 
 pub fn get_mission_model_settings_for_home(
@@ -777,7 +1025,35 @@ pub fn get_mission_model_settings_for_home(
 }
 
 pub fn get_mission_model_settings() -> Result<MissionModelSettings, String> {
-    get_mission_model_settings_for_home(&system_home_dir()?)
+    let config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => {
+            return Ok(MissionModelSettings {
+                worker_model: None,
+                worker_reasoning_effort: None,
+                validation_worker_model: None,
+                validation_worker_reasoning_effort: None,
+            });
+        }
+        ConfigReadResult::ParseError(_) => {
+            return Ok(MissionModelSettings {
+                worker_model: None,
+                worker_reasoning_effort: None,
+                validation_worker_model: None,
+                validation_worker_reasoning_effort: None,
+            });
+        }
+    };
+    let settings = config
+        .get("missionModelSettings")
+        .and_then(|v| serde_json::from_value(v.clone()).ok())
+        .unwrap_or(MissionModelSettings {
+            worker_model: None,
+            worker_reasoning_effort: None,
+            validation_worker_model: None,
+            validation_worker_reasoning_effort: None,
+        });
+    Ok(settings)
 }
 
 pub fn save_mission_model_settings_for_home(
@@ -803,7 +1079,19 @@ pub fn save_mission_model_settings_for_home(
 }
 
 pub fn save_mission_model_settings(settings: MissionModelSettings) -> Result<(), String> {
-    save_mission_model_settings_for_home(&system_home_dir()?, settings)
+    let mut config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => serde_json::json!({}),
+        ConfigReadResult::ParseError(e) => {
+            return Err(format!("{CONFIG_PARSE_ERROR_PREFIX} {e}"));
+        }
+    };
+    let settings_value = serde_json::to_value(&settings)
+        .map_err(|e| format!("Failed to serialize mission model settings: {e}"))?;
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("missionModelSettings".to_string(), settings_value);
+    }
+    write_active_config_file(&config)
 }
 
 pub fn get_session_default_settings_for_home(
@@ -846,7 +1134,38 @@ pub fn get_session_default_settings_for_home(
 }
 
 pub fn get_session_default_settings() -> Result<SessionDefaultSettings, String> {
-    get_session_default_settings_for_home(&system_home_dir()?)
+    let config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => {
+            return Ok(SessionDefaultSettings {
+                model: None,
+                reasoning_effort: None,
+                spec_mode_model: None,
+                spec_mode_reasoning_effort: None,
+                autonomy_mode: None,
+            });
+        }
+        ConfigReadResult::ParseError(_) => {
+            return Ok(SessionDefaultSettings {
+                model: None,
+                reasoning_effort: None,
+                spec_mode_model: None,
+                spec_mode_reasoning_effort: None,
+                autonomy_mode: None,
+            });
+        }
+    };
+    let settings = config
+        .get("sessionDefaultSettings")
+        .and_then(|v| serde_json::from_value(v.clone()).ok())
+        .unwrap_or(SessionDefaultSettings {
+            model: None,
+            reasoning_effort: None,
+            spec_mode_model: None,
+            spec_mode_reasoning_effort: None,
+            autonomy_mode: None,
+        });
+    Ok(settings)
 }
 
 pub fn save_session_default_settings_for_home(
@@ -872,7 +1191,19 @@ pub fn save_session_default_settings_for_home(
 }
 
 pub fn save_session_default_settings(settings: SessionDefaultSettings) -> Result<(), String> {
-    save_session_default_settings_for_home(&system_home_dir()?, settings)
+    let mut config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => serde_json::json!({}),
+        ConfigReadResult::ParseError(e) => {
+            return Err(format!("{CONFIG_PARSE_ERROR_PREFIX} {e}"));
+        }
+    };
+    let settings_value = serde_json::to_value(&settings)
+        .map_err(|e| format!("Failed to serialize session default settings: {e}"))?;
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("sessionDefaultSettings".to_string(), settings_value);
+    }
+    write_active_config_file(&config)
 }
 
 // ============================================================================
@@ -896,7 +1227,17 @@ pub fn get_compaction_model_mode_for_home(home_dir: &Path) -> Result<String, Str
 }
 
 pub fn get_compaction_model_mode() -> Result<String, String> {
-    get_compaction_model_mode_for_home(&system_home_dir()?)
+    let config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => return Ok("current-model".to_string()),
+        ConfigReadResult::ParseError(_) => return Ok("current-model".to_string()),
+    };
+    let value = config
+        .get("compactionModelMode")
+        .and_then(|v| v.as_str())
+        .map(String::from)
+        .unwrap_or_else(|| "current-model".to_string());
+    Ok(value)
 }
 
 pub fn save_compaction_model_mode_for_home(home_dir: &Path, value: &str) -> Result<(), String> {
@@ -916,7 +1257,17 @@ pub fn save_compaction_model_mode_for_home(home_dir: &Path, value: &str) -> Resu
 }
 
 pub fn save_compaction_model_mode(value: &str) -> Result<(), String> {
-    save_compaction_model_mode_for_home(&system_home_dir()?, value)
+    let mut config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => serde_json::json!({}),
+        ConfigReadResult::ParseError(e) => {
+            return Err(format!("{CONFIG_PARSE_ERROR_PREFIX} {e}"));
+        }
+    };
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("compactionModelMode".to_string(), serde_json::json!(value));
+    }
+    write_active_config_file(&config)
 }
 
 pub fn get_compaction_token_limit_for_home(home_dir: &Path) -> Result<i32, String> {
@@ -936,7 +1287,17 @@ pub fn get_compaction_token_limit_for_home(home_dir: &Path) -> Result<i32, Strin
 }
 
 pub fn get_compaction_token_limit() -> Result<i32, String> {
-    get_compaction_token_limit_for_home(&system_home_dir()?)
+    let config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => return Ok(200_000),
+        ConfigReadResult::ParseError(_) => return Ok(200_000),
+    };
+    let value = config
+        .get("compactionTokenLimit")
+        .and_then(|v| v.as_i64())
+        .map(|v| v as i32)
+        .unwrap_or(200_000);
+    Ok(value)
 }
 
 pub fn save_compaction_token_limit_for_home(home_dir: &Path, value: i32) -> Result<(), String> {
@@ -956,7 +1317,17 @@ pub fn save_compaction_token_limit_for_home(home_dir: &Path, value: i32) -> Resu
 }
 
 pub fn save_compaction_token_limit(value: i32) -> Result<(), String> {
-    save_compaction_token_limit_for_home(&system_home_dir()?, value)
+    let mut config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => serde_json::json!({}),
+        ConfigReadResult::ParseError(e) => {
+            return Err(format!("{CONFIG_PARSE_ERROR_PREFIX} {e}"));
+        }
+    };
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("compactionTokenLimit".to_string(), serde_json::json!(value));
+    }
+    write_active_config_file(&config)
 }
 
 pub fn get_compaction_token_limit_per_model_for_home(
@@ -977,7 +1348,16 @@ pub fn get_compaction_token_limit_per_model_for_home(
 }
 
 pub fn get_compaction_token_limit_per_model() -> Result<HashMap<String, i32>, String> {
-    get_compaction_token_limit_per_model_for_home(&system_home_dir()?)
+    let config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => return Ok(HashMap::new()),
+        ConfigReadResult::ParseError(_) => return Ok(HashMap::new()),
+    };
+    let overrides = config
+        .get("compactionTokenLimitPerModel")
+        .and_then(|v| serde_json::from_value::<HashMap<String, i32>>(v.clone()).ok())
+        .unwrap_or_default();
+    Ok(overrides)
 }
 
 pub fn save_compaction_token_limit_per_model_for_home(
@@ -1005,5 +1385,17 @@ pub fn save_compaction_token_limit_per_model_for_home(
 pub fn save_compaction_token_limit_per_model(
     overrides: HashMap<String, i32>,
 ) -> Result<(), String> {
-    save_compaction_token_limit_per_model_for_home(&system_home_dir()?, overrides)
+    let mut config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => serde_json::json!({}),
+        ConfigReadResult::ParseError(e) => {
+            return Err(format!("{CONFIG_PARSE_ERROR_PREFIX} {e}"));
+        }
+    };
+    let overrides_value = serde_json::to_value(&overrides)
+        .map_err(|e| format!("Failed to serialize compaction token limit per model: {e}"))?;
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("compactionTokenLimitPerModel".to_string(), overrides_value);
+    }
+    write_active_config_file(&config)
 }

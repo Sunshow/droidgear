@@ -1545,6 +1545,85 @@ async installPortableUpdate(update: PortableUpdateInfo) : Promise<Result<null, s
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * Lists all available Droid settings files (global + custom)
+ */
+async listDroidSettingsFiles() : Promise<Result<SettingsFileInfo[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_droid_settings_files") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Gets the currently active settings file info
+ */
+async getActiveDroidSettingsFile() : Promise<Result<SettingsFileInfo, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_active_droid_settings_file") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Sets the active settings file. Pass null or empty to switch to Global.
+ */
+async setActiveDroidSettingsFile(name: string | null) : Promise<Result<SettingsFileInfo, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_active_droid_settings_file", { name }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Creates a new settings file. If copy_from_active is true, copies from the active file.
+ */
+async createDroidSettingsFile(name: string, copyFromActive: boolean) : Promise<Result<SettingsFileInfo, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("create_droid_settings_file", { name, copyFromActive }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Deletes a custom settings file. Cannot delete the global file.
+ */
+async deleteDroidSettingsFile(name: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_droid_settings_file", { name }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Gets the launch command for Droid with the active settings file.
+ * Returns [command_string, settings_path].
+ */
+async getDroidLaunchCommand() : Promise<Result<[string, string], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_droid_launch_command") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Launches Droid CLI in a terminal with the active settings file.
+ * Respects the user's preferredTerminal preference.
+ */
+async launchDroid() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("launch_droid") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -1582,7 +1661,15 @@ terminal_shell_command?: string | null;
  * Whether to disable automatic update checks at startup
  * If None, defaults to false (auto-update enabled)
  */
-disable_auto_update?: boolean | null }
+disable_auto_update?: boolean | null; 
+/**
+ * Preferred terminal app for launching Droid CLI
+ * "system-default" | "terminal" | "iterm2" (macOS)
+ * "auto-detect" | "gnome-terminal" | "konsole" | "xfce4-terminal" | "x-terminal-emulator" | custom (Linux)
+ * "windows-terminal" | "cmd" | "powershell" (Windows)
+ * If None, defaults to platform-appropriate default
+ */
+preferred_terminal?: string | null }
 /**
  * Block streaming chunk configuration
  */
@@ -2028,6 +2115,30 @@ tokenUsage: TokenUsage;
  * Full path to the session files (without extension)
  */
 path: string }
+/**
+ * Information about a single settings file
+ */
+export type SettingsFileInfo = { 
+/**
+ * Display name ("Global" or the filename without extension)
+ */
+name: string; 
+/**
+ * Full path to the settings file
+ */
+path: string; 
+/**
+ * Whether this is the global `~/.factory/settings.json`
+ */
+isGlobal: boolean; 
+/**
+ * Whether this file is currently active for editing
+ */
+isActive: boolean; 
+/**
+ * Whether the file exists on disk
+ */
+exists: boolean }
 /**
  * Spec file metadata
  */

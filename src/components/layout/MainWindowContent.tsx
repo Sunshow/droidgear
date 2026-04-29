@@ -38,6 +38,7 @@ export function MainWindowContent({
   const { t } = useTranslation()
   const currentView = useUIStore(state => state.currentView)
   const droidSubView = useUIStore(state => state.droidSubView)
+  const droidRefreshKey = useUIStore(state => state.droidRefreshKey)
   const openclawSubView = useUIStore(state => state.openclawSubView)
   const channels = useChannelStore(state => state.channels)
   const selectedChannelId = useChannelStore(state => state.selectedChannelId)
@@ -75,7 +76,7 @@ export function MainWindowContent({
 
     if (currentView === 'droid') {
       return (
-        <>
+        <div key={droidRefreshKey}>
           {droidSubView === 'models' && <ModelConfigPage />}
           {droidSubView === 'specs' && <SpecsPage />}
           {droidSubView === 'mcp' && <McpPage />}
@@ -83,7 +84,7 @@ export function MainWindowContent({
           {droidSubView === 'settings' && <DroidSettingsPage />}
           {droidSubView === 'missions' && <MissionsPage />}
           {droidSubView === 'legacy-versions' && <LegacyVersionsPage />}
-        </>
+        </div>
       )
     }
 

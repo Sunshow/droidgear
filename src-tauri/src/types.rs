@@ -40,6 +40,13 @@ pub struct AppPreferences {
     /// If None, defaults to false (auto-update enabled)
     #[serde(default)]
     pub disable_auto_update: Option<bool>,
+    /// Preferred terminal app for launching Droid CLI
+    /// "system-default" | "terminal" | "iterm2" (macOS)
+    /// "auto-detect" | "gnome-terminal" | "konsole" | "xfce4-terminal" | "x-terminal-emulator" | custom (Linux)
+    /// "windows-terminal" | "cmd" | "powershell" (Windows)
+    /// If None, defaults to platform-appropriate default
+    #[serde(default)]
+    pub preferred_terminal: Option<String>,
 }
 
 impl Default for AppPreferences {
@@ -50,6 +57,7 @@ impl Default for AppPreferences {
             terminal_font_family: None,   // None means use default fonts
             terminal_shell_command: None, // None means use default shell
             disable_auto_update: None,    // None means auto-update enabled (default)
+            preferred_terminal: None,     // None means platform default
         }
     }
 }

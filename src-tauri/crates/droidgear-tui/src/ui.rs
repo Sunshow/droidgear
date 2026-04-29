@@ -369,6 +369,7 @@ fn draw_main(frame: &mut Frame, app: &app::App, area: Rect) {
     match app.screen {
         app::Screen::Main => draw_home(frame, area),
         app::Screen::Paths => draw_paths(frame, app, area),
+        app::Screen::DroidSettingsFiles => draw_droid_settings_files(frame, app, area),
         app::Screen::Factory => draw_factory(frame, app, area),
         app::Screen::FactoryModel => draw_factory_model(frame, app, area),
         app::Screen::Mcp => draw_mcp(frame, app, area),
@@ -473,6 +474,65 @@ fn draw_paths(frame: &mut Frame, app: &app::App, area: Rect) {
     frame.render_widget(p, chunks[0]);
 
     let help = help_paragraph("Enter/e: edit  x: reset  r: refresh  q/Esc: back");
+    frame.render_widget(help, chunks[1]);
+}
+
+fn draw_droid_settings_files(frame: &mut Frame, app: &app::App, area: Rect) {
+    let t = theme();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
+
+    let mut lines: Vec<Line> = Vec::new();
+    for (i, file) in app.droid_settings_files.iter().enumerate() {
+        let selected = i == app.droid_settings_files_index;
+        let style = if selected {
+            t.selected_style()
+        } else {
+            Style::default()
+        };
+        let tag = if file.is_active { " [active]" } else { "" };
+        let kind = if file.is_global { "Global " } else { "Custom " };
+        let full_path = if file.exists {
+            file.path.clone()
+        } else {
+            format!("{} (not found)", file.path)
+        };
+        lines.push(Line::from(vec![
+            Span::styled(
+                kind,
+                if selected {
+                    t.selected_style()
+                } else {
+                    t.key_style()
+                },
+            ),
+            Span::styled(format!("{}{}", file.name, tag), style),
+            Span::styled(
+                format!("  {}", full_path),
+                if selected {
+                    t.selected_style()
+                } else {
+                    t.dim_style()
+                },
+            ),
+        ]));
+    }
+
+    if app.droid_settings_files.is_empty() {
+        lines.push(Line::from(Span::styled(
+            "No settings files found",
+            t.error_style(),
+        )));
+    }
+
+    let p = Paragraph::new(lines)
+        .block(block("Droid Settings Files"))
+        .wrap(Wrap { trim: false });
+    frame.render_widget(p, chunks[0]);
+
+    let help = help_paragraph("Enter: set active  r: refresh  q/Esc: back");
     frame.render_widget(help, chunks[1]);
 }
 

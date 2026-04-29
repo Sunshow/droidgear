@@ -132,6 +132,41 @@ vi.mock('@/lib/tauri-bindings', () => ({
       .mockResolvedValue({ status: 'ok', data: 0 }),
     checkLegacyConfig: vi.fn().mockResolvedValue({ status: 'ok', data: false }),
     deleteLegacyConfig: vi.fn().mockResolvedValue({ status: 'ok', data: null }),
+    listDroidSettingsFiles: vi.fn().mockResolvedValue({
+      status: 'ok',
+      data: [
+        {
+          name: 'Global',
+          path: '/home/user/.factory/settings.json',
+          isGlobal: true,
+          isActive: true,
+          exists: true,
+        },
+      ],
+    }),
+    getActiveDroidSettingsFile: vi.fn().mockResolvedValue({
+      status: 'ok',
+      data: {
+        name: 'Global',
+        path: '/home/user/.factory/settings.json',
+        isGlobal: true,
+        isActive: true,
+        exists: true,
+      },
+    }),
+    setActiveDroidSettingsFile: vi
+      .fn()
+      .mockResolvedValue({ status: 'ok', data: null }),
+    createDroidSettingsFile: vi
+      .fn()
+      .mockResolvedValue({ status: 'ok', data: null }),
+    deleteDroidSettingsFile: vi
+      .fn()
+      .mockResolvedValue({ status: 'ok', data: null }),
+    getDroidLaunchCommand: vi
+      .fn()
+      .mockResolvedValue({ status: 'ok', data: null }),
+    launchDroid: vi.fn().mockResolvedValue({ status: 'ok', data: null }),
   },
   unwrapResult: vi.fn((result: { status: string; data?: unknown }) => {
     if (result.status === 'ok') return result.data

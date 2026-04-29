@@ -42,6 +42,7 @@ interface UIState {
   lastSpecExportPath: string | null
   pendingUpdate: PendingUpdate | null
   droidSettingsScrollTarget: string | null
+  droidRefreshKey: number
 
   toggleLeftSidebar: () => void
   setLeftSidebarVisible: (visible: boolean) => void
@@ -59,6 +60,7 @@ interface UIState {
   setPendingUpdate: (update: PendingUpdate | null) => void
   clearPendingUpdate: () => void
   setDroidSettingsScrollTarget: (target: string | null) => void
+  incrementDroidRefreshKey: () => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -77,6 +79,7 @@ export const useUIStore = create<UIState>()(
         lastSpecExportPath: null,
         pendingUpdate: null,
         droidSettingsScrollTarget: null,
+        droidRefreshKey: 0,
 
         toggleLeftSidebar: () =>
           set(
@@ -168,6 +171,13 @@ export const useUIStore = create<UIState>()(
             { droidSettingsScrollTarget: target },
             undefined,
             'setDroidSettingsScrollTarget'
+          ),
+
+        incrementDroidRefreshKey: () =>
+          set(
+            state => ({ droidRefreshKey: state.droidRefreshKey + 1 }),
+            undefined,
+            'incrementDroidRefreshKey'
           ),
       }),
       {

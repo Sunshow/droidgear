@@ -2,8 +2,8 @@ use tauri_specta::{collect_commands, Builder};
 
 pub fn generate_bindings() -> Builder<tauri::Wry> {
     use crate::commands::{
-        channel, codex, config, connectivity, env, hermes, mcp, notifications, openclaw, opencode,
-        paths, pi, preferences, recovery, sessions, specs, updater,
+        channel, codex, config, connectivity, droid_settings, env, hermes, mcp, notifications,
+        openclaw, opencode, paths, pi, preferences, recovery, sessions, specs, updater,
     };
 
     Builder::<tauri::Wry>::new().commands(collect_commands![
@@ -149,6 +149,13 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         updater::get_update_channel,
         updater::check_portable_update,
         updater::install_portable_update,
+        droid_settings::list_droid_settings_files,
+        droid_settings::get_active_droid_settings_file,
+        droid_settings::set_active_droid_settings_file,
+        droid_settings::create_droid_settings_file,
+        droid_settings::delete_droid_settings_file,
+        droid_settings::get_droid_launch_command,
+        droid_settings::launch_droid,
     ])
 }
 

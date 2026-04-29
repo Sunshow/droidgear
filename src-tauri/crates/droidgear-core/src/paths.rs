@@ -77,7 +77,7 @@ fn get_home_dir() -> Result<PathBuf, String> {
     dirs::home_dir().ok_or_else(|| "Failed to get home directory".to_string())
 }
 
-fn droidgear_dir_from_home(home_dir: &Path) -> PathBuf {
+pub fn droidgear_dir_from_home(home_dir: &Path) -> PathBuf {
     home_dir.join(".droidgear")
 }
 
@@ -101,6 +101,11 @@ fn read_droidgear_settings_from_path(path: &Path) -> Result<Value, String> {
     serde_json::from_str(&content).map_err(|e| format!("Failed to parse settings: {e}"))
 }
 
+/// Public wrapper for reading droidgear settings from a path
+pub fn read_droidgear_settings_from_path_internal(path: &Path) -> Result<Value, String> {
+    read_droidgear_settings_from_path(path)
+}
+
 fn write_droidgear_settings_to_path(path: &Path, settings: &Value) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         if !parent.exists() {
@@ -118,6 +123,14 @@ fn write_droidgear_settings_to_path(path: &Path, settings: &Value) -> Result<(),
         format!("Failed to finalize settings: {e}")
     })?;
     Ok(())
+}
+
+/// Public wrapper for writing droidgear settings to a path
+pub fn write_droidgear_settings_to_path_internal(
+    path: &Path,
+    settings: &Value,
+) -> Result<(), String> {
+    write_droidgear_settings_to_path(path, settings)
 }
 
 fn load_config_paths_from_settings(settings: &Value) -> ConfigPaths {

@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use droidgear_core::{
     channel::Channel,
     codex::CodexProfile,
+    droid_settings_files::SettingsFileInfo,
     factory_settings::{CustomModel, MissionModelSettings},
     hermes::HermesProfile,
     mcp::McpServer,
@@ -18,6 +19,7 @@ use droidgear_core::{
 pub enum Screen {
     Main,
     Paths,
+    DroidSettingsFiles,
     Factory,
     FactoryModel,
     Mcp,
@@ -532,6 +534,9 @@ pub struct App {
     pub paths: Option<EffectivePaths>,
     pub paths_index: usize,
 
+    pub droid_settings_files: Vec<SettingsFileInfo>,
+    pub droid_settings_files_index: usize,
+
     pub custom_models: Vec<CustomModel>,
     pub factory_default_model_id: Option<String>,
     pub factory_models_index: usize,
@@ -650,6 +655,8 @@ impl App {
             modal: None,
             paths: None,
             paths_index: 0,
+            droid_settings_files: Vec::new(),
+            droid_settings_files_index: 0,
             custom_models: Vec::new(),
             factory_default_model_id: None,
             factory_models_index: 0,
@@ -754,6 +761,7 @@ impl App {
     pub fn nav_items() -> &'static [(&'static str, Screen)] {
         &[
             ("Paths", Screen::Paths),
+            ("Droid Settings", Screen::DroidSettingsFiles),
             ("Factory", Screen::Factory),
             ("MCP", Screen::Mcp),
             ("Codex", Screen::Codex),
