@@ -15,7 +15,7 @@ export function isOpenAICompatiblePlatform(
   platform: string | null | undefined
 ): boolean {
   if (!platform) return true
-  return !NON_OPENAI_PLATFORMS.has(platform)
+  return !NON_OPENAI_PLATFORMS.has(platform.toLowerCase())
 }
 
 export async function saveChannelAuth(

@@ -106,6 +106,24 @@ describe('inferProviderFromPlatformAndModel', () => {
     )
   })
 
+  it('handles case-insensitive platform matching', () => {
+    expect(inferProviderFromPlatformAndModel('OpenAI', 'some-model')).toBe(
+      'openai'
+    )
+    expect(
+      inferProviderFromPlatformAndModel('Anthropic', 'deepseek-v4-pro')
+    ).toBe('anthropic')
+    expect(
+      inferProviderFromPlatformAndModel('ANTHROPIC', 'deepseek-v4-pro')
+    ).toBe('anthropic')
+    expect(inferProviderFromPlatformAndModel('Gemini', 'some-model')).toBe(
+      'generic-chat-completion-api'
+    )
+    expect(
+      inferProviderFromPlatformAndModel('Antigravity', 'claude-3-opus')
+    ).toBe('anthropic')
+  })
+
   it('defaults to generic for unknown platform and model', () => {
     expect(inferProviderFromPlatformAndModel(null, 'some-random-model')).toBe(
       'generic-chat-completion-api'
