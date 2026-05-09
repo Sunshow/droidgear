@@ -1658,6 +1658,54 @@ async launchDroid() : Promise<Result<null, string>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async listFactoryAuthProfiles() : Promise<Result<AuthProfileState, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_factory_auth_profiles") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getActiveFactoryAuthProfile() : Promise<Result<string | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_active_factory_auth_profile") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async switchFactoryAuthProfile(name: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("switch_factory_auth_profile", { name }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async saveCurrentFactoryAuthProfile(name: string, label: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_current_factory_auth_profile", { name, label }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async deleteFactoryAuthProfile(name: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_factory_auth_profile", { name }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async renameFactoryAuthProfile(name: string, label: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("rename_factory_auth_profile", { name, label }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -1703,7 +1751,13 @@ disable_auto_update?: boolean | null;
  * "windows-terminal" | "cmd" | "powershell" (Windows)
  * If None, defaults to platform-appropriate default
  */
-preferred_terminal?: string | null }
+preferred_terminal?: string | null; 
+/**
+ * Droid temporary-run runtime policy.
+ */
+droid_run?: DroidRunPreferences | null }
+export type AuthProfile = { name: string; label: string; createdAt: string }
+export type AuthProfileState = { active: string | null; profiles: AuthProfile[] }
 /**
  * Block streaming chunk configuration
  */
@@ -1872,6 +1926,7 @@ extraArgs?: Partial<{ [key in string]: JsonValue }> | null;
  * Additional HTTP headers
  */
 extraHeaders?: Partial<{ [key in string]: string }> | null }
+export type DroidRunPreferences = { disableAutoUpdateEnv?: boolean | null; unsetAnthropicAuthToken?: boolean | null }
 /**
  * Effective path info with default indicator
  */

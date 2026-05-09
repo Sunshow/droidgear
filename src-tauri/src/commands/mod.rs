@@ -9,6 +9,7 @@ pub mod config;
 pub mod connectivity;
 pub mod droid_settings;
 pub mod env;
+pub mod factory_auth_profiles;
 pub mod hermes;
 pub mod mcp;
 pub mod notifications;

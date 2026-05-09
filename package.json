@@ -31,6 +31,8 @@
     "rust:bindings": "cd src-tauri && cargo test export_bindings -- --ignored --nocapture",
     "tauri": "tauri",
     "tauri:dev": "bash scripts/tauri-dev.sh",
+    "tui": "cd src-tauri && cargo run -p droidgear-tui --",
+    "tui:dev": "bash scripts/tui-dev.sh",
     "tauri:build": "npm run tauri build",
     "tauri:check": "npm run typecheck && npm run tauri build --check",
     "test:all": "npm run test:run && npm run rust:test",

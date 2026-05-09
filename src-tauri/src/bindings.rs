@@ -2,8 +2,9 @@ use tauri_specta::{collect_commands, Builder};
 
 pub fn generate_bindings() -> Builder<tauri::Wry> {
     use crate::commands::{
-        channel, codex, config, connectivity, droid_settings, env, hermes, mcp, notifications,
-        openclaw, opencode, paths, pi, preferences, recovery, sessions, specs, updater,
+        channel, codex, config, connectivity, droid_settings, env, factory_auth_profiles, hermes,
+        mcp, notifications, openclaw, opencode, paths, pi, preferences, recovery, sessions, specs,
+        updater,
     };
 
     Builder::<tauri::Wry>::new().commands(collect_commands![
@@ -159,6 +160,12 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         droid_settings::delete_droid_settings_file,
         droid_settings::get_droid_launch_command,
         droid_settings::launch_droid,
+        factory_auth_profiles::list_factory_auth_profiles,
+        factory_auth_profiles::get_active_factory_auth_profile,
+        factory_auth_profiles::switch_factory_auth_profile,
+        factory_auth_profiles::save_current_factory_auth_profile,
+        factory_auth_profiles::delete_factory_auth_profile,
+        factory_auth_profiles::rename_factory_auth_profile,
     ])
 }
 

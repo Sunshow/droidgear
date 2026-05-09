@@ -1,0 +1,1 @@
+export { FactoryAuthPage } from './FactoryAuthPage'

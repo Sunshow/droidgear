@@ -402,6 +402,7 @@ fn draw_main(frame: &mut Frame, app: &app::App, area: Rect) {
         app::Screen::Channels => draw_channels(frame, app, area),
         app::Screen::ChannelsEdit => draw_channels_edit(frame, app, area),
         app::Screen::Missions => draw_missions(frame, app, area),
+        app::Screen::FactoryAuth => draw_factory_auth(frame, app, area),
     }
 }
 
@@ -3139,5 +3140,58 @@ fn draw_hermes_provider(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let help =
         help_paragraph("Up/Down: select  Enter/e: edit  i: import from channel  q/Esc: back");
+    frame.render_widget(help, chunks[1]);
+}
+
+fn draw_factory_auth(frame: &mut Frame, app: &app::App, area: Rect) {
+    let t = theme();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
+
+    let mut lines: Vec<Line> = Vec::new();
+    for (i, profile) in app.factory_auth_profiles.iter().enumerate() {
+        let selected = i == app.factory_auth_index;
+        let style = if selected {
+            t.selected_style()
+        } else {
+            Style::default()
+        };
+        let active_tag = if app.factory_auth_active.as_deref() == Some(&profile.name) {
+            " [active]"
+        } else {
+            ""
+        };
+        lines.push(Line::from(vec![
+            Span::styled(format!("{}{}", profile.label, active_tag), style),
+            Span::styled(
+                format!("  ({})", profile.name),
+                if selected {
+                    t.selected_style()
+                } else {
+                    t.dim_style()
+                },
+            ),
+        ]));
+    }
+
+    if lines.is_empty() {
+        lines.push(Line::from(Span::styled(
+            "No auth profiles saved",
+            t.dim_style(),
+        )));
+    }
+
+    let list = Paragraph::new(lines).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(" Factory Auth Profiles "),
+    );
+    frame.render_widget(list, chunks[0]);
+
+    let help = help_paragraph(
+        "Up/Down: select  Enter: switch  s: save current  r: rename  d: delete  q/Esc: back",
+    );
     frame.render_widget(help, chunks[1]);
 }

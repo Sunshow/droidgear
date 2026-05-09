@@ -4,6 +4,7 @@ use droidgear_core::{
     channel::Channel,
     codex::CodexProfile,
     droid_settings_files::SettingsFileInfo,
+    factory_auth_profiles::AuthProfile,
     factory_settings::{CustomModel, MissionModelSettings},
     hermes::HermesProfile,
     mcp::McpServer,
@@ -52,6 +53,7 @@ pub enum Screen {
     Channels,
     ChannelsEdit,
     Missions,
+    FactoryAuth,
 }
 
 #[derive(Debug, Clone)]
@@ -175,6 +177,12 @@ pub enum ConfirmAction {
     },
     HermesDelete {
         id: String,
+    },
+    FactoryAuthSwitch {
+        name: String,
+    },
+    FactoryAuthDelete {
+        name: String,
     },
 }
 
@@ -439,6 +447,10 @@ pub enum InputAction {
     HermesImportSetApiKey {
         id: String,
     },
+    FactoryAuthSaveProfile,
+    FactoryAuthRename {
+        name: String,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -642,6 +654,10 @@ pub struct App {
 
     pub mission_settings: MissionModelSettings,
     pub mission_field_index: usize,
+
+    pub factory_auth_profiles: Vec<AuthProfile>,
+    pub factory_auth_active: Option<String>,
+    pub factory_auth_index: usize,
 }
 
 impl App {
@@ -755,6 +771,9 @@ impl App {
                 validation_worker_reasoning_effort: None,
             },
             mission_field_index: 0,
+            factory_auth_profiles: Vec::new(),
+            factory_auth_active: None,
+            factory_auth_index: 0,
         }
     }
 
@@ -773,6 +792,7 @@ impl App {
             ("Specs", Screen::Specs),
             ("Channels", Screen::Channels),
             ("Missions", Screen::Missions),
+            ("Factory Auth", Screen::FactoryAuth),
         ]
     }
 
@@ -1071,6 +1091,9 @@ impl App {
         let hermes_provider_fields_count = 4;
         if self.hermes_provider_field_index >= hermes_provider_fields_count {
             self.hermes_provider_field_index = hermes_provider_fields_count.saturating_sub(1);
+        }
+        if self.factory_auth_index >= self.factory_auth_profiles.len() {
+            self.factory_auth_index = self.factory_auth_profiles.len().saturating_sub(1);
         }
     }
 }

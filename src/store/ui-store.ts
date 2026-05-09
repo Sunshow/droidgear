@@ -13,6 +13,7 @@ type ToolView = 'droid' | 'opencode' | 'codex' | 'openclaw' | 'hermes' | 'pi'
 export type DroidSubView =
   | 'models'
   | 'settings'
+  | 'auth-profiles'
   | 'specs'
   | 'mcp'
   | 'sessions'
