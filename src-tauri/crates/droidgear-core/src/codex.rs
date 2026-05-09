@@ -18,7 +18,7 @@ use crate::{json, paths, storage};
 // ============================================================================
 
 const OFFICIAL_PROFILE_ID: &str = "official";
-const OPENAI_API_KEY_FIELD: &str = "OPENAI_API_KEY";
+pub(crate) const OPENAI_API_KEY_FIELD: &str = "OPENAI_API_KEY";
 
 /// Codex Provider 配置（对应 config.toml 中的 [model_providers.<id>]）
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -223,7 +223,7 @@ fn ensure_official_profile_for_home(home_dir: &Path) -> Result<(), String> {
 // ============================================================================
 
 /// Convert CodexProviderConfig to toml::Value
-fn provider_config_to_toml(config: &CodexProviderConfig) -> Result<toml::Value, String> {
+pub(crate) fn provider_config_to_toml(config: &CodexProviderConfig) -> Result<toml::Value, String> {
     let mut table = toml::map::Map::new();
 
     if let Some(ref name) = config.name {
@@ -275,6 +275,111 @@ fn provider_config_to_toml(config: &CodexProviderConfig) -> Result<toml::Value, 
     }
 
     Ok(toml::Value::Table(table))
+}
+
+pub(crate) fn resolve_active_provider(
+    profile: &CodexProfile,
+) -> (String, Option<&CodexProviderConfig>) {
+    if profile.providers.contains_key(&profile.model_provider) {
+        (
+            profile.model_provider.clone(),
+            profile.providers.get(&profile.model_provider),
+        )
+    } else if let Some((first_id, first_config)) = profile.providers.iter().next() {
+        (first_id.clone(), Some(first_config))
+    } else {
+        (profile.model_provider.clone(), None)
+    }
+}
+
+pub(crate) fn resolved_model(
+    profile: &CodexProfile,
+    provider: Option<&CodexProviderConfig>,
+) -> String {
+    provider
+        .and_then(|p| p.model.as_deref())
+        .filter(|s| !s.is_empty())
+        .unwrap_or(&profile.model)
+        .to_string()
+}
+
+pub(crate) fn resolved_reasoning_effort(
+    profile: &CodexProfile,
+    provider: Option<&CodexProviderConfig>,
+) -> Option<String> {
+    provider
+        .and_then(|p| p.model_reasoning_effort.clone())
+        .or(profile.model_reasoning_effort.clone())
+        .filter(|value| !value.is_empty())
+}
+
+pub(crate) fn resolved_api_key(
+    profile: &CodexProfile,
+    provider: Option<&CodexProviderConfig>,
+) -> Option<String> {
+    provider
+        .and_then(|p| p.api_key.clone())
+        .or(profile.api_key.clone())
+        .filter(|value| !value.is_empty())
+}
+
+pub(crate) fn apply_profile_to_config_map(
+    config: &mut toml::map::Map<String, toml::Value>,
+    profile: &CodexProfile,
+) -> Result<(), String> {
+    let (effective_provider_id, active_provider) = resolve_active_provider(profile);
+    let resolved_model = resolved_model(profile, active_provider);
+    let resolved_effort = resolved_reasoning_effort(profile, active_provider);
+
+    config.insert(
+        "model_provider".to_string(),
+        toml::Value::String(effective_provider_id),
+    );
+    config.insert("model".to_string(), toml::Value::String(resolved_model));
+
+    if let Some(ref effort) = resolved_effort {
+        config.insert(
+            "model_reasoning_effort".to_string(),
+            toml::Value::String(effort.clone()),
+        );
+    } else {
+        config.remove("model_reasoning_effort");
+    }
+
+    config.remove("model_providers");
+    if !profile.providers.is_empty() {
+        let mut providers_table = toml::map::Map::new();
+        for (provider_id, provider_config) in &profile.providers {
+            providers_table.insert(
+                provider_id.clone(),
+                provider_config_to_toml(provider_config)?,
+            );
+        }
+        config.insert(
+            "model_providers".to_string(),
+            toml::Value::Table(providers_table),
+        );
+    }
+
+    Ok(())
+}
+
+pub(crate) fn apply_api_key_to_auth_map(
+    auth: &mut HashMap<String, Value>,
+    resolved_api_key: Option<&str>,
+) {
+    if let Some(key) = resolved_api_key {
+        if !key.is_empty() {
+            auth.insert(
+                OPENAI_API_KEY_FIELD.to_string(),
+                Value::String(key.to_string()),
+            );
+        } else {
+            auth.remove(OPENAI_API_KEY_FIELD);
+        }
+    } else {
+        auth.remove(OPENAI_API_KEY_FIELD);
+    }
 }
 
 /// Parse CodexProviderConfig from toml::Value
@@ -525,29 +630,8 @@ fn set_active_profile_id_for_home(home_dir: &Path, id: &str) -> Result<(), Strin
 /// [model_providers]），保留其他所有配置（projects, network_access 等）。
 pub fn apply_codex_profile_for_home(home_dir: &Path, id: &str) -> Result<(), String> {
     let profile = load_profile_by_id(home_dir, id)?;
-
-    let (effective_provider_id, active_provider) =
-        if profile.providers.contains_key(&profile.model_provider) {
-            (
-                profile.model_provider.clone(),
-                profile.providers.get(&profile.model_provider),
-            )
-        } else if let Some((first_id, first_config)) = profile.providers.iter().next() {
-            (first_id.clone(), Some(first_config))
-        } else {
-            (profile.model_provider.clone(), None)
-        };
-
-    let resolved_model = active_provider
-        .and_then(|p| p.model.as_deref())
-        .filter(|s| !s.is_empty())
-        .unwrap_or(&profile.model);
-    let resolved_effort = active_provider
-        .and_then(|p| p.model_reasoning_effort.clone())
-        .or(profile.model_reasoning_effort.clone());
-    let resolved_api_key = active_provider
-        .and_then(|p| p.api_key.clone())
-        .or(profile.api_key.clone());
+    let (_, active_provider) = resolve_active_provider(&profile);
+    let resolved_api_key = resolved_api_key(&profile, active_provider);
 
     let config_path = codex_config_path_for_home(home_dir)?;
     let mut config = if config_path.exists() {
@@ -563,37 +647,7 @@ pub fn apply_codex_profile_for_home(home_dir: &Path, id: &str) -> Result<(), Str
         toml::map::Map::new()
     };
 
-    config.insert(
-        "model_provider".to_string(),
-        toml::Value::String(effective_provider_id),
-    );
-    config.insert(
-        "model".to_string(),
-        toml::Value::String(resolved_model.to_string()),
-    );
-    if let Some(ref effort) = resolved_effort {
-        config.insert(
-            "model_reasoning_effort".to_string(),
-            toml::Value::String(effort.clone()),
-        );
-    } else {
-        config.remove("model_reasoning_effort");
-    }
-
-    config.remove("model_providers");
-    if !profile.providers.is_empty() {
-        let mut providers_table = toml::map::Map::new();
-        for (provider_id, provider_config) in &profile.providers {
-            providers_table.insert(
-                provider_id.clone(),
-                provider_config_to_toml(provider_config)?,
-            );
-        }
-        config.insert(
-            "model_providers".to_string(),
-            toml::Value::Table(providers_table),
-        );
-    }
+    apply_profile_to_config_map(&mut config, &profile)?;
 
     let toml_str = toml::to_string_pretty(&config)
         .map_err(|e| format!("Failed to serialize config.toml: {e}"))?;
@@ -602,15 +656,7 @@ pub fn apply_codex_profile_for_home(home_dir: &Path, id: &str) -> Result<(), Str
     let auth_path = codex_auth_path_for_home(home_dir)?;
     let mut auth = json::read_json_object_file(&auth_path).unwrap_or_default();
 
-    if let Some(ref key) = resolved_api_key {
-        if !key.is_empty() {
-            auth.insert(OPENAI_API_KEY_FIELD.to_string(), Value::String(key.clone()));
-        } else {
-            auth.remove(OPENAI_API_KEY_FIELD);
-        }
-    } else {
-        auth.remove(OPENAI_API_KEY_FIELD);
-    }
+    apply_api_key_to_auth_map(&mut auth, resolved_api_key.as_deref());
 
     json::write_json_object_file(&auth_path, &auth)?;
 

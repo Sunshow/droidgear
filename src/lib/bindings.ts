@@ -826,6 +826,40 @@ async readCodexCurrentConfig() : Promise<Result<CodexCurrentConfig, string>> {
 }
 },
 /**
+ * Inspect the installed Codex CLI and report whether temporary-run launch-time
+ * overrides are supported.
+ */
+async getCodexCliCapability() : Promise<Result<CodexCliCapability, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_codex_cli_capability") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Build the zero-write temporary-run launch plan preview for a Codex profile.
+ */
+async getCodexTemporaryRunPlan(id: string) : Promise<Result<CodexTemporaryRunPlan, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_codex_temporary_run_plan", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Launch Codex using a runtime `CODEX_HOME` snapshot instead of mutating live config.
+ */
+async launchCodex(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("launch_codex", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * List all Hermes profiles
  */
 async listHermesProfiles() : Promise<Result<HermesProfile[], string>> {
@@ -1754,6 +1788,7 @@ groupName: string | null }
  * Channel types supported
  */
 export type ChannelType = "new-api" | "sub-2-api" | "cli-proxy-api" | "ollama" | "general"
+export type CodexCliCapability = { version: string; supportsConfigOverride: boolean }
 /**
  * Codex Live 配置状态
  */
@@ -1770,6 +1805,7 @@ export type CodexProfile = { id: string; name: string; description?: string | nu
  * Codex Provider 配置（对应 config.toml 中的 [model_providers.<id>]）
  */
 export type CodexProviderConfig = { name?: string | null; baseUrl?: string | null; wireApi?: string | null; requiresOpenaiAuth?: boolean | null; envKey?: string | null; envKeyInstructions?: string | null; httpHeaders?: Partial<{ [key in string]: string }> | null; queryParams?: Partial<{ [key in string]: string }> | null; model?: string | null; modelReasoningEffort?: string | null; apiKey?: string | null }
+export type CodexTemporaryRunPlan = { program: string; args: string[]; env: ([string, string])[]; unsetEnv: string[]; secretEnvKeys: string[]; warnings: string[] }
 /**
  * User-defined configuration paths (only stores explicitly set paths)
  */

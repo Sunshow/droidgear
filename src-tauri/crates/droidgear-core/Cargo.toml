@@ -19,4 +19,5 @@ tokio = { version = "1", features = ["time"] }
 log = "0.4"
 
 [dev-dependencies]
+filetime = "0.2"
 tempfile = "3"

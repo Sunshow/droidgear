@@ -10,6 +10,7 @@ import {
   Download,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { commands } from '@/lib/bindings'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -62,6 +63,7 @@ export function CodexConfigPage() {
   const deleteProfile = useCodexStore(state => state.deleteProfile)
   const duplicateProfile = useCodexStore(state => state.duplicateProfile)
   const applyProfile = useCodexStore(state => state.applyProfile)
+  const saveProfile = useCodexStore(state => state.saveProfile)
   const loadFromLiveConfig = useCodexStore(state => state.loadFromLiveConfig)
   const updateProfileName = useCodexStore(state => state.updateProfileName)
   const updateProfileDescription = useCodexStore(
@@ -87,6 +89,7 @@ export function CodexConfigPage() {
   const [deletingProviderId, setDeletingProviderId] = useState<string | null>(
     null
   )
+  const [isLaunching, setIsLaunching] = useState(false)
 
   // Use profile id as key to reset local editing state
   const profileKey = currentProfile?.id ?? ''
@@ -150,6 +153,54 @@ export function CodexConfigPage() {
     toast.success(t('codex.actions.applySuccess'))
   }
 
+  const formatLaunchError = (message: string) => {
+    if (
+      message.startsWith('Failed to execute codex --version:') ||
+      message.startsWith('Failed to execute codex --help:')
+    ) {
+      return t('codex.actions.launchMissingCli')
+    }
+
+    if (
+      message === 'Failed to read Codex CLI version' ||
+      message === 'Failed to read Codex CLI help'
+    ) {
+      return t('codex.actions.launchInspectFailed')
+    }
+
+    return message
+  }
+
+  const handleLaunch = async () => {
+    if (!currentProfile || isLaunching) return
+
+    setIsLaunching(true)
+    setError(null)
+
+    try {
+      if (currentProfile.id !== 'official') {
+        await saveProfile()
+        const saveState = useCodexStore.getState()
+        if (saveState.error) {
+          toast.error(saveState.error)
+          return
+        }
+      }
+
+      const result = await commands.launchCodex(currentProfile.id)
+      if (result.status === 'ok') {
+        toast.success(t('codex.actions.launchSuccess'))
+        return
+      }
+
+      const message = formatLaunchError(result.error)
+      setError(message)
+      toast.error(message)
+    } finally {
+      setIsLaunching(false)
+    }
+  }
+
   const handleLoadFromConfig = async () => {
     await loadFromLiveConfig()
     toast.success(t('codex.actions.loadedFromLive'))
@@ -192,6 +243,14 @@ export function CodexConfigPage() {
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <Button
+            onClick={handleLaunch}
+            disabled={!currentProfile || isLoading || isLaunching}
+            title={t('codex.actions.launchTooltip')}
+          >
+            <Play className="h-4 w-4 mr-2" />
+            {t('codex.actions.launch')}
+          </Button>
+          <Button
             variant="outline"
             size="icon"
             onClick={() => {
@@ -204,10 +263,10 @@ export function CodexConfigPage() {
             <RefreshCw className="h-4 w-4" />
           </Button>
           <Button
+            variant="outline"
             onClick={() => setShowApplyConfirm(true)}
-            disabled={!currentProfile || isLoading}
+            disabled={!currentProfile || isLoading || isLaunching}
           >
-            <Play className="h-4 w-4 mr-2" />
             {t('codex.actions.apply')}
           </Button>
         </div>

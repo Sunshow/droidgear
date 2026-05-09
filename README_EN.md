@@ -133,6 +133,9 @@ droidgear-tui
 
 # Specify custom HOME path (for containers/testing)
 droidgear-tui --home /path/to/custom/home
+
+# Run a Codex profile once (hands off execution to the current terminal)
+droidgear-tui run codex <profile-id>
 ```
 
 ### Supported Features

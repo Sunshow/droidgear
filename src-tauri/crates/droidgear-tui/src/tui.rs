@@ -12,6 +12,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use similar::TextDiff;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::time::Duration;
 use tempfile::{NamedTempFile, TempDir};
 
@@ -4633,6 +4634,46 @@ fn write_string(path: &Path, content: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn start_command_in_foreground(
+    program: &str,
+    args: &[String],
+    env: &[(String, String)],
+    secret_env: &[(String, String)],
+    unset_env: &[String],
+    cwd: Option<&Path>,
+) -> anyhow::Result<()> {
+    let mut command = Command::new(program);
+    command.args(args);
+
+    if let Some(cwd) = cwd {
+        command.current_dir(cwd);
+    }
+
+    for key in unset_env {
+        command.env_remove(key);
+    }
+
+    for (key, value) in env.iter().chain(secret_env.iter()) {
+        command.env(key, value);
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+
+        let error = command.exec();
+        Err(error).with_context(|| format!("exec {program}"))
+    }
+
+    #[cfg(not(unix))]
+    {
+        command
+            .spawn()
+            .with_context(|| format!("start {program}"))?;
+        Ok(())
+    }
+}
+
 fn format_diff_report(title: &str, files: Vec<(String, Option<String>, Option<String>)>) -> String {
     let mut out = String::new();
     out.push_str(title);
@@ -4729,6 +4770,37 @@ fn preview_codex_apply(home_dir: &Path, profile_id: &str) -> anyhow::Result<Stri
             ),
         ],
     ))
+}
+
+fn build_codex_temporary_run_plan(
+    home_dir: &Path,
+    profile_id: &str,
+) -> anyhow::Result<droidgear_core::codex_runtime::CodexTemporaryLaunchPlan> {
+    droidgear_core::codex_runtime::cleanup_stale_runtime_homes_for_home(home_dir)
+        .map_err(anyhow::Error::msg)?;
+    let profile = droidgear_core::codex::get_codex_profile_for_home(home_dir, profile_id)
+        .map_err(anyhow::Error::msg)?;
+    droidgear_core::codex_runtime::build_temporary_run_plan_for_home(home_dir, &profile)
+        .map_err(anyhow::Error::msg)
+}
+
+fn run_codex_temporary_run(home_dir: &Path, profile_id: &str) -> anyhow::Result<()> {
+    let plan = build_codex_temporary_run_plan(home_dir, profile_id)?;
+    start_command_in_foreground(
+        &plan.program,
+        &plan.args,
+        &plan.env,
+        &plan.secret_env,
+        &plan.unset_env,
+        None,
+    )
+}
+
+pub fn run_codex_temporary_run_for_profile_id(
+    home_dir: &Path,
+    profile_id: &str,
+) -> anyhow::Result<()> {
+    run_codex_temporary_run(home_dir, profile_id)
 }
 
 fn preview_opencode_apply(home_dir: &Path, profile_id: &str) -> anyhow::Result<String> {

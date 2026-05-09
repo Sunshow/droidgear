@@ -824,6 +824,11 @@
   "codex.actions.applyConfirm": "Apply this profile? This will update your Codex CLI configuration files (~/.codex/auth.json and ~/.codex/config.toml).",
   "codex.actions.applySuccess": "Profile applied successfully",
   "codex.actions.applied": "Applied",
+  "codex.actions.launch": "Run Profile",
+  "codex.actions.launchTooltip": "Run this profile in a new terminal without changing live Codex config",
+  "codex.actions.launchSuccess": "Codex launched in a new terminal window",
+  "codex.actions.launchMissingCli": "Codex CLI is not installed or not available in PATH.",
+  "codex.actions.launchInspectFailed": "Failed to inspect the installed Codex CLI. Check that `codex` runs correctly in your shell.",
   "codex.actions.loadFromLive": "Load Live",
   "codex.actions.loadedFromLive": "Loaded from live config",
 

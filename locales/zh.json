@@ -824,6 +824,11 @@
   "codex.actions.applyConfirm": "确定应用该 Profile？这将更新 Codex CLI 配置文件（~/.codex/auth.json 与 ~/.codex/config.toml）。",
   "codex.actions.applySuccess": "Profile 应用成功",
   "codex.actions.applied": "已应用",
+  "codex.actions.launch": "临时运行",
+  "codex.actions.launchTooltip": "在不修改 live Codex 配置的前提下，在新终端中运行该 Profile",
+  "codex.actions.launchSuccess": "已在新终端窗口启动 Codex",
+  "codex.actions.launchMissingCli": "未安装 Codex CLI，或当前 PATH 中不可用。",
+  "codex.actions.launchInspectFailed": "检查已安装的 Codex CLI 失败，请确认 `codex` 能在当前 shell 中正常运行。",
   "codex.actions.loadFromLive": "读取当前配置",
   "codex.actions.loadedFromLive": "已从当前配置读取",
 

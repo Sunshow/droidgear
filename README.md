@@ -132,6 +132,9 @@ droidgear-tui
 
 # 指定自定义 HOME 路径（容器/测试场景）
 droidgear-tui --home /path/to/custom/home
+
+# 一次性运行 Codex profile（当前终端直接接管运行）
+droidgear-tui run codex <profile-id>
 ```
 
 ### 功能支持

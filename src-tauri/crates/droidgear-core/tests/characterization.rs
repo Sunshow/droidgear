@@ -1,4 +1,4 @@
-use droidgear_core::{codex, factory_settings, mcp, openclaw, opencode, paths};
+use droidgear_core::{codex, codex_runtime, factory_settings, mcp, openclaw, opencode, paths};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -246,6 +246,116 @@ model = "gpt-5.2"
     // Ensure creating the default BYOK profile is still allowed when only official exists.
     let created = codex::create_default_codex_profile_for_home(home).unwrap();
     assert_ne!(created.id, "official");
+}
+
+#[test]
+fn codex_temporary_run_plan_does_not_mutate_live_config_or_auth_files() {
+    let temp = TempDir::new().unwrap();
+    let home = home_dir(&temp);
+
+    write_file(
+        &home.join(".codex").join("config.toml"),
+        r#"
+model_provider = "openai"
+model = "existing-live-model"
+"#
+        .trim_start(),
+    );
+    write_file(
+        &home.join(".codex").join("auth.json"),
+        r#"{
+  "session": "official-session-token",
+  "OPENAI_API_KEY": "sk-live"
+}"#,
+    );
+
+    let mut providers = HashMap::new();
+    providers.insert(
+        "custom".to_string(),
+        codex::CodexProviderConfig {
+            name: Some("Custom".to_string()),
+            base_url: Some("https://example.com/v1".to_string()),
+            wire_api: Some("responses".to_string()),
+            requires_openai_auth: Some(false),
+            env_key: Some("EXAMPLE_API_KEY".to_string()),
+            env_key_instructions: None,
+            http_headers: None,
+            query_params: None,
+            model: Some("gpt-5.5".to_string()),
+            model_reasoning_effort: Some("high".to_string()),
+            api_key: Some("sk-temp".to_string()),
+        },
+    );
+
+    let profile = codex::CodexProfile {
+        id: "temporary".to_string(),
+        name: "Temporary".to_string(),
+        description: None,
+        created_at: "2026-01-01T00:00:00Z".to_string(),
+        updated_at: "2026-01-01T00:00:00Z".to_string(),
+        providers,
+        model_provider: "custom".to_string(),
+        model: "fallback".to_string(),
+        model_reasoning_effort: Some("medium".to_string()),
+        api_key: Some("sk-profile".to_string()),
+    };
+    write_file(
+        &home
+            .join(".droidgear")
+            .join("codex")
+            .join("profiles")
+            .join("temporary.json"),
+        &serde_json::to_string_pretty(&profile).unwrap(),
+    );
+
+    let before_config = read_to_string(&home.join(".codex").join("config.toml"));
+    let before_auth = read_to_string(&home.join(".codex").join("auth.json"));
+
+    let loaded = codex::get_codex_profile_for_home(home, "temporary").unwrap();
+    let plan = codex_runtime::build_temporary_run_plan_for_home(home, &loaded).unwrap();
+
+    assert_eq!(plan.program, "codex");
+    assert!(plan.args.is_empty());
+    assert!(plan.env.iter().any(|(key, value)| key == "CODEX_HOME"
+        && value.contains(".droidgear/runtime/codex/temporary-run-")));
+    assert_eq!(
+        plan.secret_env,
+        vec![("EXAMPLE_API_KEY".to_string(), "sk-temp".to_string())]
+    );
+    assert_eq!(
+        plan.unset_env,
+        vec!["EXAMPLE_API_KEY".to_string(), "OPENAI_API_KEY".to_string(),]
+    );
+
+    let runtime_config = read_to_string(&plan.runtime_home_path.join("config.toml"));
+    let runtime_config_toml: toml::Value = toml::from_str(&runtime_config).unwrap();
+    assert_eq!(
+        runtime_config_toml
+            .get("model_provider")
+            .and_then(|value| value.as_str()),
+        Some("custom")
+    );
+    assert_eq!(
+        runtime_config_toml
+            .get("model")
+            .and_then(|value| value.as_str()),
+        Some("gpt-5.5")
+    );
+
+    let runtime_auth = read_to_string(&plan.runtime_home_path.join("auth.json"));
+    let runtime_auth_json: Value = serde_json::from_str(&runtime_auth).unwrap();
+    assert!(runtime_auth_json.get("OPENAI_API_KEY").is_none());
+    assert_eq!(
+        runtime_auth_json
+            .get("session")
+            .and_then(|value| value.as_str()),
+        Some("official-session-token")
+    );
+
+    let after_config = read_to_string(&home.join(".codex").join("config.toml"));
+    let after_auth = read_to_string(&home.join(".codex").join("auth.json"));
+    assert_eq!(after_config, before_config);
+    assert_eq!(after_auth, before_auth);
 }
 
 #[test]
