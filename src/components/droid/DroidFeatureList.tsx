@@ -170,7 +170,20 @@ export function DroidFeatureList() {
     }
   }
 
+  const surfaceModelSaveFailure = () => {
+    setDroidSubView('models')
+    toast.error(t('droid.settingsFile.launchSaveFailed'))
+  }
+
   const handleLaunchDroid = async () => {
+    if (useModelStore.getState().hasChanges) {
+      await useModelStore.getState().saveModels()
+      if (useModelStore.getState().hasChanges) {
+        surfaceModelSaveFailure()
+        return
+      }
+    }
+
     const result = await commands.launchDroid()
     if (result.status === 'error') {
       // If launch fails, copy the command to clipboard instead

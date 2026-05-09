@@ -22,7 +22,7 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Run a temporary Codex session in the current terminal and exit
+    /// Run a temporary Droid/Codex session in the current terminal and exit
     Run {
         #[command(subcommand)]
         target: RunTarget,
@@ -36,6 +36,12 @@ enum RunTarget {
         #[arg(long)]
         list: bool,
         profile: Option<String>,
+    },
+    /// Run a Droid settings file by name (use `global` for ~/.factory/settings.json)
+    Droid {
+        #[arg(long)]
+        list: bool,
+        settings_name: Option<String>,
     },
 }
 
@@ -61,6 +67,23 @@ fn main() -> anyhow::Result<()> {
                         "Missing Codex target. Use `droidgear-tui run codex --list` to inspect available profiles.",
                     )?;
                     tui::run_codex_temporary_run_for_selector(&home_dir, &profile)
+                }
+            }
+            RunTarget::Droid {
+                list,
+                settings_name,
+            } => {
+                if list {
+                    if settings_name.is_some() {
+                        bail!("`--list` cannot be combined with a Droid target");
+                    }
+                    println!("{}", tui::list_droid_temporary_run_targets(&home_dir)?);
+                    Ok(())
+                } else {
+                    let settings_name = settings_name.context(
+                        "Missing Droid target. Use `droidgear-tui run droid --list` to inspect available settings names.",
+                    )?;
+                    tui::run_droid_temporary_run_for_settings_name(&home_dir, &settings_name)
                 }
             }
         },
@@ -109,6 +132,25 @@ mod tests {
     }
 
     #[test]
+    fn cli_parses_droid_run_subcommand() {
+        let cli = Cli::parse_from(["droidgear-tui", "run", "droid", "global"]);
+
+        match cli.command {
+            Some(Command::Run {
+                target:
+                    RunTarget::Droid {
+                        list,
+                        settings_name,
+                    },
+            }) => {
+                assert!(!list);
+                assert_eq!(settings_name.as_deref(), Some("global"));
+            }
+            _ => panic!("expected droid run subcommand"),
+        }
+    }
+
+    #[test]
     fn cli_parses_codex_list_subcommand() {
         let cli = Cli::parse_from(["droidgear-tui", "run", "codex", "--list"]);
 
@@ -120,6 +162,25 @@ mod tests {
                 assert!(profile.is_none());
             }
             _ => panic!("expected codex list subcommand"),
+        }
+    }
+
+    #[test]
+    fn cli_parses_droid_list_subcommand() {
+        let cli = Cli::parse_from(["droidgear-tui", "run", "droid", "--list"]);
+
+        match cli.command {
+            Some(Command::Run {
+                target:
+                    RunTarget::Droid {
+                        list,
+                        settings_name,
+                    },
+            }) => {
+                assert!(list);
+                assert!(settings_name.is_none());
+            }
+            _ => panic!("expected droid list subcommand"),
         }
     }
 }

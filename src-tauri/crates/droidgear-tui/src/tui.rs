@@ -17,6 +17,7 @@ use std::time::Duration;
 use tempfile::{NamedTempFile, TempDir};
 
 type UiTerminal = Terminal<CrosstermBackend<io::Stdout>>;
+const APP_IDENTIFIER: &str = "com.droidgear.app";
 
 struct TerminalGuard;
 
@@ -4634,6 +4635,70 @@ fn write_string(path: &Path, content: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Debug, Default, serde::Deserialize)]
+struct StoredPreferences {
+    #[serde(default)]
+    droid_run: Option<droidgear_core::droid_runtime::DroidRunPreferences>,
+}
+
+fn preferences_path() -> Option<PathBuf> {
+    dirs::data_dir().map(|dir| dir.join(APP_IDENTIFIER).join("preferences.json"))
+}
+
+fn load_droid_run_preferences_from_path(
+    path: &Path,
+) -> anyhow::Result<droidgear_core::droid_runtime::DroidRunPreferences> {
+    if !path.exists() {
+        return Ok(droidgear_core::droid_runtime::DroidRunPreferences::default());
+    }
+
+    let contents =
+        std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+    let prefs: StoredPreferences =
+        serde_json::from_str(&contents).with_context(|| format!("parse {}", path.display()))?;
+    Ok(prefs.droid_run.unwrap_or_default())
+}
+
+fn load_droid_run_preferences() -> anyhow::Result<droidgear_core::droid_runtime::DroidRunPreferences>
+{
+    let Some(path) = preferences_path() else {
+        return Ok(droidgear_core::droid_runtime::DroidRunPreferences::default());
+    };
+
+    load_droid_run_preferences_from_path(&path)
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn format_string_list(values: &[String], empty_label: &str) -> String {
+    if values.is_empty() {
+        return format!("  {empty_label}\n");
+    }
+
+    let mut out = String::new();
+    for value in values {
+        out.push_str("  - ");
+        out.push_str(value);
+        out.push('\n');
+    }
+    out
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn format_env_pairs(values: &[(String, String)], empty_label: &str) -> String {
+    if values.is_empty() {
+        return format!("  {empty_label}\n");
+    }
+
+    let mut out = String::new();
+    for (key, value) in values {
+        out.push_str("  - ");
+        out.push_str(key);
+        out.push('=');
+        out.push_str(value);
+        out.push('\n');
+    }
+    out
+}
 fn start_command_in_foreground(
     program: &str,
     args: &[String],
@@ -4707,6 +4772,88 @@ fn format_diff_report(title: &str, files: Vec<(String, Option<String>, Option<St
     }
 
     out
+}
+
+fn build_droid_temporary_run_plan(
+    home_dir: &Path,
+    settings_path: &Path,
+) -> anyhow::Result<droidgear_core::droid_runtime::DroidTemporaryRunPlan> {
+    let prefs = load_droid_run_preferences()?;
+    droidgear_core::droid_runtime::cleanup_stale_temp_settings_for_home(home_dir)
+        .map_err(anyhow::Error::msg)?;
+    droidgear_core::droid_runtime::build_temporary_run_plan_from_settings_path_for_home(
+        home_dir,
+        settings_path,
+        &prefs,
+    )
+    .map_err(anyhow::Error::msg)
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn preview_droid_temporary_run(home_dir: &Path, settings_path: &Path) -> anyhow::Result<String> {
+    let plan = build_droid_temporary_run_plan(home_dir, settings_path)?;
+
+    let mut out = String::new();
+    out.push_str("Droid temporary run preview\n\n");
+    out.push_str(&format!(
+        "Source settings path:\n  {}\n\n",
+        settings_path.display()
+    ));
+    out.push_str(&format!(
+        "Temporary settings path:\n  {}\n\n",
+        plan.temp_settings_path.display()
+    ));
+    out.push_str("Program:\n");
+    out.push_str(&format!("  {}\n\n", plan.program));
+    out.push_str("Args:\n");
+    out.push_str(&format_string_list(&plan.args, "(none)"));
+    out.push('\n');
+    out.push_str("Environment overrides:\n");
+    out.push_str(&format_env_pairs(&plan.env, "(none)"));
+    out.push('\n');
+    out.push_str("Unset environment variables:\n");
+    out.push_str(&format_string_list(&plan.unset_env, "(none)"));
+
+    Ok(out)
+}
+
+fn run_droid_temporary_run(home_dir: &Path, settings_path: &Path) -> anyhow::Result<()> {
+    let plan = build_droid_temporary_run_plan(home_dir, settings_path)?;
+    start_command_in_foreground(
+        &plan.program,
+        &plan.args,
+        &plan.env,
+        &[],
+        &plan.unset_env,
+        None,
+    )
+}
+
+pub fn run_droid_temporary_run_for_settings_name(
+    home_dir: &Path,
+    settings_name: &str,
+) -> anyhow::Result<()> {
+    let settings_path = droidgear_core::droid_settings_files::get_settings_path_by_name_for_home(
+        home_dir,
+        settings_name,
+    )
+    .map_err(anyhow::Error::msg)?;
+    run_droid_temporary_run(home_dir, &settings_path)
+}
+
+pub fn list_droid_temporary_run_targets(home_dir: &Path) -> anyhow::Result<String> {
+    let files = droidgear_core::droid_settings_files::list_settings_files_for_home(home_dir)
+        .map_err(anyhow::Error::msg)?;
+
+    let mut out = String::from("Available Droid run targets:\n");
+    for file in files {
+        let marker = if file.is_active { "*" } else { " " };
+        let selector = if file.is_global { "global" } else { &file.name };
+        out.push_str(&format!("{marker} {selector}\n"));
+    }
+    out.push_str("\nUse `droidgear-tui run droid <settings-name>`.\n");
+    out.push_str("`*` marks the currently active settings file.");
+    Ok(out)
 }
 
 fn preview_codex_apply(home_dir: &Path, profile_id: &str) -> anyhow::Result<String> {
@@ -7749,7 +7896,15 @@ fn factory_model_id(
 mod tests {
     use super::*;
     use std::collections::HashMap;
+    use std::path::Path;
     use tempfile::TempDir;
+
+    fn write_file(path: &Path, contents: &str) {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        std::fs::write(path, contents).unwrap();
+    }
 
     #[test]
     fn normalize_factory_models_sets_index_and_id() {
@@ -7989,6 +8144,71 @@ mod tests {
             profile_id: "x".to_string(),
             provider_id: "y".to_string(),
         };
+    }
+
+    #[test]
+    fn load_droid_run_preferences_from_path_reads_nested_policy() {
+        let temp = TempDir::new().unwrap();
+        let prefs_path = temp.path().join("preferences.json");
+        write_file(
+            &prefs_path,
+            r#"{
+  "theme": "system",
+  "droid_run": {
+    "disableAutoUpdateEnv": false,
+    "unsetAnthropicAuthToken": true
+  }
+}"#,
+        );
+
+        let prefs = load_droid_run_preferences_from_path(&prefs_path).unwrap();
+        assert_eq!(
+            prefs,
+            droidgear_core::droid_runtime::DroidRunPreferences {
+                disable_auto_update_env: Some(false),
+                unset_anthropic_auth_token: Some(true),
+            }
+        );
+    }
+
+    #[test]
+    fn preview_droid_temporary_run_uses_selected_settings_path_without_dumping_contents() {
+        let temp = TempDir::new().unwrap();
+        let settings_path = temp.path().join(".droidgear/droid-settings/profile-a.json");
+        write_file(
+            &settings_path,
+            r#"{"apiKey":"sk-droid-secret","model":"demo"}"#,
+        );
+
+        let preview = preview_droid_temporary_run(temp.path(), &settings_path).unwrap();
+
+        assert!(preview.contains("Droid temporary run preview"));
+        assert!(preview.contains(settings_path.to_string_lossy().as_ref()));
+        assert!(preview.contains("FACTORY_DROID_AUTO_UPDATE_ENABLED=0"));
+        assert!(preview.contains("ANTHROPIC_AUTH_TOKEN"));
+        assert!(!preview.contains("sk-droid-secret"));
+    }
+
+    #[test]
+    fn list_droid_temporary_run_targets_lists_global_and_custom_names() {
+        let temp = TempDir::new().unwrap();
+        write_file(&temp.path().join(".factory/settings.json"), "{}");
+        write_file(
+            &temp.path().join(".droidgear/droid-settings/profile-a.json"),
+            "{}",
+        );
+        droidgear_core::droid_settings_files::set_active_settings_file_for_home(
+            temp.path(),
+            Some("profile-a".to_string()),
+        )
+        .unwrap();
+
+        let output = list_droid_temporary_run_targets(temp.path()).unwrap();
+
+        assert!(output.contains("Available Droid run targets:"));
+        assert!(output.contains(" global"));
+        assert!(output.contains("* profile-a"));
+        assert!(output.contains("run droid <settings-name>"));
     }
 
     #[test]

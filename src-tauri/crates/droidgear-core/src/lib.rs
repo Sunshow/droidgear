@@ -2,6 +2,7 @@ pub mod channel;
 pub mod codex;
 pub mod codex_runtime;
 pub mod connectivity;
+pub mod droid_runtime;
 pub mod droid_settings_files;
 pub mod factory_settings;
 pub mod hermes;

@@ -1,5 +1,6 @@
 //! Shared types and validation functions for the Tauri application.
 
+use droidgear_core::droid_runtime::DroidRunPreferences;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -47,6 +48,9 @@ pub struct AppPreferences {
     /// If None, defaults to platform-appropriate default
     #[serde(default)]
     pub preferred_terminal: Option<String>,
+    /// Droid temporary-run runtime policy.
+    #[serde(default)]
+    pub droid_run: Option<DroidRunPreferences>,
 }
 
 impl Default for AppPreferences {
@@ -58,6 +62,7 @@ impl Default for AppPreferences {
             terminal_shell_command: None, // None means use default shell
             disable_auto_update: None,    // None means auto-update enabled (default)
             preferred_terminal: None,     // None means platform default
+            droid_run: None,
         }
     }
 }
