@@ -4,8 +4,10 @@
 
 pub use droidgear_core::droid_settings_files::SettingsFileInfo;
 
-use droidgear_core::droid_settings_files;
+use droidgear_core::{droid_runtime, droid_settings_files};
 use tauri::Manager;
+
+use crate::utils::terminal_launch::{launch_in_terminal, LaunchSpec};
 
 /// Lists all available Droid settings files (global + custom)
 #[tauri::command]
@@ -55,17 +57,47 @@ pub async fn get_droid_launch_command() -> Result<(String, String), String> {
     droid_settings_files::get_launch_command()
 }
 
-/// Launches Droid CLI in a terminal with the active settings file.
-/// Respects the user's preferredTerminal preference.
+/// Launches Droid CLI in a terminal using a temporary settings snapshot.
 #[tauri::command]
 #[specta::specta]
 pub async fn launch_droid(app: tauri::AppHandle) -> Result<(), String> {
-    let (command, _path) = droid_settings_files::get_launch_command()?;
-
-    // Read preferred terminal from preferences
     let preferred = load_preferred_terminal(&app).unwrap_or_default();
+    let home_dir = dirs::home_dir().ok_or_else(|| "Failed to get home directory".to_string())?;
 
-    launch_droid_in_terminal(&command, &preferred)
+    if let Err(error) = droid_runtime::cleanup_stale_temp_settings_for_home(&home_dir) {
+        log::warn!("Failed to clean up stale Droid temporary settings files: {error}");
+    }
+
+    let plan = droid_runtime::build_temporary_run_plan_for_home(&home_dir)?;
+    let spec = build_droid_launch_spec(&plan);
+
+    launch_in_terminal(&spec, &preferred)
+}
+
+fn build_droid_launch_spec(plan: &droid_runtime::DroidTemporaryRunPlan) -> LaunchSpec {
+    LaunchSpec {
+        program: plan.program.clone(),
+        args: plan.args.clone(),
+        env: plan.env.clone(),
+        unset_env: plan.unset_env.clone(),
+        cwd: None,
+    }
+}
+
+fn load_preferred_terminal_from_path(prefs_path: &std::path::Path) -> Result<String, String> {
+    if !prefs_path.exists() {
+        return Ok(String::new());
+    }
+
+    let contents = std::fs::read_to_string(prefs_path)
+        .map_err(|e| format!("Failed to read preferences: {e}"))?;
+    let prefs: serde_json::Value = serde_json::from_str(&contents).map_err(|_e| String::new())?;
+
+    Ok(prefs
+        .get("preferred_terminal")
+        .and_then(|value| value.as_str())
+        .unwrap_or("")
+        .to_string())
 }
 
 fn load_preferred_terminal(app: &tauri::AppHandle) -> Result<String, String> {
@@ -77,265 +109,84 @@ fn load_preferred_terminal(app: &tauri::AppHandle) -> Result<String, String> {
         app_data_dir.join("preferences.json")
     };
 
-    if !prefs_path.exists() {
-        return Ok(String::new());
-    }
-
-    let contents = std::fs::read_to_string(&prefs_path)
-        .map_err(|e| format!("Failed to read preferences: {e}"))?;
-    let prefs: serde_json::Value = serde_json::from_str(&contents).map_err(|_e| String::new())?;
-
-    Ok(prefs
-        .get("preferred_terminal")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string())
+    load_preferred_terminal_from_path(&prefs_path)
 }
 
-fn launch_droid_in_terminal(command: &str, preferred: &str) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    {
-        launch_macos(command, preferred)
-    }
-    #[cfg(target_os = "linux")]
-    {
-        launch_linux(command, preferred)
-    }
-    #[cfg(target_os = "windows")]
-    {
-        launch_windows(command, preferred)
-    }
-    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
-    {
-        Err("Unsupported platform".to_string())
-    }
-}
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
 
-// ============================================================================
-// macOS
-// ============================================================================
+    use super::{build_droid_launch_spec, load_preferred_terminal_from_path};
+    use droidgear_core::droid_runtime::DroidTemporaryRunPlan;
 
-#[cfg(target_os = "macos")]
-fn launch_macos(command: &str, preferred: &str) -> Result<(), String> {
-    match preferred {
-        "iterm2" => launch_iterm2(command),
-        "terminal" => launch_terminal_app(command),
-        _ => launch_system_default_macos(command), // "system-default" or empty
-    }
-}
+    #[test]
+    fn build_droid_launch_spec_preserves_temp_run_args_and_env() {
+        let spec = build_droid_launch_spec(&DroidTemporaryRunPlan {
+            program: "droid".to_string(),
+            args: vec![
+                "--settings".to_string(),
+                "/tmp/runtime/droid/temporary-run.json".to_string(),
+            ],
+            env: vec![(
+                "FACTORY_DROID_AUTO_UPDATE_ENABLED".to_string(),
+                "0".to_string(),
+            )],
+            unset_env: vec!["ANTHROPIC_AUTH_TOKEN".to_string()],
+            temp_settings_path: PathBuf::from("/tmp/runtime/droid/temporary-run.json"),
+        });
 
-#[cfg(target_os = "macos")]
-fn launch_iterm2(command: &str) -> Result<(), String> {
-    let escaped = command.replace('\\', "\\\\").replace('"', "\\\"");
-    // Try to create a new tab in the current window; if iTerm2 isn't running, it will launch
-    let script = format!(
-        r#"tell application "iTerm2"
-    if (count of windows) = 0 then
-        create window with default profile
-    end if
-    tell current window
-        create tab with default profile
-        tell current session
-            write text "clear; echo 'Starting Droid...'; {}; exit"
-        end tell
-    end tell
-    activate
-end tell"#,
-        escaped
-    );
-
-    let status = std::process::Command::new("osascript")
-        .arg("-e")
-        .arg(&script)
-        .status()
-        .map_err(|e| format!("Failed to launch iTerm2: {e}"))?;
-
-    if !status.success() {
-        // Fallback: try launching iTerm2 directly
-        let status2 = std::process::Command::new("open")
-            .args([
-                "-a",
-                "iTerm",
-                "--args",
-                "bash",
-                "-c",
-                &format!("{}; exec bash", command),
-            ])
-            .status()
-            .map_err(|e| format!("Failed to launch iTerm2: {e}"))?;
-        if !status2.success() {
-            return Err("Failed to launch iTerm2".to_string());
-        }
-    }
-    Ok(())
-}
-
-#[cfg(target_os = "macos")]
-fn launch_terminal_app(command: &str) -> Result<(), String> {
-    let escaped = command.replace('\\', "\\\\").replace('"', "\\\"");
-    let script = format!(
-        r#"tell application "Terminal"
-    activate
-    do script "clear; echo 'Starting Droid...'; {}; exit"
-end tell"#,
-        escaped
-    );
-
-    let status = std::process::Command::new("osascript")
-        .arg("-e")
-        .arg(&script)
-        .status()
-        .map_err(|e| format!("Failed to launch Terminal: {e}"))?;
-
-    if !status.success() {
-        return Err("Failed to open Terminal".to_string());
-    }
-    Ok(())
-}
-
-#[cfg(target_os = "macos")]
-fn launch_system_default_macos(command: &str) -> Result<(), String> {
-    // Create a temporary .command file and open it with the system default handler
-    let tmp_dir = std::env::temp_dir();
-    let file_path = tmp_dir.join("droid-launch.command");
-    let script_content = format!(
-        "#!/bin/bash\nclear\necho 'Starting Droid...'\n{}\nexit\n",
-        command
-    );
-    std::fs::write(&file_path, script_content)
-        .map_err(|e| format!("Failed to create launch script: {e}"))?;
-
-    // Make it executable
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = std::fs::metadata(&file_path)
-            .map_err(|e| format!("Failed to read metadata: {e}"))?
-            .permissions();
-        perms.set_mode(0o755);
-        std::fs::set_permissions(&file_path, perms)
-            .map_err(|e| format!("Failed to set permissions: {e}"))?;
-    }
-
-    let status = std::process::Command::new("open")
-        .arg(&file_path)
-        .status()
-        .map_err(|e| format!("Failed to open terminal: {e}"))?;
-
-    if !status.success() {
-        return Err("Failed to open terminal".to_string());
-    }
-    Ok(())
-}
-
-// ============================================================================
-// Linux
-// ============================================================================
-
-#[cfg(target_os = "linux")]
-fn launch_linux(command: &str, preferred: &str) -> Result<(), String> {
-    let bash_script = format!("{}; exec bash", command);
-    let xfce_script = format!("bash -c '{}; exec bash'", command);
-
-    let terminals: Vec<(&str, Vec<&str>)> = match preferred {
-        "gnome-terminal" => vec![(
-            "gnome-terminal",
-            vec!["--tab", "--", "bash", "-c", &bash_script],
-        )],
-        "konsole" => vec![(
-            "konsole",
-            vec!["--new-tab", "-e", "bash", "-c", &bash_script],
-        )],
-        "xfce4-terminal" => vec![("xfce4-terminal", vec!["--tab", "-e", &xfce_script])],
-        "x-terminal-emulator" => vec![(
-            "x-terminal-emulator",
-            vec!["-e", "bash", "-c", &bash_script],
-        )],
-        _ => {
-            // auto-detect or empty — try common terminals in order
+        assert_eq!(spec.program, "droid");
+        assert_eq!(
+            spec.args,
             vec![
-                (
-                    "gnome-terminal",
-                    vec!["--tab", "--", "bash", "-c", &bash_script],
-                ),
-                (
-                    "konsole",
-                    vec!["--new-tab", "-e", "bash", "-c", &bash_script],
-                ),
-                ("xfce4-terminal", vec!["--tab", "-e", &xfce_script]),
-                (
-                    "x-terminal-emulator",
-                    vec!["-e", "bash", "-c", &bash_script],
-                ),
-                ("xterm", vec!["-e", "bash", "-c", &bash_script]),
+                "--settings".to_string(),
+                "/tmp/runtime/droid/temporary-run.json".to_string()
             ]
-        }
-    };
-
-    let mut last_err = String::new();
-    for (term, args) in &terminals {
-        let args: Vec<&str> = args.iter().map(|s| *s).collect();
-        match std::process::Command::new(term).args(&args).spawn() {
-            Ok(_) => return Ok(()),
-            Err(e) => {
-                last_err = format!("{term}: {e}");
-            }
-        }
+        );
+        assert_eq!(
+            spec.env,
+            vec![(
+                "FACTORY_DROID_AUTO_UPDATE_ENABLED".to_string(),
+                "0".to_string()
+            )]
+        );
+        assert_eq!(spec.unset_env, vec!["ANTHROPIC_AUTH_TOKEN".to_string()]);
     }
-    Err(format!(
-        "Could not find a terminal emulator. Tried: {last_err}"
-    ))
-}
 
-// ============================================================================
-// Windows
-// ============================================================================
+    #[test]
+    fn load_preferred_terminal_returns_empty_when_file_is_missing() {
+        let path = std::env::temp_dir().join(format!(
+            "droidgear-missing-prefs-{}.json",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&path);
 
-#[cfg(target_os = "windows")]
-fn launch_windows(command: &str, preferred: &str) -> Result<(), String> {
-    match preferred {
-        "cmd" => {
-            std::process::Command::new("cmd")
-                .args(["/c", "start", "cmd", "/k", command])
-                .spawn()
-                .map_err(|e| format!("Failed to launch cmd: {e}"))?;
-            Ok(())
-        }
-        "powershell" => {
-            std::process::Command::new("powershell")
-                .args([
-                    "-NoExit",
-                    "-Command",
-                    &format!("Write-Host 'Starting Droid...'; {}", command),
-                ])
-                .spawn()
-                .map_err(|e| format!("Failed to launch PowerShell: {e}"))?;
-            Ok(())
-        }
-        _ => {
-            // "windows-terminal" or empty — try Windows Terminal first, fall back to cmd
-            let wt_status = std::process::Command::new("wt")
-                .args(["-w", "0", "new-tab", "cmd", "/k", command])
-                .spawn();
+        let preferred = load_preferred_terminal_from_path(&path).unwrap();
 
-            if wt_status.is_ok() {
-                return Ok(());
-            }
+        assert!(preferred.is_empty());
+    }
 
-            // Fallback: try launching Windows Terminal without -w flag (first launch)
-            let wt_status2 = std::process::Command::new("wt")
-                .args(["cmd", "/k", command])
-                .spawn();
+    #[test]
+    fn load_preferred_terminal_reads_existing_json_payload() {
+        let path = std::env::temp_dir().join(format!(
+            "droidgear-test-preferences-{}.json",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::write(
+            &path,
+            r#"{
+              "theme": "system",
+              "preferred_terminal": "terminal"
+            }"#,
+        )
+        .unwrap();
 
-            if wt_status2.is_ok() {
-                return Ok(());
-            }
+        let preferred = load_preferred_terminal_from_path(&path).unwrap();
+        let _ = std::fs::remove_file(&path);
 
-            std::process::Command::new("cmd")
-                .args(["/c", "start", "cmd", "/k", command])
-                .spawn()
-                .map_err(|e| format!("Failed to launch command prompt: {e}"))?;
-            Ok(())
-        }
+        assert_eq!(preferred, "terminal");
     }
 }

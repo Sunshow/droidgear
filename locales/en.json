@@ -455,6 +455,7 @@
   "droid.settingsFile.deleteConfirm": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
   "droid.settingsFile.launch": "Launch Droid",
   "droid.settingsFile.launchTooltip": "Open Droid CLI in a new terminal window",
+  "droid.settingsFile.launchSaveFailed": "Could not launch Droid because model changes could not be saved",
 
   "common.rename": "Rename",
   "common.export": "Export",

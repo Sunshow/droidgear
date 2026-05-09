@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::paths;
 
@@ -40,43 +40,62 @@ fn system_home_dir() -> Result<PathBuf, String> {
     dirs::home_dir().ok_or_else(|| "Failed to get home directory".to_string())
 }
 
+fn droidgear_dir_for_home(home_dir: &Path) -> PathBuf {
+    paths::droidgear_dir_from_home(home_dir)
+}
+
 fn droidgear_dir() -> Result<PathBuf, String> {
     Ok(paths::droidgear_dir_from_home(&system_home_dir()?))
+}
+
+fn droid_settings_dir_for_home(home_dir: &Path) -> PathBuf {
+    droidgear_dir_for_home(home_dir).join(DROID_SETTINGS_DIR)
 }
 
 fn droid_settings_dir() -> Result<PathBuf, String> {
     Ok(droidgear_dir()?.join(DROID_SETTINGS_DIR))
 }
 
+fn global_settings_path_for_home(home_dir: &Path) -> PathBuf {
+    home_dir.join(".factory").join("settings.json")
+}
+
 fn global_settings_path() -> Result<PathBuf, String> {
     let home = system_home_dir()?;
-    Ok(home.join(".factory").join("settings.json"))
+    Ok(global_settings_path_for_home(&home))
+}
+
+/// Resolves the absolute path to the currently active settings file.
+/// Returns the global path if no custom file is set, or if the active file doesn't exist.
+pub(crate) fn get_active_settings_path_for_home(home_dir: &Path) -> Result<PathBuf, String> {
+    let active_name = load_active_file_name_for_home(home_dir)?;
+    match active_name {
+        Some(name) if !name.is_empty() => {
+            let custom_path = droid_settings_dir_for_home(home_dir)
+                .join(&name)
+                .with_extension("json");
+            if custom_path.exists() {
+                Ok(custom_path)
+            } else {
+                Ok(global_settings_path_for_home(home_dir))
+            }
+        }
+        _ => Ok(global_settings_path_for_home(home_dir)),
+    }
 }
 
 /// Resolves the absolute path to the currently active settings file.
 /// Returns the global path if no custom file is set, or if the active file doesn't exist.
 pub fn get_active_settings_path() -> Result<PathBuf, String> {
-    let active_name = load_active_file_name()?;
-    match active_name {
-        Some(name) if !name.is_empty() => {
-            let custom_path = droid_settings_dir()?.join(&name).with_extension("json");
-            if custom_path.exists() {
-                Ok(custom_path)
-            } else {
-                // Fall back to global if custom file doesn't exist
-                global_settings_path()
-            }
-        }
-        _ => global_settings_path(),
-    }
+    get_active_settings_path_for_home(&system_home_dir()?)
 }
 
 // ============================================================================
 // Active file tracking
 // ============================================================================
 
-fn load_active_file_name() -> Result<Option<String>, String> {
-    let settings_path = paths::get_droidgear_settings_path()?;
+fn load_active_file_name_for_home(home_dir: &Path) -> Result<Option<String>, String> {
+    let settings_path = paths::get_droidgear_settings_path_for_home(home_dir);
     let settings = paths::read_droidgear_settings_from_path_internal(&settings_path)?;
     Ok(settings
         .get(ACTIVE_FILE_KEY)
@@ -84,8 +103,12 @@ fn load_active_file_name() -> Result<Option<String>, String> {
         .map(String::from))
 }
 
-fn save_active_file_name(name: Option<&str>) -> Result<(), String> {
-    let settings_path = paths::get_droidgear_settings_path()?;
+fn load_active_file_name() -> Result<Option<String>, String> {
+    load_active_file_name_for_home(&system_home_dir()?)
+}
+
+fn save_active_file_name_for_home(home_dir: &Path, name: Option<&str>) -> Result<(), String> {
+    let settings_path = paths::get_droidgear_settings_path_for_home(home_dir);
     let mut settings = paths::read_droidgear_settings_from_path_internal(&settings_path)?;
 
     if let Some(obj) = settings.as_object_mut() {
@@ -101,6 +124,10 @@ fn save_active_file_name(name: Option<&str>) -> Result<(), String> {
 
     paths::write_droidgear_settings_to_path_internal(&settings_path, &settings)?;
     Ok(())
+}
+
+fn save_active_file_name(name: Option<&str>) -> Result<(), String> {
+    save_active_file_name_for_home(&system_home_dir()?, name)
 }
 
 // ============================================================================
@@ -161,21 +188,50 @@ pub fn get_active_settings_file() -> Result<SettingsFileInfo, String> {
 
 /// Set the active settings file.
 /// Pass `None` or empty string to switch to Global.
-pub fn set_active_settings_file(name: Option<String>) -> Result<SettingsFileInfo, String> {
+pub(crate) fn set_active_settings_file_for_home(
+    home_dir: &Path,
+    name: Option<String>,
+) -> Result<SettingsFileInfo, String> {
     match &name {
         Some(n) if !n.is_empty() => {
-            let path = droid_settings_dir()?.join(n).with_extension("json");
+            let path = droid_settings_dir_for_home(home_dir)
+                .join(n)
+                .with_extension("json");
             if !path.exists() {
                 return Err(format!("Settings file '{}' does not exist", n));
             }
-            save_active_file_name(Some(n))?;
+            save_active_file_name_for_home(home_dir, Some(n))?;
         }
         _ => {
-            save_active_file_name(None)?;
+            save_active_file_name_for_home(home_dir, None)?;
         }
     }
 
-    get_active_settings_file()
+    let active_path = get_active_settings_path_for_home(home_dir)?;
+    let global_path = global_settings_path_for_home(home_dir);
+
+    Ok(SettingsFileInfo {
+        name: if active_path == global_path {
+            "Global".to_string()
+        } else {
+            active_path
+                .file_stem()
+                .and_then(|value| value.to_str())
+                .unwrap_or("unknown")
+                .to_string()
+        },
+        path: active_path.to_string_lossy().to_string(),
+        is_global: active_path == global_path,
+        is_active: true,
+        exists: active_path.exists(),
+    })
+}
+
+/// Set the active settings file.
+/// Pass `None` or empty string to switch to Global.
+pub fn set_active_settings_file(name: Option<String>) -> Result<SettingsFileInfo, String> {
+    let _ = droid_settings_dir()?;
+    set_active_settings_file_for_home(&system_home_dir()?, name)
 }
 
 /// Create a new settings file.
@@ -245,20 +301,23 @@ pub fn delete_settings_file(name: String) -> Result<(), String> {
 
 /// Get the launch command for Droid with the active settings file.
 /// Returns the command string and the settings path used.
-pub fn get_launch_command() -> Result<(String, String), String> {
-    let active_path = get_active_settings_path()?;
+fn get_launch_command_for_home(home_dir: &Path) -> Result<(String, String), String> {
+    let active_path = get_active_settings_path_for_home(home_dir)?;
     let path_str = active_path.to_string_lossy().to_string();
 
-    let is_global = {
-        let global = global_settings_path()?;
-        active_path == global
-    };
+    let is_global = active_path == global_settings_path_for_home(home_dir);
 
     let command = if is_global {
         "droid".to_string()
     } else {
-        format!("droid --settings \"{}\"", path_str)
+        format!("droid --settings \"{path_str}\"")
     };
 
     Ok((command, path_str))
+}
+
+/// Get the launch command for Droid with the active settings file.
+/// Returns the command string and the settings path used.
+pub fn get_launch_command() -> Result<(String, String), String> {
+    get_launch_command_for_home(&system_home_dir()?)
 }
