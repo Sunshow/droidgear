@@ -26,6 +26,7 @@ pub fn load_preferences(app: &tauri::AppHandle) -> Result<AppPreferences, String
 #[cfg(test)]
 mod tests {
     use super::load_preferences_from_path;
+    use droidgear_core::droid_runtime::DroidRunPreferences;
 
     #[test]
     fn load_preferences_returns_default_when_file_is_missing() {
@@ -37,7 +38,7 @@ mod tests {
         let prefs = load_preferences_from_path(&path).unwrap();
 
         assert!(prefs.preferred_terminal.is_none());
-        assert_eq!(prefs.theme, "system");
+        assert!(prefs.droid_run.is_none());
     }
 
     #[test]
@@ -53,6 +54,10 @@ mod tests {
             &path,
             r#"{
               "theme": "system",
+              "droid_run": {
+                "disableAutoUpdateEnv": false,
+                "unsetAnthropicAuthToken": true
+              },
               "preferred_terminal": "terminal"
             }"#,
         )
@@ -62,6 +67,12 @@ mod tests {
         let _ = std::fs::remove_file(&path);
 
         assert_eq!(prefs.preferred_terminal.as_deref(), Some("terminal"));
-        assert_eq!(prefs.theme, "system");
+        assert_eq!(
+            prefs.droid_run,
+            Some(DroidRunPreferences {
+                disable_auto_update_env: Some(false),
+                unset_anthropic_auth_token: Some(true),
+            })
+        );
     }
 }

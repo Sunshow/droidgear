@@ -3,8 +3,9 @@
 //! Builds a temporary settings file plus runtime env policy without mutating
 //! the live Factory settings file.
 
+use serde::{Deserialize, Serialize};
+use specta::Type;
 use std::path::{Path, PathBuf};
-
 use uuid::Uuid;
 
 use crate::{droid_settings_files, storage};
@@ -12,6 +13,15 @@ use crate::{droid_settings_files, storage};
 const DROID_RUNTIME_DIR: &str = "runtime/droid";
 const TEMP_SETTINGS_PREFIX: &str = "temporary-run-";
 const TEMP_SETTINGS_EXTENSION: &str = "json";
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct DroidRunPreferences {
+    #[serde(default)]
+    pub disable_auto_update_env: Option<bool>,
+    #[serde(default)]
+    pub unset_anthropic_auth_token: Option<bool>,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DroidTemporaryRunPlan {
@@ -41,12 +51,10 @@ fn next_temp_settings_path(home_dir: &Path) -> Result<PathBuf, String> {
     )))
 }
 
-fn copy_active_settings_to_temp(home_dir: &Path, destination: &Path) -> Result<(), String> {
-    let source = droid_settings_files::get_active_settings_path_for_home(home_dir)?;
-
+fn copy_settings_to_temp(source: &Path, destination: &Path) -> Result<(), String> {
     if source.exists() {
-        let contents = std::fs::read(&source)
-            .map_err(|e| format!("Failed to read active Droid settings: {e}"))?;
+        let contents = std::fs::read(source)
+            .map_err(|e| format!("Failed to read Droid settings file: {e}"))?;
         storage::atomic_write(destination, &contents)?;
     } else {
         storage::atomic_write(destination, b"{}")?;
@@ -55,14 +63,30 @@ fn copy_active_settings_to_temp(home_dir: &Path, destination: &Path) -> Result<(
     Ok(())
 }
 
-fn build_env_overrides() -> (Vec<(String, String)>, Vec<String>) {
-    (
-        vec![(
+fn should_disable_auto_update_env(prefs: &DroidRunPreferences) -> bool {
+    prefs.disable_auto_update_env.unwrap_or(true)
+}
+
+fn should_unset_anthropic_auth_token(prefs: &DroidRunPreferences) -> bool {
+    prefs.unset_anthropic_auth_token.unwrap_or(true)
+}
+
+fn build_env_overrides(prefs: &DroidRunPreferences) -> (Vec<(String, String)>, Vec<String>) {
+    let mut env = Vec::new();
+    let mut unset_env = Vec::new();
+
+    if should_disable_auto_update_env(prefs) {
+        env.push((
             "FACTORY_DROID_AUTO_UPDATE_ENABLED".to_string(),
             "0".to_string(),
-        )],
-        vec!["ANTHROPIC_AUTH_TOKEN".to_string()],
-    )
+        ));
+    }
+
+    if should_unset_anthropic_auth_token(prefs) {
+        unset_env.push("ANTHROPIC_AUTH_TOKEN".to_string());
+    }
+
+    (env, unset_env)
 }
 
 pub fn cleanup_stale_temp_settings_for_home(home_dir: &Path) -> Result<u32, String> {
@@ -109,11 +133,15 @@ pub fn cleanup_stale_temp_settings_for_home(home_dir: &Path) -> Result<u32, Stri
     Ok(removed)
 }
 
-pub fn build_temporary_run_plan_for_home(home_dir: &Path) -> Result<DroidTemporaryRunPlan, String> {
+pub fn build_temporary_run_plan_for_home(
+    home_dir: &Path,
+    prefs: &DroidRunPreferences,
+) -> Result<DroidTemporaryRunPlan, String> {
     let temp_settings_path = next_temp_settings_path(home_dir)?;
-    copy_active_settings_to_temp(home_dir, &temp_settings_path)?;
+    let source = droid_settings_files::get_active_settings_path_for_home(home_dir)?;
+    copy_settings_to_temp(&source, &temp_settings_path)?;
 
-    let (env, unset_env) = build_env_overrides();
+    let (env, unset_env) = build_env_overrides(prefs);
 
     Ok(DroidTemporaryRunPlan {
         program: "droid".to_string(),
@@ -127,19 +155,44 @@ pub fn build_temporary_run_plan_for_home(home_dir: &Path) -> Result<DroidTempora
     })
 }
 
-pub fn build_temporary_run_plan() -> Result<DroidTemporaryRunPlan, String> {
+pub fn build_temporary_run_plan_from_settings_path_for_home(
+    home_dir: &Path,
+    settings_path: &Path,
+    prefs: &DroidRunPreferences,
+) -> Result<DroidTemporaryRunPlan, String> {
+    let temp_settings_path = next_temp_settings_path(home_dir)?;
+    copy_settings_to_temp(settings_path, &temp_settings_path)?;
+
+    let (env, unset_env) = build_env_overrides(prefs);
+
+    Ok(DroidTemporaryRunPlan {
+        program: "droid".to_string(),
+        args: vec![
+            "--settings".to_string(),
+            temp_settings_path.to_string_lossy().to_string(),
+        ],
+        env,
+        unset_env,
+        temp_settings_path,
+    })
+}
+
+pub fn build_temporary_run_plan(
+    prefs: &DroidRunPreferences,
+) -> Result<DroidTemporaryRunPlan, String> {
     let home_dir = dirs::home_dir().ok_or_else(|| "Failed to get home directory".to_string())?;
-    build_temporary_run_plan_for_home(&home_dir)
+    build_temporary_run_plan_for_home(&home_dir, prefs)
 }
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
-    use tempfile::TempDir;
-
-    use super::{build_temporary_run_plan_for_home, cleanup_stale_temp_settings_for_home};
+    use super::{
+        build_temporary_run_plan_for_home, build_temporary_run_plan_from_settings_path_for_home,
+        cleanup_stale_temp_settings_for_home, DroidRunPreferences,
+    };
     use crate::droid_settings_files;
+    use std::path::Path;
+    use tempfile::TempDir;
 
     fn home(temp: &TempDir) -> &Path {
         temp.path()
@@ -158,7 +211,8 @@ mod tests {
         let global_path = home(&temp).join(".factory/settings.json");
         write_file(&global_path, r#"{"customModels":[{"id":"demo"}]}"#);
 
-        let plan = build_temporary_run_plan_for_home(home(&temp)).unwrap();
+        let plan = build_temporary_run_plan_for_home(home(&temp), &DroidRunPreferences::default())
+            .unwrap();
 
         assert_eq!(plan.program, "droid");
         assert_eq!(plan.args[0], "--settings");
@@ -192,7 +246,8 @@ mod tests {
         )
         .unwrap();
 
-        let plan = build_temporary_run_plan_for_home(home(&temp)).unwrap();
+        let plan = build_temporary_run_plan_for_home(home(&temp), &DroidRunPreferences::default())
+            .unwrap();
 
         assert_eq!(
             std::fs::read_to_string(&plan.temp_settings_path).unwrap(),
@@ -201,10 +256,52 @@ mod tests {
     }
 
     #[test]
+    fn temporary_run_plan_can_use_an_explicit_settings_path_without_switching_active_file() {
+        let temp = TempDir::new().unwrap();
+        let explicit_settings_path = home(&temp).join(".droidgear/droid-settings/profile-b.json");
+        write_file(
+            &explicit_settings_path,
+            r#"{"sessionDefaultSettings":{"model":"y"}}"#,
+        );
+
+        let plan = build_temporary_run_plan_from_settings_path_for_home(
+            home(&temp),
+            &explicit_settings_path,
+            &DroidRunPreferences::default(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(&plan.temp_settings_path).unwrap(),
+            r#"{"sessionDefaultSettings":{"model":"y"}}"#
+        );
+    }
+
+    #[test]
+    fn temporary_run_plan_respects_explicit_run_policy_overrides() {
+        let temp = TempDir::new().unwrap();
+        let global_path = home(&temp).join(".factory/settings.json");
+        write_file(&global_path, "{}");
+
+        let plan = build_temporary_run_plan_for_home(
+            home(&temp),
+            &DroidRunPreferences {
+                disable_auto_update_env: Some(false),
+                unset_anthropic_auth_token: Some(false),
+            },
+        )
+        .unwrap();
+
+        assert!(plan.env.is_empty());
+        assert!(plan.unset_env.is_empty());
+    }
+
+    #[test]
     fn temporary_run_plan_creates_empty_settings_when_base_file_is_missing() {
         let temp = TempDir::new().unwrap();
 
-        let plan = build_temporary_run_plan_for_home(home(&temp)).unwrap();
+        let plan = build_temporary_run_plan_for_home(home(&temp), &DroidRunPreferences::default())
+            .unwrap();
 
         assert_eq!(
             std::fs::read_to_string(&plan.temp_settings_path).unwrap(),
@@ -218,28 +315,22 @@ mod tests {
         let runtime_dir = home(&temp).join(".droidgear/runtime/droid");
         std::fs::create_dir_all(&runtime_dir).unwrap();
 
-        let fresh_path = runtime_dir.join("temporary-run-fresh.json");
-        let stale_path = runtime_dir.join("temporary-run-stale.json");
-        let other_path = runtime_dir.join("notes.txt");
-        write_file(&fresh_path, "{}");
-        write_file(&stale_path, "{}");
-        write_file(&other_path, "{}");
+        let stale_file = runtime_dir.join("temporary-run-20000101T000000.000Z.json");
+        let fresh_file = runtime_dir.join("temporary-run-keep.json");
+        let other_file = runtime_dir.join("notes.txt");
 
-        let stale_time = filetime::FileTime::from_unix_time(
-            (std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs() as i64)
-                - 60 * 60 * 48,
-            0,
-        );
-        filetime::set_file_mtime(&stale_path, stale_time).unwrap();
+        write_file(&stale_file, "{}");
+        write_file(&fresh_file, "{}");
+        write_file(&other_file, "{}");
+
+        let stale_time = filetime::FileTime::from_unix_time(0, 0);
+        filetime::set_file_mtime(&stale_file, stale_time).unwrap();
 
         let removed = cleanup_stale_temp_settings_for_home(home(&temp)).unwrap();
 
         assert_eq!(removed, 1);
-        assert!(fresh_path.exists());
-        assert!(!stale_path.exists());
-        assert!(other_path.exists());
+        assert!(!stale_file.exists());
+        assert!(fresh_file.exists());
+        assert!(other_file.exists());
     }
 }

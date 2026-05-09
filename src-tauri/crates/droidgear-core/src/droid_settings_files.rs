@@ -60,14 +60,9 @@ fn global_settings_path_for_home(home_dir: &Path) -> PathBuf {
     home_dir.join(".factory").join("settings.json")
 }
 
-fn global_settings_path() -> Result<PathBuf, String> {
-    let home = system_home_dir()?;
-    Ok(global_settings_path_for_home(&home))
-}
-
 /// Resolves the absolute path to the currently active settings file.
 /// Returns the global path if no custom file is set, or if the active file doesn't exist.
-pub(crate) fn get_active_settings_path_for_home(home_dir: &Path) -> Result<PathBuf, String> {
+pub fn get_active_settings_path_for_home(home_dir: &Path) -> Result<PathBuf, String> {
     let active_name = load_active_file_name_for_home(home_dir)?;
     match active_name {
         Some(name) if !name.is_empty() => {
@@ -136,8 +131,13 @@ fn save_active_file_name(name: Option<&str>) -> Result<(), String> {
 
 /// List all available settings files (global + custom files)
 pub fn list_settings_files() -> Result<Vec<SettingsFileInfo>, String> {
-    let active_name = load_active_file_name().unwrap_or(None);
-    let global_path = global_settings_path()?;
+    list_settings_files_for_home(&system_home_dir()?)
+}
+
+/// List all available settings files (global + custom files) for a specific home directory.
+pub fn list_settings_files_for_home(home_dir: &Path) -> Result<Vec<SettingsFileInfo>, String> {
+    let active_path = get_active_settings_path_for_home(home_dir)?;
+    let global_path = global_settings_path_for_home(home_dir);
     let mut files = Vec::new();
 
     // Global file
@@ -145,12 +145,12 @@ pub fn list_settings_files() -> Result<Vec<SettingsFileInfo>, String> {
         name: "Global".to_string(),
         path: global_path.to_string_lossy().to_string(),
         is_global: true,
-        is_active: active_name.is_none(),
+        is_active: active_path == global_path,
         exists: global_path.exists(),
     });
 
     // Custom files from ~/.droidgear/droid-settings/
-    let dir = droid_settings_dir()?;
+    let dir = droid_settings_dir_for_home(home_dir);
     if dir.exists() {
         if let Ok(entries) = std::fs::read_dir(&dir) {
             for entry in entries.flatten() {
@@ -161,7 +161,7 @@ pub fn list_settings_files() -> Result<Vec<SettingsFileInfo>, String> {
                         .and_then(|s| s.to_str())
                         .unwrap_or("unknown")
                         .to_string();
-                    let is_active = active_name.as_deref() == Some(&name);
+                    let is_active = active_path == path;
                     files.push(SettingsFileInfo {
                         name: name.clone(),
                         path: path.to_string_lossy().to_string(),
@@ -179,16 +179,38 @@ pub fn list_settings_files() -> Result<Vec<SettingsFileInfo>, String> {
 
 /// Get the currently active settings file info
 pub fn get_active_settings_file() -> Result<SettingsFileInfo, String> {
-    let files = list_settings_files()?;
+    get_active_settings_file_for_home(&system_home_dir()?)
+}
+
+/// Get the currently active settings file info for a specific home directory.
+pub fn get_active_settings_file_for_home(home_dir: &Path) -> Result<SettingsFileInfo, String> {
+    let files = list_settings_files_for_home(home_dir)?;
     files
         .into_iter()
         .find(|f| f.is_active)
         .ok_or_else(|| "No active settings file found".to_string())
 }
 
+/// Resolve a settings file path by display name for a specific home directory.
+/// Accepts `Global` (case-insensitive) for the global Factory settings file.
+pub fn get_settings_path_by_name_for_home(home_dir: &Path, name: &str) -> Result<PathBuf, String> {
+    if name.eq_ignore_ascii_case("global") {
+        return Ok(global_settings_path_for_home(home_dir));
+    }
+
+    let path = droid_settings_dir_for_home(home_dir)
+        .join(name)
+        .with_extension("json");
+    if path.exists() {
+        Ok(path)
+    } else {
+        Err(format!("Settings file '{name}' does not exist"))
+    }
+}
+
 /// Set the active settings file.
 /// Pass `None` or empty string to switch to Global.
-pub(crate) fn set_active_settings_file_for_home(
+pub fn set_active_settings_file_for_home(
     home_dir: &Path,
     name: Option<String>,
 ) -> Result<SettingsFileInfo, String> {
@@ -301,7 +323,7 @@ pub fn delete_settings_file(name: String) -> Result<(), String> {
 
 /// Get the launch command for Droid with the active settings file.
 /// Returns the command string and the settings path used.
-fn get_launch_command_for_home(home_dir: &Path) -> Result<(String, String), String> {
+pub fn get_launch_command_for_home(home_dir: &Path) -> Result<(String, String), String> {
     let active_path = get_active_settings_path_for_home(home_dir)?;
     let path_str = active_path.to_string_lossy().to_string();
 
@@ -320,4 +342,69 @@ fn get_launch_command_for_home(home_dir: &Path) -> Result<(String, String), Stri
 /// Returns the command string and the settings path used.
 pub fn get_launch_command() -> Result<(String, String), String> {
     get_launch_command_for_home(&system_home_dir()?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        get_active_settings_file_for_home, get_settings_path_by_name_for_home,
+        list_settings_files_for_home, set_active_settings_file_for_home,
+    };
+    use std::path::Path;
+    use tempfile::TempDir;
+
+    fn write_file(path: &Path, contents: &str) {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        std::fs::write(path, contents).unwrap();
+    }
+
+    #[test]
+    fn list_settings_files_for_home_uses_the_provided_home_directory() {
+        let temp = TempDir::new().unwrap();
+        let home_dir = temp.path();
+
+        write_file(&home_dir.join(".factory/settings.json"), "{}");
+        write_file(
+            &home_dir.join(".droidgear/droid-settings/profile-a.json"),
+            "{}",
+        );
+        set_active_settings_file_for_home(home_dir, Some("profile-a".to_string())).unwrap();
+
+        let files = list_settings_files_for_home(home_dir).unwrap();
+
+        assert_eq!(files.len(), 2);
+        assert!(files
+            .iter()
+            .any(|file| file.name == "Global" && file.is_global));
+        assert!(files
+            .iter()
+            .any(|file| file.name == "profile-a" && file.is_active));
+
+        let active = get_active_settings_file_for_home(home_dir).unwrap();
+        assert_eq!(active.name, "profile-a");
+        assert!(!active.is_global);
+    }
+
+    #[test]
+    fn get_settings_path_by_name_for_home_resolves_global_and_custom_files() {
+        let temp = TempDir::new().unwrap();
+        let home_dir = temp.path();
+
+        let global_path = home_dir.join(".factory/settings.json");
+        let custom_path = home_dir.join(".droidgear/droid-settings/profile-b.json");
+        write_file(&global_path, "{}");
+        write_file(&custom_path, "{}");
+
+        assert_eq!(
+            get_settings_path_by_name_for_home(home_dir, "global").unwrap(),
+            global_path
+        );
+        assert_eq!(
+            get_settings_path_by_name_for_home(home_dir, "profile-b").unwrap(),
+            custom_path
+        );
+        assert!(get_settings_path_by_name_for_home(home_dir, "missing").is_err());
+    }
 }
