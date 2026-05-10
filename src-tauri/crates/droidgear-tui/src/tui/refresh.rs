@@ -44,10 +44,9 @@ pub(super) fn refresh_claude(app: &mut app::App) {
     }
 
     if app.claude_profiles.is_empty() {
-        if let Ok(profile) =
-            droidgear_core::claude::create_default_claude_profile_for_home(&app.home_dir)
-        {
-            app.claude_profiles = vec![profile];
+        match droidgear_core::claude::create_default_claude_profile_for_home(&app.home_dir) {
+            Ok(profile) => app.claude_profiles = vec![profile],
+            Err(error) => app.set_toast(error, true),
         }
     }
 

@@ -869,6 +869,8 @@
   "claude.model.smallModelPlaceholder": "claude-haiku-4-5",
   "claude.model.smallModelUsesMainModel": "Use the main model for small-model requests",
   "claude.model.smallModelUsesMainModelHint": "When enabled, Claude will mirror the main model instead of using a separate Haiku model name.",
+  "claude.model.capabilityWarningTitle": "Capability warning",
+  "claude.model.capabilityWarningBody": "The model name \"{{model}}\" does not look like an official Claude model id. Claude Code may ignore Reasoning Effort or Thinking Mode for custom deployment names and gateway aliases.",
   "claude.reasoning.title": "Reasoning and Thinking",
   "claude.reasoning.effort": "Reasoning Effort",
   "claude.reasoning.effortPlaceholder": "Select reasoning effort",
@@ -889,6 +891,8 @@
   "claude.actions.launch": "Run Profile",
   "claude.actions.launchTooltip": "Run this profile in a new terminal without changing live Claude Code config",
   "claude.actions.launchSuccess": "Claude Code launched in a new terminal window",
+  "claude.actions.launchMissingCli": "Claude CLI is not installed or not available in PATH.",
+  "claude.actions.launchInspectFailed": "Failed to inspect the installed Claude CLI. Check that `claude` runs correctly in your shell.",
   "claude.actions.loadFromLive": "Load Live",
   "claude.actions.loadedFromLive": "Loaded from live config",
 

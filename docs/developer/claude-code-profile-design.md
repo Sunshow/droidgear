@@ -480,6 +480,12 @@ Temporary Run 也不再单独走 `--effort`。
 - `reasoningEffort` 和 `thinkingMode` 是“best-effort on supported models”
 - 对 opaque custom model ID，不承诺 Claude 一定启用这些能力
 
+当前实现 contract 也应该写死：
+
+- 当 model 非空且看起来不是官方 `claude-*` 风格 ID 时，GUI / TUI 必须显式提示 capability boundary
+- launch 前应先探测 `claude --version`，避免“终端打开成功但 Claude 实际没装”被误判成启动成功
+- `CLAUDE_ENV_FILE` 复制失败应作为 warning surfaced，而不是静默降级
+
 如果后续要把这件事做干净，应该单独设计一层高级能力提示，例如：
 
 - `capabilityPreset = auto | sonnet-4.6 | opus-4.6 | opus-4.7`

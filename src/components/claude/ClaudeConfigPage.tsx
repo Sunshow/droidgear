@@ -48,6 +48,7 @@ import {
   type ClaudeReasoningEffort,
   type ClaudeThinkingMode,
 } from '@/lib/bindings'
+import { hasOpaqueClaudeModelId } from '@/lib/utils'
 import { useClaudeStore } from '@/store/claude-store'
 import { ConfigStatus } from './ConfigStatus'
 
@@ -142,6 +143,18 @@ export function ClaudeConfigPage() {
     }
   }
 
+  const formatLaunchError = (message: string) => {
+    if (message.startsWith('Failed to execute claude --version:')) {
+      return t('claude.actions.launchMissingCli')
+    }
+
+    if (message === 'Failed to read Claude CLI version') {
+      return t('claude.actions.launchInspectFailed')
+    }
+
+    return message
+  }
+
   const handleLaunch = async () => {
     if (!currentProfile || isLaunching) return
 
@@ -156,14 +169,28 @@ export function ClaudeConfigPage() {
         return
       }
 
+      const preview = await commands.getClaudeTemporaryRunPlan(
+        currentProfile.id
+      )
+      if (preview.status !== 'ok') {
+        const message = formatLaunchError(preview.error)
+        setError(message)
+        toast.error(message)
+        return
+      }
+      preview.data.warnings.forEach(warning => {
+        toast.warning(warning)
+      })
+
       const result = await commands.launchClaude(currentProfile.id)
       if (result.status === 'ok') {
         toast.success(t('claude.actions.launchSuccess'))
         return
       }
 
-      setError(result.error)
-      toast.error(result.error)
+      const message = formatLaunchError(result.error)
+      setError(message)
+      toast.error(message)
     } finally {
       setIsLaunching(false)
     }
@@ -188,6 +215,7 @@ export function ClaudeConfigPage() {
 
   const currentReasoning = currentProfile?.reasoningEffort ?? null
   const currentThinkingMode = currentProfile?.thinkingMode ?? 'inherit'
+  const showOpaqueModelWarning = hasOpaqueClaudeModelId(currentProfile?.model)
 
   return (
     <div className="flex flex-col h-full">
@@ -413,6 +441,22 @@ export function ClaudeConfigPage() {
                   />
                 </div>
               </div>
+
+              {showOpaqueModelWarning && (
+                <div className="flex items-start gap-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-amber-700">
+                      {t('claude.model.capabilityWarningTitle')}
+                    </p>
+                    <p className="text-xs text-amber-700/90">
+                      {t('claude.model.capabilityWarningBody', {
+                        model: currentProfile.model?.trim() ?? '',
+                      })}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-start gap-3 rounded-md border p-3">
                 <Checkbox

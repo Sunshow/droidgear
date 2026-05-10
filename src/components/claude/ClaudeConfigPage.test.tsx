@@ -16,6 +16,7 @@ const { toastMock, commandMocks } = vi.hoisted(() => {
     commandMocks: {
       listClaudeProfiles: vi.fn(),
       createDefaultClaudeProfile: vi.fn(),
+      getClaudeTemporaryRunPlan: vi.fn(),
       getActiveClaudeProfileId: vi.fn(),
       getClaudeConfigStatus: vi.fn(),
       readClaudeCurrentConfig: vi.fn(),
@@ -77,6 +78,17 @@ describe('ClaudeConfigPage', () => {
     commandMocks.createDefaultClaudeProfile.mockResolvedValue({
       status: 'ok',
       data: sampleProfiles[0],
+    })
+    commandMocks.getClaudeTemporaryRunPlan.mockResolvedValue({
+      status: 'ok',
+      data: {
+        program: 'claude',
+        args: ['--settings', '<generated at launch>'],
+        env: [],
+        unsetEnv: [],
+        secretEnvKeys: [],
+        warnings: [],
+      },
     })
     commandMocks.getActiveClaudeProfileId.mockResolvedValue({
       status: 'ok',
@@ -218,5 +230,85 @@ describe('ClaudeConfigPage', () => {
     expect(
       await screen.findByText('Claude profile directory is not writable')
     ).toBeInTheDocument()
+  })
+
+  it('warns when the selected model looks like an opaque custom deployment id', async () => {
+    commandMocks.listClaudeProfiles.mockResolvedValueOnce({
+      status: 'ok',
+      data: [
+        {
+          ...sampleProfiles[0],
+          model: 'gateway-prod-model',
+        },
+      ],
+    })
+
+    render(<ClaudeConfigPage />)
+
+    expect(await screen.findByText('Capability warning')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'The model name "gateway-prod-model" does not look like an official Claude model id. Claude Code may ignore Reasoning Effort or Thinking Mode for custom deployment names and gateway aliases.'
+      )
+    ).toBeInTheDocument()
+  })
+
+  it('shows a friendly missing-cli message instead of the raw probe failure', async () => {
+    const user = userEvent.setup()
+    commandMocks.launchClaude.mockResolvedValue({
+      status: 'error',
+      error: 'Failed to execute claude --version: No such file or directory',
+    })
+
+    render(<ClaudeConfigPage />)
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Run Profile',
+      })
+    )
+
+    await waitFor(() => {
+      expect(toastMock.error).toHaveBeenCalledWith(
+        'Claude CLI is not installed or not available in PATH.'
+      )
+    })
+    expect(
+      await screen.findByText(
+        'Claude CLI is not installed or not available in PATH.'
+      )
+    ).toBeInTheDocument()
+  })
+
+  it('surfaces temporary-run preview warnings before launching Claude', async () => {
+    const user = userEvent.setup()
+    commandMocks.getClaudeTemporaryRunPlan.mockResolvedValue({
+      status: 'ok',
+      data: {
+        program: 'claude',
+        args: ['--settings', '<generated at launch>'],
+        env: [],
+        unsetEnv: [],
+        secretEnvKeys: [],
+        warnings: [
+          'Failed to copy inherited CLAUDE_ENV_FILE from /tmp/live.env: permission denied. Claude temporary run will continue without inheriting that runtime env file.',
+        ],
+      },
+    })
+
+    render(<ClaudeConfigPage />)
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Run Profile',
+      })
+    )
+
+    await waitFor(() => {
+      expect(toastMock.warning).toHaveBeenCalledWith(
+        'Failed to copy inherited CLAUDE_ENV_FILE from /tmp/live.env: permission denied. Claude temporary run will continue without inheriting that runtime env file.'
+      )
+    })
+    expect(commandMocks.launchClaude).toHaveBeenCalledWith('profile-a')
   })
 })

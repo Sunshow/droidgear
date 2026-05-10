@@ -112,6 +112,18 @@ pub(super) fn start_command_in_foreground(
     }
 }
 
+fn probe_claude_cli() -> anyhow::Result<()> {
+    let version_output = Command::new("claude")
+        .arg("--version")
+        .output()
+        .with_context(|| "Failed to execute claude --version".to_string())?;
+    if !version_output.status.success() {
+        anyhow::bail!("Failed to read Claude CLI version");
+    }
+
+    Ok(())
+}
+
 pub(super) fn format_diff_report(
     title: &str,
     files: Vec<(String, Option<String>, Option<String>)>,
@@ -368,11 +380,27 @@ pub(super) fn build_claude_temporary_run_plan(
     let profile = droidgear_core::claude::get_claude_profile_for_home(home_dir, profile_id)
         .map_err(anyhow::Error::msg)?;
     droidgear_core::claude_runtime::build_temporary_run_plan_for_home(home_dir, &profile)
-        .map_err(anyhow::Error::msg)
+        .map_err(|e| anyhow::Error::msg(format!("Failed to prepare Claude temporary run: {e}")))
 }
 
 pub(super) fn run_claude_temporary_run(home_dir: &Path, profile_id: &str) -> anyhow::Result<()> {
+    probe_claude_cli().map_err(|error| {
+        let message = error.to_string();
+        if message.starts_with("Failed to execute claude --version") {
+            anyhow::Error::msg("Claude CLI is not installed or not available in PATH.")
+        } else if message == "Failed to read Claude CLI version" {
+            anyhow::Error::msg(
+                "Failed to inspect the installed Claude CLI. Check that `claude` runs correctly in your shell.",
+            )
+        } else {
+            error
+        }
+    })?;
+
     let plan = build_claude_temporary_run_plan(home_dir, profile_id)?;
+    for warning in &plan.warnings {
+        eprintln!("Warning: {warning}");
+    }
     start_command_in_foreground(
         &plan.program,
         &plan.args,

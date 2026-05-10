@@ -1088,6 +1088,8 @@ fn draw_claude_profile(frame: &mut Frame, app: &app::App, area: Rect) {
         ("Reasoning", reasoning_value),
         ("Thinking", thinking_value.to_string()),
     ];
+    let show_opaque_model_warning =
+        droidgear_core::claude::has_opaque_claude_model_id(profile.model.as_deref());
 
     let mut items: Vec<ListItem> = Vec::new();
     for (index, (label, value)) in fields.into_iter().enumerate() {
@@ -1102,6 +1104,18 @@ fn draw_claude_profile(frame: &mut Frame, app: &app::App, area: Rect) {
             field_line_custom(label, &value, 16, custom_style)
         };
         items.push(ListItem::new(line));
+    }
+
+    if show_opaque_model_warning {
+        items.push(ListItem::new(Line::from("")));
+        items.push(ListItem::new(Line::from(Span::styled(
+            "Warning: custom model ids may disable Claude effort/thinking detection.",
+            t.warning_style(),
+        ))));
+        items.push(ListItem::new(Line::from(Span::styled(
+            "Use an official claude-* model id for predictable behavior.",
+            t.warning_style(),
+        ))));
     }
 
     let list = List::new(items)

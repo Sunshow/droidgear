@@ -275,6 +275,26 @@ pub(crate) fn normalize_optional_string(value: Option<&str>) -> Option<String> {
         .map(ToOwned::to_owned)
 }
 
+fn normalize_model_id(value: &str) -> String {
+    value.to_ascii_lowercase().replace(['-', '_'], ".")
+}
+
+pub fn is_recognized_claude_model_id(value: &str) -> bool {
+    let Some(value) = normalize_optional_string(Some(value)) else {
+        return false;
+    };
+
+    normalize_model_id(&value).starts_with("claude.")
+}
+
+pub fn has_opaque_claude_model_id(value: Option<&str>) -> bool {
+    let Some(value) = normalize_optional_string(value) else {
+        return false;
+    };
+
+    !is_recognized_claude_model_id(&value)
+}
+
 pub(crate) fn resolved_small_model_value(profile: &ClaudeCodeProfile) -> Option<String> {
     if profile.small_model_uses_main_model {
         normalize_optional_string(profile.model.as_deref())
@@ -1076,6 +1096,24 @@ mod tests {
 
         let error = resolve_claude_profile_selector_for_home(temp.path(), "Shared").unwrap_err();
         assert!(error.contains("Multiple Claude profiles share the name"));
+    }
+
+    #[test]
+    fn test_recognized_claude_model_id_matches_official_patterns() {
+        assert!(is_recognized_claude_model_id("claude-sonnet-4-5"));
+        assert!(is_recognized_claude_model_id(" claude_opus_4_7 "));
+        assert!(!is_recognized_claude_model_id("gateway-prod-model"));
+        assert!(!is_recognized_claude_model_id(""));
+    }
+
+    #[test]
+    fn test_has_opaque_claude_model_id_flags_custom_ids() {
+        assert!(has_opaque_claude_model_id(Some("gateway-prod-model")));
+        assert!(has_opaque_claude_model_id(Some(
+            "anthropic/claude-sonnet-4-5"
+        )));
+        assert!(!has_opaque_claude_model_id(Some("claude-sonnet-4-5")));
+        assert!(!has_opaque_claude_model_id(None));
     }
 
     fn write_file(path: &Path, content: &str) {

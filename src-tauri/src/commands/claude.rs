@@ -106,7 +106,8 @@ pub async fn launch_claude(id: String, app: tauri::AppHandle) -> Result<(), Stri
     }
 
     let profile = droidgear_core::claude::get_claude_profile(&id)?;
-    let plan = claude_runtime::build_temporary_run_plan(&profile)?;
+    let plan = claude_runtime::build_temporary_run_plan(&profile)
+        .map_err(|e| format!("Failed to prepare Claude temporary run: {e}"))?;
     let prefs = load_preferences(&app).unwrap_or_default();
     let preferred = prefs.preferred_terminal.unwrap_or_default();
 

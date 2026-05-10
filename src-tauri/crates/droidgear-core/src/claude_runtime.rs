@@ -245,6 +245,13 @@ fn env_file_copy_path(runtime_dir_path: &Path) -> PathBuf {
     runtime_dir_path.join("claude.env")
 }
 
+fn format_env_file_copy_warning(source_path: &Path, error: &std::io::Error) -> String {
+    format!(
+        "Failed to copy inherited CLAUDE_ENV_FILE from {}: {error}. Claude temporary run will continue without inheriting that runtime env file.",
+        source_path.display()
+    )
+}
+
 fn write_overlay_file(
     runtime_dir_path: &Path,
     overlay: &ClaudeRuntimeSettingsOverlay,
@@ -270,10 +277,7 @@ fn copy_env_file_if_needed(
     let bytes = match std::fs::read(&source_path) {
         Ok(bytes) => bytes,
         Err(error) => {
-            warnings.push(format!(
-                "Failed to copy inherited CLAUDE_ENV_FILE from {}: {error}",
-                source_path.display()
-            ));
+            warnings.push(format_env_file_copy_warning(&source_path, &error));
             return Ok(None);
         }
     };
@@ -351,10 +355,7 @@ fn build_temporary_run_preview_plan_for_home_with_env(
                 CLAUDE_ENV_FILE_ENV.to_string(),
                 "<runtime copy written at launch>".to_string(),
             )),
-            Err(error) => warnings.push(format!(
-                "Failed to copy inherited CLAUDE_ENV_FILE from {}: {error}",
-                source_path.display()
-            )),
+            Err(error) => warnings.push(format_env_file_copy_warning(&source_path, &error)),
         }
     }
 
@@ -633,6 +634,7 @@ mod tests {
         assert_eq!(plan.env.len(), 1);
         assert_eq!(plan.warnings.len(), 1);
         assert!(plan.warnings[0].contains("Failed to copy inherited CLAUDE_ENV_FILE"));
+        assert!(plan.warnings[0].contains("will continue without inheriting that runtime env file"));
     }
 
     #[test]

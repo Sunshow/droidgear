@@ -869,6 +869,8 @@
   "claude.model.smallModelPlaceholder": "claude-haiku-4-5",
   "claude.model.smallModelUsesMainModel": "小模型请求使用主模型",
   "claude.model.smallModelUsesMainModelHint": "启用后，Claude 会复用主模型，而不是使用单独的 Haiku 模型名。",
+  "claude.model.capabilityWarningTitle": "能力边界提示",
+  "claude.model.capabilityWarningBody": "模型名“{{model}}”看起来不像官方 Claude model id。对于自定义部署名或网关别名，Claude Code 可能会忽略推理强度或 Thinking 模式设置。",
   "claude.reasoning.title": "推理与 Thinking",
   "claude.reasoning.effort": "推理强度",
   "claude.reasoning.effortPlaceholder": "选择推理强度",
@@ -889,6 +891,8 @@
   "claude.actions.launch": "临时运行",
   "claude.actions.launchTooltip": "在不修改 live Claude Code 配置的前提下，在新终端中运行该 Profile",
   "claude.actions.launchSuccess": "已在新终端窗口启动 Claude Code",
+  "claude.actions.launchMissingCli": "未安装 Claude CLI，或当前 PATH 中不可用。",
+  "claude.actions.launchInspectFailed": "检查已安装的 Claude CLI 失败，请确认 `claude` 能在当前 shell 中正常运行。",
   "claude.actions.loadFromLive": "读取当前配置",
   "claude.actions.loadedFromLive": "已从当前配置读取",
 

@@ -186,8 +186,12 @@ function ModelForm({
 
   // If the currently selected effort isn't supported by a model, snap it down
   // to the highest supported level. xhigh -> high, max -> xhigh -> high.
-  const clampEffortToModel = (effort: string, nextModelId: string): string => {
-    const supported = getSupportedEfforts(nextModelId, provider)
+  const clampEffortToModel = (
+    effort: string,
+    nextModelId: string,
+    nextProvider: Provider
+  ): string => {
+    const supported = getSupportedEfforts(nextModelId, nextProvider)
     // Registry whitelist takes priority
     if (supported) {
       if (supported.includes(effort as ReasoningEffort)) return effort
@@ -207,6 +211,13 @@ function ModelForm({
       }
       return supported[0] ?? 'high'
     }
+
+    // Fallback Anthropic UI still exposes xhigh/max, so preserve an existing
+    // selection instead of silently downgrading it on open or model changes.
+    if (nextProvider === 'anthropic') {
+      return effort
+    }
+
     // Fallback to old logic
     if (effort === 'max' && !supportsMaxEffort(nextModelId)) {
       return supportsXhighEffort(nextModelId) ? 'xhigh' : 'high'
@@ -224,7 +235,7 @@ function ModelForm({
       provider
     )
     const modelIdForClamp = model?.model ?? ''
-    return clampEffortToModel(extracted, modelIdForClamp)
+    return clampEffortToModel(extracted, modelIdForClamp, provider)
   })
   // Track whether maxTokens was auto-filled vs user-edited, so effort changes
   // can re-fill only when the user hasn't manually overridden the value.
@@ -328,7 +339,11 @@ function ModelForm({
   const handleModelIdChange = (newModelId: string) => {
     setModelId(newModelId)
     setDisplayName(newModelId)
-    const clampedEffort = clampEffortToModel(reasoningEffort, newModelId)
+    const clampedEffort = clampEffortToModel(
+      reasoningEffort,
+      newModelId,
+      provider
+    )
     if (clampedEffort !== reasoningEffort) setReasoningEffort(clampedEffort)
     setExtraArgs(
       rewriteExtraArgsWithEffort(extraArgs, provider, newModelId, clampedEffort)
@@ -363,7 +378,7 @@ function ModelForm({
     setFetchError(null)
     setBatchMode(false)
     setSelectedModels(new Map())
-    const clampedEffort = clampEffortToModel(reasoningEffort, modelId)
+    const clampedEffort = clampEffortToModel(reasoningEffort, modelId, value)
     if (clampedEffort !== reasoningEffort) setReasoningEffort(clampedEffort)
     setExtraArgs(
       rewriteExtraArgsWithEffort(extraArgs, value, modelId, clampedEffort)
