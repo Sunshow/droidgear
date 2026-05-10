@@ -112,6 +112,8 @@
   "preferences.paths.opencodeAuthDescription": "Auth directory for OpenCode (~/.local/share/opencode)",
   "preferences.paths.codex": "Codex",
   "preferences.paths.codexDescription": "Configuration directory for Codex CLI (~/.codex)",
+  "preferences.paths.claude": "Claude Code",
+  "preferences.paths.claudeDescription": "Configuration directory for Claude Code (~/.claude)",
   "preferences.paths.openclaw": "OpenClaw",
   "preferences.paths.openclawDescription": "Configuration directory for OpenClaw (~/.openclaw)",
   "preferences.paths.hermes": "Hermes",

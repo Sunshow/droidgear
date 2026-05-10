@@ -360,3 +360,53 @@ fn list_codex_temporary_run_targets_lists_index_name_and_id() {
     assert!(output.contains("* 2. Beta [id: profile-b]"));
     assert!(output.contains("run codex <index|name|id>"));
 }
+
+#[test]
+fn list_claude_temporary_run_targets_lists_index_name_and_id() {
+    let temp = TempDir::new().unwrap();
+    droidgear_core::claude::save_claude_profile_for_home(
+        temp.path(),
+        droidgear_core::claude::ClaudeCodeProfile {
+            id: "profile-a".to_string(),
+            name: "Alpha".to_string(),
+            description: None,
+            base_url: Some("https://proxy.example.com".to_string()),
+            bearer_token: Some("token-a".to_string()),
+            model: Some("claude-sonnet-4-5".to_string()),
+            small_model_uses_main_model: true,
+            small_model: None,
+            reasoning_effort: None,
+            thinking_mode: droidgear_core::claude::ClaudeThinkingMode::Inherit,
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            updated_at: "2026-01-01T00:00:00Z".to_string(),
+        },
+    )
+    .unwrap();
+    droidgear_core::claude::save_claude_profile_for_home(
+        temp.path(),
+        droidgear_core::claude::ClaudeCodeProfile {
+            id: "profile-b".to_string(),
+            name: "Beta".to_string(),
+            description: None,
+            base_url: Some("https://proxy.example.com".to_string()),
+            bearer_token: Some("token-b".to_string()),
+            model: Some("claude-sonnet-4-5".to_string()),
+            small_model_uses_main_model: true,
+            small_model: None,
+            reasoning_effort: None,
+            thinking_mode: droidgear_core::claude::ClaudeThinkingMode::Inherit,
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            updated_at: "2026-01-01T00:00:00Z".to_string(),
+        },
+    )
+    .unwrap();
+    droidgear_core::claude::set_active_claude_profile_id_for_home(temp.path(), "profile-b")
+        .unwrap();
+
+    let output = list_claude_temporary_run_targets(temp.path()).unwrap();
+
+    assert!(output.contains("Available Claude run targets:"));
+    assert!(output.contains("1. Alpha [id: profile-a]"));
+    assert!(output.contains("* 2. Beta [id: profile-b]"));
+    assert!(output.contains("run claude <index|name|id>"));
+}

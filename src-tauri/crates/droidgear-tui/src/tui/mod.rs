@@ -39,8 +39,10 @@ mod utils;
 #[cfg(test)]
 mod tests;
 
+pub use utils::list_claude_temporary_run_targets;
 pub use utils::list_codex_temporary_run_targets;
 pub use utils::list_droid_temporary_run_targets;
+pub use utils::run_claude_temporary_run_for_selector;
 pub use utils::run_codex_temporary_run_for_selector;
 pub use utils::run_droid_temporary_run_for_settings_name;
 

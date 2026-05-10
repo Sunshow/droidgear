@@ -41,6 +41,7 @@ type PathKey =
   | 'opencode'
   | 'opencodeAuth'
   | 'codex'
+  | 'claude'
   | 'openclaw'
   | 'hermes'
 
@@ -70,6 +71,11 @@ const pathItems: PathItem[] = [
     key: 'codex',
     labelKey: 'preferences.paths.codex',
     descriptionKey: 'preferences.paths.codexDescription',
+  },
+  {
+    key: 'claude',
+    labelKey: 'preferences.paths.claude',
+    descriptionKey: 'preferences.paths.claudeDescription',
   },
   {
     key: 'openclaw',
@@ -232,6 +238,7 @@ function wslSubdirForKey(key: PathKey): string {
     opencode: '.config/opencode',
     opencodeAuth: '.local/share/opencode',
     codex: '.codex',
+    claude: '.claude',
     openclaw: '.openclaw',
     hermes: '.hermes',
   }

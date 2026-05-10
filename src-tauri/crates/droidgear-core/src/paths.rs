@@ -20,6 +20,8 @@ pub struct ConfigPaths {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub codex: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub claude: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub openclaw: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hermes: Option<String>,
@@ -44,6 +46,7 @@ pub struct EffectivePaths {
     pub opencode: EffectivePath,
     pub opencode_auth: EffectivePath,
     pub codex: EffectivePath,
+    pub claude: EffectivePath,
     pub openclaw: EffectivePath,
     pub hermes: EffectivePath,
     pub pi: EffectivePath,
@@ -185,6 +188,13 @@ pub fn get_default_paths_for_home(home_dir: &Path) -> Result<EffectivePaths, Str
                 .to_string(),
             is_default: true,
         },
+        claude: EffectivePath {
+            key: "claude".to_string(),
+            path: default_claude_home_for_home(home_dir)?
+                .to_string_lossy()
+                .to_string(),
+            is_default: true,
+        },
         openclaw: EffectivePath {
             key: "openclaw".to_string(),
             path: default_openclaw_home_for_home(home_dir)?
@@ -216,6 +226,7 @@ pub fn get_effective_paths_for_home(home_dir: &Path) -> Result<EffectivePaths, S
     let opencode_path = get_opencode_config_dir_for_home(home_dir, &config)?;
     let opencode_auth_path = get_opencode_auth_dir_for_home(home_dir, &config)?;
     let codex_path = get_codex_home_for_home(home_dir, &config)?;
+    let claude_path = get_claude_home_for_home(home_dir, &config)?;
     let openclaw_path = get_openclaw_home_for_home(home_dir, &config)?;
     let hermes_path = get_hermes_home_for_home(home_dir, &config)?;
     let pi_path = get_pi_home_for_home(home_dir, &config)?;
@@ -240,6 +251,11 @@ pub fn get_effective_paths_for_home(home_dir: &Path) -> Result<EffectivePaths, S
             key: "codex".to_string(),
             path: codex_path.to_string_lossy().to_string(),
             is_default: config.codex.is_none(),
+        },
+        claude: EffectivePath {
+            key: "claude".to_string(),
+            path: claude_path.to_string_lossy().to_string(),
+            is_default: config.claude.is_none(),
         },
         openclaw: EffectivePath {
             key: "openclaw".to_string(),
@@ -308,6 +324,7 @@ pub fn save_config_path_for_home(home_dir: &Path, key: &str, path: &str) -> Resu
         "opencode" => "opencode",
         "opencodeAuth" => "opencodeAuth",
         "codex" => "codex",
+        "claude" => "claude",
         "openclaw" => "openclaw",
         "hermes" => "hermes",
         "pi" => "pi",
@@ -335,6 +352,7 @@ pub fn reset_config_path_for_home(home_dir: &Path, key: &str) -> Result<(), Stri
                     "opencode" => "opencode",
                     "opencodeAuth" => "opencodeAuth",
                     "codex" => "codex",
+                    "claude" => "claude",
                     "openclaw" => "openclaw",
                     "hermes" => "hermes",
                     "pi" => "pi",
@@ -371,6 +389,10 @@ fn default_opencode_auth_dir_for_home(home_dir: &Path) -> Result<PathBuf, String
 
 fn default_codex_home_for_home(home_dir: &Path) -> Result<PathBuf, String> {
     Ok(home_dir.join(".codex"))
+}
+
+fn default_claude_home_for_home(home_dir: &Path) -> Result<PathBuf, String> {
+    Ok(home_dir.join(".claude"))
 }
 
 fn default_openclaw_home_for_home(home_dir: &Path) -> Result<PathBuf, String> {
@@ -463,6 +485,19 @@ pub fn get_codex_home_for_home(home_dir: &Path, config: &ConfigPaths) -> Result<
     match &config.codex {
         Some(custom) => Ok(PathBuf::from(custom)),
         None => default_codex_home_for_home(home_dir),
+    }
+}
+
+pub fn get_claude_home() -> Result<PathBuf, String> {
+    let home = get_home_dir()?;
+    let config = load_config_paths_for_home(&home);
+    get_claude_home_for_home(&home, &config)
+}
+
+pub fn get_claude_home_for_home(home_dir: &Path, config: &ConfigPaths) -> Result<PathBuf, String> {
+    match &config.claude {
+        Some(custom) => Ok(PathBuf::from(custom)),
+        None => default_claude_home_for_home(home_dir),
     }
 }
 
@@ -584,6 +619,7 @@ pub fn build_wsl_path(distro: &str, username: &str, config_key: &str) -> Result<
         "opencode" => ".config/opencode",
         "opencodeAuth" => ".local/share/opencode",
         "codex" => ".codex",
+        "claude" => ".claude",
         "openclaw" => ".openclaw",
         "hermes" => ".hermes",
         "pi" => ".pi/agent",
@@ -591,6 +627,64 @@ pub fn build_wsl_path(distro: &str, username: &str, config_key: &str) -> Result<
     };
 
     Ok(format!(r"\\wsl$\{}\home\{}\{}", distro, username, subdir))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn default_paths_include_claude() {
+        let temp = TempDir::new().unwrap();
+        let paths = get_default_paths_for_home(temp.path()).unwrap();
+
+        assert_eq!(paths.claude.key, "claude");
+        assert!(paths.claude.is_default);
+        assert!(paths.claude.path.ends_with(".claude"));
+    }
+
+    #[test]
+    fn effective_paths_use_custom_claude_override() {
+        let temp = TempDir::new().unwrap();
+        let home = temp.path();
+        let custom_claude = home.join("custom-claude");
+
+        save_config_path_for_home(home, "claude", &custom_claude.to_string_lossy()).unwrap();
+
+        let config = load_config_paths_for_home(home);
+        assert_eq!(
+            config.claude.as_deref(),
+            Some(custom_claude.to_string_lossy().as_ref())
+        );
+
+        let effective = get_effective_paths_for_home(home).unwrap();
+        assert_eq!(effective.claude.path, custom_claude.to_string_lossy());
+        assert!(!effective.claude.is_default);
+    }
+
+    #[test]
+    fn reset_config_path_clears_claude_override() {
+        let temp = TempDir::new().unwrap();
+        let home = temp.path();
+        let custom_claude = home.join("custom-claude");
+
+        save_config_path_for_home(home, "claude", &custom_claude.to_string_lossy()).unwrap();
+        reset_config_path_for_home(home, "claude").unwrap();
+
+        let config = load_config_paths_for_home(home);
+        assert_eq!(config.claude, None);
+
+        let effective = get_effective_paths_for_home(home).unwrap();
+        assert!(effective.claude.is_default);
+        assert!(effective.claude.path.ends_with(".claude"));
+    }
+
+    #[test]
+    fn build_wsl_path_supports_claude() {
+        let path = build_wsl_path("Ubuntu", "dl", "claude").unwrap();
+        assert_eq!(path, r"\\wsl$\Ubuntu\home\dl\.claude");
+    }
 }
 
 #[cfg(target_os = "windows")]

@@ -2,9 +2,9 @@ use tauri_specta::{collect_commands, Builder};
 
 pub fn generate_bindings() -> Builder<tauri::Wry> {
     use crate::commands::{
-        channel, codex, config, connectivity, droid_settings, env, factory_auth_profiles, hermes,
-        mcp, notifications, openclaw, opencode, paths, pi, preferences, recovery, sessions, specs,
-        updater,
+        channel, claude, codex, config, connectivity, droid_settings, env, factory_auth_profiles,
+        hermes, mcp, notifications, openclaw, opencode, paths, pi, preferences, recovery, sessions,
+        specs, updater,
     };
 
     Builder::<tauri::Wry>::new().commands(collect_commands![
@@ -72,6 +72,19 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         mcp::save_mcp_server,
         mcp::delete_mcp_server,
         mcp::toggle_mcp_server,
+        claude::list_claude_profiles,
+        claude::get_claude_profile,
+        claude::save_claude_profile,
+        claude::delete_claude_profile,
+        claude::duplicate_claude_profile,
+        claude::create_default_claude_profile,
+        claude::get_active_claude_profile_id,
+        claude::set_active_claude_profile_id,
+        claude::apply_claude_profile,
+        claude::get_claude_config_status,
+        claude::read_claude_current_config,
+        claude::get_claude_temporary_run_plan,
+        claude::launch_claude,
         codex::list_codex_profiles,
         codex::get_codex_profile,
         codex::save_codex_profile,

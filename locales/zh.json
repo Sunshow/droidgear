@@ -112,6 +112,8 @@
   "preferences.paths.opencodeAuthDescription": "OpenCode 的认证目录 (~/.local/share/opencode)",
   "preferences.paths.codex": "Codex",
   "preferences.paths.codexDescription": "Codex CLI 的配置目录 (~/.codex)",
+  "preferences.paths.claude": "Claude Code",
+  "preferences.paths.claudeDescription": "Claude Code 的配置目录 (~/.claude)",
   "preferences.paths.openclaw": "OpenClaw",
   "preferences.paths.openclawDescription": "OpenClaw 的配置目录 (~/.openclaw)",
   "preferences.paths.hermes": "Hermes",

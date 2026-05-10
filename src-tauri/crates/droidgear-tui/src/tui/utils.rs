@@ -359,6 +359,70 @@ pub fn run_codex_temporary_run_for_selector(home_dir: &Path, selector: &str) -> 
     run_codex_temporary_run(home_dir, &profile.id)
 }
 
+pub(super) fn build_claude_temporary_run_plan(
+    home_dir: &Path,
+    profile_id: &str,
+) -> anyhow::Result<droidgear_core::claude_runtime::ClaudeTemporaryLaunchPlan> {
+    droidgear_core::claude_runtime::cleanup_stale_runtime_dirs_for_home(home_dir)
+        .map_err(anyhow::Error::msg)?;
+    let profile = droidgear_core::claude::get_claude_profile_for_home(home_dir, profile_id)
+        .map_err(anyhow::Error::msg)?;
+    droidgear_core::claude_runtime::build_temporary_run_plan_for_home(home_dir, &profile)
+        .map_err(anyhow::Error::msg)
+}
+
+pub(super) fn run_claude_temporary_run(home_dir: &Path, profile_id: &str) -> anyhow::Result<()> {
+    let plan = build_claude_temporary_run_plan(home_dir, profile_id)?;
+    start_command_in_foreground(
+        &plan.program,
+        &plan.args,
+        &plan.env,
+        &plan.secret_env,
+        &plan.unset_env,
+        None,
+    )
+}
+
+pub fn list_claude_temporary_run_targets(home_dir: &Path) -> anyhow::Result<String> {
+    let profiles = droidgear_core::claude::list_claude_profiles_for_home(home_dir)
+        .map_err(anyhow::Error::msg)?;
+    let active_profile_id = droidgear_core::claude::get_active_claude_profile_id_for_home(home_dir)
+        .map_err(anyhow::Error::msg)?;
+
+    let mut out = String::from("Available Claude run targets:\n");
+    if profiles.is_empty() {
+        out.push_str("(none)\n\nUse the Claude TUI/GUI to create a profile first.");
+        return Ok(out);
+    }
+
+    for (index, profile) in profiles.iter().enumerate() {
+        let marker = if active_profile_id.as_deref() == Some(profile.id.as_str()) {
+            "*"
+        } else {
+            " "
+        };
+        out.push_str(&format!(
+            "{marker} {}. {} [id: {}]\n",
+            index + 1,
+            profile.name,
+            profile.id
+        ));
+    }
+    out.push_str("\nUse `droidgear-tui run claude <index|name|id>`.\n");
+    out.push_str("`*` marks the currently active profile.");
+    Ok(out)
+}
+
+pub fn run_claude_temporary_run_for_selector(
+    home_dir: &Path,
+    selector: &str,
+) -> anyhow::Result<()> {
+    let profile =
+        droidgear_core::claude::resolve_claude_profile_selector_for_home(home_dir, selector)
+            .map_err(anyhow::Error::msg)?;
+    run_claude_temporary_run(home_dir, &profile.id)
+}
+
 pub(super) fn preview_opencode_apply(home_dir: &Path, profile_id: &str) -> anyhow::Result<String> {
     let status = droidgear_core::opencode::get_opencode_config_status_for_home(home_dir)
         .map_err(anyhow::Error::msg)?;

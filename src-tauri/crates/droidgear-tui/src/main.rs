@@ -37,6 +37,12 @@ enum RunTarget {
         list: bool,
         profile: Option<String>,
     },
+    /// Run a Claude profile by index, exact name, or profile id
+    Claude {
+        #[arg(long)]
+        list: bool,
+        profile: Option<String>,
+    },
     /// Run a Droid settings file by name (use `global` for ~/.factory/settings.json)
     Droid {
         #[arg(long)]
@@ -67,6 +73,20 @@ fn main() -> anyhow::Result<()> {
                         "Missing Codex target. Use `droidgear-tui run codex --list` to inspect available profiles.",
                     )?;
                     tui::run_codex_temporary_run_for_selector(&home_dir, &profile)
+                }
+            }
+            RunTarget::Claude { list, profile } => {
+                if list {
+                    if profile.is_some() {
+                        bail!("`--list` cannot be combined with a Claude target");
+                    }
+                    println!("{}", tui::list_claude_temporary_run_targets(&home_dir)?);
+                    Ok(())
+                } else {
+                    let profile = profile.context(
+                        "Missing Claude target. Use `droidgear-tui run claude --list` to inspect available profiles.",
+                    )?;
+                    tui::run_claude_temporary_run_for_selector(&home_dir, &profile)
                 }
             }
             RunTarget::Droid {
@@ -181,6 +201,44 @@ mod tests {
                 assert!(settings_name.is_none());
             }
             _ => panic!("expected droid list subcommand"),
+        }
+    }
+
+    #[test]
+    fn cli_parses_claude_run_subcommand() {
+        let cli = Cli::parse_from([
+            "droidgear-tui",
+            "run",
+            "claude",
+            "profile-a",
+            "--home",
+            "/tmp/demo-home",
+        ]);
+
+        assert_eq!(cli.home, Some(PathBuf::from("/tmp/demo-home")));
+        match cli.command {
+            Some(Command::Run {
+                target: RunTarget::Claude { list, profile },
+            }) => {
+                assert!(!list);
+                assert_eq!(profile.as_deref(), Some("profile-a"));
+            }
+            _ => panic!("expected claude run subcommand"),
+        }
+    }
+
+    #[test]
+    fn cli_parses_claude_list_subcommand() {
+        let cli = Cli::parse_from(["droidgear-tui", "run", "claude", "--list"]);
+
+        match cli.command {
+            Some(Command::Run {
+                target: RunTarget::Claude { list, profile },
+            }) => {
+                assert!(list);
+                assert!(profile.is_none());
+            }
+            _ => panic!("expected claude list subcommand"),
         }
     }
 }
