@@ -8,6 +8,7 @@ use droidgear_core::codex_runtime::{
     self, CodexCliCapability, CodexTemporaryLaunchPlan, CodexTemporaryRunPlan,
 };
 
+use crate::utils::login_shell::run_command_in_login_shell;
 use crate::utils::preferences::load_preferences;
 use crate::utils::terminal_launch::{launch_in_terminal, LaunchSpec};
 
@@ -86,18 +87,18 @@ pub async fn read_codex_current_config() -> Result<CodexCurrentConfig, String> {
 #[tauri::command]
 #[specta::specta]
 pub async fn get_codex_cli_capability() -> Result<CodexCliCapability, String> {
-    let version_output = std::process::Command::new("codex")
-        .arg("--version")
-        .output()
-        .map_err(|e| format!("Failed to execute codex --version: {e}"))?;
+    let version_output = run_command_in_login_shell("codex", &["--version"])?;
+    if version_output.status.code() == Some(127) {
+        return Err("Failed to execute codex --version: No such file or directory".to_string());
+    }
     if !version_output.status.success() {
         return Err("Failed to read Codex CLI version".to_string());
     }
 
-    let help_output = std::process::Command::new("codex")
-        .arg("--help")
-        .output()
-        .map_err(|e| format!("Failed to execute codex --help: {e}"))?;
+    let help_output = run_command_in_login_shell("codex", &["--help"])?;
+    if help_output.status.code() == Some(127) {
+        return Err("Failed to execute codex --help: No such file or directory".to_string());
+    }
     if !help_output.status.success() {
         return Err("Failed to read Codex CLI help".to_string());
     }

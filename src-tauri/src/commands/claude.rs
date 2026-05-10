@@ -5,8 +5,21 @@
 pub use droidgear_core::claude::{ClaudeCodeProfile, ClaudeConfigStatus, ClaudeCurrentConfig};
 use droidgear_core::claude_runtime::{self, ClaudeTemporaryLaunchPlan, ClaudeTemporaryRunPlan};
 
+use crate::utils::login_shell::run_command_in_login_shell;
 use crate::utils::preferences::load_preferences;
 use crate::utils::terminal_launch::{launch_in_terminal, LaunchSpec};
+
+fn probe_claude_cli() -> Result<(), String> {
+    let version_output = run_command_in_login_shell("claude", &["--version"])?;
+    if version_output.status.code() == Some(127) {
+        return Err("Failed to execute claude --version: No such file or directory".to_string());
+    }
+    if !version_output.status.success() {
+        return Err("Failed to read Claude CLI version".to_string());
+    }
+
+    Ok(())
+}
 
 /// List all Claude Code profiles
 #[tauri::command]
@@ -100,6 +113,8 @@ pub async fn get_claude_temporary_run_plan(id: String) -> Result<ClaudeTemporary
 #[tauri::command]
 #[specta::specta]
 pub async fn launch_claude(id: String, app: tauri::AppHandle) -> Result<(), String> {
+    probe_claude_cli()?;
+
     let home_dir = dirs::home_dir().ok_or_else(|| "Failed to get home directory".to_string())?;
     if let Err(error) = claude_runtime::cleanup_stale_runtime_dirs_for_home(&home_dir) {
         log::warn!("Failed to clean up stale Claude runtime directories: {error}");

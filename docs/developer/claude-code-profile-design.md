@@ -483,7 +483,7 @@ Temporary Run 也不再单独走 `--effort`。
 当前实现 contract 也应该写死：
 
 - 当 model 非空且看起来不是官方 `claude-*` 风格 ID 时，GUI / TUI 必须显式提示 capability boundary
-- launch 前应先探测 `claude --version`，避免“终端打开成功但 Claude 实际没装”被误判成启动成功
+- launch 前应先在 login shell 语境探测 `claude --version`，避免“终端打开成功但 Claude 实际没装”被误判成启动成功，也避免 GUI 进程自身 `PATH` 与终端 shell 不一致时误报
 - `CLAUDE_ENV_FILE` 复制失败应作为 warning surfaced，而不是静默降级
 
 如果后续要把这件事做干净，应该单独设计一层高级能力提示，例如：
