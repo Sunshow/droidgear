@@ -25,7 +25,7 @@ function hideAppLoader() {
   const loader = document.getElementById('app-loader')
   if (loader) {
     loader.classList.add('hidden')
-    // Remove from DOM after transition
+    // Remove from DOM after transition; fire-and-forget
     setTimeout(() => {
       loader.remove()
     }, 300)
@@ -33,11 +33,11 @@ function hideAppLoader() {
 }
 
 /**
- * Show main window after frontend is ready
+ * Show main window immediately — called right after initial render
+ * so the user sees the UI early while background init continues.
  */
 async function showMainWindow() {
   try {
-    // Hide loader first, then show window for smooth transition
     hideAppLoader()
     const mainWindow = getCurrentWindow()
     await mainWindow.show()
@@ -54,44 +54,50 @@ function App() {
     initializeCommandSystem()
     logger.debug('Command system initialized')
 
-    // Preload shell environment early to avoid delay when first terminal is created
-    preloadShellEnv()
-
-    // Initialize language based on saved preference or system locale
-    const initLanguageAndMenu = async () => {
-      try {
-        // Load preferences to get saved language
-        const result = await commands.loadPreferences()
-        const savedLanguage =
-          result.status === 'ok' ? result.data.language : null
-
-        // Initialize language (will use system locale if no preference)
-        await initializeLanguage(savedLanguage)
-
-        // Build the application menu with the initialized language
-        await buildAppMenu()
-        logger.debug('Application menu built')
-        setupMenuLanguageListener()
-      } catch (error) {
-        logger.warn('Failed to initialize language or menu', { error })
-      }
-
-      // Show main window after initialization
-      await showMainWindow()
-    }
-
-    initLanguageAndMenu()
-
-    // Clean up old recovery files on startup
-    cleanupOldFiles().catch(error => {
-      logger.warn('Failed to cleanup old recovery files', { error })
-    })
-
-    // Example of logging with context
     logger.info('App environment', {
       isDev: import.meta.env.DEV,
       mode: import.meta.env.MODE,
     })
+
+    // Show the main window immediately — user sees the UI right away
+    showMainWindow()
+
+    // Background initialization after window is visible:
+    // - preload shell env (one-time Tauri command)
+    // - load language + build native menu (Tauri commands)
+    // - cleanup old recovery files (filesystem I/O)
+    // All run in parallel and don't block the UI
+    const backgroundInit = async () => {
+      await Promise.all([
+        // Preload shell environment to avoid delay when first terminal is created
+        preloadShellEnv().catch(() => {
+          /* preload errors are handled internally */
+        }),
+
+        // Initialize language and build native menu
+        (async () => {
+          try {
+            const result = await commands.loadPreferences()
+            const savedLanguage =
+              result.status === 'ok' ? result.data.language : null
+
+            await initializeLanguage(savedLanguage)
+            await buildAppMenu()
+            logger.debug('Application menu built')
+            setupMenuLanguageListener()
+          } catch (error) {
+            logger.warn('Failed to initialize language or menu', { error })
+          }
+        })(),
+
+        // Clean up old recovery files
+        cleanupOldFiles().catch(error => {
+          logger.warn('Failed to cleanup old recovery files', { error })
+        }),
+      ])
+    }
+
+    backgroundInit()
 
     // Auto-updater logic - check for updates 5 seconds after app loads
     const checkForUpdates = async () => {

@@ -38,6 +38,14 @@ Tauri v2 + React 19 desktop app. Uses npm (NOT pnpm), TypeScript strict mode, Zu
 
 Tauri v2.x, React 19.x, Zustand v5.x, Tailwind v4.x, shadcn/ui v4.x, Vite v7.x, Vitest v4.x
 
+### Go-based TypeScript
+
+TypeScript 7.0 (beta) is installed via `@typescript/native-preview@beta` and uses the `tsgo` entry point instead of `tsc`. The stable `typescript` package (v6.x) is retained for tooling compatibility (typescript-eslint, etc.).
+
+- `npm run typecheck` / `npm run build` → uses `tsgo` (TS7)
+- `npm run typecheck:ts6` → uses `tsc` (TS6)
+- `npm run ts7:version` → shows TS7 version
+
 ## File Organization
 
 ```

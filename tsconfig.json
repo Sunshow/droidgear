@@ -21,7 +21,8 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
-    "baseUrl": ".",
+    "noUncheckedSideEffectImports": true,
+    "types": ["node"],
     "paths": {
       "@/*": ["./src/*"]
     }

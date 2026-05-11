@@ -1,6 +1,9 @@
 import type { AppCommand } from './types'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { exit } from '@tauri-apps/plugin-process'
 import i18n from '@/i18n/config'
+import { useModelStore } from '@/store/model-store'
+import { useUIStore } from '@/store/ui-store'
 
 export const windowCommands: AppCommand[] = [
   {
@@ -9,16 +12,30 @@ export const windowCommands: AppCommand[] = [
     descriptionKey: 'commands.windowClose.description',
     shortcut: '⌘+W',
 
-    execute: async context => {
+    execute: async _context => {
       try {
+        const { hasChanges } = useModelStore.getState()
+
+        if (hasChanges) {
+          // Show the styled AlertDialog; do NOT close yet
+          useUIStore.getState().setCloseConfirmOpen(true)
+          return
+        }
+
+        // No unsaved changes: close immediately
         const appWindow = getCurrentWindow()
         await appWindow.close()
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown error'
-        context.showToast(
-          i18n.t('toast.error.windowCloseFailed', { message }),
-          'error'
-        )
+        console.error('[window-close] close() failed:', error)
+        // Fallback: try destroy()
+        try {
+          const appWindow = getCurrentWindow()
+          await appWindow.destroy()
+        } catch (destroyError) {
+          console.error('[window-close] destroy() also failed:', destroyError)
+          // Last resort: exit the process
+          await exit(0)
+        }
       }
     },
   },

@@ -277,7 +277,7 @@ export function DroidFeatureList() {
                   <ChevronDown className="h-3 w-3 ml-1 shrink-0" />
                 </ActionButton>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="min-w-[160px]">
+              <DropdownMenuContent align="start" className="min-w-40">
                 {settingsFiles.map(file => (
                   <ActionDropdownMenuItem
                     key={file.name}

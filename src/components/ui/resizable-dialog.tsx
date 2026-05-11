@@ -63,6 +63,26 @@ interface ResizableDialogContentProps extends React.ComponentPropsWithoutRef<
   onCloseAutoFocus?: (event: Event) => void
 }
 
+/**
+ * Check if any child is a DialogPrimitive.Description component.
+ */
+function hasDescription(children: React.ReactNode): boolean {
+  return React.Children.toArray(children).some(
+    child =>
+      React.isValidElement(child) &&
+      (child.type === DialogPrimitive.Description ||
+        (typeof child.type === 'function' &&
+          'displayName' in child.type &&
+          (child.type as { displayName?: string }).displayName ===
+            DialogPrimitive.Description.displayName) ||
+        (typeof child.type === 'object' &&
+          child.type !== null &&
+          'displayName' in child.type &&
+          (child.type as { displayName?: string }).displayName ===
+            DialogPrimitive.Description.displayName))
+  )
+}
+
 const ResizableDialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   ResizableDialogContentProps
@@ -79,10 +99,17 @@ const ResizableDialogContent = React.forwardRef<
       maxWidth,
       maxHeight,
       onCloseAutoFocus,
+      'aria-describedby': ariaDescribedby,
       ...props
     },
     ref
   ) => {
+    // Suppress Radix warning when no Description is provided
+    const resolvedAriaDescribedby =
+      ariaDescribedby === undefined && !hasDescription(children)
+        ? undefined
+        : ariaDescribedby
+
     const [size, setSize] = useState({
       width: defaultWidth,
       height: defaultHeight,
@@ -133,6 +160,7 @@ const ResizableDialogContent = React.forwardRef<
           data-slot="resizable-dialog-content"
           className="fixed inset-0 z-50 pointer-events-none"
           onCloseAutoFocus={onCloseAutoFocus}
+          aria-describedby={resolvedAriaDescribedby}
           {...props}
         >
           <Rnd

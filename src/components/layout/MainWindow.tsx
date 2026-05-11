@@ -10,6 +10,16 @@ import { MainWindowContent } from './MainWindowContent'
 import { CommandPalette } from '@/components/command-palette/CommandPalette'
 import { PreferencesDialog } from '@/components/preferences/PreferencesDialog'
 import { Toaster } from '@/components/ui/sonner'
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
 import { useUIStore } from '@/store/ui-store'
 import { useMainWindowEventListeners } from '@/hooks/useMainWindowEventListeners'
 import { cn } from '@/lib/utils'
@@ -29,9 +39,21 @@ const MAIN_CONTENT_DEFAULT = 100 - LAYOUT.rightSidebar.default
 export function MainWindow() {
   const leftSidebarVisible = useUIStore(state => state.leftSidebarVisible)
   const rightSidebarVisible = useUIStore(state => state.rightSidebarVisible)
+  const closeConfirmOpen = useUIStore(state => state.closeConfirmOpen)
 
   // Set up global event listeners (keyboard shortcuts, etc.)
   useMainWindowEventListeners()
+
+  const handleConfirmClose = async () => {
+    useUIStore.getState().setCloseConfirmOpen(false)
+    // Close naturally — onCloseRequested listener has been removed
+    const { getCurrentWindow } = await import('@tauri-apps/api/window')
+    await getCurrentWindow().close()
+  }
+
+  const handleCancelClose = () => {
+    useUIStore.getState().setCloseConfirmOpen(false)
+  }
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-background">
@@ -70,6 +92,27 @@ export function MainWindow() {
       <CommandPalette />
       <PreferencesDialog />
       <Toaster position="bottom-right" />
+
+      {/* Close confirmation dialog - shown when user has unsaved changes */}
+      <AlertDialog open={closeConfirmOpen} onOpenChange={handleCancelClose}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved model changes. Do you want to discard them and
+              exit?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelClose}>
+              Cancel
+            </AlertDialogCancel>
+            <Button variant="destructive" onClick={handleConfirmClose}>
+              Discard & Exit
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

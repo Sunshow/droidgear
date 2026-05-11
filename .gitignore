@@ -25,6 +25,7 @@ jscpd-report
 *.njsproj
 *.sln
 *.sw?
+*.tsbuildinfo
 
 openspec/
 .iflow/
