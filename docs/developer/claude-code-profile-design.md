@@ -95,6 +95,11 @@ Claude Code 官方直接支持这些和本需求强相关的变量：
 2. daemon / launcher 冻结 wrapper-private runtime settings contract
 3. wrapper / shim 再把 contract 写成临时 `--settings` overlay，并对需要清空的 key 写 tombstone
 
+对 `CLAUDE_CONFIG_DIR` 还要再补一条约束：
+
+- 只透传显式存在的 config-dir override
+- 不要把默认 `~/.claude` 再包装成一个新的 `CLAUDE_CONFIG_DIR` export
+
 所以这条在 DroidGear 里不应该继续停留在“要不要验证”的讨论，而应该直接采纳同类机制。
 
 ### 3. `CLAUDE_CONFIG_DIR` 影响的是整套 Claude 状态
@@ -111,7 +116,12 @@ Claude Code 官方直接支持这些和本需求强相关的变量：
 - 不能轻率把 profile 直接做成另一套独立 config dir
 - 否则 resume / history / plugin 状态都会分叉
 
-这条仍然支持“默认共享 live config dir”的总体方向，但也带来 temp run 正确性上的额外约束。
+这条仍然支持“共享 live Claude 状态”的总体方向，但 temp run 里的正确实现不应该是“总是导出 `CLAUDE_CONFIG_DIR`”。
+
+更稳妥的约束应该是：
+
+- 如果用户显式配置了 Claude config path override，temp run 继续透传该 override
+- 如果没有显式 override，temp run 默认回到手工 `claude --settings <overlay>` 的行为，不额外发明一个默认 `CLAUDE_CONFIG_DIR`
 
 ### 4. `CLAUDE_ENV_FILE` 也是 runtime 状态的一部分
 
@@ -582,11 +592,25 @@ Claude 的 temp run 目标不是强隔离容器，而是：
 
 这里直接采用 `codex-remote-feishu` 那条已经成型的思路：
 
-1. 共享 live `CLAUDE_CONFIG_DIR`
+1. 共享 live Claude config state，但不默认硬塞 `CLAUDE_CONFIG_DIR`
 2. launcher 先 scrub 受管 Claude env
 3. 后端冻结 wrapper-private runtime settings contract
 4. 轻量 wrapper / shim 把 contract 写成 `--settings <temp-file>` overlay
 5. `CLAUDE_ENV_FILE` copy-on-run
+
+在 DroidGear 里，这里进一步收敛成一个明确实现约束：
+
+- planner 不能预写 Claude overlay 文件
+- planner 不能预先复制 `CLAUDE_ENV_FILE`
+- planner 只负责构造 launch plan 和 wrapper-private payload
+- 真正的 overlay materialize、`CLAUDE_ENV_FILE` copy、payload scrub 必须发生在 internal launcher 里
+
+internal launcher 可以是：
+
+- Tauri 主二进制的 hidden internal subcommand
+- TUI 二进制的 hidden internal subcommand
+
+但不允许回退成“主流程直接拼 `claude --settings <path>` 并提前落盘”的实现。
 
 这里的关键点不是“只有一个 overlay 文件”，而是：
 
@@ -609,6 +633,9 @@ Claude 的 temp run 目标不是强隔离容器，而是：
 - `env.CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING`
 - `env.MAX_THINKING_TOKENS`
 - top-level `alwaysThinkingEnabled`
+- `runtimeDir`
+- `liveConfigDir`
+- optional `inheritedClaudeEnvFileSource`
 
 其中需要“清掉”的 key 不能简单省略，而要显式写 tombstone。
 
@@ -631,6 +658,11 @@ overlay 只写这份受管 runtime contract：
 - 不改无关 Claude config
 - overlay 文件权限必须是 `0600`
 - overlay 文件名应放在 runtime dir 下，并做 stale cleanup
+
+并且这份 overlay：
+
+- 只能由 internal launcher 在真正 exec `claude` 前生成
+- preview 可以展示它的 JSON 内容，但 preview 不得把它物化到磁盘
 
 ### Child env hygiene
 
@@ -687,6 +719,14 @@ temp run 不应直接复用，而应：
 1. 复制现有文件内容到 runtime dir
 2. 把 child env 的 `CLAUDE_ENV_FILE` 指向副本
 
+这里的“父环境”在 DroidGear 里不是指最终 `claude` child 的进程环境，而是指 internal launcher 收到的那份冻结 payload 里的 source path。
+
+也就是说：
+
+- planner 读取当前进程里的 `CLAUDE_ENV_FILE`
+- 把归一化后的 source path 冻结进 wrapper-private payload
+- internal launcher 在运行时读取 source path，复制文件，并把 child env 指向 runtime 副本
+
 这样可以同时满足：
 
 - 尽量继承当前 runtime env 基线
@@ -701,6 +741,7 @@ temp run 不应直接复用，而应：
 3. wrapper / shim 在真正 exec `claude` 前，把 payload 写成临时 `--settings` overlay
 4. overlay 里对需要清掉的 key 写空字符串 tombstone
 5. wrapper / shim 自己消费完 private payload 后，要把该 private env 从 child env 里移除
+6. wrapper / shim 自己完成 `CLAUDE_ENV_FILE` copy-on-run，并把 child env 的 `CLAUDE_ENV_FILE` 指向 runtime 副本
 
 这样分别覆盖三类污染源：
 
@@ -714,6 +755,13 @@ temp run 不应直接复用，而应：
 
 - 增加一个轻量 Claude temp-run launcher shim
 - 它只负责 materialize runtime contract，然后 `exec claude`
+
+在本仓库里，推荐把这个 shim 做成 hidden internal subcommand，并由 GUI / TUI 各自用当前可执行文件去启动自己的 internal launcher：
+
+- GUI temporary run 启动当前 Tauri app binary 的 internal launcher
+- TUI temporary run 启动当前 `droidgear-tui` binary 的 internal launcher
+
+两边都调用同一套 `droidgear-core` Claude launcher helper，避免再出现两份不一致实现。
 
 这样既能避免 secret 出现在 terminal launch command line，也能把 override 逻辑收口到一处。
 
@@ -733,7 +781,8 @@ temp run 不应直接复用，而应：
 
 - `src-tauri/crates/droidgear-core/src/claude.rs`
 - `src-tauri/crates/droidgear-core/src/claude_runtime.rs`
-- `src-tauri/crates/droidgear-tui/src/bin/droidgear-claude-runner.rs` 或等价 launcher shim
+- `src-tauri/crates/droidgear-tui/src/main.rs`
+- `src-tauri/src/main.rs`
 - `src-tauri/src/commands/claude.rs`
 - `src/store/claude-store.ts`
 - `src/components/claude/*`
@@ -766,7 +815,8 @@ temp run 不应直接复用，而应：
 - inherited provider env 不会覆盖 profile
 - inherited alternative-provider env 不会把请求带偏
 - live `settings.env` 里的冲突 key 会被 overlay tombstone 盖掉
-- `CLAUDE_CONFIG_DIR` 默认保持共享
+- 默认 temp run 路径与手工 `claude --settings <overlay>` 一致，不额外导出默认 `CLAUDE_CONFIG_DIR`
+- 若用户显式配置了 Claude config path override，temp run 继续共享该 override
 - `CLAUDE_ENV_FILE` 被复制而不是复用
 - temp overlay 不把 bearer token 泄漏到命令行
 - wrapper-private runtime payload 不会继续传给 Claude child
@@ -796,7 +846,8 @@ temp run 不应直接复用，而应：
   - provider / model / reasoning 统一走受管 `env` contract
   - 只把 `alwaysThinkingEnabled` 留在 top-level
 - `Temporary Run`
-  - 默认继续共享 `CLAUDE_CONFIG_DIR`
+  - 默认不额外导出 `CLAUDE_CONFIG_DIR`
+  - 若存在显式 Claude config path override，则继续共享该 override
   - 按 `codex-remote-feishu` 同类机制实现：
     - 父环境 scrub
     - wrapper-private runtime contract

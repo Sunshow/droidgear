@@ -996,7 +996,7 @@ fn draw_claude_profiles(frame: &mut Frame, app: &app::App, area: Rect) {
             .map(|profile| (profile.name.as_str(), profile.id.as_str())),
         active,
         selected_index,
-        "Up/Down: select  Enter/e: open  x: run+exit  a: apply  n: new  c: copy  d: delete  r: refresh  q/Esc: back",
+        "Up/Down: select  Enter/e: open  t: run preview  x: run+exit  a: apply  n: new  c: copy  d: delete  r: refresh  q/Esc: back",
     );
 }
 
@@ -1124,7 +1124,7 @@ fn draw_claude_profile(frame: &mut Frame, app: &app::App, area: Rect) {
     render_list(frame, list, chunks[0], Some(app.claude_detail_field_index));
 
     let help = help_paragraph(
-        "Up/Down: move  Enter/e: edit/toggle  l: load live  x: run+exit  a: apply  q/Esc: back",
+        "Up/Down: move  Enter/e: edit/toggle  l: load live  t: run preview  x: run+exit  a: apply  q/Esc: back",
     );
     frame.render_widget(help, chunks[1]);
 }

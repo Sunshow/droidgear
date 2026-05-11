@@ -43,6 +43,7 @@ mod tests;
 pub use utils::list_claude_temporary_run_targets;
 pub use utils::list_codex_temporary_run_targets;
 pub use utils::list_droid_temporary_run_targets;
+pub use utils::preview_claude_temporary_run_for_selector;
 pub use utils::run_claude_temporary_run_for_selector;
 pub use utils::run_codex_temporary_run_for_selector;
 pub use utils::run_droid_temporary_run_for_settings_name;
@@ -75,8 +76,10 @@ use keys_specs::handle_specs_key;
 use modal::handle_modal_key;
 use refresh::*;
 use utils::{
-    factory_model_id, insert_char_at, preview_codex_apply, preview_openclaw_apply,
-    preview_opencode_apply, remove_char_at, run_claude_temporary_run,
+    factory_model_id, insert_char_at, preview_claude_temporary_run, preview_codex_apply,
+    preview_codex_temporary_run, preview_droid_temporary_run, preview_openclaw_apply,
+    preview_opencode_apply, remove_char_at, run_claude_temporary_run, run_codex_temporary_run,
+    run_droid_temporary_run,
 };
 
 type UiTerminal = Terminal<CrosstermBackend<io::Stdout>>;
@@ -107,7 +110,13 @@ enum Action {
     EditCodexProfile { id: String },
     EditOpenCodeProfile { id: String },
     EditOpenClawProfile { id: String },
+    PreviewDroidRun { settings_path: String },
+    RunDroidRun { settings_path: String },
+    PreviewClaudeRun { id: String },
+    RunClaudeRun { id: String },
     PreviewCodexApply { id: String },
+    PreviewCodexRun { id: String },
+    RunCodexRun { id: String },
     PreviewOpenCodeApply { id: String },
     PreviewOpenClawApply { id: String },
     ViewSession { path: String },

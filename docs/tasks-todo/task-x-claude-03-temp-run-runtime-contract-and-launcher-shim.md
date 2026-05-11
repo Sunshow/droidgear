@@ -9,7 +9,7 @@
 - 不污染 live settings
 - 不泄漏 bearer token
 - 能压过 inherited env 和 live `settings.env`
-- 继续共享 `CLAUDE_CONFIG_DIR`
+- 继续共享 live Claude config state，但不默认硬塞 `CLAUDE_CONFIG_DIR`
 
 这一步必须直接参考 `codex-remote-feishu` 已经跑通的路径，不要重新发明一套半可靠机制。
 
@@ -23,6 +23,7 @@
 - 引入轻量 launcher shim
 - 通过 shim 写出临时 `--settings` overlay
 - 对需要清空的键写空字符串 tombstone
+- 保证 preview 仍然是 zero-write
 
 ## Non-Goals
 
@@ -50,21 +51,13 @@ runtime contract 至少要承载：
 
 ## Launcher Choice
 
-实现可以二选一，但 contract 不能变：
+本轮实现最终收敛为 hidden internal subcommand：
 
-### 方案 A
+- GUI 走当前 Tauri app binary 的 hidden internal subcommand
+- TUI 走当前 `droidgear-tui` binary 的 hidden internal subcommand
+- hidden subcommand 共享同一个 `droidgear-core` launcher helper
 
-- 新增独立 runner：
-  - `src-tauri/crates/droidgear-tui/src/bin/droidgear-claude-runner.rs`
-
-### 方案 B
-
-- 在现有 `droidgear-tui` 里新增 hidden internal subcommand
-
-推荐原则：
-
-- 如果独立 bin 会明显增加打包复杂度，优先 hidden subcommand
-- 但不论选哪种，launch planner 输出的 payload 结构必须保持稳定
+这样避免了额外 sidecar / runner 分发，同时保持 launcher 逻辑只有一份。
 
 ## Suggested File Changes
 
@@ -74,9 +67,7 @@ runtime contract 至少要承载：
 - `src-tauri/src/utils/terminal_launch.rs`
   - 如需复用 `secret_env` / `support_dir`
 - `src-tauri/crates/droidgear-tui/src/main.rs`
-  - 若选择 hidden subcommand
-- `src-tauri/crates/droidgear-tui/src/bin/droidgear-claude-runner.rs`
-  - 若选择独立 runner
+- `src-tauri/src/main.rs`
 - `src-tauri/crates/droidgear-tui/src/tui/utils.rs`
   - 如需 CLI preview/list helper
 
@@ -86,8 +77,8 @@ runtime contract 至少要承载：
 
 planner 需要产出：
 
-- launch program
-- launch args
+- launcher program
+- launcher args
 - visible env
 - secret env
 - unset env
@@ -127,13 +118,25 @@ private payload 只能给 runner / shim 自己看。
 Claude child 真正启动前：
 
 - runner 必须把 payload 从 child env 里清掉
+- runner 必须在自己进程内解码 payload，而不是让 terminal command line 带着敏感值
+
+payload 至少需要包含：
+
+- runtime dir
+- effective live Claude config dir
+- optional explicit `CLAUDE_CONFIG_DIR` override
+- Claude runtime settings overlay
+- optional inherited `CLAUDE_ENV_FILE` source path
+- Claude child program / args
 
 ### 4. `CLAUDE_ENV_FILE` handling
 
 如果父环境有 `CLAUDE_ENV_FILE`：
 
-1. 复制文件到 runtime dir
-2. child 改指向副本
+1. planner 读取并归一化 source path
+2. payload 冻结该 source path
+3. runner 在 launch-time 复制文件到 runtime dir
+4. child 改指向副本
 
 如果没有：
 
@@ -144,21 +147,25 @@ Claude child 真正启动前：
 runner / shim 需要：
 
 1. 读取 private payload
-2. materialize Claude runtime settings JSON
-3. 写到 runtime dir
-4. 文件权限 `0600`
-5. 给 Claude child 追加：
+2. 从 child env 中 scrub 掉 private payload 自己
+3. materialize Claude runtime settings JSON
+4. 写到 runtime dir
+5. 文件权限 `0600`
+6. 按需复制 `CLAUDE_ENV_FILE`
+7. 给 Claude child 追加：
    - `--settings <path>`
-6. 最后 `exec claude`
+8. 最后 `exec claude`
 
 ## Acceptance Criteria
 
 - temp run 不修改 live `settings.json`
+- planner 阶段不物化 overlay / env file 副本
 - temp run 能覆盖 inherited env
 - temp run 能覆盖 live `settings.env` 冲突键
 - bearer token 不出现在 terminal launch command line
 - bearer token 不出现在 world-readable runtime file
-- `CLAUDE_CONFIG_DIR` 继续共享
+- 默认 temp run 路径与手工 `claude --settings <overlay>` 一致，不额外导出默认 `CLAUDE_CONFIG_DIR`
+- 如果用户显式配置了 Claude config path override，temp run 继续共享该 override
 - `CLAUDE_ENV_FILE` 按 copy-on-run 工作
 
 ## Tests
@@ -168,7 +175,9 @@ runner / shim 需要：
 - runtime contract JSON 生成
 - tombstone key 会进入 overlay
 - inherited env scrub 正确
+- planner preview 不写 runtime artifacts
 - private payload 不继续传给 Claude child
+- runner 负责 materialize overlay，而不是 planner
 - runner 生成的 launch args 不泄漏 secret
 - overlay 文件权限测试
 - `CLAUDE_ENV_FILE` 复制逻辑

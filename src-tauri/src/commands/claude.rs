@@ -21,6 +21,12 @@ fn probe_claude_cli() -> Result<(), String> {
     Ok(())
 }
 
+fn current_launcher_program() -> Result<String, String> {
+    std::env::current_exe()
+        .map(|path| path.to_string_lossy().to_string())
+        .map_err(|e| format!("Failed to locate current launcher executable: {e}"))
+}
+
 /// List all Claude Code profiles
 #[tauri::command]
 #[specta::specta]
@@ -106,7 +112,9 @@ pub async fn read_claude_current_config() -> Result<ClaudeCurrentConfig, String>
 #[specta::specta]
 pub async fn get_claude_temporary_run_plan(id: String) -> Result<ClaudeTemporaryRunPlan, String> {
     let profile = droidgear_core::claude::get_claude_profile(&id)?;
-    claude_runtime::build_temporary_run_preview_plan(&profile)
+    let launcher_program = current_launcher_program()?;
+    let launcher_args = claude_runtime::internal_launcher_args();
+    claude_runtime::build_temporary_run_preview_plan(&profile, &launcher_program, &launcher_args)
 }
 
 /// Launch Claude Code using a runtime settings overlay instead of mutating live config.
@@ -121,8 +129,11 @@ pub async fn launch_claude(id: String, app: tauri::AppHandle) -> Result<(), Stri
     }
 
     let profile = droidgear_core::claude::get_claude_profile(&id)?;
-    let plan = claude_runtime::build_temporary_run_plan(&profile)
-        .map_err(|e| format!("Failed to prepare Claude temporary run: {e}"))?;
+    let launcher_program = current_launcher_program()?;
+    let launcher_args = claude_runtime::internal_launcher_args();
+    let plan =
+        claude_runtime::build_temporary_run_plan(&profile, &launcher_program, &launcher_args)
+            .map_err(|e| format!("Failed to prepare Claude temporary run: {e}"))?;
     let prefs = load_preferences(&app).unwrap_or_default();
     let preferred = prefs.preferred_terminal.unwrap_or_default();
 
@@ -150,29 +161,30 @@ mod tests {
     #[test]
     fn build_claude_launch_spec_preserves_args_and_runtime_support_dir() {
         let spec = build_claude_launch_spec(&ClaudeTemporaryLaunchPlan {
-            program: "claude".to_string(),
+            program: "/tmp/droidgear-launcher".to_string(),
             args: vec![
-                "--settings".to_string(),
-                "/tmp/runtime-claude/overlay.json".to_string(),
+                "__droidgear_internal".to_string(),
+                "claude-launcher".to_string(),
             ],
             env: vec![(
                 "CLAUDE_CONFIG_DIR".to_string(),
                 "/tmp/live-claude".to_string(),
             )],
-            secret_env: vec![],
+            secret_env: vec![(
+                "DROIDGEAR_INTERNAL_CLAUDE_RUNTIME_JSON".to_string(),
+                "{\"runtimeDirPath\":\"/tmp/runtime-claude\"}".to_string(),
+            )],
             unset_env: vec!["ANTHROPIC_AUTH_TOKEN".to_string()],
             warnings: vec!["warning".to_string()],
             runtime_dir_path: PathBuf::from("/tmp/runtime-claude"),
-            settings_overlay_path: PathBuf::from("/tmp/runtime-claude/overlay.json"),
-            copied_env_file_path: None,
         });
 
-        assert_eq!(spec.program, "claude");
+        assert_eq!(spec.program, "/tmp/droidgear-launcher");
         assert_eq!(
             spec.args,
             vec![
-                "--settings".to_string(),
-                "/tmp/runtime-claude/overlay.json".to_string(),
+                "__droidgear_internal".to_string(),
+                "claude-launcher".to_string(),
             ]
         );
         assert_eq!(
@@ -182,7 +194,7 @@ mod tests {
                 "/tmp/live-claude".to_string(),
             )]
         );
-        assert!(spec.secret_env.is_empty());
+        assert_eq!(spec.secret_env.len(), 1);
         assert_eq!(spec.unset_env, vec!["ANTHROPIC_AUTH_TOKEN".to_string()]);
         assert_eq!(spec.support_dir, Some(PathBuf::from("/tmp/runtime-claude")));
     }

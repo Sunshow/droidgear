@@ -353,19 +353,29 @@ fn claude_temporary_run_plan_writes_overlay_tombstones_without_mutating_live_set
     };
 
     let before_live = read_to_string(&settings_path);
-    let plan = claude_runtime::build_temporary_run_plan_for_home(home, &profile).unwrap();
+    let plan = claude_runtime::build_temporary_run_plan_for_home(
+        home,
+        &profile,
+        "/tmp/droidgear-launcher",
+        &claude_runtime::internal_launcher_args(),
+    )
+    .unwrap();
 
-    assert_eq!(plan.program, "claude");
-    assert_eq!(plan.args[0], "--settings");
-    assert!(plan
-        .env
-        .iter()
-        .any(|(key, value)| key == "CLAUDE_CONFIG_DIR" && value.ends_with(".claude")));
+    assert_eq!(plan.program, "/tmp/droidgear-launcher");
+    assert_eq!(plan.args, claude_runtime::internal_launcher_args());
+    assert!(plan.env.is_empty());
     assert!(plan.unset_env.contains(&"ANTHROPIC_AUTH_TOKEN".to_string()));
     assert!(!plan.args.join(" ").contains("token-temp"));
+    assert_eq!(plan.secret_env.len(), 1);
 
-    let overlay: Value =
-        serde_json::from_str(&read_to_string(&plan.settings_overlay_path)).unwrap();
+    let payload: Value = serde_json::from_str(&plan.secret_env[0].1).unwrap();
+    let expected_live_config_dir = home.join(".claude").display().to_string();
+    assert_eq!(
+        payload.get("liveConfigDir").and_then(Value::as_str),
+        Some(expected_live_config_dir.as_str())
+    );
+    assert!(payload.get("configDirEnvOverride").is_none());
+    let overlay = payload.get("settingsOverlay").unwrap();
     assert_eq!(
         overlay
             .get("alwaysThinkingEnabled")

@@ -56,13 +56,18 @@ pub(super) fn handle_claude_key(app: &mut app::App, code: KeyCode) -> Option<Act
                 });
             }
         }
+        KeyCode::Char('t') => {
+            if let Some(profile) = app.claude_profiles.get(app.claude_index) {
+                return Some(Action::PreviewClaudeRun {
+                    id: profile.id.clone(),
+                });
+            }
+        }
         KeyCode::Char('x') => {
             if let Some(profile) = app.claude_profiles.get(app.claude_index) {
-                if let Err(e) = run_claude_temporary_run(&app.home_dir, &profile.id) {
-                    app.set_toast(e.to_string(), true);
-                } else {
-                    app.should_quit = true;
-                }
+                return Some(Action::RunClaudeRun {
+                    id: profile.id.clone(),
+                });
             }
         }
         _ => {}
@@ -104,13 +109,8 @@ pub(super) fn handle_claude_profile_key(app: &mut app::App, code: KeyCode) -> Op
                 refresh_claude_detail(app);
             }
         }
-        KeyCode::Char('x') => {
-            if let Err(e) = run_claude_temporary_run(&app.home_dir, &profile_id) {
-                app.set_toast(e.to_string(), true);
-            } else {
-                app.should_quit = true;
-            }
-        }
+        KeyCode::Char('t') => return Some(Action::PreviewClaudeRun { id: profile_id }),
+        KeyCode::Char('x') => return Some(Action::RunClaudeRun { id: profile_id }),
         KeyCode::Enter | KeyCode::Char('e') => match app.claude_detail_field_index {
             0 => {
                 app.modal = Some(app::Modal::Input {

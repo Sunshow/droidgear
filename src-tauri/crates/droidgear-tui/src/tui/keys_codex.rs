@@ -11,6 +11,16 @@ pub(super) fn handle_codex_key(app: &mut app::App, code: KeyCode) -> Option<Acti
                 return Some(Action::PreviewCodexApply { id: p.id.clone() });
             }
         }
+        KeyCode::Char('t') => {
+            if let Some(p) = app.codex_profiles.get(app.codex_index) {
+                return Some(Action::PreviewCodexRun { id: p.id.clone() });
+            }
+        }
+        KeyCode::Char('x') => {
+            if let Some(p) = app.codex_profiles.get(app.codex_index) {
+                return Some(Action::RunCodexRun { id: p.id.clone() });
+            }
+        }
         KeyCode::Char('E') => {
             if let Some(p) = app.codex_profiles.get(app.codex_index) {
                 if p.id == "official" {
@@ -120,6 +130,16 @@ pub(super) fn handle_codex_profile_key(app: &mut app::App, code: KeyCode) -> Opt
         },
         KeyCode::Char('r') => refresh_codex_detail(app),
         KeyCode::Char('p') => return Some(Action::PreviewCodexApply { id: profile_id }),
+        KeyCode::Char('t') => {
+            return Some(Action::PreviewCodexRun {
+                id: profile_id.clone(),
+            })
+        }
+        KeyCode::Char('x') => {
+            return Some(Action::RunCodexRun {
+                id: profile_id.clone(),
+            })
+        }
         KeyCode::Char('E') => {
             if is_official {
                 app.set_toast("Official profile is read-only", true);
