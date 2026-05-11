@@ -52,6 +52,7 @@ interface UIState {
   pendingUpdate: PendingUpdate | null
   droidSettingsScrollTarget: string | null
   droidRefreshKey: number
+  closeConfirmOpen: boolean
 
   toggleLeftSidebar: () => void
   setLeftSidebarVisible: (visible: boolean) => void
@@ -70,6 +71,7 @@ interface UIState {
   clearPendingUpdate: () => void
   setDroidSettingsScrollTarget: (target: string | null) => void
   incrementDroidRefreshKey: () => void
+  setCloseConfirmOpen: (open: boolean) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -89,6 +91,7 @@ export const useUIStore = create<UIState>()(
         pendingUpdate: null,
         droidSettingsScrollTarget: null,
         droidRefreshKey: 0,
+        closeConfirmOpen: false,
 
         toggleLeftSidebar: () =>
           set(
@@ -189,6 +192,9 @@ export const useUIStore = create<UIState>()(
             undefined,
             'incrementDroidRefreshKey'
           ),
+
+        setCloseConfirmOpen: open =>
+          set({ closeConfirmOpen: open }, undefined, 'setCloseConfirmOpen'),
       }),
       {
         name: 'ui-store',
