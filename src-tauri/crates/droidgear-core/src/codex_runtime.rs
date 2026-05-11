@@ -19,6 +19,7 @@ const TOKENS_FIELD: &str = "tokens";
 const AUTH_MODE_FIELD: &str = "auth_mode";
 const LAST_REFRESH_FIELD: &str = "last_refresh";
 const AGENT_IDENTITY_FIELD: &str = "agent_identity";
+const MANAGED_RUNTIME_FILES: [&str; 2] = ["config.toml", "auth.json"];
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -222,6 +223,70 @@ fn write_auth_snapshot(
     json::write_json_object_file(&runtime_home_path.join("auth.json"), auth)
 }
 
+fn create_shared_entry(target: &Path, link_path: &Path) -> Result<(), String> {
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink(target, link_path).map_err(|e| {
+            format!(
+                "Failed to create shared Codex runtime entry {:?} -> {:?}: {e}",
+                link_path, target
+            )
+        })
+    }
+
+    #[cfg(windows)]
+    {
+        let metadata = std::fs::metadata(target).map_err(|e| {
+            format!(
+                "Failed to inspect shared Codex runtime target {:?}: {e}",
+                target
+            )
+        })?;
+        let result = if metadata.is_dir() {
+            std::os::windows::fs::symlink_dir(target, link_path)
+        } else {
+            std::os::windows::fs::symlink_file(target, link_path)
+        };
+        result.map_err(|e| {
+            format!(
+                "Failed to create shared Codex runtime entry {:?} -> {:?}: {e}",
+                link_path, target
+            )
+        })
+    }
+}
+
+fn populate_runtime_shared_entries(
+    live_codex_home: &Path,
+    runtime_home_path: &Path,
+) -> Result<(), String> {
+    if !live_codex_home.exists() {
+        return Ok(());
+    }
+
+    let entries = std::fs::read_dir(live_codex_home)
+        .map_err(|e| format!("Failed to read live CODEX_HOME: {e}"))?;
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("Failed to read live CODEX_HOME entry: {e}"))?;
+        let file_name = entry.file_name();
+        let Some(file_name_str) = file_name.to_str() else {
+            continue;
+        };
+        if MANAGED_RUNTIME_FILES.contains(&file_name_str) {
+            continue;
+        }
+
+        let link_path = runtime_home_path.join(&file_name);
+        if link_path.exists() {
+            continue;
+        }
+
+        create_shared_entry(&entry.path(), &link_path)?;
+    }
+
+    Ok(())
+}
+
 fn has_portable_managed_auth(auth: &HashMap<String, serde_json::Value>) -> bool {
     auth.contains_key(TOKENS_FIELD)
         || auth.contains_key(AUTH_MODE_FIELD)
@@ -301,6 +366,7 @@ fn build_runtime_home_snapshot(
     let runtime_home_path = next_runtime_home_path(home_dir)?;
     std::fs::create_dir_all(&runtime_home_path)
         .map_err(|e| format!("Failed to create Codex runtime home: {e}"))?;
+    populate_runtime_shared_entries(&live_codex_home, &runtime_home_path)?;
 
     let (provider_id, provider) = codex::resolve_active_provider(profile);
     validate_provider_id(&provider_id)?;
@@ -583,6 +649,71 @@ mod tests {
             config.get("model").and_then(|v| v.as_str()),
             Some("gpt-5.5")
         );
+    }
+
+    #[test]
+    fn temporary_run_plan_shares_existing_live_codex_state_entries() {
+        let temp = TempDir::new().unwrap();
+        let live_home = temp.path().join("live-codex-home");
+        crate::paths::save_config_path_for_home(
+            temp.path(),
+            "codex",
+            live_home.to_string_lossy().as_ref(),
+        )
+        .unwrap();
+
+        write_file(&live_home.join("config.toml"), "model = \"live-model\"\n");
+        write_file(&live_home.join("auth.json"), "{}\n");
+        write_file(
+            &live_home.join("session_index.jsonl"),
+            "{\"id\":\"session-a\"}\n",
+        );
+        write_file(&live_home.join("history.jsonl"), "{\"prompt\":\"hello\"}\n");
+        std::fs::create_dir_all(live_home.join("sessions/2026/05")).unwrap();
+        write_file(
+            &live_home.join("sessions/2026/05/session-a.jsonl"),
+            "{\"type\":\"message\"}\n",
+        );
+        write_file(&live_home.join("threads.db"), "sqlite-bytes");
+        write_file(&live_home.join("state_5.sqlite"), "sqlite-state");
+
+        let plan = build_temporary_run_plan_for_home(temp.path(), &sample_profile()).unwrap();
+
+        let runtime_session_index = plan.runtime_home_path.join("session_index.jsonl");
+        let runtime_history = plan.runtime_home_path.join("history.jsonl");
+        let runtime_sessions = plan.runtime_home_path.join("sessions");
+        let runtime_threads = plan.runtime_home_path.join("threads.db");
+        let runtime_state = plan.runtime_home_path.join("state_5.sqlite");
+
+        assert!(runtime_session_index.exists());
+        assert!(runtime_history.exists());
+        assert!(runtime_sessions.exists());
+        assert!(runtime_threads.exists());
+        assert!(runtime_state.exists());
+
+        #[cfg(unix)]
+        {
+            assert!(std::fs::symlink_metadata(&runtime_session_index)
+                .unwrap()
+                .file_type()
+                .is_symlink());
+            assert!(std::fs::symlink_metadata(&runtime_history)
+                .unwrap()
+                .file_type()
+                .is_symlink());
+            assert!(std::fs::symlink_metadata(&runtime_sessions)
+                .unwrap()
+                .file_type()
+                .is_symlink());
+            assert!(std::fs::symlink_metadata(&runtime_threads)
+                .unwrap()
+                .file_type()
+                .is_symlink());
+            assert!(std::fs::symlink_metadata(&runtime_state)
+                .unwrap()
+                .file_type()
+                .is_symlink());
+        }
     }
 
     #[test]
