@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest'
 import {
   effortToBudgetTokens,
   getDefaultMaxOutputTokens,
+  hasOpaqueClaudeModelId,
   isAnthropicAdaptiveThinkingModel,
   isOpus47,
+  isRecognizedClaudeModelId,
   supportsMaxEffort,
   supportsXhighEffort,
 } from './utils'
@@ -59,13 +61,9 @@ describe('supportsMaxEffort', () => {
 })
 
 describe('supportsXhighEffort', () => {
-  it('allows xhigh on all claude models and openai reasoning models', () => {
+  it('allows xhigh on Opus 4.7 and openai reasoning models', () => {
     expect(supportsXhighEffort('claude-opus-4.7')).toBe(true)
-    expect(supportsXhighEffort('claude-opus-4.6')).toBe(true)
-    expect(supportsXhighEffort('claude-sonnet-4.6')).toBe(true)
-    expect(supportsXhighEffort('claude-opus-4.5')).toBe(true)
-    expect(supportsXhighEffort('claude-sonnet-4.5')).toBe(true)
-    expect(supportsXhighEffort('claude-haiku-4.5')).toBe(true)
+    expect(supportsXhighEffort('claude-opus-4-7')).toBe(true)
     expect(supportsXhighEffort('gpt-5.2')).toBe(true)
     expect(supportsXhighEffort('o3-mini')).toBe(true)
   })
@@ -75,12 +73,33 @@ describe('supportsXhighEffort', () => {
     expect(supportsXhighEffort('deepseek-v4-pro')).toBe(false)
   })
 
-  it('rejects xhigh on non-reasoning non-claude models', () => {
+  it('rejects xhigh on other claude models and non-reasoning models', () => {
+    expect(supportsXhighEffort('claude-opus-4.6')).toBe(false)
+    expect(supportsXhighEffort('claude-sonnet-4.6')).toBe(false)
+    expect(supportsXhighEffort('claude-opus-4.5')).toBe(false)
+    expect(supportsXhighEffort('claude-sonnet-4.5')).toBe(false)
+    expect(supportsXhighEffort('claude-haiku-4.5')).toBe(false)
     expect(supportsXhighEffort('gemini-2.5-pro')).toBe(false)
   })
 
   it('is permissive for unknown/empty IDs', () => {
     expect(supportsXhighEffort('')).toBe(true)
+  })
+})
+
+describe('Claude model id helpers', () => {
+  it('recognizes official claude model ids', () => {
+    expect(isRecognizedClaudeModelId('claude-sonnet-4-5')).toBe(true)
+    expect(isRecognizedClaudeModelId('claude_opus_4_7')).toBe(true)
+    expect(isRecognizedClaudeModelId(' claude-haiku-4-5 ')).toBe(true)
+  })
+
+  it('treats custom deployment names as opaque', () => {
+    expect(hasOpaqueClaudeModelId('gateway-prod-model')).toBe(true)
+    expect(hasOpaqueClaudeModelId('anthropic/claude-sonnet-4-5')).toBe(true)
+    expect(hasOpaqueClaudeModelId('')).toBe(false)
+    expect(hasOpaqueClaudeModelId(null)).toBe(false)
+    expect(hasOpaqueClaudeModelId('claude-sonnet-4-5')).toBe(false)
   })
 })
 

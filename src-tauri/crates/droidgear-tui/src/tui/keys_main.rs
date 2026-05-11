@@ -16,6 +16,8 @@ pub(super) fn handle_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
         app::Screen::McpServer => handle_mcp_server_key(app, code),
         app::Screen::McpArgs => handle_mcp_args_key(app, code),
         app::Screen::McpKeyValues => handle_mcp_key_values_key(app, code),
+        app::Screen::Claude => handle_claude_key(app, code),
+        app::Screen::ClaudeProfile => handle_claude_profile_key(app, code),
         app::Screen::Codex => handle_codex_key(app, code),
         app::Screen::CodexProfile => handle_codex_profile_key(app, code),
         app::Screen::CodexProvider => handle_codex_provider_key(app, code),

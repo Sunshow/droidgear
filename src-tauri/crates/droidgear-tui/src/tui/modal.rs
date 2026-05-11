@@ -177,6 +177,38 @@ pub(super) fn run_select_action(
             }
             Ok(())
         }
+        app::SelectAction::ClaudeSetProfileReasoningEffort { id } => {
+            let mut profile =
+                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
+                    .map_err(anyhow::Error::msg)?;
+            profile.reasoning_effort = match selected.as_deref() {
+                Some("(inherit)") | None => None,
+                Some("low") => Some(droidgear_core::claude::ClaudeReasoningEffort::Low),
+                Some("medium") => Some(droidgear_core::claude::ClaudeReasoningEffort::Medium),
+                Some("high") => Some(droidgear_core::claude::ClaudeReasoningEffort::High),
+                Some("max") => Some(droidgear_core::claude::ClaudeReasoningEffort::Max),
+                Some(_) => return Err(anyhow::Error::msg("Invalid reasoning effort")),
+            };
+            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::SelectAction::ClaudeSetProfileThinkingMode { id } => {
+            let mut profile =
+                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
+                    .map_err(anyhow::Error::msg)?;
+            profile.thinking_mode = match selected.as_deref() {
+                Some("inherit") | None => droidgear_core::claude::ClaudeThinkingMode::Inherit,
+                Some("on") => droidgear_core::claude::ClaudeThinkingMode::On,
+                Some("off") => droidgear_core::claude::ClaudeThinkingMode::Off,
+                Some(_) => return Err(anyhow::Error::msg("Invalid thinking mode")),
+            };
+            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
         app::SelectAction::CodexSetProfileModelProvider { id } => {
             let Some(selected) = selected else {
                 return Ok(());
@@ -670,6 +702,17 @@ pub(super) fn run_confirm_action(
                 .map_err(anyhow::Error::msg)?;
             Ok(())
         }
+        app::ConfirmAction::ClaudeApply { id } => {
+            droidgear_core::claude::apply_claude_profile_for_home(&app.home_dir, &id)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Applied", false);
+            Ok(())
+        }
+        app::ConfirmAction::ClaudeDelete { id } => {
+            droidgear_core::claude::delete_claude_profile_for_home(&app.home_dir, &id)
+                .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
         app::ConfirmAction::CodexApply { id } => {
             droidgear_core::codex::apply_codex_profile_for_home(&app.home_dir, &id)
                 .map_err(anyhow::Error::msg)?;
@@ -996,6 +1039,135 @@ pub(super) fn run_input_action(
         app::InputAction::PathsSetKey { key } => {
             droidgear_core::paths::save_config_path_for_home(&app.home_dir, &key, trimmed)
                 .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
+        app::InputAction::ClaudeCreateProfile => {
+            if trimmed.is_empty() {
+                return Err(anyhow::Error::msg("Profile name is required"));
+            }
+
+            let before = droidgear_core::claude::list_claude_profiles_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            let before_ids = before
+                .iter()
+                .map(|profile| profile.id.clone())
+                .collect::<std::collections::HashSet<String>>();
+
+            let profile = droidgear_core::claude::ClaudeCodeProfile {
+                id: String::new(),
+                name: trimmed.to_string(),
+                description: None,
+                base_url: None,
+                bearer_token: None,
+                model: None,
+                small_model_uses_main_model: true,
+                small_model: None,
+                reasoning_effort: None,
+                thinking_mode: droidgear_core::claude::ClaudeThinkingMode::Inherit,
+                created_at: String::new(),
+                updated_at: String::new(),
+            };
+
+            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
+                .map_err(anyhow::Error::msg)?;
+
+            refresh_claude(app);
+            if let Some((idx, profile)) = app
+                .claude_profiles
+                .iter()
+                .enumerate()
+                .find(|(_, profile)| !before_ids.contains(&profile.id))
+            {
+                app.claude_index = idx;
+                app.claude_detail_id = Some(profile.id.clone());
+                app.claude_detail_field_index = 0;
+                app.screen = app::Screen::ClaudeProfile;
+                refresh_claude_detail(app);
+            }
+
+            Ok(())
+        }
+        app::InputAction::ClaudeDuplicate { id } => {
+            if trimmed.is_empty() {
+                return Err(anyhow::Error::msg("Profile name is required"));
+            }
+            let new_profile = droidgear_core::claude::duplicate_claude_profile_for_home(
+                &app.home_dir,
+                &id,
+                trimmed,
+            )
+            .map_err(anyhow::Error::msg)?;
+            refresh_claude(app);
+            if let Some(idx) = app
+                .claude_profiles
+                .iter()
+                .position(|profile| profile.id == new_profile.id)
+            {
+                app.claude_index = idx;
+            }
+            Ok(())
+        }
+        app::InputAction::ClaudeSetProfileName { id } => {
+            if trimmed.is_empty() {
+                return Err(anyhow::Error::msg("Profile name is required"));
+            }
+            let mut profile =
+                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
+                    .map_err(anyhow::Error::msg)?;
+            profile.name = trimmed.to_string();
+            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::ClaudeSetProfileDescription { id } => {
+            let mut profile =
+                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
+                    .map_err(anyhow::Error::msg)?;
+            profile.description = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::ClaudeSetProfileBaseUrl { id } => {
+            let mut profile =
+                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
+                    .map_err(anyhow::Error::msg)?;
+            profile.base_url = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::ClaudeSetProfileBearerToken { id } => {
+            let mut profile =
+                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
+                    .map_err(anyhow::Error::msg)?;
+            profile.bearer_token = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::ClaudeSetProfileModel { id } => {
+            let mut profile =
+                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
+                    .map_err(anyhow::Error::msg)?;
+            profile.model = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::ClaudeSetProfileSmallModel { id } => {
+            let mut profile =
+                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
+                    .map_err(anyhow::Error::msg)?;
+            profile.small_model = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
             Ok(())
         }
         app::InputAction::CodexCreateProfile => {

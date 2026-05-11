@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use droidgear_core::{
     channel::Channel,
+    claude::ClaudeCodeProfile,
     codex::CodexProfile,
     droid_settings_files::SettingsFileInfo,
     factory_auth_profiles::AuthProfile,
@@ -27,6 +28,8 @@ pub enum Screen {
     McpServer,
     McpArgs,
     McpKeyValues,
+    Claude,
+    ClaudeProfile,
     Codex,
     CodexProfile,
     CodexProvider,
@@ -88,6 +91,12 @@ pub enum ConfirmAction {
     Quit,
     PathsResetKey {
         key: String,
+    },
+    ClaudeApply {
+        id: String,
+    },
+    ClaudeDelete {
+        id: String,
     },
     CodexApply {
         id: String,
@@ -190,6 +199,28 @@ pub enum ConfirmAction {
 pub enum InputAction {
     PathsSetKey {
         key: String,
+    },
+    ClaudeCreateProfile,
+    ClaudeDuplicate {
+        id: String,
+    },
+    ClaudeSetProfileName {
+        id: String,
+    },
+    ClaudeSetProfileDescription {
+        id: String,
+    },
+    ClaudeSetProfileBaseUrl {
+        id: String,
+    },
+    ClaudeSetProfileBearerToken {
+        id: String,
+    },
+    ClaudeSetProfileModel {
+        id: String,
+    },
+    ClaudeSetProfileSmallModel {
+        id: String,
     },
     CodexCreateProfile,
     CodexDuplicate {
@@ -456,6 +487,12 @@ pub enum InputAction {
 #[derive(Debug, Clone)]
 pub enum SelectAction {
     GoToNav,
+    ClaudeSetProfileReasoningEffort {
+        id: String,
+    },
+    ClaudeSetProfileThinkingMode {
+        id: String,
+    },
     CodexSetProfileModelProvider {
         id: String,
     },
@@ -564,6 +601,13 @@ pub struct App {
     pub mcp_args_index: usize,
     pub mcp_kv_mode: McpKeyValuesMode,
     pub mcp_kv_index: usize,
+
+    pub claude_profiles: Vec<ClaudeCodeProfile>,
+    pub claude_active_id: Option<String>,
+    pub claude_index: usize,
+    pub claude_detail_id: Option<String>,
+    pub claude_detail: Option<ClaudeCodeProfile>,
+    pub claude_detail_field_index: usize,
 
     pub codex_profiles: Vec<CodexProfile>,
     pub codex_active_id: Option<String>,
@@ -687,6 +731,12 @@ impl App {
             mcp_args_index: 0,
             mcp_kv_mode: McpKeyValuesMode::Env,
             mcp_kv_index: 0,
+            claude_profiles: Vec::new(),
+            claude_active_id: None,
+            claude_index: 0,
+            claude_detail_id: None,
+            claude_detail: None,
+            claude_detail_field_index: 0,
             codex_profiles: Vec::new(),
             codex_active_id: None,
             codex_index: 0,
@@ -783,6 +833,7 @@ impl App {
             ("Droid Settings", Screen::DroidSettingsFiles),
             ("Factory", Screen::Factory),
             ("MCP", Screen::Mcp),
+            ("Claude", Screen::Claude),
             ("Codex", Screen::Codex),
             ("OpenCode", Screen::OpenCode),
             ("OpenClaw", Screen::OpenClaw),
@@ -822,6 +873,7 @@ impl App {
             &paths.opencode,
             &paths.opencode_auth,
             &paths.codex,
+            &paths.claude,
             &paths.openclaw,
             &paths.hermes,
         ];
@@ -835,6 +887,7 @@ impl App {
             &paths.opencode,
             &paths.opencode_auth,
             &paths.codex,
+            &paths.claude,
             &paths.openclaw,
             &paths.hermes,
         ];
@@ -846,9 +899,16 @@ impl App {
             self.nav_index = Self::nav_items().len().saturating_sub(1);
         }
 
-        let paths_count = 6;
+        let paths_count = 7;
         if self.paths_index >= paths_count {
             self.paths_index = paths_count.saturating_sub(1);
+        }
+        if self.claude_index >= self.claude_profiles.len() {
+            self.claude_index = self.claude_profiles.len().saturating_sub(1);
+        }
+        let claude_fields_count = 9;
+        if self.claude_detail_field_index >= claude_fields_count {
+            self.claude_detail_field_index = claude_fields_count.saturating_sub(1);
         }
         if self.factory_models_index >= self.custom_models.len() {
             self.factory_models_index = self.custom_models.len().saturating_sub(1);

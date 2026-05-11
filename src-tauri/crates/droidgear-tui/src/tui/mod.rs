@@ -18,6 +18,7 @@ use tempfile::{NamedTempFile, TempDir};
 
 mod actions;
 mod keys_channels;
+mod keys_claude;
 mod keys_codex;
 mod keys_droid_settings;
 mod keys_factory;
@@ -39,13 +40,17 @@ mod utils;
 #[cfg(test)]
 mod tests;
 
+pub use utils::list_claude_temporary_run_targets;
 pub use utils::list_codex_temporary_run_targets;
 pub use utils::list_droid_temporary_run_targets;
+pub use utils::preview_claude_temporary_run_for_selector;
+pub use utils::run_claude_temporary_run_for_selector;
 pub use utils::run_codex_temporary_run_for_selector;
 pub use utils::run_droid_temporary_run_for_settings_name;
 
 use actions::{read_to_string_if_exists, run_action};
 use keys_channels::{handle_channels_edit_key, handle_channels_key};
+use keys_claude::{handle_claude_key, handle_claude_profile_key};
 use keys_codex::{handle_codex_key, handle_codex_profile_key, handle_codex_provider_key};
 use keys_droid_settings::handle_droid_settings_files_key;
 use keys_factory::{handle_factory_key, handle_factory_model_key, normalize_factory_models};
@@ -71,8 +76,10 @@ use keys_specs::handle_specs_key;
 use modal::handle_modal_key;
 use refresh::*;
 use utils::{
-    factory_model_id, insert_char_at, preview_codex_apply, preview_openclaw_apply,
-    preview_opencode_apply, remove_char_at,
+    factory_model_id, insert_char_at, preview_claude_temporary_run, preview_codex_apply,
+    preview_codex_temporary_run, preview_droid_temporary_run, preview_openclaw_apply,
+    preview_opencode_apply, remove_char_at, run_claude_temporary_run, run_codex_temporary_run,
+    run_droid_temporary_run,
 };
 
 type UiTerminal = Terminal<CrosstermBackend<io::Stdout>>;
@@ -103,7 +110,13 @@ enum Action {
     EditCodexProfile { id: String },
     EditOpenCodeProfile { id: String },
     EditOpenClawProfile { id: String },
+    PreviewDroidRun { settings_path: String },
+    RunDroidRun { settings_path: String },
+    PreviewClaudeRun { id: String },
+    RunClaudeRun { id: String },
     PreviewCodexApply { id: String },
+    PreviewCodexRun { id: String },
+    RunCodexRun { id: String },
     PreviewOpenCodeApply { id: String },
     PreviewOpenClawApply { id: String },
     ViewSession { path: String },
@@ -185,6 +198,11 @@ fn refresh_screen_data(app: &mut app::App) {
         app::Screen::FactoryModel => {}
         app::Screen::Mcp => refresh_mcp(app),
         app::Screen::McpServer | app::Screen::McpArgs | app::Screen::McpKeyValues => {}
+        app::Screen::Claude => refresh_claude(app),
+        app::Screen::ClaudeProfile => {
+            refresh_claude(app);
+            refresh_claude_detail(app);
+        }
         app::Screen::Codex => refresh_codex(app),
         app::Screen::CodexProfile | app::Screen::CodexProvider => {
             refresh_codex(app);

@@ -72,6 +72,15 @@ pub(super) fn format_env_pairs(values: &[(String, String)], empty_label: &str) -
     }
     out
 }
+
+#[cfg_attr(not(test), allow(dead_code))]
+pub(super) fn format_optional_value(value: Option<&str>, empty_label: &str) -> String {
+    match value {
+        Some(value) => format!("  {value}\n"),
+        None => format!("  {empty_label}\n"),
+    }
+}
+
 pub(super) fn start_command_in_foreground(
     program: &str,
     args: &[String],
@@ -110,6 +119,50 @@ pub(super) fn start_command_in_foreground(
             .with_context(|| format!("start {program}"))?;
         Ok(())
     }
+}
+
+pub(super) fn sanitize_terminal_for_direct_exec() -> anyhow::Result<()> {
+    use std::io::IsTerminal;
+
+    if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
+        return Ok(());
+    }
+
+    let _ = disable_raw_mode();
+    let mut stdout = io::stdout();
+    stdout
+        .write_all(
+            b"\x1b[0m\x1b[?25h\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1004l\x1b[?1006l\x1b[?2004l",
+        )
+        .context("write terminal reset sequence")?;
+    stdout.flush().context("flush terminal reset sequence")?;
+
+    #[cfg(unix)]
+    unsafe {
+        if libc::tcflush(libc::STDIN_FILENO, libc::TCIFLUSH) != 0 {
+            return Err(std::io::Error::last_os_error()).context("flush terminal input queue");
+        }
+    }
+
+    Ok(())
+}
+
+fn probe_claude_cli() -> anyhow::Result<()> {
+    let version_output = Command::new("claude")
+        .arg("--version")
+        .output()
+        .with_context(|| "Failed to execute claude --version".to_string())?;
+    if !version_output.status.success() {
+        anyhow::bail!("Failed to read Claude CLI version");
+    }
+
+    Ok(())
+}
+
+fn current_launcher_program() -> anyhow::Result<String> {
+    std::env::current_exe()
+        .map(|path| path.to_string_lossy().to_string())
+        .with_context(|| "locate current launcher executable".to_string())
 }
 
 pub(super) fn format_diff_report(
@@ -212,6 +265,7 @@ pub fn run_droid_temporary_run_for_settings_name(
     home_dir: &Path,
     settings_name: &str,
 ) -> anyhow::Result<()> {
+    sanitize_terminal_for_direct_exec()?;
     let settings_path = droidgear_core::droid_settings_files::get_settings_path_by_name_for_home(
         home_dir,
         settings_name,
@@ -322,6 +376,41 @@ pub(super) fn run_codex_temporary_run(home_dir: &Path, profile_id: &str) -> anyh
     )
 }
 
+pub(super) fn preview_codex_temporary_run(
+    home_dir: &Path,
+    profile_id: &str,
+) -> anyhow::Result<String> {
+    let plan = build_codex_temporary_run_plan(home_dir, profile_id)?;
+
+    let mut out = String::new();
+    out.push_str("Codex temporary run preview\n\n");
+    out.push_str("Runtime CODEX_HOME:\n");
+    out.push_str(&format!("  {}\n\n", plan.runtime_home_path.display()));
+    out.push_str("Program:\n");
+    out.push_str(&format!("  {}\n\n", plan.program));
+    out.push_str("Args:\n");
+    out.push_str(&format_string_list(&plan.args, "(none)"));
+    out.push('\n');
+    out.push_str("Environment overrides:\n");
+    out.push_str(&format_env_pairs(&plan.env, "(none)"));
+    out.push('\n');
+    out.push_str("Unset environment variables:\n");
+    out.push_str(&format_string_list(&plan.unset_env, "(none)"));
+    out.push('\n');
+    let secret_env_keys = plan
+        .secret_env
+        .iter()
+        .map(|(key, _)| key.clone())
+        .collect::<Vec<_>>();
+    out.push_str("Secret environment keys:\n");
+    out.push_str(&format_string_list(&secret_env_keys, "(none)"));
+    out.push('\n');
+    out.push_str("Warnings:\n");
+    out.push_str(&format_string_list(&plan.warnings, "(none)"));
+
+    Ok(out)
+}
+
 pub fn list_codex_temporary_run_targets(home_dir: &Path) -> anyhow::Result<String> {
     let profiles = droidgear_core::codex::list_codex_profiles_for_home(home_dir)
         .map_err(anyhow::Error::msg)?;
@@ -353,10 +442,185 @@ pub fn list_codex_temporary_run_targets(home_dir: &Path) -> anyhow::Result<Strin
 }
 
 pub fn run_codex_temporary_run_for_selector(home_dir: &Path, selector: &str) -> anyhow::Result<()> {
+    sanitize_terminal_for_direct_exec()?;
     let profile =
         droidgear_core::codex::resolve_codex_profile_selector_for_home(home_dir, selector)
             .map_err(anyhow::Error::msg)?;
     run_codex_temporary_run(home_dir, &profile.id)
+}
+
+pub(super) fn build_claude_temporary_run_plan(
+    home_dir: &Path,
+    profile_id: &str,
+) -> anyhow::Result<droidgear_core::claude_runtime::ClaudeTemporaryLaunchPlan> {
+    droidgear_core::claude_runtime::cleanup_stale_runtime_dirs_for_home(home_dir)
+        .map_err(anyhow::Error::msg)?;
+    let profile = droidgear_core::claude::get_claude_profile_for_home(home_dir, profile_id)
+        .map_err(anyhow::Error::msg)?;
+    let launcher_program = current_launcher_program()?;
+    let launcher_args = droidgear_core::claude_runtime::internal_launcher_args();
+    droidgear_core::claude_runtime::build_temporary_run_plan_for_home(
+        home_dir,
+        &profile,
+        &launcher_program,
+        &launcher_args,
+    )
+    .map_err(|e| anyhow::Error::msg(format!("Failed to prepare Claude temporary run: {e}")))
+}
+
+pub(super) fn run_claude_temporary_run(home_dir: &Path, profile_id: &str) -> anyhow::Result<()> {
+    probe_claude_cli().map_err(|error| {
+        let message = error.to_string();
+        if message.starts_with("Failed to execute claude --version") {
+            anyhow::Error::msg("Claude CLI is not installed or not available in PATH.")
+        } else if message == "Failed to read Claude CLI version" {
+            anyhow::Error::msg(
+                "Failed to inspect the installed Claude CLI. Check that `claude` runs correctly in your shell.",
+            )
+        } else {
+            error
+        }
+    })?;
+
+    let plan = build_claude_temporary_run_plan(home_dir, profile_id)?;
+    for warning in &plan.warnings {
+        eprintln!("Warning: {warning}");
+    }
+    start_command_in_foreground(
+        &plan.program,
+        &plan.args,
+        &plan.env,
+        &plan.secret_env,
+        &plan.unset_env,
+        None,
+    )
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+pub(super) fn format_claude_temporary_run_preview(
+    preview: &droidgear_core::claude_runtime::ClaudeTemporaryRunDebugPreview,
+) -> String {
+    let mut out = String::new();
+    out.push_str("Claude temporary run preview\n\n");
+    out.push_str("Sensitive preview:\n");
+    out.push_str(
+        "  The settings overlay and launcher payload below may contain bearer tokens.\n\n",
+    );
+    out.push_str("Profile:\n");
+    out.push_str(&format!(
+        "  {} [id: {}]\n\n",
+        preview.profile_name, preview.profile_id
+    ));
+    out.push_str("Live config dir:\n");
+    out.push_str(&format!("  {}\n\n", preview.live_config_dir));
+    out.push_str("Inherited CLAUDE_ENV_FILE source:\n");
+    out.push_str(&format_optional_value(
+        preview.inherited_env_file_source.as_deref(),
+        "(none)",
+    ));
+    out.push('\n');
+    out.push_str("Settings overlay JSON:\n");
+    out.push_str("  Empty-string values below are intentional tombstones that clear inherited/live Claude env keys.\n\n");
+    out.push_str(&preview.settings_overlay_json);
+    if !preview.settings_overlay_json.ends_with('\n') {
+        out.push('\n');
+    }
+    out.push('\n');
+    out.push_str("Launcher program:\n");
+    out.push_str(&format!("  {}\n\n", preview.program));
+    out.push_str("Launcher args:\n");
+    out.push_str(&format_string_list(&preview.args, "(none)"));
+    out.push('\n');
+    out.push_str("Claude child program:\n");
+    out.push_str(&format!("  {}\n\n", preview.child_program));
+    out.push_str("Claude child args:\n");
+    out.push_str(&format_string_list(&preview.child_args, "(none)"));
+    out.push('\n');
+    out.push_str("Environment overrides:\n");
+    out.push_str(&format_env_pairs(&preview.env, "(none)"));
+    out.push('\n');
+    out.push_str("Unset environment variables:\n");
+    out.push_str(&format_string_list(&preview.unset_env, "(none)"));
+    out.push('\n');
+    out.push_str("Secret launcher env keys:\n");
+    out.push_str(&format_string_list(&preview.secret_env_keys, "(none)"));
+    out.push('\n');
+    out.push_str("Warnings:\n");
+    out.push_str(&format_string_list(&preview.warnings, "(none)"));
+    out
+}
+
+pub(super) fn preview_claude_temporary_run(
+    home_dir: &Path,
+    profile_id: &str,
+) -> anyhow::Result<String> {
+    let profile = droidgear_core::claude::get_claude_profile_for_home(home_dir, profile_id)
+        .map_err(anyhow::Error::msg)?;
+    let launcher_program = current_launcher_program()?;
+    let launcher_args = droidgear_core::claude_runtime::internal_launcher_args();
+    let preview = droidgear_core::claude_runtime::build_temporary_run_debug_preview_for_home(
+        home_dir,
+        &profile,
+        &launcher_program,
+        &launcher_args,
+    )
+    .map_err(anyhow::Error::msg)?;
+    Ok(format_claude_temporary_run_preview(&preview))
+}
+
+pub fn list_claude_temporary_run_targets(home_dir: &Path) -> anyhow::Result<String> {
+    let profiles = droidgear_core::claude::list_claude_profiles_for_home(home_dir)
+        .map_err(anyhow::Error::msg)?;
+    let active_profile_id = droidgear_core::claude::get_active_claude_profile_id_for_home(home_dir)
+        .map_err(anyhow::Error::msg)?;
+
+    let mut out = String::from("Available Claude run targets:\n");
+    if profiles.is_empty() {
+        out.push_str("(none)\n\nUse the Claude TUI/GUI to create a profile first.");
+        return Ok(out);
+    }
+
+    for (index, profile) in profiles.iter().enumerate() {
+        let marker = if active_profile_id.as_deref() == Some(profile.id.as_str()) {
+            "*"
+        } else {
+            " "
+        };
+        out.push_str(&format!(
+            "{marker} {}. {} [id: {}]\n",
+            index + 1,
+            profile.name,
+            profile.id
+        ));
+    }
+    out.push_str("\nUse `droidgear-tui run claude <index|name|id>`.\n");
+    out.push_str(
+        "Use `droidgear-tui run claude --preview <index|name|id>` to inspect the launch overlay and internal launcher payload.\n",
+    );
+    out.push_str("`*` marks the currently active profile.");
+    Ok(out)
+}
+
+pub fn run_claude_temporary_run_for_selector(
+    home_dir: &Path,
+    selector: &str,
+) -> anyhow::Result<()> {
+    // Claude temp runs already exec through the internal launcher, which owns
+    // the final terminal reset immediately before `exec claude`.
+    let profile =
+        droidgear_core::claude::resolve_claude_profile_selector_for_home(home_dir, selector)
+            .map_err(anyhow::Error::msg)?;
+    run_claude_temporary_run(home_dir, &profile.id)
+}
+
+pub fn preview_claude_temporary_run_for_selector(
+    home_dir: &Path,
+    selector: &str,
+) -> anyhow::Result<String> {
+    let profile =
+        droidgear_core::claude::resolve_claude_profile_selector_for_home(home_dir, selector)
+            .map_err(anyhow::Error::msg)?;
+    preview_claude_temporary_run(home_dir, &profile.id)
 }
 
 pub(super) fn preview_opencode_apply(home_dir: &Path, profile_id: &str) -> anyhow::Result<String> {

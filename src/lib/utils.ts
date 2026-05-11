@@ -47,6 +47,19 @@ export function isAnthropicAdaptiveThinkingModel(modelId: string): boolean {
   )
 }
 
+export function isRecognizedClaudeModelId(modelId: string): boolean {
+  const trimmed = modelId.trim()
+  if (!trimmed) return false
+  return normalizeModelId(trimmed).startsWith('claude.')
+}
+
+export function hasOpaqueClaudeModelId(
+  modelId: string | null | undefined
+): boolean {
+  if (!modelId?.trim()) return false
+  return !isRecognizedClaudeModelId(modelId)
+}
+
 // All Anthropic models support effort via either adaptive-thinking
 // (output_config.effort) or budget_tokens (thinking.budget_tokens). Both
 // encodings accept the full range of effort values. Let the user decide.
@@ -59,16 +72,17 @@ export function supportsMaxEffort(modelId: string): boolean {
   return n.startsWith('claude.')
 }
 
-// All Anthropic models can express xhigh-level reasoning — adaptive models
-// use output_config.effort, others map to budget_tokens. Non-Anthropic
-// reasoning models (GPT-5, o-series) also accept it via reasoning.effort.
+// Claude xhigh is a narrow capability, not a general Anthropic default.
+// Only Opus 4.7 should fall back to xhigh without an explicit registry hint.
+// Non-Anthropic reasoning models (GPT-5, o-series) also accept it via
+// reasoning.effort.
 // Priority: registry whitelist → pattern matching fallback.
 export function supportsXhighEffort(modelId: string): boolean {
   if (!modelId) return true
   const config = getModelReasoningConfig(modelId)
   if (config) return config.efforts.includes('xhigh')
+  if (isOpus47(modelId)) return true
   const n = normalizeModelId(modelId)
-  if (n.startsWith('claude.')) return true
   return (
     n.startsWith('gpt.5') ||
     n.startsWith('o1') ||

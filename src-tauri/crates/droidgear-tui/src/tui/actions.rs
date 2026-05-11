@@ -32,9 +32,39 @@ pub(super) fn run_action(app: &mut app::App, action: Action) -> anyhow::Result<(
             app.set_toast("Saved", false);
             Ok(())
         }
+        Action::PreviewDroidRun { settings_path } => {
+            let preview = preview_droid_temporary_run(&app.home_dir, Path::new(&settings_path))?;
+            open_text_in_pager(&preview)?;
+            Ok(())
+        }
+        Action::RunDroidRun { settings_path } => {
+            run_droid_temporary_run(&app.home_dir, Path::new(&settings_path))?;
+            app.should_quit = true;
+            Ok(())
+        }
+        Action::PreviewClaudeRun { id } => {
+            let preview = preview_claude_temporary_run(&app.home_dir, &id)?;
+            open_text_in_pager(&preview)?;
+            Ok(())
+        }
+        Action::RunClaudeRun { id } => {
+            run_claude_temporary_run(&app.home_dir, &id)?;
+            app.should_quit = true;
+            Ok(())
+        }
         Action::PreviewCodexApply { id } => {
             let diff = preview_codex_apply(&app.home_dir, &id)?;
             open_text_in_pager(&diff)?;
+            Ok(())
+        }
+        Action::PreviewCodexRun { id } => {
+            let preview = preview_codex_temporary_run(&app.home_dir, &id)?;
+            open_text_in_pager(&preview)?;
+            Ok(())
+        }
+        Action::RunCodexRun { id } => {
+            run_codex_temporary_run(&app.home_dir, &id)?;
+            app.should_quit = true;
             Ok(())
         }
         Action::PreviewOpenCodeApply { id } => {

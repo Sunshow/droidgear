@@ -37,6 +37,60 @@ pub(super) fn refresh_mcp(app: &mut app::App) {
     }
 }
 
+pub(super) fn refresh_claude(app: &mut app::App) {
+    match droidgear_core::claude::list_claude_profiles_for_home(&app.home_dir) {
+        Ok(list) => app.claude_profiles = list,
+        Err(e) => app.set_toast(e, true),
+    }
+
+    if app.claude_profiles.is_empty() {
+        match droidgear_core::claude::create_default_claude_profile_for_home(&app.home_dir) {
+            Ok(profile) => app.claude_profiles = vec![profile],
+            Err(error) => app.set_toast(error, true),
+        }
+    }
+
+    match droidgear_core::claude::get_active_claude_profile_id_for_home(&app.home_dir) {
+        Ok(id) => app.claude_active_id = id,
+        Err(e) => app.set_toast(e, true),
+    }
+}
+
+pub(super) fn refresh_claude_detail(app: &mut app::App) {
+    let Some(id) = app.claude_detail_id.clone() else {
+        app.claude_detail = None;
+        return;
+    };
+    match droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id) {
+        Ok(profile) => app.claude_detail = Some(profile),
+        Err(e) => {
+            app.claude_detail = None;
+            app.set_toast(e, true);
+        }
+    }
+}
+
+pub(super) fn claude_load_from_live_config(
+    app: &mut app::App,
+    profile_id: &str,
+) -> anyhow::Result<()> {
+    let live = droidgear_core::claude::read_claude_current_config_for_home(&app.home_dir)
+        .map_err(anyhow::Error::msg)?;
+    let mut profile =
+        droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, profile_id)
+            .map_err(anyhow::Error::msg)?;
+    profile.base_url = live.base_url;
+    profile.bearer_token = live.bearer_token;
+    profile.model = live.model;
+    profile.small_model_uses_main_model = live.small_model_uses_main_model;
+    profile.small_model = live.small_model;
+    profile.reasoning_effort = live.reasoning_effort;
+    profile.thinking_mode = live.thinking_mode;
+    droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
+        .map_err(anyhow::Error::msg)?;
+    Ok(())
+}
+
 pub(super) fn refresh_codex(app: &mut app::App) {
     match droidgear_core::codex::list_codex_profiles_for_home(&app.home_dir) {
         Ok(list) => app.codex_profiles = list,

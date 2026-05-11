@@ -716,6 +716,149 @@ async toggleMcpServer(name: string, disabled: boolean) : Promise<Result<null, st
 }
 },
 /**
+ * List all Claude Code profiles
+ */
+async listClaudeProfiles() : Promise<Result<ClaudeCodeProfile[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_claude_profiles") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get a profile by ID
+ */
+async getClaudeProfile(id: string) : Promise<Result<ClaudeCodeProfile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_claude_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Save a profile (create or update)
+ */
+async saveClaudeProfile(profile: ClaudeCodeProfile) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_claude_profile", { profile }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Delete a profile
+ */
+async deleteClaudeProfile(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_claude_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Duplicate a profile
+ */
+async duplicateClaudeProfile(id: string, newName: string) : Promise<Result<ClaudeCodeProfile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("duplicate_claude_profile", { id, newName }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Create default profile (when no profiles exist)
+ */
+async createDefaultClaudeProfile() : Promise<Result<ClaudeCodeProfile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("create_default_claude_profile") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get active profile ID
+ */
+async getActiveClaudeProfileId() : Promise<Result<string | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_active_claude_profile_id") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Set active profile ID
+ */
+async setActiveClaudeProfileId(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_active_claude_profile_id", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Apply a profile to `~/.claude/settings.json`
+ */
+async applyClaudeProfile(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("apply_claude_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get Claude Code config status
+ */
+async getClaudeConfigStatus() : Promise<Result<ClaudeConfigStatus, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_claude_config_status") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Read current Claude Code configuration from settings.json
+ */
+async readClaudeCurrentConfig() : Promise<Result<ClaudeCurrentConfig, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("read_claude_current_config") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Build the temporary-run launch plan preview for a Claude Code profile.
+ */
+async getClaudeTemporaryRunPlan(id: string) : Promise<Result<ClaudeTemporaryRunPlan, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_claude_temporary_run_plan", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Launch Claude Code using a runtime settings overlay instead of mutating live config.
+ */
+async launchClaude(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("launch_claude", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * List all Codex profiles
  */
 async listCodexProfiles() : Promise<Result<CodexProfile[], string>> {
@@ -1842,6 +1985,21 @@ groupName: string | null }
  * Channel types supported
  */
 export type ChannelType = "new-api" | "sub-2-api" | "cli-proxy-api" | "ollama" | "general"
+/**
+ * Claude Code profile stored in DroidGear.
+ */
+export type ClaudeCodeProfile = { id: string; name: string; description?: string | null; baseUrl?: string | null; bearerToken?: string | null; model?: string | null; smallModelUsesMainModel?: boolean; smallModel?: string | null; reasoningEffort?: ClaudeReasoningEffort | null; thinkingMode?: ClaudeThinkingMode; createdAt: string; updatedAt: string }
+/**
+ * Claude Code live config status.
+ */
+export type ClaudeConfigStatus = { settingsExists: boolean; settingsPath: string; configDir: string; parseError?: string | null }
+/**
+ * Current Claude Code configuration read back from live settings.
+ */
+export type ClaudeCurrentConfig = { baseUrl?: string | null; bearerToken?: string | null; model?: string | null; smallModelUsesMainModel?: boolean; smallModel?: string | null; reasoningEffort?: ClaudeReasoningEffort | null; thinkingMode?: ClaudeThinkingMode }
+export type ClaudeReasoningEffort = "low" | "medium" | "high" | "max"
+export type ClaudeTemporaryRunPlan = { program: string; args: string[]; env: ([string, string])[]; unsetEnv: string[]; secretEnvKeys: string[]; warnings: string[] }
+export type ClaudeThinkingMode = "inherit" | "on" | "off"
 export type CodexCliCapability = { version: string; supportsConfigOverride: boolean }
 /**
  * Codex Live 配置状态
@@ -1863,7 +2021,7 @@ export type CodexTemporaryRunPlan = { program: string; args: string[]; env: ([st
 /**
  * User-defined configuration paths (only stores explicitly set paths)
  */
-export type ConfigPaths = { factory?: string | null; opencode?: string | null; opencodeAuth?: string | null; codex?: string | null; openclaw?: string | null; hermes?: string | null; pi?: string | null }
+export type ConfigPaths = { factory?: string | null; opencode?: string | null; opencodeAuth?: string | null; codex?: string | null; claude?: string | null; openclaw?: string | null; hermes?: string | null; pi?: string | null }
 export type ConnectionDiagnostics = { success: boolean; provider: string; modelId: string; latencyMs: number; error?: string | null; timestamp: string; testMode: TestMode; 
 /**
  * Actual model response text (inference mode only).
@@ -1934,7 +2092,7 @@ export type EffectivePath = { key: string; path: string; isDefault: boolean }
 /**
  * All effective paths
  */
-export type EffectivePaths = { factory: EffectivePath; opencode: EffectivePath; opencodeAuth: EffectivePath; codex: EffectivePath; openclaw: EffectivePath; hermes: EffectivePath; pi: EffectivePath }
+export type EffectivePaths = { factory: EffectivePath; opencode: EffectivePath; opencodeAuth: EffectivePath; codex: EffectivePath; claude: EffectivePath; openclaw: EffectivePath; hermes: EffectivePath; pi: EffectivePath }
 /**
  * Hermes Live 配置状态
  */

@@ -5,6 +5,7 @@ import {
   Bot,
   Terminal,
   Code,
+  Feather,
   ChevronDown,
   Check,
   Cog,
@@ -33,6 +34,7 @@ import { ChannelList, ChannelDialog } from '@/components/channels'
 import { DroidFeatureList } from '@/components/droid'
 import { OpenCodeFeatureList } from '@/components/opencode'
 import { CodexFeatureList } from '@/components/codex'
+import { ClaudeFeatureList } from '@/components/claude'
 import { OpenClawFeatureList } from '@/components/openclaw'
 import { HermesFeatureList } from '@/components/hermes'
 import { PiFeatureList } from '@/components/pi'
@@ -47,6 +49,7 @@ type NavigationView =
   | 'channels'
   | 'opencode'
   | 'codex'
+  | 'claude'
   | 'openclaw'
   | 'hermes'
   | 'pi'
@@ -87,6 +90,11 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
         <>
           <Code className="h-4 w-4 mr-2" />
           {t('sidebar.codex')}
+        </>
+      ) : lastToolView === 'claude' ? (
+        <>
+          <Feather className="h-4 w-4 mr-2" />
+          {t('sidebar.claude')}
         </>
       ) : lastToolView === 'openclaw' ? (
         <>
@@ -260,6 +268,18 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
               </ActionDropdownMenuItem>
               <ActionDropdownMenuItem
                 onClick={() => {
+                  handleViewChange('claude')
+                  setDropdownOpen(false)
+                }}
+              >
+                <Feather className="h-4 w-4 mr-2" />
+                {t('sidebar.claude')}
+                {lastToolView === 'claude' && (
+                  <Check className="h-4 w-4 ml-auto" />
+                )}
+              </ActionDropdownMenuItem>
+              <ActionDropdownMenuItem
+                onClick={() => {
                   handleViewChange('openclaw')
                   setDropdownOpen(false)
                 }}
@@ -305,6 +325,8 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
           <DroidFeatureList />
         ) : currentView === 'opencode' ? (
           <OpenCodeFeatureList />
+        ) : currentView === 'claude' ? (
+          <ClaudeFeatureList />
         ) : currentView === 'openclaw' ? (
           <OpenClawFeatureList />
         ) : currentView === 'hermes' ? (

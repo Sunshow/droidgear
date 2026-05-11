@@ -1,4 +1,7 @@
-use droidgear_core::{codex, codex_runtime, factory_settings, mcp, openclaw, opencode, paths};
+use droidgear_core::{
+    claude, claude_runtime, codex, codex_runtime, droid_runtime, droid_settings_files,
+    factory_settings, mcp, openclaw, opencode, paths,
+};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -246,6 +249,195 @@ model = "gpt-5.2"
     // Ensure creating the default BYOK profile is still allowed when only official exists.
     let created = codex::create_default_codex_profile_for_home(home).unwrap();
     assert_ne!(created.id, "official");
+}
+
+#[test]
+fn claude_apply_preserves_unmanaged_settings_and_updates_active_profile() {
+    let temp = TempDir::new().unwrap();
+    let home = home_dir(&temp);
+    let settings_path = home.join(".claude").join("settings.json");
+
+    write_file(
+        &settings_path,
+        r#"{
+  "theme": "dark",
+  "env": {
+    "KEEP_ME": "1",
+    "ANTHROPIC_API_KEY": "bad",
+    "CLAUDE_CODE_USE_BEDROCK": "1",
+    "CLAUDE_CODE_DISABLE_THINKING": "1"
+  }
+}"#,
+    );
+
+    let profile = claude::ClaudeCodeProfile {
+        id: "claude-a".to_string(),
+        name: "Claude A".to_string(),
+        description: None,
+        base_url: Some("https://proxy.example.com".to_string()),
+        bearer_token: Some("token-a".to_string()),
+        model: Some("claude-sonnet-4-5".to_string()),
+        small_model_uses_main_model: true,
+        small_model: None,
+        reasoning_effort: Some(claude::ClaudeReasoningEffort::High),
+        thinking_mode: claude::ClaudeThinkingMode::On,
+        created_at: "2026-01-01T00:00:00Z".to_string(),
+        updated_at: "2026-01-01T00:00:00Z".to_string(),
+    };
+    claude::save_claude_profile_for_home(home, profile).unwrap();
+
+    claude::apply_claude_profile_for_home(home, "claude-a").unwrap();
+
+    let settings: Value = serde_json::from_str(&read_to_string(&settings_path)).unwrap();
+    assert_eq!(settings.get("theme").and_then(Value::as_str), Some("dark"));
+    assert_eq!(
+        settings
+            .get("alwaysThinkingEnabled")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+
+    let env = settings.get("env").and_then(Value::as_object).unwrap();
+    assert_eq!(env.get("KEEP_ME").and_then(Value::as_str), Some("1"));
+    assert_eq!(
+        env.get("ANTHROPIC_BASE_URL").and_then(Value::as_str),
+        Some("https://proxy.example.com")
+    );
+    assert_eq!(
+        env.get("ANTHROPIC_AUTH_TOKEN").and_then(Value::as_str),
+        Some("token-a")
+    );
+    assert!(!env.contains_key("ANTHROPIC_API_KEY"));
+    assert!(!env.contains_key("CLAUDE_CODE_USE_BEDROCK"));
+    assert!(!env.contains_key("CLAUDE_CODE_DISABLE_THINKING"));
+
+    let active = read_to_string(
+        &home
+            .join(".droidgear")
+            .join("claude")
+            .join("active-profile.txt"),
+    );
+    assert_eq!(active.trim(), "claude-a");
+}
+
+#[test]
+fn claude_temporary_run_plan_writes_overlay_tombstones_without_mutating_live_settings() {
+    let temp = TempDir::new().unwrap();
+    let home = home_dir(&temp);
+    let settings_path = home.join(".claude").join("settings.json");
+    write_file(
+        &settings_path,
+        r#"{
+  "theme": "dark",
+  "env": {
+    "KEEP_ME": "1",
+    "ANTHROPIC_API_KEY": "bad",
+    "CLAUDE_CODE_USE_BEDROCK": "1"
+  }
+}"#,
+    );
+
+    let profile = claude::ClaudeCodeProfile {
+        id: "claude-temp".to_string(),
+        name: "Claude Temp".to_string(),
+        description: None,
+        base_url: Some("https://proxy.example.com".to_string()),
+        bearer_token: Some("token-temp".to_string()),
+        model: Some("gateway-prod-model".to_string()),
+        small_model_uses_main_model: false,
+        small_model: Some("gateway-haiku".to_string()),
+        reasoning_effort: Some(claude::ClaudeReasoningEffort::Max),
+        thinking_mode: claude::ClaudeThinkingMode::Off,
+        created_at: "2026-01-01T00:00:00Z".to_string(),
+        updated_at: "2026-01-01T00:00:00Z".to_string(),
+    };
+
+    let before_live = read_to_string(&settings_path);
+    let plan = claude_runtime::build_temporary_run_plan_for_home(
+        home,
+        &profile,
+        "/tmp/droidgear-launcher",
+        &claude_runtime::internal_launcher_args(),
+    )
+    .unwrap();
+
+    assert_eq!(plan.program, "/tmp/droidgear-launcher");
+    assert_eq!(plan.args, claude_runtime::internal_launcher_args());
+    assert!(plan.env.is_empty());
+    assert!(plan.unset_env.contains(&"ANTHROPIC_AUTH_TOKEN".to_string()));
+    assert!(!plan.args.join(" ").contains("token-temp"));
+    assert_eq!(plan.secret_env.len(), 1);
+
+    let payload: Value = serde_json::from_str(&plan.secret_env[0].1).unwrap();
+    let expected_live_config_dir = home.join(".claude").display().to_string();
+    assert_eq!(
+        payload.get("liveConfigDir").and_then(Value::as_str),
+        Some(expected_live_config_dir.as_str())
+    );
+    assert!(payload.get("configDirEnvOverride").is_none());
+    let overlay = payload.get("settingsOverlay").unwrap();
+    assert_eq!(
+        overlay
+            .get("alwaysThinkingEnabled")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    let env = overlay.get("env").and_then(Value::as_object).unwrap();
+    assert_eq!(
+        env.get("ANTHROPIC_AUTH_TOKEN").and_then(Value::as_str),
+        Some("token-temp")
+    );
+    assert_eq!(
+        env.get("ANTHROPIC_API_KEY").and_then(Value::as_str),
+        Some("")
+    );
+    assert_eq!(
+        env.get("CLAUDE_CODE_USE_BEDROCK").and_then(Value::as_str),
+        Some("")
+    );
+    assert_eq!(
+        env.get("CLAUDE_CODE_DISABLE_THINKING")
+            .and_then(Value::as_str),
+        Some("1")
+    );
+
+    assert_eq!(read_to_string(&settings_path), before_live);
+}
+
+#[test]
+fn droid_temporary_run_plan_uses_active_settings_file_without_mutating_it() {
+    let temp = TempDir::new().unwrap();
+    let home = home_dir(&temp);
+
+    let settings_path = home.join(".droidgear/droid-settings/profile-a.json");
+    write_file(
+        &settings_path,
+        r#"{"sessionDefaultSettings":{"model":"claude-test","apiKey":"sk-droid-live"}}"#,
+    );
+
+    droid_settings_files::set_active_settings_file_for_home(home, Some("profile-a".to_string()))
+        .unwrap();
+
+    let before_settings = read_to_string(&settings_path);
+    let plan = droid_runtime::build_temporary_run_plan_for_home(
+        home,
+        &droid_runtime::DroidRunPreferences::default(),
+    )
+    .unwrap();
+
+    assert_eq!(plan.program, "droid");
+    assert_eq!(plan.args[0], "--settings");
+    assert_eq!(plan.args[1], plan.temp_settings_path.to_string_lossy());
+    assert_eq!(
+        plan.env,
+        vec![(
+            "FACTORY_DROID_AUTO_UPDATE_ENABLED".to_string(),
+            "0".to_string()
+        )]
+    );
+    assert_eq!(plan.unset_env, vec!["ANTHROPIC_AUTH_TOKEN".to_string()]);
+    assert_eq!(read_to_string(&plan.temp_settings_path), before_settings);
+    assert_eq!(read_to_string(&settings_path), before_settings);
 }
 
 #[test]

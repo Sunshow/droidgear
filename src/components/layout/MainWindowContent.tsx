@@ -14,6 +14,7 @@ import {
 import { FactoryAuthPage } from '@/components/factory-auth'
 import { OpenCodeConfigPage } from '@/components/opencode'
 import { CodexConfigPage } from '@/components/codex'
+import { ClaudeConfigPage } from '@/components/claude'
 import {
   OpenClawConfigPage,
   OpenClawHelpersPage,
@@ -96,6 +97,10 @@ export function MainWindowContent({
 
     if (currentView === 'codex') {
       return <CodexConfigPage />
+    }
+
+    if (currentView === 'claude') {
+      return <ClaudeConfigPage />
     }
 
     if (currentView === 'hermes') {
