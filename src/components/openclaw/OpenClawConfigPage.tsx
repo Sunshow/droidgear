@@ -190,7 +190,7 @@ export function OpenClawConfigPage() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <Button
             variant="outline"
             size="icon"
@@ -243,7 +243,7 @@ export function OpenClawConfigPage() {
         {/* Profile Section */}
         <div className="space-y-3 p-4 border rounded-lg">
           <div className="flex items-center gap-2">
-            <Label className="w-20">{t('openclaw.profile.select')}</Label>
+            <Label className="w-24">{t('openclaw.profile.select')}</Label>
             <Select
               value={currentProfile?.id ?? ''}
               onValueChange={handleProfileChange}
@@ -295,7 +295,7 @@ export function OpenClawConfigPage() {
           {currentProfile && (
             <>
               <div className="flex items-center gap-2">
-                <Label className="w-20">{t('openclaw.profile.name')}</Label>
+                <Label className="w-24">{t('openclaw.profile.name')}</Label>
                 <Input
                   value={editingName}
                   onChange={e => setEditingName(e.target.value)}
@@ -308,7 +308,7 @@ export function OpenClawConfigPage() {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <Label className="w-20">
+                <Label className="w-24">
                   {t('openclaw.profile.description')}
                 </Label>
                 <Input
@@ -334,7 +334,7 @@ export function OpenClawConfigPage() {
             {t('openclaw.defaultModel.title')}
           </h2>
           <div className="flex items-center gap-2">
-            <Label className="w-32">{t('openclaw.defaultModel.label')}</Label>
+            <Label className="w-24">{t('openclaw.defaultModel.label')}</Label>
             <Select
               value={currentProfile?.defaultModel ?? ''}
               onValueChange={updateDefaultModel}

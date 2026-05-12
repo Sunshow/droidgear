@@ -227,7 +227,7 @@ export function HermesConfigPage() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <Button
             variant="outline"
             size="icon"
@@ -271,7 +271,7 @@ export function HermesConfigPage() {
         {/* Profile Section */}
         <div className="space-y-3 p-4 border rounded-lg">
           <div className="flex items-center gap-2">
-            <Label className="w-20">{t('hermes.profile.select')}</Label>
+            <Label className="w-24">{t('hermes.profile.select')}</Label>
             <Select
               value={currentProfile?.id ?? ''}
               onValueChange={handleProfileChange}

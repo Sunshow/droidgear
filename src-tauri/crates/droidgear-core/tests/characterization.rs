@@ -508,8 +508,13 @@ model = "existing-live-model"
 
     assert_eq!(plan.program, "codex");
     assert!(plan.args.is_empty());
-    assert!(plan.env.iter().any(|(key, value)| key == "CODEX_HOME"
-        && value.contains(".droidgear/runtime/codex/temporary-run-")));
+    assert!(plan.env.iter().any(|(key, value)| {
+        key == "CODEX_HOME"
+            && value.contains(".droidgear")
+            && value.contains("runtime")
+            && value.contains("codex")
+            && value.contains("temporary-run-")
+    }));
     assert_eq!(
         plan.secret_env,
         vec![("EXAMPLE_API_KEY".to_string(), "sk-temp".to_string())]

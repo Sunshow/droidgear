@@ -394,7 +394,7 @@ export function ModelConfigPage() {
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-semibold">{t('models.title')}</h1>
           <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-            <FileText className="h-4 w-4 flex-shrink-0" />
+            <FileText className="h-4 w-4 shrink-0" />
             <code className="truncate text-xs bg-muted px-1 py-0.5 rounded select-all cursor-text">
               {configPath}
             </code>
@@ -402,14 +402,14 @@ export function ModelConfigPage() {
             {hasChanges && (
               <Badge
                 variant="secondary"
-                className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 flex-shrink-0"
+                className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 shrink-0"
               >
                 {t('models.unsavedChanges')}
               </Badge>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <Button
             variant="outline"
             size="icon"

@@ -18,7 +18,7 @@ export function ConfigStatus({ status }: ConfigStatusProps) {
   if (!status) return null
 
   return (
-    <div className="p-4 border rounded-lg space-y-3">
+    <div className="p-4 border rounded-lg space-y-2">
       <h3 className="text-sm font-medium text-muted-foreground">
         {t('claude.configStatus.title')}
       </h3>

@@ -1400,8 +1400,10 @@ mod tests {
         let status = get_claude_config_status_for_home(home).unwrap();
         assert!(status.settings_exists);
         assert!(status.parse_error.is_some());
-        assert!(status.settings_path.ends_with(".claude/settings.json"));
-        assert!(status.config_dir.ends_with(".claude"));
+        assert!(
+            Path::new(&status.settings_path).ends_with(Path::new(".claude").join("settings.json"))
+        );
+        assert!(Path::new(&status.config_dir).ends_with(".claude"));
     }
 
     #[test]

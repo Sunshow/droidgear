@@ -293,7 +293,7 @@ export function CodexConfigPage() {
         {/* Profile Section */}
         <div className="space-y-3 p-4 border rounded-lg">
           <div className="flex items-center gap-2">
-            <Label className="w-20">{t('codex.profile.select')}</Label>
+            <Label className="w-24">{t('codex.profile.select')}</Label>
             <Select
               value={currentProfile?.id ?? ''}
               onValueChange={handleProfileChange}
@@ -347,7 +347,7 @@ export function CodexConfigPage() {
           {currentProfile && (
             <>
               <div className="flex items-center gap-2">
-                <Label className="w-20">{t('codex.profile.name')}</Label>
+                <Label className="w-24">{t('codex.profile.name')}</Label>
                 <Input
                   value={editingName}
                   onChange={e => setEditingName(e.target.value)}
@@ -361,7 +361,7 @@ export function CodexConfigPage() {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <Label className="w-20">{t('codex.profile.description')}</Label>
+                <Label className="w-24">{t('codex.profile.description')}</Label>
                 <Input
                   value={editingDescription}
                   onChange={e => setEditingDescription(e.target.value)}

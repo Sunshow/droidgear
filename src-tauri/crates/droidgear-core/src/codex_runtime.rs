@@ -618,10 +618,12 @@ mod tests {
         assert!(plan.args.is_empty());
         assert_eq!(plan.env.len(), 1);
         assert_eq!(plan.env[0].0, "CODEX_HOME");
+        let codx_home = &plan.env[0].1;
         assert!(
-            plan.env[0]
-                .1
-                .contains(".droidgear/runtime/codex/temporary-run-"),
+            codx_home.contains(".droidgear")
+                && codx_home.contains("runtime")
+                && codx_home.contains("codex")
+                && codx_home.contains("temporary-run-"),
             "expected runtime CODEX_HOME, got {:?}",
             plan.env
         );
