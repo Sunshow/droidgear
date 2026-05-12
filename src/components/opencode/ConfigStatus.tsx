@@ -23,9 +23,19 @@ export function ConfigStatus({ status }: ConfigStatusProps) {
             {status.configPath}
           </code>
           {status.configExists ? (
-            <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+            <>
+              <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+              <span className="text-xs text-green-600 shrink-0">
+                {t('common.exists')}
+              </span>
+            </>
           ) : (
-            <XCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+            <>
+              <XCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="text-xs text-muted-foreground shrink-0">
+                {t('common.missing')}
+              </span>
+            </>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -34,9 +44,19 @@ export function ConfigStatus({ status }: ConfigStatusProps) {
             {status.authPath}
           </code>
           {status.authExists ? (
-            <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+            <>
+              <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+              <span className="text-xs text-green-600 shrink-0">
+                {t('common.exists')}
+              </span>
+            </>
           ) : (
-            <XCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+            <>
+              <XCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="text-xs text-muted-foreground shrink-0">
+                {t('common.missing')}
+              </span>
+            </>
           )}
         </div>
       </div>

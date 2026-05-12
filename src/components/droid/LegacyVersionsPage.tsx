@@ -159,7 +159,7 @@ export function LegacyVersionsPage() {
           {/* Auto Update Hint */}
           <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-md space-y-2">
             <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
-              <AlertCircle className="h-5 w-5 shrink-0" />
+              <AlertCircle className="h-4 w-4 shrink-0" />
               <span className="text-sm">
                 {t('droid.legacyVersions.autoUpdateHint')}
               </span>

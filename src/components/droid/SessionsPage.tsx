@@ -554,7 +554,7 @@ export function SessionsPage() {
                       <Button
                         variant={followMode ? 'default' : 'outline'}
                         size="icon"
-                        className="h-8 w-8 flex-shrink-0"
+                        className="h-8 w-8 shrink-0"
                         onClick={handleFollowToggle}
                       >
                         <ArrowDownToLine className="h-4 w-4" />
@@ -580,7 +580,7 @@ export function SessionsPage() {
                         )}
                       >
                         {message.role === 'assistant' && (
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                          <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                             <Bot className="h-4 w-4 text-primary" />
                           </div>
                         )}
@@ -621,7 +621,7 @@ export function SessionsPage() {
                           ))}
                         </div>
                         {message.role === 'user' && (
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                          <div className="shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
                             <User className="h-4 w-4 text-primary-foreground" />
                           </div>
                         )}

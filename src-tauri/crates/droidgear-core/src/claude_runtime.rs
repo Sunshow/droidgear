@@ -803,18 +803,12 @@ mod tests {
     fn write_claude_path_override(home: &Path, path: &Path) {
         let settings_path = home.join(".droidgear").join("settings.json");
         fs::create_dir_all(settings_path.parent().unwrap()).unwrap();
-        fs::write(
-            settings_path,
-            format!(
-                r#"{{
-  "configPaths": {{
-    "claude": "{}"
-  }}
-}}"#,
-                path.display()
-            ),
-        )
-        .unwrap();
+        let json = serde_json::json!({
+            "configPaths": {
+                "claude": path.display().to_string()
+            }
+        });
+        fs::write(settings_path, json.to_string()).unwrap();
     }
 
     #[test]
@@ -1201,20 +1195,19 @@ mod tests {
 
     #[test]
     fn overlay_file_is_written_with_private_permissions_on_unix() {
-        let temp = TempDir::new().unwrap();
-        let home = temp.path();
-        let (payload, _) = build_internal_launcher_payload_for_home_with_env(
-            home,
-            &make_profile(),
-            &HashMap::new(),
-        )
-        .unwrap();
-        let child = materialize_child_launch_from_payload(&payload).unwrap();
-
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
 
+            let temp = TempDir::new().unwrap();
+            let home = temp.path();
+            let (payload, _) = build_internal_launcher_payload_for_home_with_env(
+                home,
+                &make_profile(),
+                &HashMap::new(),
+            )
+            .unwrap();
+            let child = materialize_child_launch_from_payload(&payload).unwrap();
             let mode = fs::metadata(&child.settings_overlay_path)
                 .unwrap()
                 .permissions()

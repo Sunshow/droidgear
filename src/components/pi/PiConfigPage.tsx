@@ -221,7 +221,7 @@ export function PiConfigPage() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <Button
             variant="outline"
             size="icon"
@@ -265,7 +265,7 @@ export function PiConfigPage() {
         {/* Profile Section */}
         <div className="space-y-3 p-4 border rounded-lg">
           <div className="flex items-center gap-2">
-            <Label className="w-20">{t('pi.profile.select')}</Label>
+            <Label className="w-24">{t('pi.profile.select')}</Label>
             <Select
               value={currentProfile?.id ?? ''}
               onValueChange={handleProfileChange}

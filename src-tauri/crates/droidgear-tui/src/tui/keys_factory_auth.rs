@@ -20,11 +20,9 @@ pub(super) fn handle_factory_auth_key(app: &mut app::App, code: KeyCode) -> Opti
         KeyCode::Up | KeyCode::Char('k') => {
             app.factory_auth_index = app.factory_auth_index.saturating_sub(1);
         }
-        KeyCode::Down | KeyCode::Char('j') => {
-            if !app.factory_auth_profiles.is_empty() {
-                app.factory_auth_index = (app.factory_auth_index + 1)
-                    .min(app.factory_auth_profiles.len().saturating_sub(1));
-            }
+        KeyCode::Down | KeyCode::Char('j') if !app.factory_auth_profiles.is_empty() => {
+            app.factory_auth_index =
+                (app.factory_auth_index + 1).min(app.factory_auth_profiles.len().saturating_sub(1));
         }
         KeyCode::Enter => {
             if let Some(profile) = app.factory_auth_profiles.get(app.factory_auth_index) {

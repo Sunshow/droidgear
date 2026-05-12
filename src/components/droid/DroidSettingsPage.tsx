@@ -471,7 +471,7 @@ export function DroidSettingsPage() {
           {/* Environment Variable Conflict Warning */}
           <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-md space-y-2">
             <div className="flex items-center gap-2 text-amber-600 dark:text-amber-500">
-              <AlertCircle className="h-5 w-5 shrink-0" />
+              <AlertCircle className="h-4 w-4 shrink-0" />
               <span className="font-medium">
                 {t('droid.settings.envConflict.title')}
               </span>
