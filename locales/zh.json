@@ -460,6 +460,7 @@
   "droid.settingsFile.launch": "启动 Droid",
   "droid.settingsFile.launchTooltip": "在新终端窗口中打开 Droid CLI",
   "droid.settingsFile.launchSaveFailed": "无法启动 Droid，因为模型更改未能保存",
+  "droid.settingsFile.selectDirectory": "选择工作目录",
 
   "common.rename": "重命名",
   "common.export": "导出",

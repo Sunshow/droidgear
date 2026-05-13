@@ -60,9 +60,10 @@ pub async fn get_droid_launch_command() -> Result<(String, String), String> {
 
 /// Launches Droid CLI in a terminal with the active settings file.
 /// Respects the user's preferredTerminal preference.
+/// If `cwd` is provided, the terminal will start in that directory.
 #[tauri::command]
 #[specta::specta]
-pub async fn launch_droid(app: tauri::AppHandle) -> Result<(), String> {
+pub async fn launch_droid(app: tauri::AppHandle, cwd: Option<String>) -> Result<(), String> {
     // Read preferred terminal from preferences
     let prefs = load_preferences(&app).unwrap_or_default();
     let preferred = prefs.preferred_terminal.unwrap_or_default();
@@ -73,7 +74,8 @@ pub async fn launch_droid(app: tauri::AppHandle) -> Result<(), String> {
         log::warn!("Failed to clean up stale Droid temporary settings files: {error}");
     }
     let plan = droid_runtime::build_temporary_run_plan_for_home(&home_dir, &droid_run)?;
-    let spec = build_droid_launch_spec(&plan);
+    let mut spec = build_droid_launch_spec(&plan);
+    spec.cwd = cwd.map(std::path::PathBuf::from);
 
     launch_in_terminal(&spec, &preferred)
 }

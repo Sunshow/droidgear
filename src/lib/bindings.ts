@@ -1793,10 +1793,11 @@ async getDroidLaunchCommand() : Promise<Result<[string, string], string>> {
 /**
  * Launches Droid CLI in a terminal with the active settings file.
  * Respects the user's preferredTerminal preference.
+ * If `cwd` is provided, the terminal will start in that directory.
  */
-async launchDroid() : Promise<Result<null, string>> {
+async launchDroid(cwd: string | null) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("launch_droid") };
+    return { status: "ok", data: await TAURI_INVOKE("launch_droid", { cwd }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

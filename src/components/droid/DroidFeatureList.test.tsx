@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 
-const { toastMock, writeTextMock } = vi.hoisted(() => {
+const { toastMock, writeTextMock, openMock } = vi.hoisted(() => {
   const toast = Object.assign(vi.fn(), {
     success: vi.fn(),
     error: vi.fn(),
@@ -14,6 +14,7 @@ const { toastMock, writeTextMock } = vi.hoisted(() => {
   return {
     toastMock: toast,
     writeTextMock: vi.fn().mockResolvedValue(undefined),
+    openMock: vi.fn().mockResolvedValue('/home/user/projects'),
   }
 })
 
@@ -23,6 +24,10 @@ vi.mock('sonner', () => ({
 
 vi.mock('@tauri-apps/plugin-clipboard-manager', () => ({
   writeText: writeTextMock,
+}))
+
+vi.mock('@tauri-apps/plugin-dialog', () => ({
+  open: openMock,
 }))
 
 import { render, screen, waitFor } from '@/test/test-utils'
@@ -35,6 +40,8 @@ describe('DroidFeatureList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
+
+    openMock.mockResolvedValue('/home/user/projects')
 
     useUIStore.setState({
       currentView: 'droid',
@@ -83,12 +90,29 @@ describe('DroidFeatureList', () => {
     await user.click(launchButton)
 
     await waitFor(() => {
-      expect(commands.launchDroid).toHaveBeenCalledTimes(1)
+      expect(commands.launchDroid).toHaveBeenCalledWith('/home/user/projects')
     })
     expect(commands.getDroidLaunchCommand).not.toHaveBeenCalled()
     expect(writeTextMock).not.toHaveBeenCalled()
     expect(toastMock.info).not.toHaveBeenCalled()
     expect(toastMock.error).not.toHaveBeenCalled()
+  })
+
+  it('does not launch Droid when directory selection is cancelled', async () => {
+    openMock.mockResolvedValue(null)
+    const user = userEvent.setup()
+    render(<DroidFeatureList />)
+
+    const launchButton = await screen.findByTitle(
+      'Open Droid CLI in a new terminal window'
+    )
+    await user.click(launchButton)
+
+    await waitFor(() => {
+      expect(openMock).toHaveBeenCalledTimes(1)
+    })
+    expect(commands.launchDroid).not.toHaveBeenCalled()
+    expect(commands.getDroidLaunchCommand).not.toHaveBeenCalled()
   })
 
   it('saves pending model changes before launching Droid', async () => {
@@ -110,7 +134,7 @@ describe('DroidFeatureList', () => {
 
     await waitFor(() => {
       expect(saveModels).toHaveBeenCalledTimes(1)
-      expect(commands.launchDroid).toHaveBeenCalledTimes(1)
+      expect(commands.launchDroid).toHaveBeenCalledWith('/home/user/projects')
     })
   })
 

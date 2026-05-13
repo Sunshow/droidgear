@@ -17,6 +17,7 @@ import {
   ChevronDown,
 } from 'lucide-react'
 import { writeText } from '@tauri-apps/plugin-clipboard-manager'
+import { open } from '@tauri-apps/plugin-dialog'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { ActionButton } from '@/components/ui/action-button'
@@ -182,6 +183,13 @@ export function DroidFeatureList() {
   }
 
   const handleLaunchDroid = async () => {
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: t('droid.settingsFile.selectDirectory'),
+    })
+    if (!selected) return
+
     if (useModelStore.getState().hasChanges) {
       await useModelStore.getState().saveModels()
       if (useModelStore.getState().hasChanges) {
@@ -190,9 +198,8 @@ export function DroidFeatureList() {
       }
     }
 
-    const result = await commands.launchDroid()
+    const result = await commands.launchDroid(selected as string)
     if (result.status === 'error') {
-      // If launch fails, copy the command to clipboard instead
       const cmdResult = await commands.getDroidLaunchCommand()
       if (cmdResult.status === 'ok') {
         await writeText(cmdResult.data[0])

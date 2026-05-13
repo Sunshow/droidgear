@@ -460,6 +460,7 @@
   "droid.settingsFile.launch": "Launch Droid",
   "droid.settingsFile.launchTooltip": "Open Droid CLI in a new terminal window",
   "droid.settingsFile.launchSaveFailed": "Could not launch Droid because model changes could not be saved",
+  "droid.settingsFile.selectDirectory": "Select Working Directory",
 
   "common.rename": "Rename",
   "common.export": "Export",
