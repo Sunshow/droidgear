@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.0.1
+
+**New Features / 新功能**
+
+- Prompt directory selection before launching Droid / 启动 Droid 前提示选择目录
+
+**Bug Fixes / 问题修复**
+
+- Unify settings UI component alignment, spacing, and icon sizes; fix Windows path-related tests / 统一设置界面各组件对齐、间距和图标大小，修复 Windows 路径相关测试
+
+**Improvements / 改进**
+
+- Migrate to TypeScript 6 and refactor Tauri GUI / 迁移到 TypeScript 6 并重构 Tauri GUI
+
 ## v1.0.0
 
 **New Features / 新功能**
