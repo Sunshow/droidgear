@@ -206,11 +206,27 @@ export const useOpenClawStore = create<OpenClawState>()(
       },
 
       applyProfile: async id => {
-        const result = await commands.applyOpenclawProfile(id)
+        const { currentProfile } = get()
+        if (!currentProfile) return
+        // Save to disk first, then pass the full profile to Rust so there's
+        // no race condition between the save and the apply loading from disk.
+        const saveResult = await commands.saveOpenclawProfile(currentProfile)
+        if (saveResult.status !== 'ok') {
+          set(
+            { error: saveResult.error },
+            undefined,
+            'openclaw/applyProfile/saveError'
+          )
+          return
+        }
+        const result = await commands.applyOpenclawProfile(currentProfile)
         if (result.status !== 'ok') {
           set({ error: result.error }, undefined, 'openclaw/applyProfile/error')
           return
         }
+        // Reload profiles to sync store state with disk
+        await get().loadProfiles()
+        get().selectProfile(id)
         set({ activeProfileId: id }, undefined, 'openclaw/applyProfile/success')
         await get().loadConfigStatus()
       },

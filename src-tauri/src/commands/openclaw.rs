@@ -61,8 +61,8 @@ pub async fn get_active_openclaw_profile_id() -> Result<Option<String>, String> 
 /// Apply a profile to `~/.openclaw/openclaw.json`
 #[tauri::command]
 #[specta::specta]
-pub async fn apply_openclaw_profile(id: String) -> Result<(), String> {
-    droidgear_core::openclaw::apply_openclaw_profile(&id)
+pub async fn apply_openclaw_profile(profile: OpenClawProfile) -> Result<(), String> {
+    droidgear_core::openclaw::apply_openclaw_profile(&profile)
 }
 
 /// Get OpenClaw config status

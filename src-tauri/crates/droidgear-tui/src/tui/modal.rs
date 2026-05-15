@@ -790,7 +790,10 @@ pub(super) fn run_confirm_action(
             Ok(())
         }
         app::ConfirmAction::OpenClawApply { id } => {
-            droidgear_core::openclaw::apply_openclaw_profile_for_home(&app.home_dir, &id)
+            let profile =
+                droidgear_core::openclaw::get_openclaw_profile_for_home(&app.home_dir, &id)
+                    .map_err(|e| anyhow::anyhow!("Failed to load profile: {e}"))?;
+            droidgear_core::openclaw::apply_openclaw_profile_for_home(&app.home_dir, &profile)
                 .map_err(anyhow::Error::msg)?;
             app.set_toast("Applied", false);
             Ok(())
