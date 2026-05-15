@@ -723,9 +723,9 @@ pub(super) fn preview_openclaw_apply(home_dir: &Path, profile_id: &str) -> anyho
 
     let profile = droidgear_core::openclaw::get_openclaw_profile_for_home(home_dir, profile_id)
         .map_err(anyhow::Error::msg)?;
-    droidgear_core::openclaw::save_openclaw_profile_for_home(temp_home, profile)
+    droidgear_core::openclaw::save_openclaw_profile_for_home(temp_home, profile.clone())
         .map_err(anyhow::Error::msg)?;
-    droidgear_core::openclaw::apply_openclaw_profile_for_home(temp_home, profile_id)
+    droidgear_core::openclaw::apply_openclaw_profile_for_home(temp_home, &profile)
         .map_err(anyhow::Error::msg)?;
 
     let after_config = read_to_string_if_exists(&temp_config_path)?;

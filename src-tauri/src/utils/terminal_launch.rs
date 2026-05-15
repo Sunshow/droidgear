@@ -41,8 +41,9 @@ pub fn launch_in_terminal(spec: &LaunchSpec, preferred: &str) -> Result<(), Stri
     }
 }
 
+#[cfg(not(target_os = "windows"))]
 fn quote_posix(value: &str) -> String {
-    format!("'{}'", value.replace('\'', r"'\''"))
+    format!("'{0}'", value.replace('\'', r"'\''"))
 }
 
 #[cfg(target_os = "windows")]
@@ -84,6 +85,7 @@ fn render_powershell_banner(program: &str) -> String {
     format!("Write-Host {}", quote_powershell(&startup_message(program)))
 }
 
+#[cfg(not(target_os = "windows"))]
 fn render_posix_env(env: &[(String, String)], unset_env: &[String]) -> String {
     let mut parts = Vec::new();
 
@@ -137,6 +139,7 @@ fn render_program_command(spec: &LaunchSpec, quote_fn: fn(&str) -> String) -> St
     parts.join(" ")
 }
 
+#[cfg(not(target_os = "windows"))]
 fn render_posix_cd(cwd: Option<&PathBuf>) -> Option<String> {
     cwd.map(|path| format!("cd {}", quote_posix(&path.to_string_lossy())))
 }
@@ -198,6 +201,7 @@ fn write_launch_script(path: &Path, contents: &str) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(not(target_os = "windows"))]
 fn render_posix_child_command(spec: &LaunchSpec) -> String {
     let command = render_program_command(spec, quote_posix);
     let mut env_parts = Vec::new();
@@ -217,6 +221,7 @@ fn render_posix_child_command(spec: &LaunchSpec) -> String {
     }
 }
 
+#[cfg(not(target_os = "windows"))]
 fn prepare_secure_posix_command(script_path: &Path) -> PreparedCommand {
     let command = format!("bash {}", quote_posix(&script_path.to_string_lossy()));
 
@@ -275,6 +280,7 @@ fn write_secure_cmd_wrapper(spec: &LaunchSpec) -> Result<PathBuf, String> {
     Ok(path)
 }
 
+#[cfg(not(target_os = "windows"))]
 pub fn prepare_posix_command(spec: &LaunchSpec) -> PreparedCommand {
     let env_setup = render_posix_env(&spec.env, &spec.unset_env);
     let cd = render_posix_cd(spec.cwd.as_ref());
@@ -656,11 +662,11 @@ fn launch_windows(spec: &LaunchSpec, preferred: &str) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        launch_artifact_path, prepare_posix_command, prepare_secure_posix_command,
-        render_posix_child_command, LaunchSpec,
-    };
+    use super::{launch_artifact_path, LaunchSpec};
     use std::path::PathBuf;
+
+    #[cfg(not(target_os = "windows"))]
+    use super::{prepare_posix_command, prepare_secure_posix_command, render_posix_child_command};
 
     fn sample_spec() -> LaunchSpec {
         LaunchSpec {
@@ -677,6 +683,7 @@ mod tests {
         }
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[test]
     fn prepare_posix_command_renders_env_unset_and_cwd() {
         let prepared = prepare_posix_command(&sample_spec());
@@ -710,7 +717,6 @@ mod tests {
         );
     }
 
-    #[test]
     #[cfg(target_os = "windows")]
     #[test]
     fn prepare_powershell_command_renders_env_unset_and_cwd() {
@@ -744,7 +750,6 @@ mod tests {
         );
     }
 
-    #[test]
     #[cfg(target_os = "windows")]
     #[test]
     fn prepare_cmd_command_renders_env_unset_and_cwd() {
@@ -777,6 +782,7 @@ mod tests {
         assert_eq!(prepared.command, prepared.keep_open_command);
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[test]
     fn prepare_commands_skip_empty_env_sections() {
         let spec = LaunchSpec {
@@ -815,6 +821,7 @@ mod tests {
         assert_eq!(cmd.command, "\"droid\"");
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[test]
     fn prepare_posix_command_escapes_embedded_single_quotes() {
         let spec = LaunchSpec {
@@ -841,7 +848,6 @@ mod tests {
         );
     }
 
-    #[test]
     #[cfg(target_os = "windows")]
     #[test]
     fn prepare_cmd_command_escapes_percent_quotes_and_carets() {
@@ -883,6 +889,7 @@ mod tests {
         );
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[test]
     fn secure_posix_command_uses_wrapper_path_without_exposing_secret_values() {
         let spec = LaunchSpec {

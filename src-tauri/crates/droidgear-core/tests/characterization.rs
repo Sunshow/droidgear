@@ -742,7 +742,7 @@ fn openclaw_apply_replaces_models_providers_and_chunk_object() {
         &serde_json::to_string_pretty(&profile).unwrap(),
     );
 
-    openclaw::apply_openclaw_profile_for_home(home, "p1").unwrap();
+    openclaw::apply_openclaw_profile_for_home(home, &profile).unwrap();
 
     let after = read_to_string(&home.join(".openclaw").join("openclaw.json"));
     let after_v: Value = serde_json::from_str(&after).unwrap();

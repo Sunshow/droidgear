@@ -754,10 +754,12 @@ fn set_active_profile_id_for_home(home_dir: &Path, id: &str) -> Result<(), Strin
     storage::atomic_write(&path, id.as_bytes())
 }
 
-pub fn apply_openclaw_profile_for_home(home_dir: &Path, id: &str) -> Result<(), String> {
-    let profile = load_profile_by_id(home_dir, id)?;
-    write_openclaw_config_for_home(home_dir, &profile)?;
-    set_active_profile_id_for_home(home_dir, id)?;
+pub fn apply_openclaw_profile_for_home(
+    home_dir: &Path,
+    profile: &OpenClawProfile,
+) -> Result<(), String> {
+    write_openclaw_config_for_home(home_dir, profile)?;
+    set_active_profile_id_for_home(home_dir, &profile.id)?;
     Ok(())
 }
 
@@ -830,8 +832,8 @@ pub fn get_active_openclaw_profile_id() -> Result<Option<String>, String> {
     get_active_openclaw_profile_id_for_home(&system_home_dir()?)
 }
 
-pub fn apply_openclaw_profile(id: &str) -> Result<(), String> {
-    apply_openclaw_profile_for_home(&system_home_dir()?, id)
+pub fn apply_openclaw_profile(profile: &OpenClawProfile) -> Result<(), String> {
+    apply_openclaw_profile_for_home(&system_home_dir()?, profile)
 }
 
 pub fn get_openclaw_config_status() -> Result<OpenClawConfigStatus, String> {
@@ -956,4 +958,1004 @@ pub fn read_openclaw_subagents() -> Result<Vec<OpenClawSubAgent>, String> {
 
 pub fn save_openclaw_subagents(subagents: Vec<OpenClawSubAgent>) -> Result<(), String> {
     save_openclaw_subagents_for_home(&system_home_dir()?, subagents)
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn empty_profile() -> OpenClawProfile {
+        OpenClawProfile {
+            id: "test-id".to_string(),
+            name: "Test".to_string(),
+            description: None,
+            created_at: "2025-01-01T00:00:00Z".to_string(),
+            updated_at: "2025-01-01T00:00:00Z".to_string(),
+            default_model: None,
+            failover_models: None,
+            providers: HashMap::new(),
+            block_streaming_config: None,
+        }
+    }
+
+    /// Helper: run full roundtrip build → parse and verify invariants.
+    fn roundtrip(
+        profile: &OpenClawProfile,
+    ) -> (
+        Option<String>,
+        Option<Vec<String>>,
+        HashMap<String, OpenClawProviderConfig>,
+    ) {
+        let config = build_openclaw_config(profile);
+        let (model, failovers, providers) = parse_openclaw_config(&config);
+        (model, failovers, providers)
+    }
+
+    // ------------------------------------------------------------------
+    // Roundtrip tests (build → parse → verify)
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn test_roundtrip_empty_profile() {
+        let profile = empty_profile();
+        let (model, failovers, providers) = roundtrip(&profile);
+        assert!(
+            model.is_none(),
+            "empty profile should produce no default_model"
+        );
+        assert!(
+            failovers.is_none(),
+            "empty profile should produce no failover_models"
+        );
+        assert!(
+            providers.is_empty(),
+            "empty profile should produce no providers"
+        );
+    }
+
+    #[test]
+    fn test_roundtrip_default_model_only() {
+        let mut profile = empty_profile();
+        profile.default_model = Some("anthropic/claude-sonnet-4-20250514".to_string());
+
+        let (model, failovers, providers) = roundtrip(&profile);
+
+        assert_eq!(model.as_deref(), Some("anthropic/claude-sonnet-4-20250514"));
+        assert!(failovers.is_none(), "no failovers configured");
+        assert!(providers.is_empty());
+    }
+
+    #[test]
+    fn test_roundtrip_default_model_with_fallbacks() {
+        let mut profile = empty_profile();
+        profile.default_model = Some("anthropic/claude-opus-4-6".to_string());
+        profile.failover_models = Some(vec![
+            "minimax/MiniMax-M2.7".to_string(),
+            "openai/gpt-5.4-mini".to_string(),
+        ]);
+
+        let (model, failovers, providers) = roundtrip(&profile);
+
+        assert_eq!(model.as_deref(), Some("anthropic/claude-opus-4-6"));
+        let f = failovers.expect("failovers should be present");
+        assert_eq!(f, vec!["minimax/MiniMax-M2.7", "openai/gpt-5.4-mini"]);
+        assert!(providers.is_empty());
+    }
+
+    #[test]
+    fn test_roundtrip_empty_failovers_not_written() {
+        // When failover list is empty, the key should not appear in config.
+        let mut profile = empty_profile();
+        profile.default_model = Some("anthropic/claude-opus-4-6".to_string());
+        profile.failover_models = Some(vec![]);
+
+        let config = build_openclaw_config(&profile);
+
+        // Verify `agents.defaults.model` has `primary` but no `fallbacks`
+        let agents = config.get("agents").and_then(|v| v.as_object()).unwrap();
+        let defaults = agents.get("defaults").and_then(|v| v.as_object()).unwrap();
+        let model = defaults.get("model").and_then(|v| v.as_object()).unwrap();
+        assert!(model.contains_key("primary"));
+        assert!(
+            !model.contains_key("fallbacks"),
+            "empty failovers should not emit fallbacks key"
+        );
+
+        // Parse it back
+        let (model_out, failovers_out, _) = parse_openclaw_config(&config);
+        assert_eq!(model_out.as_deref(), Some("anthropic/claude-opus-4-6"));
+        assert!(
+            failovers_out.is_none(),
+            "empty failovers should parse back as None"
+        );
+    }
+
+    #[test]
+    fn test_roundtrip_providers_with_models() {
+        let mut profile = empty_profile();
+        profile.default_model = Some("custom/my-model".to_string());
+
+        let mut providers = HashMap::new();
+        providers.insert(
+            "custom".to_string(),
+            OpenClawProviderConfig {
+                base_url: Some("http://localhost:4000/v1".to_string()),
+                api_key: Some("sk-test-key".to_string()),
+                api: Some("openai-completions".to_string()),
+                models: vec![
+                    OpenClawModel {
+                        id: "my-model".to_string(),
+                        name: Some("My Model".to_string()),
+                        reasoning: false,
+                        input: vec!["text".to_string()],
+                        context_window: Some(128000),
+                        max_tokens: Some(32000),
+                    },
+                    OpenClawModel {
+                        id: "vision-model".to_string(),
+                        name: Some("Vision Model".to_string()),
+                        reasoning: true,
+                        input: vec!["text".to_string(), "image".to_string()],
+                        context_window: Some(200000),
+                        max_tokens: Some(4096),
+                    },
+                ],
+            },
+        );
+        profile.providers = providers;
+
+        let (model, failovers, parsed_providers) = roundtrip(&profile);
+
+        assert_eq!(model.as_deref(), Some("custom/my-model"));
+        assert!(failovers.is_none());
+
+        let custom = parsed_providers
+            .get("custom")
+            .expect("custom provider should be present");
+        assert_eq!(custom.base_url.as_deref(), Some("http://localhost:4000/v1"));
+        assert_eq!(custom.api_key.as_deref(), Some("sk-test-key"));
+        assert_eq!(custom.api.as_deref(), Some("openai-completions"));
+
+        assert_eq!(custom.models.len(), 2);
+
+        let m1 = &custom.models[0];
+        assert_eq!(m1.id, "my-model");
+        assert_eq!(m1.name.as_deref(), Some("My Model"));
+        assert!(!m1.reasoning);
+        assert_eq!(m1.input, vec!["text"]);
+        assert_eq!(m1.context_window, Some(128000));
+        assert_eq!(m1.max_tokens, Some(32000));
+
+        let m2 = &custom.models[1];
+        assert_eq!(m2.id, "vision-model");
+        assert_eq!(m2.name.as_deref(), Some("Vision Model"));
+        assert!(m2.reasoning);
+        assert_eq!(m2.input, vec!["text", "image"]);
+        assert_eq!(m2.context_window, Some(200000));
+        assert_eq!(m2.max_tokens, Some(4096));
+    }
+
+    #[test]
+    fn test_roundtrip_provider_without_optional_fields() {
+        // Provider with only required fields — no baseUrl, no apiKey, no api, no models
+        let mut profile = empty_profile();
+        let mut providers = HashMap::new();
+        providers.insert(
+            "minimal".to_string(),
+            OpenClawProviderConfig {
+                base_url: None,
+                api_key: None,
+                api: None,
+                models: vec![],
+            },
+        );
+        profile.providers = providers;
+
+        let config = build_openclaw_config(&profile);
+
+        // Since no models in provider, no `agents.defaults.models` should be written.
+        // And since no default_model is set, no `agents` block should appear either.
+        let agents = config.get("agents");
+        assert!(
+            agents.is_none(),
+            "no default_model and no model refs → no agents block"
+        );
+
+        // A provider entry with all-optional fields empty still gets written as "minimal": {}
+        // because the provider id itself is a valid config key.
+        let models = config.get("models").and_then(|v| v.as_object()).unwrap();
+        let providers_obj = models.get("providers").and_then(|v| v.as_object()).unwrap();
+        assert!(
+            providers_obj.contains_key("minimal"),
+            "provider id should appear as a key"
+        );
+        let minimal = providers_obj
+            .get("minimal")
+            .and_then(|v| v.as_object())
+            .unwrap();
+        assert!(
+            minimal.is_empty(),
+            "minimal provider object should be empty '{{}}'"
+        );
+
+        // Parse back: a provider with no baseUrl/apiKey/models should produce
+        // a config entry, but the parsed provider will have all None/empty fields.
+        let (_, _, parsed_providers) = roundtrip(&profile);
+        let minimal_parsed = parsed_providers.get("minimal").unwrap();
+        assert!(minimal_parsed.base_url.is_none());
+        assert!(minimal_parsed.api_key.is_none());
+        assert!(minimal_parsed.api.is_none());
+        assert!(minimal_parsed.models.is_empty());
+    }
+
+    #[test]
+    fn test_roundtrip_block_streaming_config() {
+        let mut profile = empty_profile();
+        profile.block_streaming_config = Some(BlockStreamingConfig {
+            block_streaming_default: Some("on".to_string()),
+            block_streaming_break: Some("message_end".to_string()),
+            block_streaming_chunk: Some(BlockStreamingChunk {
+                min_chars: Some(800),
+                max_chars: Some(1200),
+            }),
+            block_streaming_coalesce: Some(BlockStreamingCoalesce {
+                idle_ms: Some(1000),
+            }),
+            telegram_channel: Some(TelegramChannelConfig {
+                block_streaming: Some(true),
+                chunk_mode: Some("message".to_string()),
+            }),
+        });
+
+        let config = build_openclaw_config(&profile);
+
+        // Verify structure before roundtrip
+        let agents = config.get("agents").and_then(|v| v.as_object()).unwrap();
+        let defaults = agents.get("defaults").and_then(|v| v.as_object()).unwrap();
+
+        assert_eq!(
+            defaults
+                .get("blockStreamingDefault")
+                .and_then(|v| v.as_str()),
+            Some("on")
+        );
+        assert_eq!(
+            defaults.get("blockStreamingBreak").and_then(|v| v.as_str()),
+            Some("message_end")
+        );
+
+        let chunk = defaults
+            .get("blockStreamingChunk")
+            .and_then(|v| v.as_object())
+            .unwrap();
+        assert_eq!(chunk.get("minChars").and_then(|v| v.as_u64()), Some(800));
+        assert_eq!(chunk.get("maxChars").and_then(|v| v.as_u64()), Some(1200));
+
+        let coalesce = defaults
+            .get("blockStreamingCoalesce")
+            .and_then(|v| v.as_object())
+            .unwrap();
+        assert_eq!(coalesce.get("idleMs").and_then(|v| v.as_u64()), Some(1000));
+
+        // Verify telegram channel config
+        let channels = config.get("channels").and_then(|v| v.as_object()).unwrap();
+        let telegram = channels
+            .get("telegram")
+            .and_then(|v| v.as_object())
+            .unwrap();
+        assert_eq!(
+            telegram.get("blockStreaming").and_then(|v| v.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            telegram.get("chunkMode").and_then(|v| v.as_str()),
+            Some("message")
+        );
+
+        // Roundtrip: the parsed BlockStreamingConfig is not roundtripped through
+        // parse_openclaw_config (it only extracts model+provider). We just verify
+        // the config structure is correct above.
+        let (_, _, _) = roundtrip(&profile);
+        // No panic = success
+    }
+
+    #[test]
+    fn test_roundtrip_full_profile() {
+        // A profile exercising all fields at once
+        let mut profile = empty_profile();
+        profile.default_model = Some("openai/gpt-5.5".to_string());
+        profile.failover_models = Some(vec!["anthropic/claude-opus-4-6".to_string()]);
+
+        let mut providers = HashMap::new();
+        providers.insert(
+            "openai".to_string(),
+            OpenClawProviderConfig {
+                base_url: Some("https://api.openai.com/v1".to_string()),
+                api_key: None,
+                api: Some("openai-completions".to_string()),
+                models: vec![OpenClawModel {
+                    id: "gpt-5.5".to_string(),
+                    name: Some("GPT 5.5".to_string()),
+                    reasoning: false,
+                    input: vec!["text".to_string()],
+                    context_window: Some(1000000),
+                    max_tokens: Some(32000),
+                }],
+            },
+        );
+        profile.providers = providers;
+
+        let config = build_openclaw_config(&profile);
+        let config_str = serde_json::to_string_pretty(&config).unwrap();
+
+        // Verify the JSON output contains expected keys
+        assert!(config_str.contains("\"primary\""));
+        assert!(config_str.contains("\"fallbacks\""));
+        assert!(config_str.contains("\"openai\""));
+        assert!(config_str.contains("\"gpt-5.5\""));
+        assert!(config_str.contains("\"GPT 5.5\""));
+
+        // Roundtrip parse
+        let (model, failovers, parsed_providers) = parse_openclaw_config(&config);
+        assert_eq!(model.as_deref(), Some("openai/gpt-5.5"));
+        assert_eq!(
+            failovers,
+            Some(vec!["anthropic/claude-opus-4-6".to_string()])
+        );
+
+        let openai = parsed_providers.get("openai").unwrap();
+        assert_eq!(
+            openai.base_url.as_deref(),
+            Some("https://api.openai.com/v1")
+        );
+        assert!(openai.api_key.is_none());
+        assert_eq!(openai.models.len(), 1);
+        assert_eq!(openai.models[0].id, "gpt-5.5");
+        assert_eq!(openai.models[0].context_window, Some(1000000));
+    }
+
+    // ------------------------------------------------------------------
+    // Parse documented config format
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn test_parse_documented_agents_defaults_model() {
+        // Exact documented format from https://docs.openclaw.ai/gateway/config-agents
+        let json_str = r#"
+        {
+            "agents": {
+                "defaults": {
+                    "model": {
+                        "primary": "anthropic/claude-opus-4-6",
+                        "fallbacks": ["minimax/MiniMax-M2.7"]
+                    }
+                }
+            }
+        }
+        "#;
+
+        let config: Value = serde_json::from_str(json_str).unwrap();
+        let (model, failovers, providers) = parse_openclaw_config(&config);
+
+        assert_eq!(model.as_deref(), Some("anthropic/claude-opus-4-6"));
+        assert_eq!(failovers, Some(vec!["minimax/MiniMax-M2.7".to_string()]));
+        assert!(providers.is_empty());
+    }
+
+    #[test]
+    fn test_parse_documented_model_as_string() {
+        // Docs say model can also be a plain string
+        let json_str = r#"
+        {
+            "agents": {
+                "defaults": {
+                    "model": "anthropic/claude-sonnet-4-6"
+                }
+            }
+        }
+        "#;
+
+        let config: Value = serde_json::from_str(json_str).unwrap();
+        let (model, failovers, providers) = parse_openclaw_config(&config);
+
+        // The parser reads from `model.primary`, so a plain string won't match
+        assert!(model.is_none(), "plain string model is not parsed (only object form with 'primary'/'fallbacks' keys is supported)");
+        assert!(failovers.is_none());
+        assert!(providers.is_empty());
+    }
+
+    #[test]
+    fn test_parse_documented_custom_providers() {
+        // Exact documented format from https://docs.openclaw.ai/gateway/config-tools
+        let json_str = r#"
+        {
+            "models": {
+                "mode": "merge",
+                "providers": {
+                    "custom-proxy": {
+                        "baseUrl": "http://localhost:4000/v1",
+                        "apiKey": "LITELLM_KEY",
+                        "api": "openai-completions",
+                        "models": [
+                            {
+                                "id": "llama-3.1-8b",
+                                "name": "Llama 3.1 8B",
+                                "reasoning": false,
+                                "input": ["text"],
+                                "contextWindow": 128000,
+                                "maxTokens": 32000
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+        "#;
+
+        let config: Value = serde_json::from_str(json_str).unwrap();
+        let (_model, _failovers, providers) = parse_openclaw_config(&config);
+
+        let proxy = providers
+            .get("custom-proxy")
+            .expect("custom-proxy provider should be parsed");
+        assert_eq!(proxy.base_url.as_deref(), Some("http://localhost:4000/v1"));
+        assert_eq!(proxy.api_key.as_deref(), Some("LITELLM_KEY"));
+        assert_eq!(proxy.api.as_deref(), Some("openai-completions"));
+        assert_eq!(proxy.models.len(), 1);
+
+        let m = &proxy.models[0];
+        assert_eq!(m.id, "llama-3.1-8b");
+        assert_eq!(m.name.as_deref(), Some("Llama 3.1 8B"));
+        assert!(!m.reasoning);
+        assert_eq!(m.input, vec!["text"]);
+        assert_eq!(m.context_window, Some(128000));
+        assert_eq!(m.max_tokens, Some(32000));
+    }
+
+    #[test]
+    fn test_parse_documented_provider_with_runtime_cap() {
+        // Parse config that has both contextWindow and contextTokens (runtime cap)
+        let json_str = r#"
+        {
+            "models": {
+                "providers": {
+                    "minimax": {
+                        "baseUrl": "https://api.minimax.io/anthropic",
+                        "apiKey": "${MINIMAX_API_KEY}",
+                        "api": "anthropic-messages",
+                        "models": [
+                            {
+                                "id": "MiniMax-M2.7",
+                                "name": "MiniMax M2.7",
+                                "reasoning": true,
+                                "input": ["text"],
+                                "contextWindow": 204800,
+                                "maxTokens": 131072
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+        "#;
+
+        let config: Value = serde_json::from_str(json_str).unwrap();
+        let (_model, _failovers, providers) = parse_openclaw_config(&config);
+
+        let minimax = providers.get("minimax").unwrap();
+        assert_eq!(
+            minimax.base_url.as_deref(),
+            Some("https://api.minimax.io/anthropic")
+        );
+        assert_eq!(minimax.api.as_deref(), Some("anthropic-messages"));
+        assert_eq!(minimax.models.len(), 1);
+
+        let m = &minimax.models[0];
+        assert_eq!(m.id, "MiniMax-M2.7");
+        assert!(m.reasoning);
+        assert_eq!(m.input, vec!["text"]);
+        assert_eq!(m.context_window, Some(204800));
+        assert_eq!(m.max_tokens, Some(131072));
+    }
+
+    #[test]
+    fn test_parse_provider_with_vision_model() {
+        // Vision model with input: ["text", "image"]
+        let json_str = r#"
+        {
+            "models": {
+                "providers": {
+                    "moonshot": {
+                        "baseUrl": "https://api.moonshot.ai/v1",
+                        "api": "openai-completions",
+                        "models": [
+                            {
+                                "id": "kimi-k2.6",
+                                "name": "Kimi K2.6",
+                                "reasoning": false,
+                                "input": ["text", "image"],
+                                "contextWindow": 262144,
+                                "maxTokens": 262144
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+        "#;
+
+        let config: Value = serde_json::from_str(json_str).unwrap();
+        let (_model, _failovers, providers) = parse_openclaw_config(&config);
+
+        let moonshot = providers.get("moonshot").unwrap();
+        assert_eq!(moonshot.models.len(), 1);
+        assert_eq!(moonshot.models[0].input, vec!["text", "image"]);
+        assert_eq!(moonshot.models[0].context_window, Some(262144));
+    }
+
+    #[test]
+    fn test_parse_provider_without_models_array() {
+        // Provider with no models array at all
+        let json_str = r#"
+        {
+            "models": {
+                "providers": {
+                    "empty": {
+                        "baseUrl": "http://localhost:9999/v1"
+                    }
+                }
+            }
+        }
+        "#;
+
+        let config: Value = serde_json::from_str(json_str).unwrap();
+        let (_model, _failovers, providers) = parse_openclaw_config(&config);
+
+        let empty = providers.get("empty").unwrap();
+        assert_eq!(empty.base_url.as_deref(), Some("http://localhost:9999/v1"));
+        assert!(empty.api_key.is_none());
+        assert!(empty.api.is_none());
+        assert!(empty.models.is_empty(), "no models array → empty vec");
+    }
+
+    #[test]
+    fn test_parse_provider_without_any_optional_fields() {
+        // Provider with just an id and nothing else
+        let json_str = r#"
+        {
+            "models": {
+                "providers": {
+                    "bare": {}
+                }
+            }
+        }
+        "#;
+
+        let config: Value = serde_json::from_str(json_str).unwrap();
+        let (_model, _failovers, providers) = parse_openclaw_config(&config);
+
+        let bare = providers.get("bare").unwrap();
+        assert!(bare.base_url.is_none());
+        assert!(bare.api_key.is_none());
+        assert!(bare.api.is_none());
+        assert!(bare.models.is_empty());
+    }
+
+    #[test]
+    fn test_parse_model_without_fallbacks() {
+        // agents.defaults.model with only primary
+        let json_str = r#"
+        {
+            "agents": {
+                "defaults": {
+                    "model": {
+                        "primary": "openai/gpt-5.4-mini"
+                    }
+                }
+            }
+        }
+        "#;
+
+        let config: Value = serde_json::from_str(json_str).unwrap();
+        let (model, failovers, _providers) = parse_openclaw_config(&config);
+
+        assert_eq!(model.as_deref(), Some("openai/gpt-5.4-mini"));
+        assert!(
+            failovers.is_none(),
+            "no fallbacks key → None, not empty vec"
+        );
+    }
+
+    #[test]
+    fn test_parse_model_with_empty_fallbacks() {
+        // agents.defaults.model with empty fallbacks array
+        let json_str = r#"
+        {
+            "agents": {
+                "defaults": {
+                    "model": {
+                        "primary": "openai/gpt-5.4-mini",
+                        "fallbacks": []
+                    }
+                }
+            }
+        }
+        "#;
+
+        let config: Value = serde_json::from_str(json_str).unwrap();
+        let (model, failovers, _providers) = parse_openclaw_config(&config);
+
+        assert_eq!(model.as_deref(), Some("openai/gpt-5.4-mini"));
+        assert!(failovers.is_none(), "empty fallbacks array → None");
+    }
+
+    #[test]
+    fn test_parse_model_with_model_field_only() {
+        // agents.defaults with model as plain object but missing primary/fallbacks
+        let json_str = r#"
+        {
+            "agents": {
+                "defaults": {
+                    "model": {
+                        "someUnknownField": "test"
+                    }
+                }
+            }
+        }
+        "#;
+
+        let config: Value = serde_json::from_str(json_str).unwrap();
+        let (model, failovers, _providers) = parse_openclaw_config(&config);
+
+        assert!(
+            model.is_none(),
+            "model object without 'primary' should not be parsed"
+        );
+        assert!(failovers.is_none());
+    }
+
+    #[test]
+    fn test_parse_agents_without_defaults() {
+        // agents exists but no defaults
+        let json_str = r#"
+        {
+            "agents": {
+                "list": [
+                    { "id": "main" }
+                ]
+            }
+        }
+        "#;
+
+        let config: Value = serde_json::from_str(json_str).unwrap();
+        let (model, failovers, providers) = parse_openclaw_config(&config);
+
+        assert!(model.is_none());
+        assert!(failovers.is_none());
+        assert!(providers.is_empty());
+    }
+
+    #[test]
+    fn test_parse_empty_config() {
+        // Empty object
+        let config: Value = serde_json::from_str("{}").unwrap();
+        let (model, failovers, providers) = parse_openclaw_config(&config);
+
+        assert!(model.is_none());
+        assert!(failovers.is_none());
+        assert!(providers.is_empty());
+    }
+
+    #[test]
+    fn test_parse_top_level_keys_ignored() {
+        // Config with unrelated top-level keys should be ignored
+        let json_str = r#"
+        {
+            "gateway": { "port": 18789 },
+            "logging": { "level": "info" },
+            "agents": {
+                "defaults": {
+                    "model": {
+                        "primary": "anthropic/claude-opus-4-6"
+                    }
+                }
+            }
+        }
+        "#;
+
+        let config: Value = serde_json::from_str(json_str).unwrap();
+        let (model, failovers, providers) = parse_openclaw_config(&config);
+
+        assert_eq!(model.as_deref(), Some("anthropic/claude-opus-4-6"));
+        assert!(failovers.is_none());
+        assert!(providers.is_empty());
+    }
+
+    // ------------------------------------------------------------------
+    // Edge cases for provider model optional fields
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn test_parse_model_minimal_fields() {
+        // Model with only id — all other fields should be defaults
+        let json_str = r#"
+        {
+            "models": {
+                "providers": {
+                    "test": {
+                        "models": [
+                            { "id": "minimal-model" }
+                        ]
+                    }
+                }
+            }
+        }
+        "#;
+
+        let config: Value = serde_json::from_str(json_str).unwrap();
+        let (_model, _failovers, providers) = parse_openclaw_config(&config);
+
+        let test = providers.get("test").unwrap();
+        assert_eq!(test.models.len(), 1);
+
+        let m = &test.models[0];
+        assert_eq!(m.id, "minimal-model");
+        assert!(m.name.is_none(), "name defaults to None");
+        assert!(!m.reasoning, "reasoning defaults to false");
+        assert!(m.input.is_empty(), "input defaults to empty vec");
+        assert!(m.context_window.is_none(), "contextWindow defaults to None");
+        assert!(m.max_tokens.is_none(), "maxTokens defaults to None");
+    }
+
+    #[test]
+    fn test_parse_empty_providers_block() {
+        // models.providers exists but is empty
+        let json_str = r#"
+        {
+            "models": {
+                "providers": {}
+            }
+        }
+        "#;
+
+        let config: Value = serde_json::from_str(json_str).unwrap();
+        let (_model, _failovers, providers) = parse_openclaw_config(&config);
+
+        assert!(providers.is_empty());
+    }
+
+    #[test]
+    fn test_parse_models_without_providers() {
+        // models block exists but no providers sub-key
+        let json_str = r#"
+        {
+            "models": {
+                "mode": "merge"
+            }
+        }
+        "#;
+
+        let config: Value = serde_json::from_str(json_str).unwrap();
+        let (_model, _failovers, providers) = parse_openclaw_config(&config);
+
+        assert!(providers.is_empty());
+    }
+
+    // ------------------------------------------------------------------
+    // Build → JSON structure verification (camelCase field names)
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn test_build_json_fields_use_camelcase() {
+        let mut profile = empty_profile();
+        profile.default_model = Some("test/model".to_string());
+
+        let mut providers = HashMap::new();
+        providers.insert(
+            "test".to_string(),
+            OpenClawProviderConfig {
+                base_url: Some("http://localhost/v1".to_string()),
+                api_key: Some("key".to_string()),
+                api: Some("openai-completions".to_string()),
+                models: vec![OpenClawModel {
+                    id: "test-model".to_string(),
+                    name: Some("Test".to_string()),
+                    reasoning: true,
+                    input: vec!["text".to_string()],
+                    context_window: Some(1000),
+                    max_tokens: Some(500),
+                }],
+            },
+        );
+        profile.providers = providers;
+
+        let config = build_openclaw_config(&profile);
+        let json_str = serde_json::to_string_pretty(&config).unwrap();
+
+        // Verify camelCase field names in output
+        assert!(
+            json_str.contains("\"primary\""),
+            "model key should be 'primary'"
+        );
+        assert!(
+            json_str.contains("\"baseUrl\""),
+            "provider field should be 'baseUrl'"
+        );
+        assert!(
+            json_str.contains("\"apiKey\""),
+            "provider field should be 'apiKey'"
+        );
+        assert!(
+            json_str.contains("\"contextWindow\""),
+            "model field should be 'contextWindow'"
+        );
+        assert!(
+            json_str.contains("\"maxTokens\""),
+            "model field should be 'maxTokens'"
+        );
+
+        // Verify snake_case is NOT in output for these fields
+        assert!(
+            !json_str.contains("\"base_url\""),
+            "should not use snake_case 'base_url'"
+        );
+        assert!(
+            !json_str.contains("\"api_key\""),
+            "should not use snake_case 'api_key'"
+        );
+        assert!(
+            !json_str.contains("\"context_window\""),
+            "should not use snake_case 'context_window'"
+        );
+        assert!(
+            !json_str.contains("\"max_tokens\""),
+            "should not use snake_case 'max_tokens'"
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // create_default_openclaw_profile_for_home parse correctness
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn test_default_profile_writes_correct_format() {
+        // Create a temp directory for the config
+        let temp = tempfile::TempDir::new().unwrap();
+        let home = temp.path().join("home");
+        std::fs::create_dir_all(&home).unwrap();
+
+        // Create default profile (no existing config → fresh defaults)
+        let profile = create_default_openclaw_profile_for_home(&home).unwrap();
+
+        assert_eq!(
+            profile.default_model.as_deref(),
+            Some("anthropic/claude-sonnet-4-20250514")
+        );
+        assert!(profile.failover_models.is_none());
+        assert!(profile.providers.is_empty());
+
+        // Apply the profile to generate openclaw.json
+        apply_openclaw_profile_for_home(&home, &profile).unwrap();
+
+        // Read back the config file
+        let config = read_openclaw_current_config_for_home(&home).unwrap();
+        assert_eq!(
+            config.default_model.as_deref(),
+            Some("anthropic/claude-sonnet-4-20250514")
+        );
+        assert!(config.providers.is_empty());
+
+        // Read the raw file and verify JSON structure matches docs format
+        let config_path = home.join(".openclaw").join("openclaw.json");
+        let raw = std::fs::read_to_string(&config_path).unwrap();
+        let parsed: Value = serde_json::from_str(&raw).unwrap();
+
+        // Verify the structure matches documented format
+        let agents = parsed.get("agents").and_then(|v| v.as_object()).unwrap();
+        let defaults = agents.get("defaults").and_then(|v| v.as_object()).unwrap();
+        let model = defaults.get("model").and_then(|v| v.as_object()).unwrap();
+        assert_eq!(
+            model.get("primary").and_then(|v| v.as_str()),
+            Some("anthropic/claude-sonnet-4-20250514")
+        );
+        // No fallbacks key since there are none
+        assert!(model.get("fallbacks").is_none());
+    }
+
+    #[test]
+    fn test_default_profile_parses_existing_config() {
+        // Create a temp directory and write an existing openclaw.json
+        let temp = tempfile::TempDir::new().unwrap();
+        let home = temp.path().join("home");
+        std::fs::create_dir_all(&home.join(".openclaw")).unwrap();
+
+        let existing_config = r#"
+        {
+            "agents": {
+                "defaults": {
+                    "model": {
+                        "primary": "openai/gpt-5.5",
+                        "fallbacks": ["anthropic/claude-opus-4-6"]
+                    },
+                    "models": {
+                        "openai/gpt-5.5": { "alias": "gpt" },
+                        "anthropic/claude-opus-4-6": { "alias": "opus" }
+                    }
+                }
+            },
+            "models": {
+                "mode": "merge",
+                "providers": {
+                    "openai": {
+                        "baseUrl": "https://api.openai.com/v1",
+                        "api": "openai-completions",
+                        "models": [
+                            {
+                                "id": "gpt-5.5",
+                                "name": "GPT 5.5",
+                                "input": ["text"],
+                                "contextWindow": 1000000,
+                                "maxTokens": 32000
+                            }
+                        ]
+                    },
+                    "anthropic": {
+                        "baseUrl": "https://api.anthropic.com/v1",
+                        "api": "anthropic-messages",
+                        "models": [
+                            {
+                                "id": "claude-opus-4-6",
+                                "name": "Claude Opus 4",
+                                "reasoning": true,
+                                "input": ["text", "image"],
+                                "contextWindow": 200000,
+                                "maxTokens": 4096
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+        "#;
+
+        std::fs::write(
+            home.join(".openclaw").join("openclaw.json"),
+            existing_config,
+        )
+        .unwrap();
+
+        // Create default profile — should parse existing config
+        let profile = create_default_openclaw_profile_for_home(&home).unwrap();
+
+        // Verify it read the existing values
+        assert_eq!(profile.default_model.as_deref(), Some("openai/gpt-5.5"));
+        assert_eq!(
+            profile.failover_models,
+            Some(vec!["anthropic/claude-opus-4-6".to_string()])
+        );
+
+        // Verify providers were parsed
+        let openai = profile.providers.get("openai").unwrap();
+        assert_eq!(
+            openai.base_url.as_deref(),
+            Some("https://api.openai.com/v1")
+        );
+        assert_eq!(openai.models.len(), 1);
+        assert_eq!(openai.models[0].id, "gpt-5.5");
+        assert_eq!(openai.models[0].context_window, Some(1000000));
+
+        let anthropic = profile.providers.get("anthropic").unwrap();
+        assert_eq!(
+            anthropic.base_url.as_deref(),
+            Some("https://api.anthropic.com/v1")
+        );
+        assert_eq!(anthropic.models.len(), 1);
+        assert_eq!(anthropic.models[0].id, "claude-opus-4-6");
+        assert!(anthropic.models[0].reasoning);
+        assert_eq!(anthropic.models[0].input, vec!["text", "image"]);
+    }
 }
