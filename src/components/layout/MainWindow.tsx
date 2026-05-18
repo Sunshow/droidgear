@@ -22,6 +22,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { useUIStore } from '@/store/ui-store'
 import { useMainWindowEventListeners } from '@/hooks/useMainWindowEventListeners'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { cn } from '@/lib/utils'
 
 /**
@@ -47,7 +48,6 @@ export function MainWindow() {
   const handleConfirmClose = async () => {
     useUIStore.getState().setCloseConfirmOpen(false)
     // Close naturally — onCloseRequested listener has been removed
-    const { getCurrentWindow } = await import('@tauri-apps/api/window')
     await getCurrentWindow().close()
   }
 

@@ -1,28 +1,108 @@
-import { Fragment, useState } from 'react'
+import { Fragment, Suspense, lazy, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
-import { ModelConfigPage } from '@/components/models'
-import {
-  DroidSettingsPage,
-  LegacyVersionsPage,
-  SpecsPage,
-  McpPage,
-  SessionsPage,
-  TerminalPage,
-  MissionsPage,
-} from '@/components/droid'
-import { FactoryAuthPage } from '@/components/factory-auth'
-import { OpenCodeConfigPage } from '@/components/opencode'
-import { CodexConfigPage } from '@/components/codex'
-import { ClaudeConfigPage } from '@/components/claude'
-import {
-  OpenClawConfigPage,
-  OpenClawHelpersPage,
-  SubagentsPage,
-} from '@/components/openclaw'
-import { HermesConfigPage } from '@/components/hermes'
-import { PiConfigPage } from '@/components/pi'
-import { ChannelDetail, ChannelDialog } from '@/components/channels'
+import { Loader2 } from 'lucide-react'
+
+// Code-split all config pages — only loaded when the user navigates to that view
+// Note: Import from individual files (not barrel indexes) to avoid conflicts with
+// static barrel imports in LeftSideBar, which would prevent effective code-splitting.
+const ModelConfigPage = lazy(() =>
+  import('@/components/models/ModelConfigPage').then(m => ({
+    default: m.ModelConfigPage,
+  }))
+)
+const DroidSettingsPage = lazy(() =>
+  import('@/components/droid/DroidSettingsPage').then(m => ({
+    default: m.DroidSettingsPage,
+  }))
+)
+const LegacyVersionsPage = lazy(() =>
+  import('@/components/droid/LegacyVersionsPage').then(m => ({
+    default: m.LegacyVersionsPage,
+  }))
+)
+const SpecsPage = lazy(() =>
+  import('@/components/droid/SpecsPage').then(m => ({ default: m.SpecsPage }))
+)
+const McpPage = lazy(() =>
+  import('@/components/droid/McpPage').then(m => ({ default: m.McpPage }))
+)
+const SessionsPage = lazy(() =>
+  import('@/components/droid/SessionsPage').then(m => ({
+    default: m.SessionsPage,
+  }))
+)
+const TerminalPage = lazy(() =>
+  import('@/components/droid/TerminalPage').then(m => ({
+    default: m.TerminalPage,
+  }))
+)
+const MissionsPage = lazy(() =>
+  import('@/components/droid/MissionsPage').then(m => ({
+    default: m.MissionsPage,
+  }))
+)
+const FactoryAuthPage = lazy(() =>
+  import('@/components/factory-auth/FactoryAuthPage').then(m => ({
+    default: m.FactoryAuthPage,
+  }))
+)
+const OpenCodeConfigPage = lazy(() =>
+  import('@/components/opencode/OpenCodeConfigPage').then(m => ({
+    default: m.OpenCodeConfigPage,
+  }))
+)
+const CodexConfigPage = lazy(() =>
+  import('@/components/codex/CodexConfigPage').then(m => ({
+    default: m.CodexConfigPage,
+  }))
+)
+const ClaudeConfigPage = lazy(() =>
+  import('@/components/claude/ClaudeConfigPage').then(m => ({
+    default: m.ClaudeConfigPage,
+  }))
+)
+const OpenClawConfigPage = lazy(() =>
+  import('@/components/openclaw/OpenClawConfigPage').then(m => ({
+    default: m.OpenClawConfigPage,
+  }))
+)
+const OpenClawHelpersPage = lazy(() =>
+  import('@/components/openclaw/OpenClawHelpersPage').then(m => ({
+    default: m.OpenClawHelpersPage,
+  }))
+)
+const SubagentsPage = lazy(() =>
+  import('@/components/openclaw/SubagentsPage').then(m => ({
+    default: m.SubagentsPage,
+  }))
+)
+const HermesConfigPage = lazy(() =>
+  import('@/components/hermes/HermesConfigPage').then(m => ({
+    default: m.HermesConfigPage,
+  }))
+)
+const PiConfigPage = lazy(() =>
+  import('@/components/pi/PiConfigPage').then(m => ({
+    default: m.PiConfigPage,
+  }))
+)
+const ChannelDetail = lazy(() =>
+  import('@/components/channels/ChannelDetail').then(m => ({
+    default: m.ChannelDetail,
+  }))
+)
+// ChannelDialog is also statically imported by LeftSideBar, so lazy loading
+// here won't create a separate chunk. Keep it as a regular static import.
+import { ChannelDialog } from '@/components/channels/ChannelDialog'
+
+function PageLoadingFallback() {
+  return (
+    <div className="flex h-full items-center justify-center">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  )
+}
 import { useUIStore } from '@/store/ui-store'
 import { useChannelStore } from '@/store/channel-store'
 import type { Channel } from '@/lib/bindings'
@@ -147,7 +227,7 @@ export function MainWindowContent({
     <div
       className={cn('flex h-full flex-col bg-background relative', className)}
     >
-      {renderContent()}
+      <Suspense fallback={<PageLoadingFallback />}>{renderContent()}</Suspense>
       {/* Terminal is always mounted across all views, hidden when not active */}
       <div
         className={cn(
@@ -155,7 +235,9 @@ export function MainWindowContent({
           'absolute inset-0'
         )}
       >
-        <TerminalPage />
+        <Suspense fallback={<PageLoadingFallback />}>
+          <TerminalPage />
+        </Suspense>
       </div>
     </div>
   )

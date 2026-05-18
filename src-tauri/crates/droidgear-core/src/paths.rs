@@ -558,11 +558,20 @@ pub fn get_wsl_info() -> Result<WslInfo, String> {
     })
 }
 
+/// `CREATE_NO_WINDOW` — prevents a console window from flashing when spawning
+/// WSL helper processes on Windows.
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
 #[cfg(target_os = "windows")]
 pub fn get_wsl_info() -> Result<WslInfo, String> {
+    use std::os::windows::process::CommandExt;
     use std::process::Command;
 
-    let output = Command::new("wsl").args(["-l", "-v"]).output();
+    let output = Command::new("wsl")
+        .args(["-l", "-v"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
     match output {
         Ok(output) => {
             if !output.status.success() {
@@ -595,10 +604,12 @@ pub fn get_wsl_username(_distro: &str) -> Result<String, String> {
 
 #[cfg(target_os = "windows")]
 pub fn get_wsl_username(distro: &str) -> Result<String, String> {
+    use std::os::windows::process::CommandExt;
     use std::process::Command;
 
     let output = Command::new("wsl")
         .args(["-d", distro, "whoami"])
+        .creation_flags(CREATE_NO_WINDOW)
         .output()
         .map_err(|e| format!("Failed to run wsl whoami: {e}"))?;
 

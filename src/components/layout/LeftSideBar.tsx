@@ -30,14 +30,19 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { ChannelList, ChannelDialog } from '@/components/channels'
-import { DroidFeatureList } from '@/components/droid'
-import { OpenCodeFeatureList } from '@/components/opencode'
-import { CodexFeatureList } from '@/components/codex'
-import { ClaudeFeatureList } from '@/components/claude'
-import { OpenClawFeatureList } from '@/components/openclaw'
-import { HermesFeatureList } from '@/components/hermes'
-import { PiFeatureList } from '@/components/pi'
+// Import directly from individual files (not barrel indexes) so that page
+// components re-exported by those barrels don't end up in the main chunk.
+// MainWindowContent uses React.lazy() for page components and needs clean
+// dynamic import boundaries.
+import { ChannelList } from '@/components/channels/ChannelList'
+import { ChannelDialog } from '@/components/channels/ChannelDialog'
+import { DroidFeatureList } from '@/components/droid/DroidFeatureList'
+import { OpenCodeFeatureList } from '@/components/opencode/OpenCodeFeatureList'
+import { CodexFeatureList } from '@/components/codex/CodexFeatureList'
+import { ClaudeFeatureList } from '@/components/claude/ClaudeFeatureList'
+import { OpenClawFeatureList } from '@/components/openclaw/OpenClawFeatureList'
+import { HermesFeatureList } from '@/components/hermes/HermesFeatureList'
+import { PiFeatureList } from '@/components/pi/PiFeatureList'
 import { useUIStore } from '@/store/ui-store'
 import { useChannelStore } from '@/store/channel-store'
 import { useModelStore } from '@/store/model-store'
