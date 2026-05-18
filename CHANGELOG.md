@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.0.2
+
+**Bug Fixes / 问题修复**
+
+- Fix OpenClaw profile apply race by passing full profile instead of id / 修复 OpenClaw 渠道应用时的竞态问题，改为传入完整 profile 而非 id
+- Eliminate Windows dead_code warnings in terminal_launch / 消除 terminal_launch 中 Windows 平台的 dead_code 警告
+
+**Improvements / 改进**
+
+- Add 27 roundtrip tests covering OpenClaw config parse/build paths / 新增 27 个 OpenClaw 配置 parse/build 往返测试
+
 ## v1.0.1
 
 **New Features / 新功能**
