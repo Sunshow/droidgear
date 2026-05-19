@@ -10,6 +10,7 @@ import {
   Download,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { open } from '@tauri-apps/plugin-dialog'
 import { commands } from '@/lib/bindings'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -153,26 +154,16 @@ export function CodexConfigPage() {
     toast.success(t('codex.actions.applySuccess'))
   }
 
-  const formatLaunchError = (message: string) => {
-    if (
-      message.startsWith('Failed to execute codex --version:') ||
-      message.startsWith('Failed to execute codex --help:')
-    ) {
-      return t('codex.actions.launchMissingCli')
-    }
-
-    if (
-      message === 'Failed to read Codex CLI version' ||
-      message === 'Failed to read Codex CLI help'
-    ) {
-      return t('codex.actions.launchInspectFailed')
-    }
-
-    return message
-  }
-
   const handleLaunch = async () => {
     if (!currentProfile || isLaunching) return
+
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: t('codex.actions.selectDirectory'),
+    })
+    if (!selected) return
+    const cwd = selected as string
 
     setIsLaunching(true)
     setError(null)
@@ -187,15 +178,14 @@ export function CodexConfigPage() {
         }
       }
 
-      const result = await commands.launchCodex(currentProfile.id)
+      const result = await commands.launchCodex(currentProfile.id, cwd)
       if (result.status === 'ok') {
         toast.success(t('codex.actions.launchSuccess'))
         return
       }
 
-      const message = formatLaunchError(result.error)
-      setError(message)
-      toast.error(message)
+      setError(result.error)
+      toast.error(result.error)
     } finally {
       setIsLaunching(false)
     }

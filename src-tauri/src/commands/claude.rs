@@ -5,21 +5,8 @@
 pub use droidgear_core::claude::{ClaudeCodeProfile, ClaudeConfigStatus, ClaudeCurrentConfig};
 use droidgear_core::claude_runtime::{self, ClaudeTemporaryLaunchPlan, ClaudeTemporaryRunPlan};
 
-use crate::utils::login_shell::run_command_in_login_shell;
 use crate::utils::preferences::load_preferences;
 use crate::utils::terminal_launch::{launch_in_terminal, LaunchSpec};
-
-fn probe_claude_cli() -> Result<(), String> {
-    let version_output = run_command_in_login_shell("claude", &["--version"])?;
-    if version_output.status.code() == Some(127) {
-        return Err("Failed to execute claude --version: No such file or directory".to_string());
-    }
-    if !version_output.status.success() {
-        return Err("Failed to read Claude CLI version".to_string());
-    }
-
-    Ok(())
-}
 
 fn current_launcher_program() -> Result<String, String> {
     std::env::current_exe()
@@ -120,9 +107,11 @@ pub async fn get_claude_temporary_run_plan(id: String) -> Result<ClaudeTemporary
 /// Launch Claude Code using a runtime settings overlay instead of mutating live config.
 #[tauri::command]
 #[specta::specta]
-pub async fn launch_claude(id: String, app: tauri::AppHandle) -> Result<(), String> {
-    probe_claude_cli()?;
-
+pub async fn launch_claude(
+    id: String,
+    app: tauri::AppHandle,
+    cwd: Option<String>,
+) -> Result<(), String> {
     let home_dir = dirs::home_dir().ok_or_else(|| "Failed to get home directory".to_string())?;
     if let Err(error) = claude_runtime::cleanup_stale_runtime_dirs_for_home(&home_dir) {
         log::warn!("Failed to clean up stale Claude runtime directories: {error}");
@@ -137,7 +126,10 @@ pub async fn launch_claude(id: String, app: tauri::AppHandle) -> Result<(), Stri
     let prefs = load_preferences(&app).unwrap_or_default();
     let preferred = prefs.preferred_terminal.unwrap_or_default();
 
-    launch_in_terminal(&build_claude_launch_spec(&plan), &preferred)
+    let mut spec = build_claude_launch_spec(&plan);
+    spec.cwd = cwd.map(std::path::PathBuf::from);
+
+    launch_in_terminal(&spec, &preferred)
 }
 
 fn build_claude_launch_spec(plan: &ClaudeTemporaryLaunchPlan) -> LaunchSpec {

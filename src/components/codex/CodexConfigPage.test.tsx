@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 
-const { toastMock, commandMocks } = vi.hoisted(() => {
+const { toastMock, commandMocks, openMock } = vi.hoisted(() => {
   const toast = Object.assign(vi.fn(), {
     success: vi.fn(),
     error: vi.fn(),
@@ -13,6 +13,7 @@ const { toastMock, commandMocks } = vi.hoisted(() => {
 
   return {
     toastMock: toast,
+    openMock: vi.fn().mockResolvedValue('/home/user/projects'),
     commandMocks: {
       listCodexProfiles: vi.fn(),
       createDefaultCodexProfile: vi.fn(),
@@ -30,6 +31,10 @@ const { toastMock, commandMocks } = vi.hoisted(() => {
 
 vi.mock('sonner', () => ({
   toast: toastMock,
+}))
+
+vi.mock('@tauri-apps/plugin-dialog', () => ({
+  open: openMock,
 }))
 
 vi.mock('@/lib/bindings', () => ({
@@ -64,6 +69,8 @@ const sampleProfiles = [
 describe('CodexConfigPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+
+    openMock.mockResolvedValue('/home/user/projects')
 
     useCodexStore.setState({
       profiles: [],
@@ -158,7 +165,10 @@ describe('CodexConfigPage', () => {
           apiKey: 'sk-updated',
         })
       )
-      expect(commandMocks.launchCodex).toHaveBeenCalledWith('profile-a')
+      expect(commandMocks.launchCodex).toHaveBeenCalledWith(
+        'profile-a',
+        '/home/user/projects'
+      )
     })
     const saveCallOrder =
       commandMocks.saveCodexProfile.mock.invocationCallOrder[0]
@@ -198,7 +208,7 @@ describe('CodexConfigPage', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows a friendly error when Codex CLI is missing', async () => {
+  it('surfaces the raw Codex launch error when the backend reports failure', async () => {
     const user = userEvent.setup()
     commandMocks.launchCodex.mockResolvedValue({
       status: 'error',
@@ -214,17 +224,17 @@ describe('CodexConfigPage', () => {
 
     await waitFor(() => {
       expect(toastMock.error).toHaveBeenCalledWith(
-        'Codex CLI is not installed or not available in PATH.'
+        'Failed to execute codex --version: No such file or directory'
       )
     })
     expect(
       await screen.findByText(
-        'Codex CLI is not installed or not available in PATH.'
+        'Failed to execute codex --version: No such file or directory'
       )
     ).toBeInTheDocument()
   })
 
-  it('preserves non-probe launch errors instead of rewriting them as missing CLI', async () => {
+  it('preserves arbitrary launch errors verbatim', async () => {
     const user = userEvent.setup()
     commandMocks.launchCodex.mockResolvedValue({
       status: 'error',
@@ -248,5 +258,23 @@ describe('CodexConfigPage', () => {
         'Failed to launch preferred terminal: No such file or directory'
       )
     ).toBeInTheDocument()
+  })
+
+  it('does not launch Codex when the directory picker is cancelled', async () => {
+    const user = userEvent.setup()
+    openMock.mockResolvedValueOnce(null)
+
+    render(<CodexConfigPage />)
+
+    const launchButton = await screen.findByRole('button', {
+      name: 'Run Profile',
+    })
+    await user.click(launchButton)
+
+    await waitFor(() => {
+      expect(openMock).toHaveBeenCalled()
+    })
+    expect(commandMocks.saveCodexProfile).not.toHaveBeenCalled()
+    expect(commandMocks.launchCodex).not.toHaveBeenCalled()
   })
 })

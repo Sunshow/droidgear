@@ -850,9 +850,9 @@ async getClaudeTemporaryRunPlan(id: string) : Promise<Result<ClaudeTemporaryRunP
 /**
  * Launch Claude Code using a runtime settings overlay instead of mutating live config.
  */
-async launchClaude(id: string) : Promise<Result<null, string>> {
+async launchClaude(id: string, cwd: string | null) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("launch_claude", { id }) };
+    return { status: "ok", data: await TAURI_INVOKE("launch_claude", { id, cwd }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -994,9 +994,9 @@ async getCodexTemporaryRunPlan(id: string) : Promise<Result<CodexTemporaryRunPla
 /**
  * Launch Codex using a runtime `CODEX_HOME` snapshot instead of mutating live config.
  */
-async launchCodex(id: string) : Promise<Result<null, string>> {
+async launchCodex(id: string, cwd: string | null) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("launch_codex", { id }) };
+    return { status: "ok", data: await TAURI_INVOKE("launch_codex", { id, cwd }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -1867,27 +1867,27 @@ async renameFactoryAuthProfile(name: string, label: string) : Promise<Result<nul
  * Application preferences that persist to disk.
  * Only contains settings that should be saved between sessions.
  */
-export type AppPreferences = { theme: string;
+export type AppPreferences = { theme: string; 
 /**
  * User's preferred language (e.g., "en", "es", "de")
  * If None, uses system locale detection
  */
-language: string | null;
+language: string | null; 
 /**
  * Custom font family for terminal (e.g., "Cascadia Mono NF")
  * If None, uses default monospace fonts
  */
-terminal_font_family?: string | null;
+terminal_font_family?: string | null; 
 /**
  * Custom shell command for terminal (Windows only, e.g., "cmd.exe", "pwsh.exe")
  * If None, uses default PowerShell on Windows
  */
-terminal_shell_command?: string | null;
+terminal_shell_command?: string | null; 
 /**
  * Whether to disable automatic update checks at startup
  * If None, defaults to false (auto-update enabled)
  */
-disable_auto_update?: boolean | null;
+disable_auto_update?: boolean | null; 
 /**
  * Preferred terminal app for launching Droid CLI
  * "system-default" | "terminal" | "iterm2" (macOS)
@@ -1895,7 +1895,7 @@ disable_auto_update?: boolean | null;
  * "windows-terminal" | "cmd" | "powershell" (Windows)
  * If None, defaults to platform-appropriate default
  */
-preferred_terminal?: string | null;
+preferred_terminal?: string | null; 
 /**
  * Droid temporary-run runtime policy.
  */
@@ -1917,27 +1917,27 @@ export type BlockStreamingConfig = { blockStreamingDefault?: string | null; bloc
 /**
  * Channel configuration
  */
-export type Channel = {
+export type Channel = { 
 /**
  * Unique identifier (UUID)
  */
-id: string;
+id: string; 
 /**
  * User-defined name
  */
-name: string;
+name: string; 
 /**
  * Channel type
  */
-type: ChannelType;
+type: ChannelType; 
 /**
  * API base URL
  */
-baseUrl: string;
+baseUrl: string; 
 /**
  * Whether the channel is enabled
  */
-enabled: boolean;
+enabled: boolean; 
 /**
  * Creation timestamp (milliseconds) - use f64 for JS compatibility
  */
@@ -1945,39 +1945,39 @@ createdAt: number }
 /**
  * Token from channel API
  */
-export type ChannelToken = {
+export type ChannelToken = { 
 /**
  * Token ID from API
  */
-id: number;
+id: number; 
 /**
  * Token name
  */
-name: string;
+name: string; 
 /**
  * Token key (sk-xxx)
  */
-key: string;
+key: string; 
 /**
  * Status (1=enabled, 2=disabled, etc.)
  */
-status: number;
+status: number; 
 /**
  * Remaining quota
  */
-remainQuota: number;
+remainQuota: number; 
 /**
  * Used quota
  */
-usedQuota: number;
+usedQuota: number; 
 /**
  * Unlimited quota flag
  */
-unlimitedQuota: boolean;
+unlimitedQuota: boolean; 
 /**
  * Platform type (openai, anthropic, gemini, etc.) - from Sub2API
  */
-platform: string | null;
+platform: string | null; 
 /**
  * Group name - from Sub2API
  */
@@ -2023,11 +2023,11 @@ export type CodexTemporaryRunPlan = { program: string; args: string[]; env: ([st
  * User-defined configuration paths (only stores explicitly set paths)
  */
 export type ConfigPaths = { factory?: string | null; opencode?: string | null; opencodeAuth?: string | null; codex?: string | null; claude?: string | null; openclaw?: string | null; hermes?: string | null; pi?: string | null }
-export type ConnectionDiagnostics = { success: boolean; provider: string; modelId: string; latencyMs: number; error?: string | null; timestamp: string; testMode: TestMode;
+export type ConnectionDiagnostics = { success: boolean; provider: string; modelId: string; latencyMs: number; error?: string | null; timestamp: string; testMode: TestMode; 
 /**
  * Actual model response text (inference mode only).
  */
-responseText?: string | null;
+responseText?: string | null; 
 /**
  * The prompt that was sent (inference mode only).
  */
@@ -2040,47 +2040,47 @@ export type ContentBlock = { type: string; text?: string | null; thinking?: stri
 /**
  * Custom model configuration
  */
-export type CustomModel = {
+export type CustomModel = { 
 /**
  * Model identifier sent via API
  */
-model: string;
+model: string; 
 /**
  * Unique identifier for the model (e.g., "custom:ModelName-0")
  */
-id?: string | null;
+id?: string | null; 
 /**
  * Index of the model in the list
  */
-index?: number | null;
+index?: number | null; 
 /**
  * Human-friendly name shown in model selector
  */
-displayName?: string | null;
+displayName?: string | null; 
 /**
  * API endpoint base URL
  */
-baseUrl: string;
+baseUrl: string; 
 /**
  * API key for the provider
  */
-apiKey: string;
+apiKey: string; 
 /**
  * Provider type
  */
-provider: Provider;
+provider: Provider; 
 /**
  * Maximum output tokens
  */
-maxOutputTokens?: number | null;
+maxOutputTokens?: number | null; 
 /**
  * Whether to disable image support for this model (default: images supported)
  */
-noImageSupport?: boolean | null;
+noImageSupport?: boolean | null; 
 /**
  * Additional provider-specific arguments
  */
-extraArgs?: Partial<{ [key in string]: JsonValue }> | null;
+extraArgs?: Partial<{ [key in string]: JsonValue }> | null; 
 /**
  * Additional HTTP headers
  */
@@ -2114,11 +2114,11 @@ export type JsonValue = null | boolean | number | string | JsonValue[] | Partial
 /**
  * MCP server entry with name
  */
-export type McpServer = {
+export type McpServer = { 
 /**
  * Server name (unique identifier)
  */
-name: string;
+name: string; 
 /**
  * Server configuration
  */
@@ -2126,31 +2126,31 @@ config: McpServerConfig }
 /**
  * MCP server configuration
  */
-export type McpServerConfig = {
+export type McpServerConfig = { 
 /**
  * Server type (stdio or http)
  */
-type: McpServerType;
+type: McpServerType; 
 /**
  * Whether the server is disabled
  */
-disabled?: boolean;
+disabled?: boolean; 
 /**
  * Command to run (stdio only)
  */
-command?: string | null;
+command?: string | null; 
 /**
  * Command arguments (stdio only)
  */
-args?: string[] | null;
+args?: string[] | null; 
 /**
  * Environment variables (stdio only)
  */
-env?: Partial<{ [key in string]: string }> | null;
+env?: Partial<{ [key in string]: string }> | null; 
 /**
  * HTTP URL (http only)
  */
-url?: string | null;
+url?: string | null; 
 /**
  * HTTP headers (http only)
  */
@@ -2280,23 +2280,23 @@ export type ProviderTemplate = { id: string; name: string; npm?: string | null; 
 /**
  * Error types for recovery operations (typed for frontend matching)
  */
-export type RecoveryError =
+export type RecoveryError = 
 /**
  * File does not exist (expected case, not a failure)
  */
-{ type: "FileNotFound" } |
+{ type: "FileNotFound" } | 
 /**
  * Filename validation failed
  */
-{ type: "ValidationError"; message: string } |
+{ type: "ValidationError"; message: string } | 
 /**
  * Data exceeds size limit
  */
-{ type: "DataTooLarge"; max_bytes: number } |
+{ type: "DataTooLarge"; max_bytes: number } | 
 /**
  * File system read/write error
  */
-{ type: "IoError"; message: string } |
+{ type: "IoError"; message: string } | 
 /**
  * JSON serialization/deserialization error
  */
@@ -2316,19 +2316,19 @@ export type SessionMessage = { id: string; role: string; content: ContentBlock[]
 /**
  * Session project (directory containing sessions)
  */
-export type SessionProject = {
+export type SessionProject = { 
 /**
  * Directory name (e.g., "-Users-sunshow-GIT-sunshow-quickcast-api")
  */
-name: string;
+name: string; 
 /**
  * Full path to the directory
  */
-path: string;
+path: string; 
 /**
  * Number of sessions in this project
  */
-sessionCount: number;
+sessionCount: number; 
 /**
  * Last modified timestamp in milliseconds
  */
@@ -2336,31 +2336,31 @@ modifiedAt: number }
 /**
  * Session summary for list view
  */
-export type SessionSummary = {
+export type SessionSummary = { 
 /**
  * Session UUID
  */
-id: string;
+id: string; 
 /**
  * Session title
  */
-title: string;
+title: string; 
 /**
  * Project directory name
  */
-project: string;
+project: string; 
 /**
  * Model used
  */
-model: string;
+model: string; 
 /**
  * Last modified timestamp in milliseconds
  */
-modifiedAt: number;
+modifiedAt: number; 
 /**
  * Token usage
  */
-tokenUsage: TokenUsage;
+tokenUsage: TokenUsage; 
 /**
  * Full path to the session files (without extension)
  */
@@ -2368,23 +2368,23 @@ path: string }
 /**
  * Information about a single settings file
  */
-export type SettingsFileInfo = {
+export type SettingsFileInfo = { 
 /**
  * Display name ("Global" or the filename without extension)
  */
-name: string;
+name: string; 
 /**
  * Full path to the settings file
  */
-path: string;
+path: string; 
 /**
  * Whether this is the global `~/.factory/settings.json`
  */
-isGlobal: boolean;
+isGlobal: boolean; 
 /**
  * Whether this file is currently active for editing
  */
-isActive: boolean;
+isActive: boolean; 
 /**
  * Whether the file exists on disk
  */
@@ -2392,19 +2392,19 @@ exists: boolean }
 /**
  * Spec file metadata
  */
-export type SpecFile = {
+export type SpecFile = { 
 /**
  * File name (e.g., "2025-12-18-ui.md")
  */
-name: string;
+name: string; 
 /**
  * Full path to the file
  */
-path: string;
+path: string; 
 /**
  * File content
  */
-content: string;
+content: string; 
 /**
  * Last modified timestamp in milliseconds
  */

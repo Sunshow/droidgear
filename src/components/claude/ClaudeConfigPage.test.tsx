@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 
-const { toastMock, commandMocks } = vi.hoisted(() => {
+const { toastMock, commandMocks, openMock } = vi.hoisted(() => {
   const toast = Object.assign(vi.fn(), {
     success: vi.fn(),
     error: vi.fn(),
@@ -13,6 +13,7 @@ const { toastMock, commandMocks } = vi.hoisted(() => {
 
   return {
     toastMock: toast,
+    openMock: vi.fn().mockResolvedValue('/home/user/projects'),
     commandMocks: {
       listClaudeProfiles: vi.fn(),
       createDefaultClaudeProfile: vi.fn(),
@@ -31,6 +32,10 @@ const { toastMock, commandMocks } = vi.hoisted(() => {
 
 vi.mock('sonner', () => ({
   toast: toastMock,
+}))
+
+vi.mock('@tauri-apps/plugin-dialog', () => ({
+  open: openMock,
 }))
 
 vi.mock('@/lib/bindings', () => ({
@@ -61,6 +66,8 @@ const sampleProfiles = [
 describe('ClaudeConfigPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+
+    openMock.mockResolvedValue('/home/user/projects')
 
     useClaudeStore.setState({
       profiles: [],
@@ -169,7 +176,10 @@ describe('ClaudeConfigPage', () => {
           bearerToken: 'token-updated',
         })
       )
-      expect(commandMocks.launchClaude).toHaveBeenCalledWith('profile-a')
+      expect(commandMocks.launchClaude).toHaveBeenCalledWith(
+        'profile-a',
+        '/home/user/projects'
+      )
     })
 
     const saveCallOrder =
@@ -253,7 +263,7 @@ describe('ClaudeConfigPage', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows a friendly missing-cli message instead of the raw probe failure', async () => {
+  it('surfaces the raw Claude launch error when the backend reports failure', async () => {
     const user = userEvent.setup()
     commandMocks.launchClaude.mockResolvedValue({
       status: 'error',
@@ -270,12 +280,12 @@ describe('ClaudeConfigPage', () => {
 
     await waitFor(() => {
       expect(toastMock.error).toHaveBeenCalledWith(
-        'Claude CLI is not installed or not available in PATH.'
+        'Failed to execute claude --version: No such file or directory'
       )
     })
     expect(
       await screen.findByText(
-        'Claude CLI is not installed or not available in PATH.'
+        'Failed to execute claude --version: No such file or directory'
       )
     ).toBeInTheDocument()
   })
@@ -309,6 +319,28 @@ describe('ClaudeConfigPage', () => {
         'Failed to copy inherited CLAUDE_ENV_FILE from /tmp/live.env: permission denied. Claude temporary run will continue without inheriting that runtime env file.'
       )
     })
-    expect(commandMocks.launchClaude).toHaveBeenCalledWith('profile-a')
+    expect(commandMocks.launchClaude).toHaveBeenCalledWith(
+      'profile-a',
+      '/home/user/projects'
+    )
+  })
+
+  it('does not launch Claude when the directory picker is cancelled', async () => {
+    const user = userEvent.setup()
+    openMock.mockResolvedValueOnce(null)
+
+    render(<ClaudeConfigPage />)
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Run Profile',
+      })
+    )
+
+    await waitFor(() => {
+      expect(openMock).toHaveBeenCalled()
+    })
+    expect(commandMocks.saveClaudeProfile).not.toHaveBeenCalled()
+    expect(commandMocks.launchClaude).not.toHaveBeenCalled()
   })
 })

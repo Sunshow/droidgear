@@ -834,8 +834,7 @@
   "codex.actions.launch": "Run Profile",
   "codex.actions.launchTooltip": "Run this profile in a new terminal without changing live Codex config",
   "codex.actions.launchSuccess": "Codex launched in a new terminal window",
-  "codex.actions.launchMissingCli": "Codex CLI is not installed or not available in PATH.",
-  "codex.actions.launchInspectFailed": "Failed to inspect the installed Codex CLI. Check that `codex` runs correctly in your shell.",
+  "codex.actions.selectDirectory": "Select working directory for Codex",
   "codex.actions.loadFromLive": "Load Live",
   "codex.actions.loadedFromLive": "Loaded from live config",
 
@@ -892,8 +891,7 @@
   "claude.actions.launch": "Run Profile",
   "claude.actions.launchTooltip": "Run this profile in a new terminal without changing live Claude Code config",
   "claude.actions.launchSuccess": "Claude Code launched in a new terminal window",
-  "claude.actions.launchMissingCli": "Claude CLI is not installed or not available in PATH.",
-  "claude.actions.launchInspectFailed": "Failed to inspect the installed Claude CLI. Check that `claude` runs correctly in your shell.",
+  "claude.actions.selectDirectory": "Select working directory for Claude Code",
   "claude.actions.loadFromLive": "Load Live",
   "claude.actions.loadedFromLive": "Loaded from live config",
 

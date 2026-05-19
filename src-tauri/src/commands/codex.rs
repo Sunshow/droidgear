@@ -121,9 +121,11 @@ pub async fn get_codex_temporary_run_plan(id: String) -> Result<CodexTemporaryRu
 /// Launch Codex using a runtime `CODEX_HOME` snapshot instead of mutating live config.
 #[tauri::command]
 #[specta::specta]
-pub async fn launch_codex(id: String, app: tauri::AppHandle) -> Result<(), String> {
-    let _ = get_codex_cli_capability().await?;
-
+pub async fn launch_codex(
+    id: String,
+    app: tauri::AppHandle,
+    cwd: Option<String>,
+) -> Result<(), String> {
     let home_dir = dirs::home_dir().ok_or_else(|| "Failed to get home directory".to_string())?;
     if let Err(error) = codex_runtime::cleanup_stale_runtime_homes_for_home(&home_dir) {
         log::warn!("Failed to clean up stale Codex runtime homes: {error}");
@@ -134,7 +136,10 @@ pub async fn launch_codex(id: String, app: tauri::AppHandle) -> Result<(), Strin
     let prefs = load_preferences(&app).unwrap_or_default();
     let preferred = prefs.preferred_terminal.unwrap_or_default();
 
-    launch_in_terminal(&build_codex_launch_spec(&plan), &preferred)
+    let mut spec = build_codex_launch_spec(&plan);
+    spec.cwd = cwd.map(std::path::PathBuf::from);
+
+    launch_in_terminal(&spec, &preferred)
 }
 
 fn build_codex_launch_spec(plan: &CodexTemporaryLaunchPlan) -> LaunchSpec {

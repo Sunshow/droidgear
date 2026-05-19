@@ -11,6 +11,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { open } from '@tauri-apps/plugin-dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -143,20 +144,16 @@ export function ClaudeConfigPage() {
     }
   }
 
-  const formatLaunchError = (message: string) => {
-    if (message.startsWith('Failed to execute claude --version:')) {
-      return t('claude.actions.launchMissingCli')
-    }
-
-    if (message === 'Failed to read Claude CLI version') {
-      return t('claude.actions.launchInspectFailed')
-    }
-
-    return message
-  }
-
   const handleLaunch = async () => {
     if (!currentProfile || isLaunching) return
+
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: t('claude.actions.selectDirectory'),
+    })
+    if (!selected) return
+    const cwd = selected as string
 
     setIsLaunching(true)
     setError(null)
@@ -173,24 +170,22 @@ export function ClaudeConfigPage() {
         currentProfile.id
       )
       if (preview.status !== 'ok') {
-        const message = formatLaunchError(preview.error)
-        setError(message)
-        toast.error(message)
+        setError(preview.error)
+        toast.error(preview.error)
         return
       }
       preview.data.warnings.forEach(warning => {
         toast.warning(warning)
       })
 
-      const result = await commands.launchClaude(currentProfile.id)
+      const result = await commands.launchClaude(currentProfile.id, cwd)
       if (result.status === 'ok') {
         toast.success(t('claude.actions.launchSuccess'))
         return
       }
 
-      const message = formatLaunchError(result.error)
-      setError(message)
-      toast.error(message)
+      setError(result.error)
+      toast.error(result.error)
     } finally {
       setIsLaunching(false)
     }
