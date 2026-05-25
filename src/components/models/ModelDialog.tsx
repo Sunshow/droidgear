@@ -35,7 +35,7 @@ import {
   getDefaultMaxOutputTokens,
   hasOfficialModelNamePrefix,
   isAnthropicAdaptiveThinkingModel,
-  isOpus47,
+  isStrictSamplingModel,
   supportsMaxEffort,
   supportsXhighEffort,
   type ReasoningEffort,
@@ -274,8 +274,9 @@ function ModelForm({
 
   // Rewrite the effort-encoding keys in an extraArgs JSON string to match the
   // (provider, model, effort) triple, preserving unrelated fields. Also strips
-  // sampling params that Opus 4.7 rejects. Returns the JSON unchanged when the
-  // user has typed invalid JSON so we don't destroy in-progress edits.
+  // sampling params that strict-sampling models (Opus 4.7, Jupiter v1 P) reject.
+  // Returns the JSON unchanged when the user has typed invalid JSON so we
+  // don't destroy in-progress edits.
   const rewriteExtraArgsWithEffort = (
     currentJson: string,
     nextProvider: Provider,
@@ -296,7 +297,7 @@ function ModelForm({
       const encoding = getEffortEncoding(nextModelId, nextProvider, nextEffort)
       if (encoding) {
         Object.assign(parsed, encoding)
-        if (isOpus47(nextModelId)) {
+        if (isStrictSamplingModel(nextModelId)) {
           delete parsed.temperature
           delete parsed.top_p
           delete parsed.top_k
@@ -328,7 +329,7 @@ function ModelForm({
         parsed.reasoning = { effort: nextEffort }
       }
     }
-    if (isOpus47(nextModelId)) {
+    if (isStrictSamplingModel(nextModelId)) {
       delete parsed.temperature
       delete parsed.top_p
       delete parsed.top_k
@@ -532,7 +533,7 @@ function ModelForm({
       const encoding = getEffortEncoding(modelId, provider, reasoningEffort)
       if (encoding) {
         Object.assign(parsed, encoding)
-        if (isOpus47(modelId)) {
+        if (isStrictSamplingModel(modelId)) {
           delete parsed.temperature
           delete parsed.top_p
           delete parsed.top_k
@@ -560,8 +561,9 @@ function ModelForm({
       }
     }
 
-    // Opus 4.7 rejects sampling parameters — strip them rather than 400 at runtime.
-    if (isOpus47(modelId)) {
+    // Strict-sampling models (Opus 4.7, Jupiter v1 P) reject sampling
+    // parameters — strip them rather than 400 at runtime.
+    if (isStrictSamplingModel(modelId)) {
       delete parsed.temperature
       delete parsed.top_p
       delete parsed.top_k
@@ -796,13 +798,13 @@ function ModelForm({
                   placeholder="8192"
                   step={8192}
                 />
-                {isOpus47(modelId) &&
+                {isStrictSamplingModel(modelId) &&
                   (reasoningEffort === 'xhigh' || reasoningEffort === 'max') &&
                   (() => {
                     const n = parseInt(maxTokens, 10)
                     return Number.isFinite(n) && n < 64000 ? (
                       <p className="text-xs text-amber-600 dark:text-amber-500">
-                        {t('models.opus47.maxTokensHint')}
+                        {t('models.strictSampling.maxTokensHint')}
                       </p>
                     ) : null
                   })()}
@@ -940,7 +942,7 @@ function ModelForm({
                         )}
                       </div>
                     )}
-                    {isOpus47(modelId) &&
+                    {isStrictSamplingModel(modelId) &&
                       extraArgsValid &&
                       (() => {
                         const parsed = parseJsonSafe(extraArgs)
@@ -951,7 +953,7 @@ function ModelForm({
                           'top_k' in parsed
                         return hasForbidden ? (
                           <p className="text-xs text-amber-600 dark:text-amber-500">
-                            {t('models.opus47.samplingWarning')}
+                            {t('models.strictSampling.samplingWarning')}
                           </p>
                         ) : null
                       })()}

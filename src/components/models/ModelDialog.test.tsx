@@ -112,4 +112,45 @@ describe('ModelDialog', () => {
       })
     )
   })
+
+  it('emits Opus 4.7 style extraArgs and strips sampling params for claude-jupiter-v1-p', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn()
+
+    render(
+      <ModelDialog
+        open
+        onOpenChange={() => undefined}
+        mode="edit"
+        model={{
+          provider: 'anthropic',
+          model: 'claude-jupiter-v1-p',
+          baseUrl: 'https://api.anthropic.com',
+          apiKey: 'test-key',
+          displayName: 'claude-jupiter-v1-p',
+          extraArgs: {
+            thinking: { type: 'adaptive' },
+            output_config: { effort: 'xhigh' },
+            temperature: 0.7,
+            top_p: 0.9,
+            top_k: 40,
+          },
+        }}
+        onSave={onSave}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+    const saved = onSave.mock.calls[0]?.[0]
+    expect(saved.model).toBe('claude-jupiter-v1-p')
+    expect(saved.extraArgs).toEqual({
+      thinking: { type: 'adaptive' },
+      output_config: { effort: 'xhigh' },
+    })
+    expect(saved.extraArgs).not.toHaveProperty('temperature')
+    expect(saved.extraArgs).not.toHaveProperty('top_p')
+    expect(saved.extraArgs).not.toHaveProperty('top_k')
+  })
 })

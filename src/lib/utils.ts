@@ -27,6 +27,17 @@ export function isOpus47(modelId: string): boolean {
   return n.includes('opus.4.7')
 }
 
+export function isClaudeJupiterV1P(modelId: string): boolean {
+  const n = normalizeModelId(modelId)
+  return n.includes('jupiter.v1.p')
+}
+
+// Models that reject sampling parameters (temperature, top_p, top_k).
+// Mirrors Opus 4.7 strictness; new variants should be added here.
+export function isStrictSamplingModel(modelId: string): boolean {
+  return isOpus47(modelId) || isClaudeJupiterV1P(modelId)
+}
+
 export function isOpus46(modelId: string): boolean {
   const n = normalizeModelId(modelId)
   return n.includes('opus.4.6')
@@ -43,6 +54,7 @@ export function isAnthropicAdaptiveThinkingModel(modelId: string): boolean {
     n.includes('opus.4.7') ||
     n.includes('opus.4.6') ||
     n.includes('sonnet.4.6') ||
+    n.includes('jupiter.v1.p') ||
     n.includes('mythos')
   )
 }
@@ -73,15 +85,16 @@ export function supportsMaxEffort(modelId: string): boolean {
 }
 
 // Claude xhigh is a narrow capability, not a general Anthropic default.
-// Only Opus 4.7 should fall back to xhigh without an explicit registry hint.
-// Non-Anthropic reasoning models (GPT-5, o-series) also accept it via
-// reasoning.effort.
+// Only Opus 4.7 and Jupiter v1 P should fall back to xhigh without an explicit
+// registry hint. Non-Anthropic reasoning models (GPT-5, o-series) also accept
+// it via reasoning.effort.
 // Priority: registry whitelist → pattern matching fallback.
 export function supportsXhighEffort(modelId: string): boolean {
   if (!modelId) return true
   const config = getModelReasoningConfig(modelId)
   if (config) return config.efforts.includes('xhigh')
   if (isOpus47(modelId)) return true
+  if (isClaudeJupiterV1P(modelId)) return true
   const n = normalizeModelId(modelId)
   return (
     n.startsWith('gpt.5') ||
@@ -101,7 +114,7 @@ export function getDefaultMaxOutputTokens(
     return entry.maxOutputTokens
   }
   // Fallback for unknown models
-  if (isOpus47(modelId)) {
+  if (isOpus47(modelId) || isClaudeJupiterV1P(modelId)) {
     if (effort === 'xhigh' || effort === 'max') return 64000
     return 32000
   }

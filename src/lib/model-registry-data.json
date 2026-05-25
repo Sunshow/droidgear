@@ -60,6 +60,14 @@
     "maxOutputTokens": 64000
   },
   {
+    "id": "claude-jupiter-v1-p",
+    "name": "claude-jupiter-v1-p",
+    "aliases": [],
+    "platform": "anthropic-messages",
+    "contextWindow": 1000000,
+    "maxOutputTokens": 128000
+  },
+  {
     "id": "claude-opus-4",
     "name": "Claude Opus 4",
     "aliases": ["claude-opus-4-20250514"],

@@ -4,8 +4,10 @@ import {
   getDefaultMaxOutputTokens,
   hasOpaqueClaudeModelId,
   isAnthropicAdaptiveThinkingModel,
+  isClaudeJupiterV1P,
   isOpus47,
   isRecognizedClaudeModelId,
+  isStrictSamplingModel,
   supportsMaxEffort,
   supportsXhighEffort,
 } from './utils'
@@ -24,12 +26,40 @@ describe('isOpus47', () => {
   })
 })
 
+describe('isClaudeJupiterV1P', () => {
+  it('matches dash, dot and underscore spellings', () => {
+    expect(isClaudeJupiterV1P('claude-jupiter-v1-p')).toBe(true)
+    expect(isClaudeJupiterV1P('claude_jupiter_v1_p')).toBe(true)
+    expect(isClaudeJupiterV1P('claude-jupiter-v1.p')).toBe(true)
+  })
+
+  it('does not match unrelated models', () => {
+    expect(isClaudeJupiterV1P('claude-opus-4.7')).toBe(false)
+    expect(isClaudeJupiterV1P('claude-jupiter-v2')).toBe(false)
+    expect(isClaudeJupiterV1P('jupiter')).toBe(false)
+  })
+})
+
+describe('isStrictSamplingModel', () => {
+  it('covers Opus 4.7 and Jupiter v1 P', () => {
+    expect(isStrictSamplingModel('claude-opus-4.7')).toBe(true)
+    expect(isStrictSamplingModel('claude-jupiter-v1-p')).toBe(true)
+  })
+
+  it('does not flag other models', () => {
+    expect(isStrictSamplingModel('claude-opus-4.6')).toBe(false)
+    expect(isStrictSamplingModel('claude-sonnet-4.6')).toBe(false)
+    expect(isStrictSamplingModel('gpt-5.2')).toBe(false)
+  })
+})
+
 describe('isAnthropicAdaptiveThinkingModel', () => {
-  it('matches Opus 4.7 / 4.6 and Sonnet 4.6', () => {
+  it('matches Opus 4.7 / 4.6, Sonnet 4.6 and Jupiter v1 P', () => {
     expect(isAnthropicAdaptiveThinkingModel('claude-opus-4.7')).toBe(true)
     expect(isAnthropicAdaptiveThinkingModel('claude-opus-4-7')).toBe(true)
     expect(isAnthropicAdaptiveThinkingModel('claude-opus-4.6')).toBe(true)
     expect(isAnthropicAdaptiveThinkingModel('claude-sonnet-4.6')).toBe(true)
+    expect(isAnthropicAdaptiveThinkingModel('claude-jupiter-v1-p')).toBe(true)
   })
 
   it('rejects older claude models', () => {
@@ -48,6 +78,7 @@ describe('supportsMaxEffort', () => {
     expect(supportsMaxEffort('claude-opus-4.5')).toBe(true)
     expect(supportsMaxEffort('claude-sonnet-4.5')).toBe(true)
     expect(supportsMaxEffort('claude-haiku-4.5')).toBe(true)
+    expect(supportsMaxEffort('claude-jupiter-v1-p')).toBe(true)
   })
 
   it('applies to registry whitelist models with max effort', () => {
@@ -61,9 +92,10 @@ describe('supportsMaxEffort', () => {
 })
 
 describe('supportsXhighEffort', () => {
-  it('allows xhigh on Opus 4.7 and openai reasoning models', () => {
+  it('allows xhigh on Opus 4.7, Jupiter v1 P and openai reasoning models', () => {
     expect(supportsXhighEffort('claude-opus-4.7')).toBe(true)
     expect(supportsXhighEffort('claude-opus-4-7')).toBe(true)
+    expect(supportsXhighEffort('claude-jupiter-v1-p')).toBe(true)
     expect(supportsXhighEffort('gpt-5.2')).toBe(true)
     expect(supportsXhighEffort('o3-mini')).toBe(true)
   })
@@ -119,6 +151,8 @@ describe('getDefaultMaxOutputTokens', () => {
   it('uses registry values for other claude models', () => {
     expect(getDefaultMaxOutputTokens('claude-opus-4.6')).toBe(128000)
     expect(getDefaultMaxOutputTokens('claude-sonnet-4.5')).toBe(64000)
+    expect(getDefaultMaxOutputTokens('claude-jupiter-v1-p')).toBe(128000)
+    expect(getDefaultMaxOutputTokens('claude-jupiter-v1-p', 'max')).toBe(128000)
   })
 
   it('uses registry values for non-claude models', () => {
