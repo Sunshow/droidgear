@@ -18,6 +18,21 @@ export function isOpenAICompatiblePlatform(
   return !NON_OPENAI_PLATFORMS.has(platform.toLowerCase())
 }
 
+/** Platforms known to be incompatible with Anthropic Messages API format */
+const NON_ANTHROPIC_PLATFORMS = new Set(['openai', 'gemini', 'antigravity'])
+
+/**
+ * Returns true if the platform speaks Anthropic-compatible API format.
+ * null/undefined is treated as compatible (default) so untagged tokens
+ * on multi-protocol gateways are still selectable.
+ */
+export function isAnthropicCompatiblePlatform(
+  platform: string | null | undefined
+): boolean {
+  if (!platform) return true
+  return !NON_ANTHROPIC_PLATFORMS.has(platform.toLowerCase())
+}
+
 export async function saveChannelAuth(
   channelId: string,
   channelType: ChannelType,

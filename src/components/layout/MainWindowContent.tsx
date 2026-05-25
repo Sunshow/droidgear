@@ -57,9 +57,9 @@ const CodexConfigPage = lazy(() =>
     default: m.CodexConfigPage,
   }))
 )
-const ClaudeConfigPage = lazy(() =>
-  import('@/components/claude/ClaudeConfigPage').then(m => ({
-    default: m.ClaudeConfigPage,
+const ClaudeSettingsPage = lazy(() =>
+  import('@/components/claude/ClaudeSettingsPage').then(m => ({
+    default: m.ClaudeSettingsPage,
   }))
 )
 const OpenClawConfigPage = lazy(() =>
@@ -180,7 +180,7 @@ export function MainWindowContent({
     }
 
     if (currentView === 'claude') {
-      return <ClaudeConfigPage />
+      return <ClaudeSettingsPage />
     }
 
     if (currentView === 'hermes') {

@@ -1,6 +1,7 @@
 pub mod channel;
 pub mod claude;
 pub mod claude_runtime;
+pub mod claude_settings_files;
 pub mod codex;
 pub mod codex_runtime;
 pub mod connectivity;

@@ -5,6 +5,7 @@
 
 pub mod channel;
 pub mod claude;
+pub mod claude_settings;
 pub mod codex;
 pub mod config;
 pub mod connectivity;

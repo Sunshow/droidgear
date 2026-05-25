@@ -859,6 +859,109 @@ async launchClaude(id: string, cwd: string | null) : Promise<Result<null, string
 }
 },
 /**
+ * Lists every Claude settings file (global + custom).
+ */
+async listClaudeSettingsFiles() : Promise<Result<ClaudeSettingsFileInfo[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_claude_settings_files") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Gets the currently active settings file info.
+ */
+async getActiveClaudeSettingsFile() : Promise<Result<ClaudeSettingsFileInfo, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_active_claude_settings_file") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Sets the active settings file. Pass null or empty string to switch to Global.
+ */
+async setActiveClaudeSettingsFile(name: string | null) : Promise<Result<ClaudeSettingsFileInfo, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_active_claude_settings_file", { name }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Creates a new custom settings file.
+ */
+async createClaudeSettingsFile(name: string, copyFromActive: boolean) : Promise<Result<ClaudeSettingsFileInfo, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("create_claude_settings_file", { name, copyFromActive }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Deletes a custom settings file. The Global file cannot be deleted.
+ */
+async deleteClaudeSettingsFile(name: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_claude_settings_file", { name }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Reads the raw JSON object stored in a settings file (by display name).
+ */
+async readClaudeSettingsFile(name: string) : Promise<Result<JsonValue, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("read_claude_settings_file", { name }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Persists the given JSON object as the named settings file (by display name).
+ */
+async saveClaudeSettingsFile(name: string, contents: JsonValue) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_claude_settings_file", { name, contents }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Returns a shell command string preview for launching Claude with the
+ * active settings file. Useful for the "copy command" fallback.
+ */
+async getClaudeSettingsLaunchCommand(skipDangerous: boolean) : Promise<Result<[string, string], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_claude_settings_launch_command", { skipDangerous }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Launches Claude Code in a terminal using the active settings file. The
+ * settings file is copied into a runtime-private directory so the live
+ * configuration is never mutated. When `skip_dangerous` is true the
+ * `--dangerously-skip-permissions` flag is appended.
+ */
+async launchClaudeWithSettings(cwd: string | null, skipDangerous: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("launch_claude_with_settings", { cwd, skipDangerous }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * List all Codex profiles
  */
 async listCodexProfiles() : Promise<Result<CodexProfile[], string>> {
@@ -2013,6 +2116,30 @@ export type ClaudeConfigStatus = { settingsExists: boolean; settingsPath: string
  */
 export type ClaudeCurrentConfig = { baseUrl?: string | null; bearerToken?: string | null; model?: string | null; smallModelUsesMainModel?: boolean; smallModel?: string | null; reasoningEffort?: ClaudeReasoningEffort | null; thinkingMode?: ClaudeThinkingMode }
 export type ClaudeReasoningEffort = "low" | "medium" | "high" | "max"
+/**
+ * Information about a single Claude settings file.
+ */
+export type ClaudeSettingsFileInfo = { 
+/**
+ * Display name (`Global` or the filename without extension).
+ */
+name: string; 
+/**
+ * Full path to the settings file.
+ */
+path: string; 
+/**
+ * Whether this is the global `~/.claude/settings.json`.
+ */
+isGlobal: boolean; 
+/**
+ * Whether this file is currently active for editing.
+ */
+isActive: boolean; 
+/**
+ * Whether the file exists on disk.
+ */
+exists: boolean }
 export type ClaudeTemporaryRunPlan = { program: string; args: string[]; env: ([string, string])[]; unsetEnv: string[]; secretEnvKeys: string[]; warnings: string[] }
 export type ClaudeThinkingMode = "inherit" | "on" | "off"
 export type CodexCliCapability = { version: string; supportsConfigOverride: boolean }

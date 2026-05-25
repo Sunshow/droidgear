@@ -17,8 +17,10 @@ const CLAUDE_ENV_FILE_ENV: &str = "CLAUDE_ENV_FILE";
 const CLAUDE_RUNTIME_DIR: &str = "runtime/claude";
 const TEMP_RUNTIME_PREFIX: &str = "temporary-run-";
 const CLAUDE_RUNTIME_PAYLOAD_ENV: &str = "DROIDGEAR_INTERNAL_CLAUDE_RUNTIME_JSON";
+const CLAUDE_SETTINGS_PAYLOAD_ENV: &str = "DROIDGEAR_INTERNAL_CLAUDE_SETTINGS_JSON";
 const INTERNAL_LAUNCH_MARKER: &str = "__droidgear_internal";
 const INTERNAL_LAUNCH_CLAUDE_RUNNER: &str = "claude-launcher";
+const INTERNAL_LAUNCH_CLAUDE_SETTINGS_RUNNER: &str = "claude-settings-launcher";
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -121,11 +123,26 @@ pub fn internal_launcher_args() -> Vec<String> {
     ]
 }
 
+pub fn internal_settings_launcher_args() -> Vec<String> {
+    vec![
+        INTERNAL_LAUNCH_MARKER.to_string(),
+        INTERNAL_LAUNCH_CLAUDE_SETTINGS_RUNNER.to_string(),
+    ]
+}
+
 pub fn matches_internal_launcher_args(args: &[String]) -> bool {
     matches!(
         args,
         [marker, command, ..]
             if marker == INTERNAL_LAUNCH_MARKER && command == INTERNAL_LAUNCH_CLAUDE_RUNNER
+    )
+}
+
+pub fn matches_internal_settings_launcher_args(args: &[String]) -> bool {
+    matches!(
+        args,
+        [marker, command, ..]
+            if marker == INTERNAL_LAUNCH_MARKER && command == INTERNAL_LAUNCH_CLAUDE_SETTINGS_RUNNER
     )
 }
 
@@ -700,6 +717,280 @@ pub fn run_internal_launcher_from_env() -> Result<(), String> {
     {
         use std::os::unix::process::CommandExt;
 
+        let error = command.exec();
+        Err(format!("Failed to exec {}: {error}", child.program))
+    }
+
+    #[cfg(not(unix))]
+    {
+        let status = command
+            .status()
+            .map_err(|e| format!("Failed to launch {}: {e}", child.program))?;
+        if status.success() {
+            Ok(())
+        } else {
+            Err(format!(
+                "Claude exited with status {}",
+                status
+                    .code()
+                    .map_or_else(|| "unknown".to_string(), |code| code.to_string())
+            ))
+        }
+    }
+}
+
+// ============================================================================
+// Settings-file based launch (Claude settings file → temporary --settings copy)
+// ============================================================================
+
+/// Public launch plan for running Claude with a chosen settings file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClaudeSettingsLaunchPlan {
+    pub program: String,
+    pub args: Vec<String>,
+    pub env: Vec<(String, String)>,
+    pub secret_env: Vec<(String, String)>,
+    pub unset_env: Vec<String>,
+    pub warnings: Vec<String>,
+    pub runtime_dir_path: PathBuf,
+}
+
+/// JSON-friendly view used by the frontend.
+#[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ClaudeSettingsRunPlan {
+    pub program: String,
+    pub args: Vec<String>,
+    pub env: Vec<(String, String)>,
+    pub unset_env: Vec<String>,
+    pub secret_env_keys: Vec<String>,
+    pub warnings: Vec<String>,
+}
+
+impl From<&ClaudeSettingsLaunchPlan> for ClaudeSettingsRunPlan {
+    fn from(plan: &ClaudeSettingsLaunchPlan) -> Self {
+        Self {
+            program: plan.program.clone(),
+            args: plan.args.clone(),
+            env: plan.env.clone(),
+            unset_env: plan.unset_env.clone(),
+            secret_env_keys: plan.secret_env.iter().map(|(key, _)| key.clone()).collect(),
+            warnings: plan.warnings.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+struct ClaudeSettingsLauncherPayload {
+    runtime_dir_path: String,
+    settings_source_path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    config_dir_env_override: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    inherited_env_file_source: Option<String>,
+    child_program: String,
+    extra_child_args: Vec<String>,
+}
+
+fn build_settings_launcher_payload_for_home_with_env(
+    home_dir: &Path,
+    settings_source_path: &Path,
+    skip_dangerous: bool,
+    process_env: &HashMap<String, String>,
+) -> Result<(ClaudeSettingsLauncherPayload, Vec<String>), String> {
+    let mut warnings = Vec::new();
+    let config_dir_binding =
+        resolve_live_config_dir_binding_for_home_with_env(home_dir, process_env)?;
+    let inherited_env_file_source = check_inherited_env_file_source(
+        normalize_optional_env(process_env.get(CLAUDE_ENV_FILE_ENV)),
+        &mut warnings,
+    );
+
+    let mut extra_child_args = Vec::new();
+    if skip_dangerous {
+        extra_child_args.push("--dangerously-skip-permissions".to_string());
+    }
+
+    Ok((
+        ClaudeSettingsLauncherPayload {
+            runtime_dir_path: next_runtime_dir_path(home_dir)?
+                .to_string_lossy()
+                .to_string(),
+            settings_source_path: settings_source_path.to_string_lossy().to_string(),
+            config_dir_env_override: config_dir_binding.env_override,
+            inherited_env_file_source,
+            child_program: "claude".to_string(),
+            extra_child_args,
+        },
+        warnings,
+    ))
+}
+
+fn build_settings_secret_env(
+    payload: &ClaudeSettingsLauncherPayload,
+) -> Result<Vec<(String, String)>, String> {
+    let raw = serde_json::to_string(payload)
+        .map_err(|e| format!("Failed to serialize Claude settings launcher payload: {e}"))?;
+    Ok(vec![(CLAUDE_SETTINGS_PAYLOAD_ENV.to_string(), raw)])
+}
+
+fn build_settings_unset_env() -> Vec<String> {
+    let mut unset = BTreeSet::from([
+        CLAUDE_CONFIG_DIR_ENV.to_string(),
+        CLAUDE_ENV_FILE_ENV.to_string(),
+        // Strip ambient ANTHROPIC_* leakage that would clobber the settings file's `env` map.
+        claude::CLAUDE_AUTH_TOKEN_ENV.to_string(),
+        claude::CLAUDE_API_KEY_ENV.to_string(),
+    ]);
+    for key in claude::CLAUDE_CONFLICT_ENV_KEYS {
+        unset.insert((*key).to_string());
+    }
+    unset.into_iter().collect()
+}
+
+pub fn build_settings_launch_plan_for_home(
+    home_dir: &Path,
+    settings_source_path: &Path,
+    skip_dangerous: bool,
+    launcher_program: &str,
+    launcher_args: &[String],
+) -> Result<ClaudeSettingsLaunchPlan, String> {
+    let process_env: HashMap<String, String> = std::env::vars().collect();
+    build_settings_launch_plan_for_home_with_env(
+        home_dir,
+        settings_source_path,
+        skip_dangerous,
+        &process_env,
+        launcher_program,
+        launcher_args,
+    )
+}
+
+fn build_settings_launch_plan_for_home_with_env(
+    home_dir: &Path,
+    settings_source_path: &Path,
+    skip_dangerous: bool,
+    process_env: &HashMap<String, String>,
+    launcher_program: &str,
+    launcher_args: &[String],
+) -> Result<ClaudeSettingsLaunchPlan, String> {
+    let (payload, warnings) = build_settings_launcher_payload_for_home_with_env(
+        home_dir,
+        settings_source_path,
+        skip_dangerous,
+        process_env,
+    )?;
+
+    Ok(ClaudeSettingsLaunchPlan {
+        program: launcher_program.to_string(),
+        args: launcher_args.to_vec(),
+        env: build_visible_env(payload.config_dir_env_override.as_deref()),
+        secret_env: build_settings_secret_env(&payload)?,
+        unset_env: build_settings_unset_env(),
+        warnings,
+        runtime_dir_path: PathBuf::from(&payload.runtime_dir_path),
+    })
+}
+
+pub fn build_settings_preview_plan_for_home(
+    home_dir: &Path,
+    settings_source_path: &Path,
+    skip_dangerous: bool,
+    launcher_program: &str,
+    launcher_args: &[String],
+) -> Result<ClaudeSettingsRunPlan, String> {
+    let process_env: HashMap<String, String> = std::env::vars().collect();
+    let (payload, warnings) = build_settings_launcher_payload_for_home_with_env(
+        home_dir,
+        settings_source_path,
+        skip_dangerous,
+        &process_env,
+    )?;
+
+    Ok(ClaudeSettingsRunPlan {
+        program: launcher_program.to_string(),
+        args: launcher_args.to_vec(),
+        env: build_visible_env(payload.config_dir_env_override.as_deref()),
+        unset_env: build_settings_unset_env(),
+        secret_env_keys: vec![CLAUDE_SETTINGS_PAYLOAD_ENV.to_string()],
+        warnings,
+    })
+}
+
+fn materialize_settings_child_launch_from_payload(
+    payload: &ClaudeSettingsLauncherPayload,
+) -> Result<ClaudeMaterializedChildLaunch, String> {
+    let runtime_dir_path = PathBuf::from(&payload.runtime_dir_path);
+    std::fs::create_dir_all(&runtime_dir_path)
+        .map_err(|e| format!("Failed to create Claude runtime directory: {e}"))?;
+
+    // Copy the source settings file into the runtime dir so the live file is never mutated.
+    let source = PathBuf::from(&payload.settings_source_path);
+    let runtime_settings_path = runtime_dir_path.join("claude-settings.json");
+    let bytes = if source.exists() {
+        std::fs::read(&source).map_err(|e| {
+            format!(
+                "Failed to read Claude settings file '{}': {e}",
+                source.display()
+            )
+        })?
+    } else {
+        b"{}\n".to_vec()
+    };
+    write_private_file(&runtime_settings_path, &bytes)?;
+
+    let mut env = build_visible_env(payload.config_dir_env_override.as_deref());
+    let mut warnings = Vec::new();
+    let copied_env_file_path = copy_env_file_if_needed(
+        payload.inherited_env_file_source.as_deref(),
+        &runtime_dir_path,
+        &mut env,
+        &mut warnings,
+    )?;
+
+    let mut args = payload.extra_child_args.clone();
+    args.push("--settings".to_string());
+    args.push(runtime_settings_path.to_string_lossy().to_string());
+
+    Ok(ClaudeMaterializedChildLaunch {
+        program: payload.child_program.clone(),
+        args,
+        env,
+        unset_env: vec![CLAUDE_SETTINGS_PAYLOAD_ENV.to_string()],
+        warnings,
+        settings_overlay_path: runtime_settings_path,
+        copied_env_file_path,
+    })
+}
+
+pub fn run_internal_settings_launcher_from_env() -> Result<(), String> {
+    let raw = std::env::var(CLAUDE_SETTINGS_PAYLOAD_ENV)
+        .map_err(|_| "Missing Claude settings-run payload".to_string())?;
+    let payload: ClaudeSettingsLauncherPayload = serde_json::from_str(&raw)
+        .map_err(|e| format!("Failed to decode Claude settings-run payload: {e}"))?;
+    let child = materialize_settings_child_launch_from_payload(&payload)?;
+
+    for warning in &child.warnings {
+        eprintln!("Warning: {warning}");
+    }
+
+    sanitize_terminal_for_internal_claude_exec()?;
+
+    let mut command = std::process::Command::new(&child.program);
+    command.args(&child.args);
+
+    for key in &child.unset_env {
+        command.env_remove(key);
+    }
+
+    for (key, value) in &child.env {
+        command.env(key, value);
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
         let error = command.exec();
         Err(format!("Failed to exec {}: {error}", child.program))
     }
