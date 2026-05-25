@@ -86,8 +86,9 @@ xattr -cr /Applications/DroidGear.app
 
 ### Claude 支持
 
-- **Claude Profile 管理** - Claude 配置 Profile 的 GUI 和 TUI 管理界面
-- **运行时核心** - Claude Profile 运行时核心支持
+- **Claude 设置文件管理** - 多设置文件（Global + 自定义）切换与编辑，结构化 Provider / 模型 / Reasoning / Thinking 分段
+- **从渠道导入** - 一键从已配置渠道导入 Provider 配置（base URL、API Key、默认模型）
+- **运行时核心** - 启动时通过运行时覆盖层加载设置，从不修改实时配置文件
 
 ### Codex 支持
 

@@ -86,8 +86,9 @@ Run the installer directly.
 
 ### Claude Support
 
-- **Claude Profile Management** - GUI and TUI management interface for Claude profiles
-- **Runtime Core** - Claude profile runtime core support
+- **Claude Settings File Management** - Switch and edit multiple settings files (Global + custom) with structured Provider / Model / Reasoning / Thinking sections
+- **Import from Channel** - One-click import of provider configuration (base URL, API key, default model) from configured channels
+- **Runtime Core** - Settings loaded via a runtime overlay at launch so the live configuration is never mutated
 
 ### Codex Support
 

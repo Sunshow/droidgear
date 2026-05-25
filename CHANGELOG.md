@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.0.4
+
+**New Features / 新功能**
+
+- Refactor Claude config into settings-file model with structured Provider, Model, and Reasoning/Thinking sections backed by `~/.droidgear/claude-settings/*.json` and a runtime overlay that never mutates live config / 将 Claude 配置重构为设置文件模型，新增 Provider、模型、Reasoning/Thinking 结构化分段，存储在 `~/.droidgear/claude-settings/*.json`，启动时通过运行时覆盖层避免改动实时配置
+- Add "Import from Channel" for Claude provider with Anthropic-aware token filtering / Claude Provider 支持从渠道导入，并按 Anthropic 兼容性筛选 token
+- Add claude-jupiter-v1-p model adapter / 新增 claude-jupiter-v1-p 模型适配器
+
+**Bug Fixes / 问题修复**
+
+- Disable auto-substitutions on Textarea so smart quotes and dashes are no longer rewritten / 关闭 Textarea 的自动替换，避免智能引号和连字符被改写
+- Harden window state restoration against corrupt state files and missing monitors / 加固窗口状态恢复，防御损坏的状态文件和已下线的显示器
+
 ## v1.0.3
 
 **New Features / 新功能**
