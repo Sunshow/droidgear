@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.5
+
+**New Features / 新功能**
+
+- Add Claude Opus 4.8 model with 1M context window, 128k max output, and max effort whitelist / 新增 Claude Opus 4.8 模型，支持 1M 上下文窗口、128k 最大输出，并加入最大 effort 白名单
+
 ## v1.0.4
 
 **New Features / 新功能**
