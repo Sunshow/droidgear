@@ -351,7 +351,12 @@ fn launch_macos(spec: &LaunchSpec, preferred: &str) -> Result<(), String> {
         let prepared = prepare_secure_posix_command(&script_path);
         let banner = render_posix_banner(&spec.program);
         return match preferred {
-            "iterm2" => launch_iterm2(&prepared.command, &prepared.keep_open_command, &banner),
+            "iterm2" => launch_iterm2(
+                spec,
+                &prepared.command,
+                &prepared.keep_open_command,
+                &banner,
+            ),
             "terminal" => launch_terminal_app(&prepared.command, &banner),
             _ => launch_system_default_macos(spec, &prepared.command, &banner),
         };
@@ -360,30 +365,42 @@ fn launch_macos(spec: &LaunchSpec, preferred: &str) -> Result<(), String> {
     let prepared = prepare_posix_command(spec);
     let banner = render_posix_banner(&spec.program);
     match preferred {
-        "iterm2" => launch_iterm2(&prepared.command, &prepared.keep_open_command, &banner),
+        "iterm2" => launch_iterm2(
+            spec,
+            &prepared.command,
+            &prepared.keep_open_command,
+            &banner,
+        ),
         "terminal" => launch_terminal_app(&prepared.command, &banner),
         _ => launch_system_default_macos(spec, &prepared.command, &banner),
     }
 }
 
 #[cfg(target_os = "macos")]
-fn launch_iterm2(command: &str, keep_open_command: &str, banner: &str) -> Result<(), String> {
-    let escaped = command.replace('\\', "\\\\").replace('"', "\\\"");
+fn launch_iterm2(
+    spec: &LaunchSpec,
+    command: &str,
+    keep_open_command: &str,
+    banner: &str,
+) -> Result<(), String> {
+    let escaped_keep_open = keep_open_command.replace('\\', "\\\\").replace('"', "\\\"");
     let escaped_banner = banner.replace('\\', "\\\\").replace('"', "\\\"");
     let script = format!(
         r#"tell application "iTerm2"
+    activate
+    delay 0.5
     if (count of windows) = 0 then
         create window with default profile
+        delay 0.3
     end if
     tell current window
         create tab with default profile
         tell current session
-            write text "clear; {}; {}; exit"
+            write text "clear; {}; {}"
         end tell
     end tell
-    activate
 end tell"#,
-        escaped_banner, escaped
+        escaped_banner, escaped_keep_open
     );
 
     let status = std::process::Command::new("osascript")
@@ -393,8 +410,14 @@ end tell"#,
         .map_err(|e| format!("Failed to launch iTerm2: {e}"))?;
 
     if !status.success() {
+        let file_path = launch_artifact_path(spec, "terminal-launch.command");
+        let script_content =
+            format!("#!/bin/bash\nrm -f -- \"$0\"\nclear\n{banner}\n{command}\nexit\n");
+        write_launch_script(&file_path, &script_content)?;
+
+        let file_arg = file_path.to_string_lossy().to_string();
         let status2 = std::process::Command::new("open")
-            .args(["-a", "iTerm", "--args", "bash", "-c", keep_open_command])
+            .args(["-a", "iTerm", &file_arg])
             .status()
             .map_err(|e| format!("Failed to launch iTerm2: {e}"))?;
         if !status2.success() {
