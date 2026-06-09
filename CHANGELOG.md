@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.1.0
+
+**New Features / 新功能**
+
+- Add DeepSeek channel support / 新增 DeepSeek 渠道支持
+- Add Ghostty terminal support for macOS / 新增 macOS 平台 Ghostty 终端支持
+
+**Bug Fixes / 问题修复**
+
+- Restrict DeepSeek to openai/anthropic protocols only / DeepSeek 渠道限制为仅支持 openai/anthropic 协议
+- Add diagnostic logging and UI error display for release build channel loading / 为发布版本的渠道加载新增诊断日志和界面错误提示
+- Fix iTerm2 cold-start launch failure and add fallback / 修复 iTerm2 冷启动失败问题并增加回退处理
+
 ## v1.0.5
 
 **New Features / 新功能**

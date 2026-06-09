@@ -30,7 +30,7 @@ Run the installer directly.
 - **Model Registry** - Browse and search available AI models from a built-in registry in Preferences
 - **API Model Discovery** - Fetch available models directly from provider APIs with auto-generated IDs and display names
 - **Import/Export** - Support configuration import/export and batch management
-- **Multi-Platform Support** - Support sub2api, antigravity and other API proxy platforms
+- **Multi-Platform Support** - Support sub2api, antigravity, DeepSeek and other API proxy platforms
 - **Ollama Support** - Ollama channel support with automatic local service detection
 - **Provider Templates** - Built-in OpenAI, Gemini provider templates for quick setup
 
@@ -39,6 +39,7 @@ Run the installer directly.
 - **Built-in Terminal** - Integrated terminal with state save and restore
 - **Custom Configuration** - Custom font, force dark mode
 - **Convenient Operations** - Copy-on-select, OSC 9 notifications, derived sub-windows
+- **External Terminal Launch** - Launch CLI tools via Ghostty or iTerm2 on macOS
 - **Keyboard Shortcuts** - Cmd/Ctrl+1~0 to switch terminals, Cmd/Ctrl+W to close tabs, Cmd/Ctrl+Shift+[ to switch tabs
 - **Code Snippets** - Snippets support on terminal pages
 

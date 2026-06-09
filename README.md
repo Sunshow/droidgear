@@ -30,7 +30,7 @@ xattr -cr /Applications/DroidGear.app
 - **模型注册表** - 在偏好设置中浏览和搜索内置模型注册表中的可用 AI 模型
 - **API 模型发现** - 直接从服务商 API 获取可用模型列表，自动生成 ID 和显示名称
 - **配置导入导出** - 支持配置的导入导出和批量管理
-- **多平台支持** - 支持 sub2api、antigravity 等多种 API 代理平台
+- **多平台支持** - 支持 sub2api、antigravity、DeepSeek 等多种 API 代理平台
 - **Ollama 支持** - 支持 Ollama 频道，自动检测本地 Ollama 服务
 - **服务商模板** - 内置 OpenAI、Gemini 等服务商模板，快速配置
 
@@ -39,6 +39,7 @@ xattr -cr /Applications/DroidGear.app
 - **内置终端** - 集成终端支持，可保存和恢复终端状态
 - **自定义配置** - 支持自定义字体、强制深色模式
 - **便捷操作** - 选中即复制、OSC 9 通知、派生子窗口
+- **外部终端启动** - macOS 支持通过 Ghostty、iTerm2 启动 CLI 工具
 - **快捷键支持** - Cmd/Ctrl+1~0 切换终端、Cmd/Ctrl+W 关闭标签页、Cmd/Ctrl+Shift+[ 切换标签
 - **代码片段** - 终端页面支持代码片段功能
 
