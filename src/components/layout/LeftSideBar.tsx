@@ -11,7 +11,6 @@ import {
   Cog,
   Cpu,
   CircuitBoard,
-  FileOutput,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ActionButton } from '@/components/ui/action-button'
@@ -53,7 +52,6 @@ import { saveChannelAuth } from '@/lib/channel-utils'
 type NavigationView =
   | 'droid'
   | 'channels'
-  | 'export-templates'
   | 'opencode'
   | 'codex'
   | 'claude'
@@ -217,16 +215,6 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
           {t('sidebar.channels')}
         </ActionButton>
 
-        <ActionButton
-          variant={currentView === 'export-templates' ? 'secondary' : 'ghost'}
-          size="sm"
-          className="flex-1"
-          onClick={() => handleViewChange('export-templates')}
-        >
-          <FileOutput className="h-4 w-4 mr-2" />
-          {t('sidebar.exportTemplates')}
-        </ActionButton>
-
         {/* Droid/OpenCode Switcher - conditional rendering based on current view */}
         {currentView === 'channels' ? (
           // Simple button when in Channels - direct switch to lastToolView
@@ -338,10 +326,6 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
       <div className="flex-1 overflow-hidden">
         {currentView === 'channels' ? (
           <ChannelList onAddChannel={handleAddChannel} />
-        ) : currentView === 'export-templates' ? (
-          <div className="flex items-center justify-center h-full text-muted-foreground">
-            <p className="text-sm">{t('sidebar.selectExportTemplate')}</p>
-          </div>
         ) : currentView === 'droid' ? (
           <DroidFeatureList />
         ) : currentView === 'opencode' ? (

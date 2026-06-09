@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   FileOutput,
   FolderOpen,
+  ArrowLeft,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -26,6 +27,7 @@ import {
 import { openPath, revealItemInDir } from '@tauri-apps/plugin-opener'
 import { toast } from 'sonner'
 import { useExportStore } from '@/store/export-store'
+import { useUIStore } from '@/store/ui-store'
 import type { ExportTemplate } from '@/lib/bindings'
 import { ExportTemplateDialog } from './ExportTemplateDialog'
 import { Loader2 } from 'lucide-react'
@@ -99,14 +101,25 @@ export function ExportTemplatesPage() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b">
-        <div>
-          <h1 className="text-xl font-semibold flex items-center gap-2">
-            <FileOutput className="h-5 w-5" />
-            {t('export.title')}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t('export.subtitle')}
-          </p>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="shrink-0"
+            onClick={() => useUIStore.getState().setChannelsSubView('detail')}
+            title={t('common.back')}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-xl font-semibold flex items-center gap-2">
+              <FileOutput className="h-5 w-5" />
+              {t('export.title')}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {t('export.subtitle')}
+            </p>
+          </div>
         </div>
         <Button onClick={handleAdd}>
           <Plus className="h-4 w-4 mr-2" />

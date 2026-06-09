@@ -4,7 +4,6 @@ import { devtools, persist } from 'zustand/middleware'
 type NavigationView =
   | 'droid'
   | 'channels'
-  | 'export-templates'
   | 'opencode'
   | 'codex'
   | 'claude'
@@ -31,6 +30,7 @@ export type DroidSubView =
   | 'legacy-versions'
 export type OpenCodeSubView = 'providers'
 export type OpenClawSubView = 'providers' | 'helpers' | 'subagents'
+export type ChannelsSubView = 'detail' | 'export-templates'
 
 export interface PendingUpdate {
   version: string
@@ -49,6 +49,7 @@ interface UIState {
   droidSubView: DroidSubView
   opencodeSubView: OpenCodeSubView
   openclawSubView: OpenClawSubView
+  channelsSubView: ChannelsSubView
   lastSpecExportPath: string | null
   pendingUpdate: PendingUpdate | null
   droidSettingsScrollTarget: string | null
@@ -67,6 +68,7 @@ interface UIState {
   setDroidSubView: (view: DroidSubView) => void
   setOpenCodeSubView: (view: OpenCodeSubView) => void
   setOpenClawSubView: (view: OpenClawSubView) => void
+  setChannelsSubView: (view: ChannelsSubView) => void
   setLastSpecExportPath: (path: string) => void
   setPendingUpdate: (update: PendingUpdate | null) => void
   clearPendingUpdate: () => void
@@ -88,6 +90,7 @@ export const useUIStore = create<UIState>()(
         droidSubView: 'models',
         opencodeSubView: 'providers',
         openclawSubView: 'providers',
+        channelsSubView: 'detail',
         lastSpecExportPath: null,
         pendingUpdate: null,
         droidSettingsScrollTarget: null,
@@ -146,6 +149,9 @@ export const useUIStore = create<UIState>()(
           set(
             state => ({
               currentView: view,
+              // Reset channelsSubView when leaving channels
+              channelsSubView:
+                view === 'channels' ? state.channelsSubView : 'detail',
               // Update lastToolView when switching tools
               lastToolView:
                 view === 'droid' ||
@@ -170,6 +176,9 @@ export const useUIStore = create<UIState>()(
 
         setOpenClawSubView: view =>
           set({ openclawSubView: view }, undefined, 'setOpenClawSubView'),
+
+        setChannelsSubView: view =>
+          set({ channelsSubView: view }, undefined, 'setChannelsSubView'),
 
         setLastSpecExportPath: path =>
           set({ lastSpecExportPath: path }, undefined, 'setLastSpecExportPath'),

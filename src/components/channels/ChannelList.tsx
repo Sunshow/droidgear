@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, Server, Download, Upload } from 'lucide-react'
+import { Plus, Server, Download, Upload, FileOutput } from 'lucide-react'
 import { save, open } from '@tauri-apps/plugin-dialog'
 import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs'
 import { toast } from 'sonner'
@@ -8,6 +8,7 @@ import { ActionButton } from '@/components/ui/action-button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { useChannelStore } from '@/store/channel-store'
+import { useUIStore } from '@/store/ui-store'
 import { commands, type Channel, type ChannelType } from '@/lib/bindings'
 import { isApiKeyAuthChannel } from '@/lib/channel-utils'
 import { ChannelExportDialog } from './ChannelExportDialog'
@@ -296,6 +297,20 @@ export function ChannelList({ onAddChannel }: ChannelListProps) {
                 onClick={() => selectChannel(channel.id)}
               />
             ))
+          )}
+          {channels.length > 0 && (
+            <div className="pt-2 mt-2 border-t">
+              <ActionButton
+                variant="ghost"
+                onClick={() =>
+                  useUIStore.getState().setChannelsSubView('export-templates')
+                }
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors text-start justify-start h-auto text-muted-foreground hover:text-foreground hover:bg-accent/50"
+              >
+                <FileOutput className="h-4 w-4 shrink-0" />
+                <span className="truncate">{t('sidebar.exportTemplates')}</span>
+              </ActionButton>
+            </div>
           )}
         </div>
       </ScrollArea>

@@ -127,6 +127,7 @@ export function MainWindowContent({
   const droidSubView = useUIStore(state => state.droidSubView)
   const droidRefreshKey = useUIStore(state => state.droidRefreshKey)
   const openclawSubView = useUIStore(state => state.openclawSubView)
+  const channelsSubView = useUIStore(state => state.channelsSubView)
   const channels = useChannelStore(state => state.channels)
   const selectedChannelId = useChannelStore(state => state.selectedChannelId)
   const saveChannels = useChannelStore(state => state.saveChannels)
@@ -196,10 +197,6 @@ export function MainWindowContent({
       return <PiConfigPage />
     }
 
-    if (currentView === 'export-templates') {
-      return <ExportTemplatesPage />
-    }
-
     if (currentView === 'openclaw') {
       return (
         <>
@@ -211,6 +208,10 @@ export function MainWindowContent({
     }
 
     // Channels view
+    if (channelsSubView === 'export-templates') {
+      return <ExportTemplatesPage />
+    }
+
     if (selectedChannel) {
       return (
         <>
