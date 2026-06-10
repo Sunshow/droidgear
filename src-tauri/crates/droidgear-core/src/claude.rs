@@ -93,7 +93,7 @@ pub struct ClaudeCurrentConfig {
 }
 
 fn default_small_model_uses_main_model() -> bool {
-    true
+    false
 }
 
 pub(crate) const CLAUDE_BASE_URL_ENV: &str = "ANTHROPIC_BASE_URL";
@@ -689,7 +689,7 @@ pub fn create_default_claude_profile_for_home(
         base_url: None,
         bearer_token: None,
         model: None,
-        small_model_uses_main_model: true,
+        small_model_uses_main_model: false,
         small_model: None,
         reasoning_effort: None,
         thinking_mode: ClaudeThinkingMode::Inherit,
@@ -842,7 +842,7 @@ mod tests {
             base_url: Some("https://example.com/v1".to_string()),
             bearer_token: Some("secret-token".to_string()),
             model: Some("claude-sonnet-4-5".to_string()),
-            small_model_uses_main_model: true,
+            small_model_uses_main_model: false,
             small_model: None,
             reasoning_effort: Some(ClaudeReasoningEffort::High),
             thinking_mode: ClaudeThinkingMode::On,
@@ -867,7 +867,7 @@ mod tests {
         }"#;
 
         let profile: ClaudeCodeProfile = serde_json::from_str(json).unwrap();
-        assert!(profile.small_model_uses_main_model);
+        assert!(!profile.small_model_uses_main_model);
         assert_eq!(profile.thinking_mode, ClaudeThinkingMode::Inherit);
         assert_eq!(profile.reasoning_effort, None);
     }
@@ -921,7 +921,7 @@ mod tests {
         let profile = create_default_claude_profile_for_home(home).unwrap();
         assert!(!profile.id.is_empty());
         assert_eq!(profile.name, "Default");
-        assert!(profile.small_model_uses_main_model);
+        assert!(!profile.small_model_uses_main_model);
         assert_eq!(profile.thinking_mode, ClaudeThinkingMode::Inherit);
         assert_eq!(profile.reasoning_effort, None);
 
@@ -955,7 +955,7 @@ mod tests {
             base_url: None,
             bearer_token: None,
             model: None,
-            small_model_uses_main_model: true,
+            small_model_uses_main_model: false,
             small_model: None,
             reasoning_effort: None,
             thinking_mode: ClaudeThinkingMode::Inherit,

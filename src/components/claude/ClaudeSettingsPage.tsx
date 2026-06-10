@@ -630,11 +630,7 @@ function ProviderSection({ json, patchJson }: SectionProps) {
       setEnvString(draft, CLAUDE_BASE_URL_ENV, result.baseUrl)
       setEnvString(draft, CLAUDE_AUTH_TOKEN_ENV, result.apiKey)
       if (result.defaultModel) {
-        const wasMirroring = isSmallModelMirroringMain(draft)
         setEnvString(draft, CLAUDE_MODEL_ENV, result.defaultModel)
-        if (wasMirroring) {
-          setEnvString(draft, CLAUDE_SMALL_MODEL_ENV, result.defaultModel)
-        }
       }
     })
     toast.success(t('claude.provider.importDialog.imported'))
@@ -735,11 +731,7 @@ function ModelSection({ json, patchJson }: SectionProps) {
             onChange={e => {
               const next = e.target.value || null
               patchJson(draft => {
-                const wasMirroring = isSmallModelMirroringMain(draft)
                 setEnvString(draft, CLAUDE_MODEL_ENV, next)
-                if (wasMirroring) {
-                  setEnvString(draft, CLAUDE_SMALL_MODEL_ENV, next)
-                }
               })
             }}
             placeholder={t('claude.model.namePlaceholder')}
@@ -789,11 +781,7 @@ function ModelSection({ json, patchJson }: SectionProps) {
             const next = checked === true
             patchJson(draft => {
               const mainModel = getEnvString(draft, CLAUDE_MODEL_ENV)
-              if (next) {
-                setSmallModelMirroring(draft, true, mainModel)
-              } else if (mainModel) {
-                setEnvString(draft, CLAUDE_SMALL_MODEL_ENV, mainModel)
-              }
+              setSmallModelMirroring(draft, next, mainModel)
             })
           }}
         />

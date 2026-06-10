@@ -174,14 +174,19 @@ export function setThinkingMode(
   }
 }
 
+/**
+ * Mirroring is ON when ANTHROPIC_DEFAULT_HAIKU_MODEL is not explicitly set
+ * AND the main model is configured. This matches the Rust import logic:
+ * `small_model_uses_main_model: small_model.is_none()`.
+ * When mirroring is on, the small model resolves to the main model at launch time.
+ */
 export function isSmallModelMirroringMain(
   doc: ClaudeSettingsDoc | null | undefined
 ): boolean {
   const main = getEnvString(doc, CLAUDE_MODEL_ENV)
   const small = getEnvString(doc, CLAUDE_SMALL_MODEL_ENV)
-  if (!main) return small === null
-  if (!small) return false
-  return main === small
+  if (!main && !small) return false
+  return small === null
 }
 
 export function setSmallModelMirroring(
@@ -190,6 +195,12 @@ export function setSmallModelMirroring(
   mainModel: string | null
 ): void {
   if (mirror) {
-    setEnvString(draft, CLAUDE_SMALL_MODEL_ENV, mainModel)
+    // Enable mirroring: remove the explicit small model so it auto-resolves to main.
+    setEnvString(draft, CLAUDE_SMALL_MODEL_ENV, null)
+  } else {
+    // Disable mirroring: freeze the current value as an explicit setting.
+    if (mainModel) {
+      setEnvString(draft, CLAUDE_SMALL_MODEL_ENV, mainModel)
+    }
   }
 }

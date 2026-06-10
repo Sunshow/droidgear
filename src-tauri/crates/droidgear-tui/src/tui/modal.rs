@@ -1611,7 +1611,7 @@ pub(super) fn run_input_action(
                 base_url: None,
                 bearer_token: None,
                 model: None,
-                small_model_uses_main_model: true,
+                small_model_uses_main_model: false,
                 small_model: None,
                 reasoning_effort: None,
                 thinking_mode: droidgear_core::claude::ClaudeThinkingMode::Inherit,
