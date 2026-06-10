@@ -39,8 +39,20 @@ export function isClaudeJupiterV1P(modelId: string): boolean {
 
 // Models that reject sampling parameters (temperature, top_p, top_k).
 // Mirrors Opus 4.7 strictness; new variants should be added here.
+export function isClaudeFable5(modelId: string): boolean {
+  const n = normalizeModelId(modelId)
+  return n.includes('fable.5')
+}
+
+// Models that reject sampling parameters (temperature, top_p, top_k).
+// Mirrors Opus 4.7 strictness; new variants should be added here.
 export function isStrictSamplingModel(modelId: string): boolean {
-  return isOpus47(modelId) || isOpus48(modelId) || isClaudeJupiterV1P(modelId)
+  return (
+    isOpus47(modelId) ||
+    isOpus48(modelId) ||
+    isClaudeJupiterV1P(modelId) ||
+    isClaudeFable5(modelId)
+  )
 }
 
 export function isOpus46(modelId: string): boolean {
@@ -61,6 +73,7 @@ export function isAnthropicAdaptiveThinkingModel(modelId: string): boolean {
     n.includes('opus.4.6') ||
     n.includes('sonnet.4.6') ||
     n.includes('jupiter.v1.p') ||
+    n.includes('fable.5') ||
     n.includes('mythos')
   )
 }
@@ -102,6 +115,7 @@ export function supportsXhighEffort(modelId: string): boolean {
   if (isOpus47(modelId)) return true
   if (isOpus48(modelId)) return true
   if (isClaudeJupiterV1P(modelId)) return true
+  if (isClaudeFable5(modelId)) return true
   const n = normalizeModelId(modelId)
   return (
     n.startsWith('gpt.5') ||

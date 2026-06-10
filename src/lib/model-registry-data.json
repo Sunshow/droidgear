@@ -60,6 +60,14 @@
     "maxOutputTokens": 64000
   },
   {
+    "id": "claude-fable-5",
+    "name": "Claude Fable 5",
+    "aliases": ["claude-fable-5"],
+    "platform": "anthropic-messages",
+    "contextWindow": 1000000,
+    "maxOutputTokens": 128000
+  },
+  {
     "id": "claude-jupiter-v1-p",
     "name": "claude-jupiter-v1-p",
     "aliases": [],
