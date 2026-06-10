@@ -1,7 +1,7 @@
 {
   "name": "droidgear",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "module",
   "description": "BYOK Model Configuration for Factory Droid",
   "author": "Danny Smith",
