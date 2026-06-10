@@ -52,7 +52,6 @@ import {
   syncTopLevelModel,
   toggleModel1MContext,
 } from '@/lib/claude-settings-mapping'
-import { hasOpaqueClaudeModelId } from '@/lib/utils'
 import {
   type ClaudeSettingsDoc,
   useClaudeSettingsStore,
@@ -718,7 +717,6 @@ function ModelSection({ json, patchJson }: SectionProps) {
   const model = getEnvString(json, CLAUDE_MODEL_ENV) ?? ''
   const smallModel = getEnvString(json, CLAUDE_SMALL_MODEL_ENV) ?? ''
   const mirror = isSmallModelMirroringMain(json)
-  const showOpaqueWarning = hasOpaqueClaudeModelId(model)
   const smallModelDisplay = mirror ? model : smallModel
   const context1M = hasModel1MContext(json)
 
@@ -767,20 +765,6 @@ function ModelSection({ json, patchJson }: SectionProps) {
           />
         </div>
       </div>
-
-      {showOpaqueWarning && (
-        <div className="flex items-start gap-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-amber-700">
-              {t('claude.model.capabilityWarningTitle')}
-            </p>
-            <p className="text-xs text-amber-700/90">
-              {t('claude.model.capabilityWarningBody', { model })}
-            </p>
-          </div>
-        </div>
-      )}
 
       <div className="flex items-start gap-3 rounded-md border p-3">
         <Checkbox
