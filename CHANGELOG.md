@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.1.1
+
+**New Features / 新功能**
+
+- Add 1M context window support toggle for models / 新增模型 1M 上下文窗口支持开关
+- Add claude-fable-5 model support with strict sampling, adaptive thinking, and xhigh effort / 新增 claude-fable-5 模型支持，包含严格采样、自适应思考和 xhigh effort
+
+**Bug Fixes / 问题修复**
+
+- Handle model ID changes and persist session settings / 处理模型 ID 变更并持久化会话设置
+- Make haiku mirroring checkbox uncheckable and default to off / 修复 haiku 镜像复选框无法取消勾选问题，并默认关闭
+- Export usize bindings as number and make export template fields null-safe / 将 usize 绑定导出为 number 类型，并使导出模板字段支持空值
+
 ## v1.1.0
 
 **New Features / 新功能**
