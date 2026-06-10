@@ -27,6 +27,8 @@ jscpd-report
 *.sw?
 *.tsbuildinfo
 
+.vscode/
+
 openspec/
 .iflow/
 .opencode/
