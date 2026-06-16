@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.1.2
+
+**New Features / 新功能**
+
+- Add Interaction Mode and Autonomy Level session default settings to Droid Settings page / Droid 设置页面新增交互模式（自动/Spec）和自主级别（关闭/低/中/高）会话默认设置项
+
+**Bug Fixes / 问题修复**
+
+- Fix reasoningEffort not falling back to sessionDefaultSettings when top-level key is absent / 修复推理强度在顶层键缺失时未回退读取 sessionDefaultSettings 的问题
+- Add missing "max" reasoning effort option to settings dropdown / 设置下拉框新增缺失的"最大"推理强度选项
+
 ## v1.1.1
 
 **New Features / 新功能**
