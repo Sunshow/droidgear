@@ -86,6 +86,8 @@ export function DefaultModelDialog({
           ? specModeReasoningEffort
           : (currentSettings?.specModeReasoningEffort ?? null),
         autonomyMode: currentSettings?.autonomyMode ?? null,
+        autonomyLevel: currentSettings?.autonomyLevel ?? null,
+        interactionMode: currentSettings?.interactionMode ?? null,
       }
 
       await onSave(newSettings)

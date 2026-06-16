@@ -114,6 +114,10 @@ pub struct SessionDefaultSettings {
     pub spec_mode_reasoning_effort: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub autonomy_mode: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub autonomy_level: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub interaction_mode: Option<String>,
 }
 
 // ============================================================================
@@ -701,7 +705,15 @@ pub fn get_reasoning_effort() -> Result<Option<String>, String> {
         .get("reasoningEffort")
         .and_then(|v| v.as_str())
         .map(String::from);
-    Ok(value)
+
+    // Fall back to sessionDefaultSettings.reasoningEffort when top-level is absent
+    if value.is_some() {
+        return Ok(value);
+    }
+    let session_settings = config
+        .get("sessionDefaultSettings")
+        .and_then(|v| serde_json::from_value::<SessionDefaultSettings>(v.clone()).ok());
+    Ok(session_settings.and_then(|s| s.reasoning_effort))
 }
 
 pub fn save_reasoning_effort_for_home(home_dir: &Path, value: &str) -> Result<(), String> {
@@ -1106,6 +1118,8 @@ pub fn get_session_default_settings_for_home(
                 spec_mode_model: None,
                 spec_mode_reasoning_effort: None,
                 autonomy_mode: None,
+                autonomy_level: None,
+                interaction_mode: None,
             });
         }
         ConfigReadResult::ParseError(_) => {
@@ -1115,6 +1129,8 @@ pub fn get_session_default_settings_for_home(
                 spec_mode_model: None,
                 spec_mode_reasoning_effort: None,
                 autonomy_mode: None,
+                autonomy_level: None,
+                interaction_mode: None,
             });
         }
     };
@@ -1128,6 +1144,8 @@ pub fn get_session_default_settings_for_home(
             spec_mode_model: None,
             spec_mode_reasoning_effort: None,
             autonomy_mode: None,
+            autonomy_level: None,
+            interaction_mode: None,
         });
 
     Ok(settings)
@@ -1143,6 +1161,8 @@ pub fn get_session_default_settings() -> Result<SessionDefaultSettings, String> 
                 spec_mode_model: None,
                 spec_mode_reasoning_effort: None,
                 autonomy_mode: None,
+                autonomy_level: None,
+                interaction_mode: None,
             });
         }
         ConfigReadResult::ParseError(_) => {
@@ -1152,6 +1172,8 @@ pub fn get_session_default_settings() -> Result<SessionDefaultSettings, String> 
                 spec_mode_model: None,
                 spec_mode_reasoning_effort: None,
                 autonomy_mode: None,
+                autonomy_level: None,
+                interaction_mode: None,
             });
         }
     };
@@ -1164,6 +1186,8 @@ pub fn get_session_default_settings() -> Result<SessionDefaultSettings, String> 
             spec_mode_model: None,
             spec_mode_reasoning_effort: None,
             autonomy_mode: None,
+            autonomy_level: None,
+            interaction_mode: None,
         });
     Ok(settings)
 }

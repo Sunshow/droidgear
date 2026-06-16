@@ -175,6 +175,8 @@ export function DroidSettingsPage() {
 
   // Session settings states
   const [reasoningEffort, setReasoningEffort] = useState<string | null>(null)
+  const [interactionMode, setInteractionMode] = useState('auto')
+  const [autonomyLevel, setAutonomyLevel] = useState('off')
   const [diffMode, setDiffMode] = useState('github')
   const [todoDisplayMode, setTodoDisplayMode] = useState('pinned')
   const [includeCoAuthoredByDroid, setIncludeCoAuthoredByDroid] = useState(true)
@@ -244,6 +246,21 @@ export function DroidSettingsPage() {
   useEffect(() => {
     let cancelled = false
     const fetch = async () => {
+      const result = await commands.getSessionDefaultSettings()
+      if (!cancelled && result.status === 'ok') {
+        setInteractionMode(result.data.interactionMode ?? 'auto')
+        setAutonomyLevel(result.data.autonomyLevel ?? 'off')
+      }
+    }
+    fetch()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const fetch = async () => {
       const [modelModeResult, tokenLimitResult, perModelResult] =
         await Promise.all([
           commands.getCompactionModelMode(),
@@ -277,6 +294,7 @@ export function DroidSettingsPage() {
     const [
       cloudSyncResult,
       reasoningEffortResult,
+      sessionDefaultResult,
       diffModeResult,
       todoDisplayModeResult,
       includeCoAuthoredResult,
@@ -287,6 +305,7 @@ export function DroidSettingsPage() {
     ] = await Promise.all([
       commands.getCloudSessionSync(),
       commands.getReasoningEffort(),
+      commands.getSessionDefaultSettings(),
       commands.getDiffMode(),
       commands.getTodoDisplayMode(),
       commands.getIncludeCoAuthoredByDroid(),
@@ -301,6 +320,10 @@ export function DroidSettingsPage() {
     }
     if (reasoningEffortResult.status === 'ok') {
       setReasoningEffort(reasoningEffortResult.data)
+    }
+    if (sessionDefaultResult.status === 'ok') {
+      setInteractionMode(sessionDefaultResult.data.interactionMode ?? 'auto')
+      setAutonomyLevel(sessionDefaultResult.data.autonomyLevel ?? 'off')
     }
     if (diffModeResult.status === 'ok') {
       setDiffMode(diffModeResult.data)
@@ -346,6 +369,46 @@ export function DroidSettingsPage() {
     const result = await commands.saveReasoningEffort(value)
     if (result.status === 'error') {
       setReasoningEffort(oldValue)
+      toast.error(t('toast.error.generic'))
+    }
+  }
+
+  const handleInteractionModeChange = async (value: string) => {
+    const oldValue = interactionMode
+    setInteractionMode(value)
+    const currentResult = await commands.getSessionDefaultSettings()
+    if (currentResult.status !== 'ok') {
+      setInteractionMode(oldValue)
+      toast.error(t('toast.error.generic'))
+      return
+    }
+    const updatedSettings = {
+      ...currentResult.data,
+      interactionMode: value,
+    }
+    const result = await commands.saveSessionDefaultSettings(updatedSettings)
+    if (result.status === 'error') {
+      setInteractionMode(oldValue)
+      toast.error(t('toast.error.generic'))
+    }
+  }
+
+  const handleAutonomyLevelChange = async (value: string) => {
+    const oldValue = autonomyLevel
+    setAutonomyLevel(value)
+    const currentResult = await commands.getSessionDefaultSettings()
+    if (currentResult.status !== 'ok') {
+      setAutonomyLevel(oldValue)
+      toast.error(t('toast.error.generic'))
+      return
+    }
+    const updatedSettings = {
+      ...currentResult.data,
+      autonomyLevel: value,
+    }
+    const result = await commands.saveSessionDefaultSettings(updatedSettings)
+    if (result.status === 'error') {
+      setAutonomyLevel(oldValue)
       toast.error(t('toast.error.generic'))
     }
   }
@@ -574,6 +637,9 @@ export function DroidSettingsPage() {
                     <SelectItem value="high">
                       {t('droid.settings.sessionSettings.reasoningEffort.high')}
                     </SelectItem>
+                    <SelectItem value="max">
+                      {t('droid.settings.sessionSettings.reasoningEffort.max')}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -582,6 +648,82 @@ export function DroidSettingsPage() {
                 <p className="text-xs">
                   {t('droid.settings.sessionSettings.reasoningEffortNote')}
                 </p>
+              </div>
+            </div>
+
+            {/* Interaction Mode */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-1">
+                  <Label
+                    htmlFor="interaction-mode"
+                    className="text-sm font-medium"
+                  >
+                    {t('droid.settings.sessionSettings.interactionMode')}
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t(
+                      'droid.settings.sessionSettings.interactionModeDescription'
+                    )}
+                  </p>
+                </div>
+                <Select
+                  value={interactionMode}
+                  onValueChange={handleInteractionModeChange}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">
+                      {t('droid.settings.sessionSettings.interactionMode.auto')}
+                    </SelectItem>
+                    <SelectItem value="spec">
+                      {t('droid.settings.sessionSettings.interactionMode.spec')}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Autonomy Level */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-1">
+                  <Label
+                    htmlFor="autonomy-level"
+                    className="text-sm font-medium"
+                  >
+                    {t('droid.settings.sessionSettings.autonomyLevel')}
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t(
+                      'droid.settings.sessionSettings.autonomyLevelDescription'
+                    )}
+                  </p>
+                </div>
+                <Select
+                  value={autonomyLevel}
+                  onValueChange={handleAutonomyLevelChange}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="off">
+                      {t('droid.settings.sessionSettings.autonomyLevel.off')}
+                    </SelectItem>
+                    <SelectItem value="low">
+                      {t('droid.settings.sessionSettings.autonomyLevel.low')}
+                    </SelectItem>
+                    <SelectItem value="medium">
+                      {t('droid.settings.sessionSettings.autonomyLevel.medium')}
+                    </SelectItem>
+                    <SelectItem value="high">
+                      {t('droid.settings.sessionSettings.autonomyLevel.high')}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

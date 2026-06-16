@@ -2581,7 +2581,7 @@ export type RecoveryError =
 /**
  * Session default settings for mixed models configuration
  */
-export type SessionDefaultSettings = { model?: string | null; reasoningEffort?: string | null; specModeModel?: string | null; specModeReasoningEffort?: string | null; autonomyMode?: string | null }
+export type SessionDefaultSettings = { model?: string | null; reasoningEffort?: string | null; specModeModel?: string | null; specModeReasoningEffort?: string | null; autonomyMode?: string | null; autonomyLevel?: string | null; interactionMode?: string | null }
 /**
  * Session detail with messages
  */
