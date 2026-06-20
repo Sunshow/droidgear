@@ -803,6 +803,33 @@
     "maxOutputTokens": 131072
   },
   {
+    "id": "glm-5.2",
+    "name": "GLM 5.2",
+    "aliases": [],
+    "platform": "anthropic-messages",
+    "contextWindow": 1000000,
+    "maxOutputTokens": 131072,
+    "reasoningConfig": {
+      "efforts": ["high", "max"],
+      "encoding": {
+        "anthropic": {
+          "high": {
+            "extraArgsFragment": {
+              "thinking": { "type": "enabled" },
+              "output_config": { "effort": "high" }
+            }
+          },
+          "max": {
+            "extraArgsFragment": {
+              "thinking": { "type": "enabled" },
+              "output_config": { "effort": "max" }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
     "id": "doubao-seed-1.8",
     "name": "Doubao Seed 1.8",
     "aliases": [],
