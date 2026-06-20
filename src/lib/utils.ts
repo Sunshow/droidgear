@@ -180,7 +180,10 @@ export const DROID_OFFICIAL_MODEL_NAMES = [
   'GLM-4.6',
   'GLM-4.7',
   'GLM-5.1',
+  'GLM-5.2',
   'Kimi K2.6',
+  'Kimi K2.7 Code',
+  'DeepSeek V4 Pro',
   'MiniMax M2.7',
 ]
 
