@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.1.3
+
+**New Features / 新功能**
+
+- Add GLM-5.2 model support with anthropic-messages platform, 1M context window, and high/max reasoning effort whitelist / 新增 GLM-5.2 模型支持，使用 anthropic-messages 协议，支持 1M 上下文窗口及 high/max 推理强度白名单
+- Add Kimi K2.7 Code model support with 262k context window and output tokens / 新增 Kimi K2.7 Code 模型支持，支持 262k 上下文窗口和输出 token
+- Add GLM-5.2, Kimi K2.7 Code, and DeepSeek V4 Pro to official model names whitelist to prevent display name conflicts / 将 GLM-5.2、Kimi K2.7 Code、DeepSeek V4 Pro 加入官方模型名白名单，防止显示名冲突
+
 ## v1.1.2
 
 **New Features / 新功能**
