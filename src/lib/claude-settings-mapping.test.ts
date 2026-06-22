@@ -19,10 +19,6 @@ import {
 } from './claude-settings-mapping'
 import type { ClaudeSettingsDoc } from '@/store/claude-settings-store'
 
-function clone(doc: ClaudeSettingsDoc): ClaudeSettingsDoc {
-  return JSON.parse(JSON.stringify(doc)) as ClaudeSettingsDoc
-}
-
 describe('setEnvString', () => {
   it('writes a value into env', () => {
     const draft: ClaudeSettingsDoc = {}
@@ -157,14 +153,14 @@ describe('small model mirroring', () => {
     expect(isSmallModelMirroringMain({})).toBe(false)
   })
 
-  it('returns true when small model is not set but main is', () => {
+  it('returns false when small model is not set but main is', () => {
     const doc: ClaudeSettingsDoc = {
       env: { [CLAUDE_MODEL_ENV]: 'claude-sonnet-4-5' },
     }
-    expect(isSmallModelMirroringMain(doc)).toBe(true)
+    expect(isSmallModelMirroringMain(doc)).toBe(false)
   })
 
-  it('returns false when small model is explicitly set', () => {
+  it('returns false when small model is explicitly set and differs from main', () => {
     const doc: ClaudeSettingsDoc = {
       env: {
         [CLAUDE_MODEL_ENV]: 'claude-sonnet-4-5',
@@ -174,14 +170,14 @@ describe('small model mirroring', () => {
     expect(isSmallModelMirroringMain(doc)).toBe(false)
   })
 
-  it('returns false when small model equals main but is explicitly set', () => {
+  it('returns true when small model equals main', () => {
     const doc: ClaudeSettingsDoc = {
       env: {
         [CLAUDE_MODEL_ENV]: 'claude-sonnet-4-5',
         [CLAUDE_SMALL_MODEL_ENV]: 'claude-sonnet-4-5',
       },
     }
-    expect(isSmallModelMirroringMain(doc)).toBe(false)
+    expect(isSmallModelMirroringMain(doc)).toBe(true)
   })
 
   it('returns false when only small model is set', () => {
@@ -191,7 +187,7 @@ describe('small model mirroring', () => {
     expect(isSmallModelMirroringMain(doc)).toBe(false)
   })
 
-  it('mirroring on deletes the small model key', () => {
+  it('mirroring on sets small model to main model', () => {
     const draft: ClaudeSettingsDoc = {
       env: {
         [CLAUDE_MODEL_ENV]: 'claude-sonnet-4-5',
@@ -200,23 +196,33 @@ describe('small model mirroring', () => {
     }
     setSmallModelMirroring(draft, true, 'claude-sonnet-4-5')
     const env = draft.env as Record<string, unknown>
+    expect(env[CLAUDE_SMALL_MODEL_ENV]).toBe('claude-sonnet-4-5')
+    expect(env[CLAUDE_MODEL_ENV]).toBe('claude-sonnet-4-5')
+  })
+
+  it('mirroring off clears the small model', () => {
+    const draft: ClaudeSettingsDoc = {
+      env: {
+        [CLAUDE_MODEL_ENV]: 'claude-sonnet-4-5',
+        [CLAUDE_SMALL_MODEL_ENV]: 'claude-sonnet-4-5',
+      },
+    }
+    setSmallModelMirroring(draft, false, 'claude-sonnet-4-5')
+    const env = draft.env as Record<string, unknown>
     expect(env[CLAUDE_SMALL_MODEL_ENV]).toBeUndefined()
     expect(env[CLAUDE_MODEL_ENV]).toBe('claude-sonnet-4-5')
   })
 
-  it('mirroring off sets small model to main model', () => {
+  it('mirroring off clears small model even with null main model', () => {
     const draft: ClaudeSettingsDoc = {
-      env: { [CLAUDE_MODEL_ENV]: 'claude-sonnet-4-5' },
+      env: {
+        [CLAUDE_MODEL_ENV]: 'claude-sonnet-4-5',
+        [CLAUDE_SMALL_MODEL_ENV]: 'claude-sonnet-4-5',
+      },
     }
-    setSmallModelMirroring(draft, false, 'claude-sonnet-4-5')
-    const env = draft.env as Record<string, unknown>
-    expect(env[CLAUDE_SMALL_MODEL_ENV]).toBe('claude-sonnet-4-5')
-  })
-
-  it('mirroring off with null main model does nothing', () => {
-    const draft: ClaudeSettingsDoc = {}
-    const before = clone(draft)
     setSmallModelMirroring(draft, false, null)
-    expect(draft).toEqual(before)
+    const env = draft.env as Record<string, unknown>
+    expect(env[CLAUDE_SMALL_MODEL_ENV]).toBeUndefined()
+    expect(env[CLAUDE_MODEL_ENV]).toBe('claude-sonnet-4-5')
   })
 })

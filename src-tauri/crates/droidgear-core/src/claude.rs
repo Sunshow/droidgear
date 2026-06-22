@@ -506,11 +506,16 @@ fn build_current_config_from_settings(
             }
         };
 
+    let small_model_uses_main_model = match (&small_model, &model) {
+        (Some(s), Some(m)) => s == m,
+        _ => false,
+    };
+
     Ok(ClaudeCurrentConfig {
         base_url: get_env_string(CLAUDE_BASE_URL_ENV)?,
         bearer_token: get_env_string(CLAUDE_AUTH_TOKEN_ENV)?,
         model,
-        small_model_uses_main_model: small_model.is_none(),
+        small_model_uses_main_model,
         small_model,
         reasoning_effort,
         thinking_mode,
@@ -1455,8 +1460,46 @@ mod tests {
         let fallback = read_claude_current_config_for_home(home).unwrap();
         assert_eq!(fallback.model.as_deref(), Some("top-level-model"));
         assert_eq!(fallback.reasoning_effort, Some(ClaudeReasoningEffort::High));
-        assert!(fallback.small_model_uses_main_model);
+        assert!(!fallback.small_model_uses_main_model);
         assert_eq!(fallback.small_model, None);
         assert_eq!(fallback.thinking_mode, ClaudeThinkingMode::Off);
+    }
+
+    #[test]
+    fn test_read_current_config_infers_mirroring_when_small_equals_main() {
+        let temp = TempDir::new().unwrap();
+        let home = home(&temp);
+        let settings_path = claude_settings_path_for_home(home).unwrap();
+
+        // small model equals main model → should infer small_model_uses_main_model = true
+        write_file(
+            &settings_path,
+            r#"{
+              "env": {
+                "ANTHROPIC_MODEL": "claude-sonnet-4-5",
+                "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-sonnet-4-5"
+              }
+            }"#,
+        );
+
+        let current = read_claude_current_config_for_home(home).unwrap();
+        assert_eq!(current.model.as_deref(), Some("claude-sonnet-4-5"));
+        assert_eq!(current.small_model.as_deref(), Some("claude-sonnet-4-5"));
+        assert!(current.small_model_uses_main_model);
+
+        // small model differs from main model → should infer false
+        write_file(
+            &settings_path,
+            r#"{
+              "env": {
+                "ANTHROPIC_MODEL": "claude-sonnet-4-5",
+                "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4"
+              }
+            }"#,
+        );
+
+        let current = read_claude_current_config_for_home(home).unwrap();
+        assert!(!current.small_model_uses_main_model);
+        assert_eq!(current.small_model.as_deref(), Some("claude-haiku-4"));
     }
 }
