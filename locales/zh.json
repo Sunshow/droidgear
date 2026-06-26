@@ -186,6 +186,8 @@
 
   "commands.testToast.label": "测试通知",
   "commands.testToast.description": "显示测试通知",
+  "commands.testUpdateToast.label": "测试更新提示（稍后）",
+  "commands.testUpdateToast.description": "在右下角弹出自动更新提示条，便于人工测试「稍后」",
 
   "commandPalette.title": "命令面板",
   "commandPalette.placeholder": "输入命令或搜索...",

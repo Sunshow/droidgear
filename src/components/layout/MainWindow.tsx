@@ -91,7 +91,7 @@ export function MainWindow() {
       {/* Global UI Components (hidden until triggered) */}
       <CommandPalette />
       <PreferencesDialog />
-      <Toaster position="bottom-right" />
+      <Toaster position="bottom-right" expand={false} />
 
       {/* Close confirmation dialog - shown when user has unsaved changes */}
       <AlertDialog open={closeConfirmOpen} onOpenChange={handleCancelClose}>

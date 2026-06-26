@@ -6,6 +6,7 @@ const { toastMock } = vi.hoisted(() => {
     success: vi.fn(),
     error: vi.fn(),
     dismiss: vi.fn(),
+    custom: vi.fn(),
   })
   return { toastMock: mock }
 })
@@ -22,13 +23,19 @@ import {
   buildReleaseUrl,
   checkForUpdate,
   clearCachedUpdate,
+  clearUpdateNotificationSnooze,
+  dismissUpdateNotification,
+  isUpdateNotificationSnoozed,
   showUpdateNotification,
+  UPDATE_NOTIFICATION_SNOOZE_MS,
+  UPDATE_NOTIFICATION_TOAST_ID,
 } from './updater'
 
 describe('updater service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     clearCachedUpdate()
+    clearUpdateNotificationSnooze()
     useUIStore.setState({ pendingUpdate: null })
 
     vi.mocked(commands.getUpdateChannel).mockResolvedValue({
@@ -96,7 +103,7 @@ describe('updater service', () => {
     })
   })
 
-  it('deduplicates identical update notifications unless forced', () => {
+  it('shows update notifications via toast.custom and can force repeat', () => {
     const update = {
       version: '0.5.4',
       body: 'Release notes',
@@ -105,10 +112,50 @@ describe('updater service', () => {
     }
 
     showUpdateNotification(update)
-    showUpdateNotification(update)
     showUpdateNotification(update, { force: true })
 
     expect(useUIStore.getState().pendingUpdate).toEqual(update)
-    expect(toast).toHaveBeenCalledTimes(2)
+    expect(toast.custom).toHaveBeenCalledTimes(2)
+  })
+
+  it('snoozes auto notifications after Later is dismissed', () => {
+    const update = {
+      version: '0.5.4',
+      body: 'Release notes',
+      channel: 'managed' as const,
+      releaseUrl: buildReleaseUrl('0.5.4'),
+    }
+
+    useUIStore.getState().setPendingUpdate(update)
+    dismissUpdateNotification(update)
+
+    expect(toast.dismiss).toHaveBeenCalledWith(UPDATE_NOTIFICATION_TOAST_ID)
+    expect(isUpdateNotificationSnoozed(update)).toBe(true)
+
+    showUpdateNotification(update)
+    expect(toast.custom).not.toHaveBeenCalled()
+
+    showUpdateNotification(update, { force: true })
+    expect(toast.custom).toHaveBeenCalledTimes(1)
+  })
+
+  it('expires snooze after the configured duration', () => {
+    const update = {
+      version: '0.5.4',
+      body: 'Release notes',
+      channel: 'managed' as const,
+      releaseUrl: buildReleaseUrl('0.5.4'),
+    }
+
+    vi.useFakeTimers()
+    dismissUpdateNotification(update)
+
+    vi.advanceTimersByTime(UPDATE_NOTIFICATION_SNOOZE_MS - 1)
+    expect(isUpdateNotificationSnoozed(update)).toBe(true)
+
+    vi.advanceTimersByTime(1)
+    expect(isUpdateNotificationSnoozed(update)).toBe(false)
+
+    vi.useRealTimers()
   })
 })

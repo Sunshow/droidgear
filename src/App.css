@@ -72,3 +72,12 @@ html {
 
   /* Streamdown: keep layout stable (don't force wrapping/scrolling here) */
 }
+
+[data-sonner-toast] [data-button],
+[data-sonner-toast] button {
+  cursor: pointer !important;
+}
+
+[data-sonner-toast].update-available-toast {
+  transition: opacity 0.2s ease !important;
+}

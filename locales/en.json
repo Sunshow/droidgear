@@ -186,6 +186,8 @@
 
   "commands.testToast.label": "Test Toast Notification",
   "commands.testToast.description": "Show a test toast notification",
+  "commands.testUpdateToast.label": "Test Update Notification (Later)",
+  "commands.testUpdateToast.description": "Show the auto-update toast in the bottom-right for manual testing",
 
   "commandPalette.title": "Command Palette",
   "commandPalette.placeholder": "Type a command or search...",

@@ -19,10 +19,58 @@ import { logger } from '@/lib/logger'
 import { type PendingUpdate, useUIStore } from '@/store/ui-store'
 
 const RELEASES_BASE_URL = 'https://github.com/Sunshow/droidgear/releases/tag/'
+export const UPDATE_NOTIFICATION_TOAST_ID = 'update-available'
+export const UPDATE_NOTIFICATION_SNOOZE_MS = 24 * 60 * 60 * 1000
 
 let cachedManagedUpdate: Update | null = null
 let cachedPortableUpdate: PortableUpdateInfo | null = null
 let cachedUpdateChannel: UpdateChannel | null = null
+
+interface UpdateNotificationSnooze {
+  version: string
+  channel: PendingUpdate['channel']
+  until: number
+}
+
+let updateNotificationSnooze: UpdateNotificationSnooze | null = null
+
+export function clearUpdateNotificationSnooze(): void {
+  updateNotificationSnooze = null
+}
+
+export function isUpdateNotificationSnoozed(
+  pendingUpdate: PendingUpdate
+): boolean {
+  if (!updateNotificationSnooze) {
+    return false
+  }
+
+  if (Date.now() >= updateNotificationSnooze.until) {
+    updateNotificationSnooze = null
+    return false
+  }
+
+  return (
+    updateNotificationSnooze.channel === pendingUpdate.channel &&
+    normalizeVersion(updateNotificationSnooze.version) ===
+      normalizeVersion(pendingUpdate.version)
+  )
+}
+
+export function dismissUpdateNotification(
+  pendingUpdate?: PendingUpdate | null
+): void {
+  toast.dismiss(UPDATE_NOTIFICATION_TOAST_ID)
+
+  const update = pendingUpdate ?? useUIStore.getState().pendingUpdate
+  if (update) {
+    updateNotificationSnooze = {
+      version: normalizeVersion(update.version),
+      channel: update.channel,
+      until: Date.now() + UPDATE_NOTIFICATION_SNOOZE_MS,
+    }
+  }
+}
 
 export function normalizeVersion(version: string): string {
   return version.trim().replace(/^v/i, '')
@@ -279,43 +327,39 @@ export function showUpdateNotification(
   options: { force?: boolean } = {}
 ): void {
   const t = i18n.t.bind(i18n)
-  const currentPending = useUIStore.getState().pendingUpdate
 
-  if (
-    !options.force &&
-    currentPending?.channel === pendingUpdate.channel &&
-    currentPending.version === pendingUpdate.version
-  ) {
+  if (!options.force && isUpdateNotificationSnoozed(pendingUpdate)) {
     return
   }
 
   useUIStore.getState().setPendingUpdate(pendingUpdate)
 
-  toast(
-    createElement(UpdateNotificationContent, {
-      message: t('update.availableNotification', {
-        version: pendingUpdate.version,
-      }),
-      releaseUrl: pendingUpdate.releaseUrl,
-      releaseLabel: t('update.viewDetails'),
-      onOpenRelease: () => {
-        void openReleasePage(pendingUpdate.releaseUrl)
-      },
-    }),
-    {
-      id: 'update-available',
-      duration: Infinity,
-      action: {
-        label: t('update.installNow'),
-        onClick: () => {
+  toast.custom(
+    () =>
+      createElement(UpdateNotificationContent, {
+        message: t('update.availableNotification', {
+          version: pendingUpdate.version,
+        }),
+        releaseUrl: pendingUpdate.releaseUrl,
+        releaseLabel: t('update.viewDetails'),
+        installLabel: t('update.installNow'),
+        laterLabel: t('update.later'),
+        onOpenRelease: () => {
+          void openReleasePage(pendingUpdate.releaseUrl)
+        },
+        onInstallNow: () => {
           void downloadAndInstallUpdate()
         },
-      },
-      cancel: {
-        label: t('update.later'),
-        onClick: () => {
-          toast.dismiss('update-available')
+        onLater: () => {
+          dismissUpdateNotification(pendingUpdate)
         },
+      }),
+    {
+      id: UPDATE_NOTIFICATION_TOAST_ID,
+      duration: Infinity,
+      dismissible: true,
+      classNames: {
+        toast: 'update-available-toast',
       },
     }
   )
