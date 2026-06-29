@@ -2,9 +2,9 @@ use tauri_specta::{collect_commands, Builder};
 
 pub fn generate_bindings() -> Builder<tauri::Wry> {
     use crate::commands::{
-        channel, channel_export, claude, claude_settings, codex, config, connectivity,
-        droid_settings, env, factory_auth_profiles, hermes, mcp, notifications, openclaw, opencode,
-        paths, pi, preferences, recovery, sessions, specs, updater, window,
+        channel, channel_export, claude, claude_settings, codex, codex_auth_profiles, config,
+        connectivity, droid_settings, env, factory_auth_profiles, hermes, mcp, notifications,
+        openclaw, opencode, paths, pi, preferences, recovery, sessions, specs, updater, window,
     };
 
     Builder::<tauri::Wry>::new().commands(collect_commands![
@@ -192,6 +192,14 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         factory_auth_profiles::save_current_factory_auth_profile,
         factory_auth_profiles::delete_factory_auth_profile,
         factory_auth_profiles::rename_factory_auth_profile,
+        codex_auth_profiles::list_codex_auth_profiles,
+        codex_auth_profiles::is_codex_official_auth,
+        codex_auth_profiles::save_current_codex_auth_profile,
+        codex_auth_profiles::switch_codex_auth_profile,
+        codex_auth_profiles::delete_codex_auth_profile,
+        codex_auth_profiles::rename_codex_auth_profile,
+        codex_auth_profiles::detect_codex_auth_conflict,
+        codex_auth_profiles::detect_codex_apply_auth_conflict,
         window::reset_window_state,
     ])
 }

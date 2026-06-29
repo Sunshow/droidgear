@@ -1267,6 +1267,23 @@ pub(super) fn run_confirm_action(
             app.set_toast("Applied", false);
             Ok(())
         }
+        app::ConfirmAction::CodexApplyConflict { id } => {
+            // Save current auth as auto-backup first
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs().to_string())
+                .unwrap_or_else(|_| "0".to_string());
+            let backup_name = format!("auto-backup-{now}");
+            let _ = droidgear_core::codex_auth_profiles::save_current_as_profile_for_home(
+                &app.home_dir,
+                &backup_name,
+                &format!("Auto backup {}", now),
+            );
+            droidgear_core::codex::apply_codex_profile_for_home(&app.home_dir, &id)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Applied (auth backed up)", false);
+            Ok(())
+        }
         app::ConfirmAction::CodexDelete { id } => {
             droidgear_core::codex::delete_codex_profile_for_home(&app.home_dir, &id)
                 .map_err(anyhow::Error::msg)?;
@@ -1574,6 +1591,32 @@ pub(super) fn run_confirm_action(
         }
         app::ConfirmAction::FactoryAuthSwitch { name } => {
             droidgear_core::factory_auth_profiles::switch_profile_for_home(&app.home_dir, &name)
+                .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
+        app::ConfirmAction::CodexAuthSwitch { name } => {
+            droidgear_core::codex_auth_profiles::switch_profile_for_home(&app.home_dir, &name)
+                .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
+        app::ConfirmAction::CodexAuthConflictSwitch { name } => {
+            // Save current auth first, then switch
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs().to_string())
+                .unwrap_or_else(|_| "0".to_string());
+            let backup_name = format!("auto-backup-{now}");
+            let _ = droidgear_core::codex_auth_profiles::save_current_as_profile_for_home(
+                &app.home_dir,
+                &backup_name,
+                &format!("Auto backup {}", now),
+            );
+            droidgear_core::codex_auth_profiles::switch_profile_for_home(&app.home_dir, &name)
+                .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
+        app::ConfirmAction::CodexAuthDelete { name } => {
+            droidgear_core::codex_auth_profiles::delete_profile_for_home(&app.home_dir, &name)
                 .map_err(anyhow::Error::msg)?;
             Ok(())
         }
@@ -3579,6 +3622,32 @@ pub(super) fn run_input_action(
                 return Err(anyhow::Error::msg("Label is required"));
             }
             droidgear_core::factory_auth_profiles::rename_profile_for_home(
+                &app.home_dir,
+                &name,
+                trimmed,
+            )
+            .map_err(anyhow::Error::msg)?;
+            app.set_toast("Renamed", false);
+            Ok(())
+        }
+        app::InputAction::CodexAuthSaveProfile => {
+            if trimmed.is_empty() {
+                return Err(anyhow::Error::msg("Profile ID is required"));
+            }
+            droidgear_core::codex_auth_profiles::save_current_as_profile_for_home(
+                &app.home_dir,
+                trimmed,
+                trimmed,
+            )
+            .map_err(anyhow::Error::msg)?;
+            app.set_toast(format!("Saved as '{trimmed}'"), false);
+            Ok(())
+        }
+        app::InputAction::CodexAuthRename { name } => {
+            if trimmed.is_empty() {
+                return Err(anyhow::Error::msg("Label is required"));
+            }
+            droidgear_core::codex_auth_profiles::rename_profile_for_home(
                 &app.home_dir,
                 &name,
                 trimmed,

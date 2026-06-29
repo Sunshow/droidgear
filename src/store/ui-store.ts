@@ -28,6 +28,7 @@ export type DroidSubView =
   | 'terminal'
   | 'missions'
   | 'legacy-versions'
+export type CodexSubView = 'providers' | 'auth-profiles'
 export type OpenCodeSubView = 'providers'
 export type OpenClawSubView = 'providers' | 'helpers' | 'subagents'
 export type ChannelsSubView = 'detail' | 'export-templates'
@@ -47,6 +48,7 @@ interface UIState {
   currentView: NavigationView
   lastToolView: ToolView
   droidSubView: DroidSubView
+  codexSubView: CodexSubView
   opencodeSubView: OpenCodeSubView
   openclawSubView: OpenClawSubView
   channelsSubView: ChannelsSubView
@@ -66,6 +68,7 @@ interface UIState {
   setPreferencesOpen: (open: boolean) => void
   setCurrentView: (view: NavigationView) => void
   setDroidSubView: (view: DroidSubView) => void
+  setCodexSubView: (view: CodexSubView) => void
   setOpenCodeSubView: (view: OpenCodeSubView) => void
   setOpenClawSubView: (view: OpenClawSubView) => void
   setChannelsSubView: (view: ChannelsSubView) => void
@@ -88,6 +91,7 @@ export const useUIStore = create<UIState>()(
         currentView: 'droid',
         lastToolView: 'droid',
         droidSubView: 'models',
+        codexSubView: 'providers',
         opencodeSubView: 'providers',
         openclawSubView: 'providers',
         channelsSubView: 'detail',
@@ -170,6 +174,9 @@ export const useUIStore = create<UIState>()(
 
         setDroidSubView: view =>
           set({ droidSubView: view }, undefined, 'setDroidSubView'),
+
+        setCodexSubView: view =>
+          set({ codexSubView: view }, undefined, 'setCodexSubView'),
 
         setOpenCodeSubView: view =>
           set({ opencodeSubView: view }, undefined, 'setOpenCodeSubView'),

@@ -45,6 +45,7 @@ pub(super) fn handle_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
         app::Screen::ChannelsEdit => handle_channels_edit_key(app, code),
         app::Screen::Missions => handle_missions_key(app, code),
         app::Screen::FactoryAuth => keys_factory_auth::handle_factory_auth_key(app, code),
+        app::Screen::CodexAuth => keys_codex_auth::handle_codex_auth_key(app, code),
     }
 }
 

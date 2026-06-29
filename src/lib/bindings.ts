@@ -2000,6 +2000,94 @@ async renameFactoryAuthProfile(name: string, label: string) : Promise<Result<nul
 }
 },
 /**
+ * List all Codex auth profiles
+ */
+async listCodexAuthProfiles() : Promise<Result<CodexAuthProfileState, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_codex_auth_profiles") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Check if current auth is official
+ */
+async isCodexOfficialAuth() : Promise<Result<boolean, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("is_codex_official_auth") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Save current auth.json as a named profile
+ */
+async saveCurrentCodexAuthProfile(name: string, label: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_current_codex_auth_profile", { name, label }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Switch to a saved auth profile
+ */
+async switchCodexAuthProfile(name: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("switch_codex_auth_profile", { name }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Delete a saved auth profile
+ */
+async deleteCodexAuthProfile(name: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_codex_auth_profile", { name }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Rename a saved auth profile's label
+ */
+async renameCodexAuthProfile(name: string, label: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("rename_codex_auth_profile", { name, label }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Detect auth mode conflict between current auth and a profile
+ */
+async detectCodexAuthConflict(profileName: string) : Promise<Result<CodexAuthConflictInfo, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("detect_codex_auth_conflict", { profileName }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Detect auth mode conflict when applying a CodexProfile (not an auth profile)
+ */
+async detectCodexApplyAuthConflict(codexProfileId: string) : Promise<Result<CodexAuthConflictInfo, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("detect_codex_apply_auth_conflict", { codexProfileId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Tauri command: snap the main window to the default size, clear fullscreen,
  * re-center, and quarantine the saved state file so the next launch starts
  * fresh. Surfaced via the application menu and a global shortcut so users
@@ -2203,6 +2291,18 @@ isActive: boolean;
 exists: boolean }
 export type ClaudeTemporaryRunPlan = { program: string; args: string[]; env: ([string, string])[]; unsetEnv: string[]; secretEnvKeys: string[]; warnings: string[] }
 export type ClaudeThinkingMode = "inherit" | "on" | "off"
+export type CodexAuthConflictInfo = { hasConflict: boolean; currentIsOfficial: boolean; targetIsOfficial: boolean }
+export type CodexAuthProfile = { name: string; label: string; createdAt: string; 
+/**
+ * Whether this profile contains official auth (has auth_mode field)
+ */
+isOfficial: boolean; 
+/**
+ * The CodexProfile ID that was active when this auth profile was saved.
+ * When restoring, this profile will also be applied (config.toml only).
+ */
+codexProfileId?: string | null }
+export type CodexAuthProfileState = { active: string | null; profiles: CodexAuthProfile[]; isCurrentOfficial: boolean }
 export type CodexCliCapability = { version: string; supportsConfigOverride: boolean }
 /**
  * Codex Live 配置状态

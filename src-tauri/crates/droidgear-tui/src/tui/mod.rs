@@ -20,6 +20,7 @@ mod actions;
 mod keys_channels;
 mod keys_claude;
 mod keys_codex;
+mod keys_codex_auth;
 mod keys_droid_settings;
 mod keys_factory;
 mod keys_factory_auth;
@@ -243,5 +244,6 @@ fn refresh_screen_data(app: &mut app::App) {
         app::Screen::Missions => refresh_missions(app),
         app::Screen::DroidSettingsFiles => refresh_droid_settings_files(app),
         app::Screen::FactoryAuth => keys_factory_auth::refresh_factory_auth(app),
+        app::Screen::CodexAuth => keys_codex_auth::refresh_codex_auth(app),
     }
 }

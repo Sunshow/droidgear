@@ -695,10 +695,99 @@ fn set_active_profile_id_for_home(home_dir: &Path, id: &str) -> Result<(), Strin
 // Apply + status
 // ============================================================================
 
+/// Apply a CodexProfile's auth to auth.json.
+///
+/// When there's an auth mode conflict (official ↔ BYOK), the entire auth.json
+/// is replaced. Otherwise, only OPENAI_API_KEY is merged (old behavior).
+pub(crate) fn apply_auth_for_profile(
+    home_dir: &Path,
+    profile: &CodexProfile,
+    resolved_api_key: Option<&str>,
+) -> Result<(), String> {
+    let auth_path = codex_auth_path_for_home(home_dir)?;
+    let is_official_profile = profile.id == "official";
+
+    // Determine if there's an auth mode conflict
+    let current_auth = json::read_json_object_file(&auth_path).unwrap_or_default();
+    let current_is_official = current_auth.contains_key("auth_mode");
+    let has_conflict = current_is_official != is_official_profile;
+
+    if has_conflict {
+        // Full replacement: the two modes are incompatible
+        if is_official_profile {
+            let mut auth = current_auth;
+            auth.remove(OPENAI_API_KEY_FIELD);
+            json::write_json_object_file(&auth_path, &auth)?;
+        } else {
+            let mut auth: HashMap<String, Value> = HashMap::new();
+            if let Some(key) = resolved_api_key {
+                if !key.is_empty() {
+                    auth.insert(
+                        OPENAI_API_KEY_FIELD.to_string(),
+                        Value::String(key.to_string()),
+                    );
+                }
+            }
+            json::write_json_object_file(&auth_path, &auth)?;
+        }
+        // Clear the auth profile manifest active marker since no saved
+        // auth profile matches the newly written auth.json.
+        let _ = crate::codex_auth_profiles::clear_active_for_home(home_dir);
+    } else {
+        // Same mode: merge only OPENAI_API_KEY (preserve other fields)
+        let mut auth = current_auth;
+        if let Some(key) = resolved_api_key {
+            if !key.is_empty() {
+                auth.insert(
+                    OPENAI_API_KEY_FIELD.to_string(),
+                    Value::String(key.to_string()),
+                );
+            } else {
+                auth.remove(OPENAI_API_KEY_FIELD);
+            }
+        } else {
+            auth.remove(OPENAI_API_KEY_FIELD);
+        }
+        json::write_json_object_file(&auth_path, &auth)?;
+    }
+    Ok(())
+}
+
+/// Apply a CodexProfile to config.toml only (no auth.json changes).
+/// Used after an auth profile switch to restore the associated provider config
+/// without overwriting the auth.json that was just restored.
+pub fn apply_codex_profile_config_only_for_home(home_dir: &Path, id: &str) -> Result<(), String> {
+    let profile = load_profile_by_id(home_dir, id)?;
+
+    let config_path = codex_config_path_for_home(home_dir)?;
+    let mut config = if config_path.exists() {
+        let s = std::fs::read_to_string(&config_path)
+            .map_err(|e| format!("Failed to read config.toml: {e}"))?;
+        if s.trim().is_empty() {
+            toml::map::Map::new()
+        } else {
+            toml::from_str::<toml::map::Map<String, toml::Value>>(&s)
+                .map_err(|e| format!("Failed to parse config.toml: {e}"))?
+        }
+    } else {
+        toml::map::Map::new()
+    };
+
+    apply_profile_to_config_map(&mut config, &profile)?;
+
+    let toml_str = toml::to_string_pretty(&config)
+        .map_err(|e| format!("Failed to serialize config.toml: {e}"))?;
+    storage::atomic_write(&config_path, toml_str.as_bytes())?;
+
+    set_active_profile_id_for_home(home_dir, id)?;
+    Ok(())
+}
+
 /// 应用指定 Profile 到 `~/.codex/*`
 ///
 /// 只替换 config.toml 中的模型相关配置（model_provider, model, model_reasoning_effort,
 /// [model_providers]），保留其他所有配置（projects, network_access 等）。
+/// Auth.json is fully replaced based on profile mode (official vs BYOK).
 pub fn apply_codex_profile_for_home(home_dir: &Path, id: &str) -> Result<(), String> {
     let profile = load_profile_by_id(home_dir, id)?;
     let (_, active_provider) = resolve_active_provider(&profile);
@@ -724,12 +813,7 @@ pub fn apply_codex_profile_for_home(home_dir: &Path, id: &str) -> Result<(), Str
         .map_err(|e| format!("Failed to serialize config.toml: {e}"))?;
     storage::atomic_write(&config_path, toml_str.as_bytes())?;
 
-    let auth_path = codex_auth_path_for_home(home_dir)?;
-    let mut auth = json::read_json_object_file(&auth_path).unwrap_or_default();
-
-    apply_api_key_to_auth_map(&mut auth, resolved_api_key.as_deref());
-
-    json::write_json_object_file(&auth_path, &auth)?;
+    apply_auth_for_profile(home_dir, &profile, resolved_api_key.as_deref())?;
 
     set_active_profile_id_for_home(home_dir, id)?;
     Ok(())
@@ -871,6 +955,10 @@ pub fn get_active_codex_profile_id() -> Result<Option<String>, String> {
 
 pub fn apply_codex_profile(id: &str) -> Result<(), String> {
     apply_codex_profile_for_home(&system_home_dir()?, id)
+}
+
+pub fn apply_codex_profile_config_only(id: &str) -> Result<(), String> {
+    apply_codex_profile_config_only_for_home(&system_home_dir()?, id)
 }
 
 pub fn get_codex_config_status() -> Result<CodexConfigStatus, String> {

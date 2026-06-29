@@ -57,6 +57,11 @@ const CodexConfigPage = lazy(() =>
     default: m.CodexConfigPage,
   }))
 )
+const CodexAuthPage = lazy(() =>
+  import('@/components/codex/CodexAuthPage').then(m => ({
+    default: m.CodexAuthPage,
+  }))
+)
 const ClaudeSettingsPage = lazy(() =>
   import('@/components/claude/ClaudeSettingsPage').then(m => ({
     default: m.ClaudeSettingsPage,
@@ -125,6 +130,7 @@ export function MainWindowContent({
   const { t } = useTranslation()
   const currentView = useUIStore(state => state.currentView)
   const droidSubView = useUIStore(state => state.droidSubView)
+  const codexSubView = useUIStore(state => state.codexSubView)
   const droidRefreshKey = useUIStore(state => state.droidRefreshKey)
   const openclawSubView = useUIStore(state => state.openclawSubView)
   const channelsSubView = useUIStore(state => state.channelsSubView)
@@ -182,7 +188,12 @@ export function MainWindowContent({
     }
 
     if (currentView === 'codex') {
-      return <CodexConfigPage />
+      return (
+        <>
+          {codexSubView === 'providers' && <CodexConfigPage />}
+          {codexSubView === 'auth-profiles' && <CodexAuthPage />}
+        </>
+      )
     }
 
     if (currentView === 'claude') {

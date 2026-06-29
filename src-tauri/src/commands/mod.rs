@@ -8,6 +8,7 @@ pub mod channel_export;
 pub mod claude;
 pub mod claude_settings;
 pub mod codex;
+pub mod codex_auth_profiles;
 pub mod config;
 pub mod connectivity;
 pub mod droid_settings;

@@ -91,6 +91,7 @@ export function CodexConfigPage() {
     null
   )
   const [isLaunching, setIsLaunching] = useState(false)
+  const [showApplyConflictDialog, setShowApplyConflictDialog] = useState(false)
 
   // Use profile id as key to reset local editing state
   const profileKey = currentProfile?.id ?? ''
@@ -149,8 +150,43 @@ export function CodexConfigPage() {
 
   const handleApply = async () => {
     if (!currentProfile) return
+
+    // Check for auth mode conflict before applying
+    const conflictResult = await commands.detectCodexApplyAuthConflict(
+      currentProfile.id
+    )
+    if (conflictResult.status === 'ok' && conflictResult.data.hasConflict) {
+      setShowApplyConfirm(false)
+      setShowApplyConflictDialog(true)
+      return
+    }
+
     await applyProfile(currentProfile.id)
     setShowApplyConfirm(false)
+    toast.success(t('codex.actions.applySuccess'))
+  }
+
+  const handleApplyConflictSaveAndApply = async () => {
+    if (!currentProfile) return
+    // Save current auth as auto-backup
+    const now = new Date()
+    const timestamp = now.getTime()
+    const saveResult = await commands.saveCurrentCodexAuthProfile(
+      `auto-backup-${timestamp}`,
+      `Auto backup ${now.toLocaleString()}`
+    )
+    if (saveResult.status === 'ok') {
+      toast.success(t('codexAuth.autoBackupSuccess'))
+    }
+    await applyProfile(currentProfile.id)
+    setShowApplyConflictDialog(false)
+    toast.success(t('codex.actions.applySuccess'))
+  }
+
+  const handleApplyConflictWithoutSave = async () => {
+    if (!currentProfile) return
+    await applyProfile(currentProfile.id)
+    setShowApplyConflictDialog(false)
     toast.success(t('codex.actions.applySuccess'))
   }
 
@@ -445,6 +481,32 @@ export function CodexConfigPage() {
             <AlertDialogAction onClick={handleApply}>
               {t('codex.actions.apply')}
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Apply Auth Conflict Dialog */}
+      <AlertDialog
+        open={showApplyConflictDialog}
+        onOpenChange={setShowApplyConflictDialog}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('codexAuth.applyConflictDialog.title')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('codexAuth.applyConflictDialog.description')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <Button variant="outline" onClick={handleApplyConflictWithoutSave}>
+              {t('codexAuth.applyConflictDialog.applyWithoutSaving')}
+            </Button>
+            <Button onClick={handleApplyConflictSaveAndApply}>
+              {t('codexAuth.applyConflictDialog.saveAndApply')}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

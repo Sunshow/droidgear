@@ -53,10 +53,29 @@ pub(super) fn handle_codex_key(app: &mut app::App, code: KeyCode) -> Option<Acti
         }
         KeyCode::Char('a') => {
             if let Some(p) = app.codex_profiles.get(app.codex_index) {
-                app.modal = Some(app::Modal::Confirm {
-                    message: format!("Apply Codex profile '{}'?", p.name),
-                    action: app::ConfirmAction::CodexApply { id: p.id.clone() },
-                });
+                // Check for auth mode conflict
+                match droidgear_core::codex_auth_profiles::detect_apply_auth_conflict_for_home(
+                    &app.home_dir,
+                    &p.id,
+                ) {
+                    Ok(conflict) if conflict.has_conflict => {
+                        app.modal = Some(app::Modal::Confirm {
+                            message: format!(
+                                "Auth mode conflict! Apply '{}' anyway? (current auth will be overwritten)",
+                                p.name
+                            ),
+                            action: app::ConfirmAction::CodexApplyConflict {
+                                id: p.id.clone(),
+                            },
+                        });
+                    }
+                    _ => {
+                        app.modal = Some(app::Modal::Confirm {
+                            message: format!("Apply Codex profile '{}'?", p.name),
+                            action: app::ConfirmAction::CodexApply { id: p.id.clone() },
+                        });
+                    }
+                }
             }
         }
         KeyCode::Char('d') => {
@@ -148,10 +167,29 @@ pub(super) fn handle_codex_profile_key(app: &mut app::App, code: KeyCode) -> Opt
             return Some(Action::EditCodexProfile { id: profile_id });
         }
         KeyCode::Char('a') => {
-            app.modal = Some(app::Modal::Confirm {
-                message: format!("Apply Codex profile '{}'?", profile.name),
-                action: app::ConfirmAction::CodexApply { id: profile_id },
-            });
+            // Check for auth mode conflict
+            match droidgear_core::codex_auth_profiles::detect_apply_auth_conflict_for_home(
+                &app.home_dir,
+                &profile_id,
+            ) {
+                Ok(conflict) if conflict.has_conflict => {
+                    app.modal = Some(app::Modal::Confirm {
+                        message: format!(
+                            "Auth mode conflict! Apply '{}' anyway? (current auth will be overwritten)",
+                            profile.name
+                        ),
+                        action: app::ConfirmAction::CodexApplyConflict {
+                            id: profile_id,
+                        },
+                    });
+                }
+                _ => {
+                    app.modal = Some(app::Modal::Confirm {
+                        message: format!("Apply Codex profile '{}'?", profile.name),
+                        action: app::ConfirmAction::CodexApply { id: profile_id },
+                    });
+                }
+            }
         }
         KeyCode::Char('l') => {
             if is_official {

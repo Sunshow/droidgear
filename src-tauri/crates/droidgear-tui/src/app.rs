@@ -4,6 +4,7 @@ use droidgear_core::{
     channel::Channel,
     claude::ClaudeCodeProfile,
     codex::CodexProfile,
+    codex_auth_profiles::CodexAuthProfile,
     droid_settings_files::SettingsFileInfo,
     factory_auth_profiles::AuthProfile,
     factory_settings::{CustomModel, MissionModelSettings},
@@ -57,6 +58,7 @@ pub enum Screen {
     ChannelsEdit,
     Missions,
     FactoryAuth,
+    CodexAuth,
 }
 
 #[derive(Debug, Clone)]
@@ -106,6 +108,9 @@ pub enum ConfirmAction {
         id: String,
     },
     CodexApply {
+        id: String,
+    },
+    CodexApplyConflict {
         id: String,
     },
     CodexDelete {
@@ -198,6 +203,15 @@ pub enum ConfirmAction {
         name: String,
     },
     FactoryAuthDelete {
+        name: String,
+    },
+    CodexAuthSwitch {
+        name: String,
+    },
+    CodexAuthConflictSwitch {
+        name: String,
+    },
+    CodexAuthDelete {
         name: String,
     },
 }
@@ -496,6 +510,10 @@ pub enum InputAction {
     FactoryAuthRename {
         name: String,
     },
+    CodexAuthSaveProfile,
+    CodexAuthRename {
+        name: String,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -746,6 +764,11 @@ pub struct App {
     pub factory_auth_profiles: Vec<AuthProfile>,
     pub factory_auth_active: Option<String>,
     pub factory_auth_index: usize,
+
+    pub codex_auth_profiles: Vec<CodexAuthProfile>,
+    pub codex_auth_active: Option<String>,
+    pub codex_auth_is_current_official: bool,
+    pub codex_auth_index: usize,
 }
 
 impl App {
@@ -876,6 +899,10 @@ impl App {
             factory_auth_profiles: Vec::new(),
             factory_auth_active: None,
             factory_auth_index: 0,
+            codex_auth_profiles: Vec::new(),
+            codex_auth_active: None,
+            codex_auth_is_current_official: false,
+            codex_auth_index: 0,
         }
     }
 
@@ -896,6 +923,7 @@ impl App {
             ("Channels", Screen::Channels),
             ("Missions", Screen::Missions),
             ("Factory Auth", Screen::FactoryAuth),
+            ("Codex Auth", Screen::CodexAuth),
         ]
     }
 
@@ -1206,6 +1234,9 @@ impl App {
         }
         if self.factory_auth_index >= self.factory_auth_profiles.len() {
             self.factory_auth_index = self.factory_auth_profiles.len().saturating_sub(1);
+        }
+        if self.codex_auth_index >= self.codex_auth_profiles.len() {
+            self.codex_auth_index = self.codex_auth_profiles.len().saturating_sub(1);
         }
     }
 }
