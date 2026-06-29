@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.1.4
+
+**New Features / 新功能**
+
+- Add Codex auth profile management with official login (codex login) and BYOK switching / 新增 Codex 认证配置文件管理，支持官方登录与 BYOK 认证切换
+- Auth profile switch auto-applies associated CodexProfile (config.toml + provider) / 切换认证配置时自动应用关联的 CodexProfile（config.toml 和 Provider）
+- Add auth mode conflict detection on Profile Apply with save-current-auth prompt / 应用配置时新增认证模式冲突检测，提示保存当前认证
+- Add Codex auth profiles TUI support (new "Codex Auth" screen with full key bindings) / 新增 Codex 认证配置 TUI 支持（新"Codex Auth"界面及完整按键绑定）
+
+**Bug Fixes / 问题修复**
+
+- Fix auto-update toast not being dismissible / 修复自动更新提示无法关闭的问题
+- Fix auto-update toast rendering stability / 修复自动更新提示渲染不稳定的问题
+
 ## v1.1.3
 
 **New Features / 新功能**

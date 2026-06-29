@@ -94,6 +94,7 @@ Run the installer directly.
 ### Codex Support
 
 - **Codex CLI Integration** - Manage Codex configuration profiles
+- **Auth Profiles** - Save and switch between official login and BYOK auth profiles with conflict detection
 - **Configuration Management** - Load and save auth/config.toml (`~/.codex`)
 - **Management Pages** - MCP servers / sessions / terminal subpages under Codex
 

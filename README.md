@@ -94,6 +94,7 @@ xattr -cr /Applications/DroidGear.app
 ### Codex 支持
 
 - **Codex CLI 集成** - Codex 配置 Profile 管理
+- **认证配置** - 官方登录与 BYOK 认证配置文件的保存、切换及冲突检测
 - **配置管理** - 认证与 `config.toml` 的加载和保存（`~/.codex`）
 - **管理入口** - 在 Codex 入口下提供 MCP 服务器 / 会话 / 终端 管理子页
 
