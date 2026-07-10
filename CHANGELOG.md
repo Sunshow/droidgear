@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.1.5
+
+**New Features / 新功能**
+
+- Add Grok 4.5 and GPT-5.6 series (Luna/Terra/Sol) model registry entries / 新增 Grok 4.5 与 GPT-5.6 系列（Luna/Terra/Sol）模型注册表条目
+- Centralize reasoning effort levels and encoding profiles in the model registry / 将推理强度级别与编码配置统一到模型注册表
+- Wire Droid default-model dialog and Codex provider UI to registry-backed effort options / Droid 默认模型设置与 Codex Provider 面板的推理强度选项改为从注册表读取
+
 ## v1.1.4
 
 **New Features / 新功能**
