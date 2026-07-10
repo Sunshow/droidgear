@@ -91,10 +91,8 @@ export function hasOpaqueClaudeModelId(
   return !isRecognizedClaudeModelId(modelId)
 }
 
-// All Anthropic models support effort via either adaptive-thinking
-// (output_config.effort) or budget_tokens (thinking.budget_tokens). Both
-// encodings accept the full range of effort values. Let the user decide.
-// Priority: registry whitelist → pattern matching fallback.
+// Priority: registry reasoningConfig.efforts → pattern matching for
+// unregistered model IDs only.
 export function supportsMaxEffort(modelId: string): boolean {
   if (!modelId) return true
   const config = getModelReasoningConfig(modelId)
@@ -103,11 +101,9 @@ export function supportsMaxEffort(modelId: string): boolean {
   return n.startsWith('claude.')
 }
 
-// Claude xhigh is a narrow capability, not a general Anthropic default.
-// Only Opus 4.7 and Jupiter v1 P should fall back to xhigh without an explicit
-// registry hint. Non-Anthropic reasoning models (GPT-5, o-series) also accept
-// it via reasoning.effort.
-// Priority: registry whitelist → pattern matching fallback.
+// Priority: registry reasoningConfig.efforts → pattern matching for
+// unregistered model IDs only. Claude xhigh is narrow without a registry hit;
+// GPT-5 / o-series still accept it via reasoning.effort.
 export function supportsXhighEffort(modelId: string): boolean {
   if (!modelId) return true
   const config = getModelReasoningConfig(modelId)

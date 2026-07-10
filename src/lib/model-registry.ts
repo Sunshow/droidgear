@@ -7,6 +7,18 @@ export type ModelPlatform =
   | 'anthropic-messages'
   | 'gemini'
 
+export type EffortProvider =
+  | 'anthropic'
+  | 'openai'
+  | 'generic-chat-completion-api'
+
+/** Named encoding profiles expanded at runtime into extraArgs fragments. */
+export type EffortEncodingProfile =
+  | 'openai-reasoning'
+  | 'anthropic-adaptive'
+  | 'anthropic-budget'
+  | 'anthropic-output-config'
+
 /** 单个 effort 级别的编码规则 */
 export interface EffortEncoding {
   /** 该 effort 级别对应的 extraArgs JSON 片段 */
@@ -17,8 +29,16 @@ export interface EffortEncoding {
 export interface ModelReasoningConfig {
   /** 支持的 effort 级别 */
   efforts: ReasoningEffort[]
-  /** 按 provider 区分的编码规则，key 为 effort 值 */
-  encoding: Record<string, Record<string, EffortEncoding>>
+  /**
+   * Provider -> named encoding profile.
+   * Used when no custom encoding fragment is present for that provider/effort.
+   */
+  profiles?: Partial<Record<EffortProvider, EffortEncodingProfile>>
+  /**
+   * Optional full custom fragments (e.g. deepseek / glm).
+   * Wins over profiles when present for the same provider+effort.
+   */
+  encoding?: Record<string, Record<string, EffortEncoding>>
 }
 
 export interface ModelRegistryEntry {
@@ -36,6 +56,43 @@ export interface ModelRegistryEntry {
   maxOutputTokens?: number
   /** 推理配置（白名单，未设置则走旧逻辑） */
   reasoningConfig?: ModelReasoningConfig
+}
+
+const EFFORT_BUDGET_TOKENS: Record<string, number> = {
+  low: 4096,
+  medium: 8192,
+  high: 16384,
+  xhigh: 32768,
+  max: 32768,
+}
+
+function expandProfile(
+  profile: EffortEncodingProfile,
+  effort: string
+): Record<string, unknown> | null {
+  switch (profile) {
+    case 'openai-reasoning':
+      return { reasoning: { effort } }
+    case 'anthropic-adaptive':
+      return {
+        thinking: { type: 'adaptive' },
+        output_config: { effort },
+      }
+    case 'anthropic-budget':
+      return {
+        thinking: {
+          type: 'enabled',
+          budget_tokens: EFFORT_BUDGET_TOKENS[effort] ?? 4096,
+        },
+      }
+    case 'anthropic-output-config':
+      return {
+        thinking: { type: 'enabled' },
+        output_config: { effort },
+      }
+    default:
+      return null
+  }
 }
 
 const registry: ModelRegistryEntry[] = registryData as ModelRegistryEntry[]
@@ -85,19 +142,56 @@ export function getModelReasoningConfig(
  */
 export function getSupportedEfforts(
   modelId: string,
-  provider: string
+  _provider: string
 ): ReasoningEffort[] | null {
   const config = getModelReasoningConfig(modelId)
   if (!config) return null
-  // 检查 provider 是否在 encoding 中有定义
-  if (!config.encoding[provider]) return config.efforts
   return config.efforts
+}
+
+const EFFORT_ORDER: ReasoningEffort[] = [
+  'none',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+]
+
+/**
+ * Clamp an effort value to the highest supported option at or below it.
+ * Falls back to the first supported effort when nothing matches.
+ */
+export function clampEffortToSupported(
+  effort: string,
+  supported: readonly string[],
+  fallback = 'high'
+): string {
+  if (supported.length === 0) return fallback
+  if (supported.includes(effort)) return effort
+
+  const idx = EFFORT_ORDER.indexOf(effort as ReasoningEffort)
+  if (idx >= 0) {
+    for (let i = idx - 1; i >= 0; i--) {
+      const candidate = EFFORT_ORDER[i]
+      if (candidate && supported.includes(candidate)) return candidate
+    }
+  }
+
+  // Prefer a sensible default if present, otherwise first supported value.
+  if (supported.includes(fallback)) return fallback
+  return supported[0] ?? fallback
 }
 
 /**
  * 获取模型+provider+effort 的编码片段。
  * 白名单有配置 → 返回 extraArgsFragment；
  * 未配置 → 返回 null，调用方走旧逻辑。
+ *
+ * Resolution order:
+ * 1. custom encoding[provider][effort]
+ * 2. expand profiles[provider]
+ * 3. null
  */
 export function getEffortEncoding(
   modelId: string,
@@ -106,7 +200,11 @@ export function getEffortEncoding(
 ): Record<string, unknown> | null {
   const config = getModelReasoningConfig(modelId)
   if (!config) return null
-  const providerEncoding = config.encoding[provider]
-  if (!providerEncoding) return null
-  return providerEncoding[effort]?.extraArgsFragment ?? null
+
+  const custom = config.encoding?.[provider]?.[effort]?.extraArgsFragment
+  if (custom) return custom
+
+  const profile = config.profiles?.[provider as EffortProvider]
+  if (!profile) return null
+  return expandProfile(profile, effort)
 }

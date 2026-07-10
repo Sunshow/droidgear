@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FolderInput } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -30,20 +30,46 @@ import type {
 import { ChannelModelPickerDialog } from '@/components/channels/ChannelModelPickerDialog'
 import type { ChannelProviderContext } from '@/components/channels'
 import { inferModelProtocol } from '@/lib/model-protocol'
+import {
+  clampEffortToSupported,
+  getSupportedEfforts,
+} from '@/lib/model-registry'
 
 const WIRE_API_OPTIONS = [
   { value: 'chat', label: 'Chat Completions' },
   { value: 'responses', label: 'Responses API' },
 ]
 
-const REASONING_EFFORT_OPTIONS = [
-  { value: '__none__', label: 'None' },
-  { value: 'xhigh', label: 'Extra High' },
-  { value: 'high', label: 'High' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'low', label: 'Low' },
-  { value: 'minimal', label: 'Minimal' },
-]
+/** Codex-specific fallback: includes `minimal`, which is not in the shared registry type. */
+const CODEX_FALLBACK_EFFORTS = [
+  'none',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+] as const
+
+const EFFORT_LABEL_KEYS: Record<string, string> = {
+  none: 'models.reasoningEffort.none',
+  low: 'models.reasoningEffort.low',
+  medium: 'models.reasoningEffort.medium',
+  high: 'models.reasoningEffort.high',
+  xhigh: 'models.reasoningEffort.xhigh',
+  max: 'models.reasoningEffort.max',
+  minimal: 'codex.provider.reasoningEffort.minimal',
+}
+
+function effortsForModel(modelId: string): string[] {
+  const trimmed = modelId.trim()
+  if (!trimmed) return [...CODEX_FALLBACK_EFFORTS]
+  return getSupportedEfforts(trimmed, 'openai') ?? [...CODEX_FALLBACK_EFFORTS]
+}
+
+function toStoredEffort(effort: string): string {
+  return effort === 'none' ? '' : effort
+}
 
 interface ProviderDialogProps {
   open: boolean
@@ -78,15 +104,35 @@ function ProviderForm({
   const [baseUrl, setBaseUrl] = useState(existingConfig?.baseUrl ?? '')
   const [wireApi, setWireApi] = useState(existingConfig?.wireApi ?? 'responses')
   const [model, setModel] = useState(existingConfig?.model ?? '')
-  const [modelReasoningEffort, setModelReasoningEffort] = useState(
-    existingConfig?.modelReasoningEffort ?? 'high'
-  )
+  const [modelReasoningEffort, setModelReasoningEffort] = useState(() => {
+    const initialModel = existingConfig?.model ?? ''
+    const options = effortsForModel(initialModel)
+    const current = existingConfig?.modelReasoningEffort || 'none'
+    return toStoredEffort(clampEffortToSupported(current, options))
+  })
   const [apiKey, setApiKey] = useState(existingConfig?.apiKey ?? '')
 
   const isReservedProviderId = providerId.trim().toLowerCase() === 'openai'
 
   // Channel picker state
   const [channelPickerOpen, setChannelPickerOpen] = useState(false)
+
+  const effortOptions = useMemo(() => effortsForModel(model), [model])
+
+  // Keep Select value valid when model changes without writing during render.
+  const resolvedEffort = useMemo(() => {
+    const current = modelReasoningEffort || 'none'
+    return toStoredEffort(clampEffortToSupported(current, effortOptions))
+  }, [modelReasoningEffort, effortOptions])
+
+  const handleModelChange = (nextModel: string) => {
+    setModel(nextModel)
+    const options = effortsForModel(nextModel)
+    const current = modelReasoningEffort || 'none'
+    setModelReasoningEffort(
+      toStoredEffort(clampEffortToSupported(current, options))
+    )
+  }
 
   const sanitizeProviderId = (name: string): string => {
     return name
@@ -121,7 +167,7 @@ function ProviderForm({
       // Pre-fill model from selected model
       const selectedModel = models[0]
       if (selectedModel) {
-        setModel(selectedModel.model)
+        handleModelChange(selectedModel.model)
       }
     }
   }
@@ -139,7 +185,7 @@ function ProviderForm({
       httpHeaders: null,
       queryParams: null,
       model: model.trim() || null,
-      modelReasoningEffort: modelReasoningEffort || null,
+      modelReasoningEffort: resolvedEffort || null,
       apiKey: apiKey.trim() || null,
     }
 
@@ -150,6 +196,14 @@ function ProviderForm({
     }
 
     onClose()
+  }
+
+  const effortLabel = (effort: string): string => {
+    const key = EFFORT_LABEL_KEYS[effort]
+    if (!key) return effort
+    const translated = t(key)
+    // If i18n key is missing for minimal, fall back to English label.
+    return translated === key && effort === 'minimal' ? 'Minimal' : translated
   }
 
   return (
@@ -249,7 +303,7 @@ function ProviderForm({
             <Label>{t('codex.provider.model')}</Label>
             <Input
               value={model}
-              onChange={e => setModel(e.target.value)}
+              onChange={e => handleModelChange(e.target.value)}
               placeholder={t('codex.provider.modelPlaceholder')}
             />
           </div>
@@ -258,7 +312,7 @@ function ProviderForm({
           <div className="space-y-2">
             <Label>{t('codex.provider.reasoningEffort')}</Label>
             <Select
-              value={modelReasoningEffort || '__none__'}
+              value={resolvedEffort || '__none__'}
               onValueChange={v =>
                 setModelReasoningEffort(v === '__none__' ? '' : v)
               }
@@ -267,9 +321,12 @@ function ProviderForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {REASONING_EFFORT_OPTIONS.map(option => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                {effortOptions.map(effort => (
+                  <SelectItem
+                    key={effort}
+                    value={effort === 'none' ? '__none__' : effort}
+                  >
+                    {effortLabel(effort)}
                   </SelectItem>
                 ))}
               </SelectContent>

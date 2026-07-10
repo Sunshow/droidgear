@@ -9,7 +9,15 @@
     ],
     "platform": "anthropic-messages",
     "contextWindow": 200000,
-    "maxOutputTokens": 8192
+    "maxOutputTokens": 8192,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-budget",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "claude-3-5-sonnet",
@@ -21,7 +29,15 @@
     ],
     "platform": "anthropic-messages",
     "contextWindow": 200000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-budget",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "claude-3-7-sonnet",
@@ -33,7 +49,15 @@
     ],
     "platform": "anthropic-messages",
     "contextWindow": 200000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-budget",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "claude-3-haiku-20240307",
@@ -41,7 +65,15 @@
     "aliases": ["claude-3-haiku"],
     "platform": "anthropic-messages",
     "contextWindow": 200000,
-    "maxOutputTokens": 4096
+    "maxOutputTokens": 4096,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-budget",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "claude-3-opus-20240229",
@@ -49,7 +81,15 @@
     "aliases": ["claude-3-opus"],
     "platform": "anthropic-messages",
     "contextWindow": 200000,
-    "maxOutputTokens": 4096
+    "maxOutputTokens": 4096,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-budget",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "claude-haiku-4-5",
@@ -57,7 +97,15 @@
     "aliases": ["claude-haiku-4.5"],
     "platform": "anthropic-messages",
     "contextWindow": 200000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-budget",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "claude-fable-5",
@@ -65,7 +113,15 @@
     "aliases": ["claude-fable-5"],
     "platform": "anthropic-messages",
     "contextWindow": 1000000,
-    "maxOutputTokens": 128000
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-adaptive",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "claude-jupiter-v1-p",
@@ -73,7 +129,15 @@
     "aliases": [],
     "platform": "anthropic-messages",
     "contextWindow": 1000000,
-    "maxOutputTokens": 128000
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-adaptive",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "claude-opus-4",
@@ -81,7 +145,15 @@
     "aliases": ["claude-opus-4-20250514"],
     "platform": "anthropic-messages",
     "contextWindow": 200000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-budget",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "claude-opus-4-1",
@@ -89,7 +161,15 @@
     "aliases": ["claude-opus-4.1"],
     "platform": "anthropic-messages",
     "contextWindow": 200000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-budget",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "claude-opus-4-5",
@@ -97,7 +177,15 @@
     "aliases": ["claude-opus-4.5"],
     "platform": "anthropic-messages",
     "contextWindow": 200000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-budget",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "claude-opus-4-6",
@@ -105,7 +193,15 @@
     "aliases": ["claude-opus-4.6"],
     "platform": "anthropic-messages",
     "contextWindow": 1000000,
-    "maxOutputTokens": 128000
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-adaptive",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "claude-opus-4-7",
@@ -113,7 +209,15 @@
     "aliases": ["claude-opus-4.7"],
     "platform": "anthropic-messages",
     "contextWindow": 1000000,
-    "maxOutputTokens": 128000
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-adaptive",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "claude-opus-4-8",
@@ -121,7 +225,15 @@
     "aliases": ["claude-opus-4.8"],
     "platform": "anthropic-messages",
     "contextWindow": 1000000,
-    "maxOutputTokens": 128000
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-adaptive",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "claude-sonnet-4",
@@ -129,7 +241,15 @@
     "aliases": ["claude-sonnet-4-20250514"],
     "platform": "anthropic-messages",
     "contextWindow": 1000000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-budget",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "claude-sonnet-4-20250514-extended",
@@ -137,7 +257,15 @@
     "aliases": [],
     "platform": "anthropic-messages",
     "contextWindow": 200000,
-    "maxOutputTokens": 128000
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-budget",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "claude-sonnet-4-5",
@@ -145,7 +273,15 @@
     "aliases": ["claude-sonnet-4.5"],
     "platform": "anthropic-messages",
     "contextWindow": 1000000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-budget",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "claude-sonnet-4-6",
@@ -153,7 +289,15 @@
     "aliases": ["claude-sonnet-4.6"],
     "platform": "anthropic-messages",
     "contextWindow": 1000000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-adaptive",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "deepseek-chat",
@@ -161,7 +305,15 @@
     "aliases": ["deepseek-v3"],
     "platform": "openai-completions",
     "contextWindow": 128000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "deepseek-reasoner",
@@ -169,7 +321,15 @@
     "aliases": ["deepseek-r1"],
     "platform": "openai-completions",
     "contextWindow": 128000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "deepseek-r1-0528",
@@ -177,7 +337,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 163840,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "deepseek-v3.1",
@@ -185,7 +353,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 128000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "deepseek-v3.2",
@@ -193,7 +369,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 163840,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "deepseek-v4-flash",
@@ -201,7 +385,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 1000000,
-    "maxOutputTokens": 384000
+    "maxOutputTokens": 384000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "deepseek-v4-pro",
@@ -215,35 +407,55 @@
       "encoding": {
         "openai": {
           "none": {
-            "extraArgsFragment": { "thinking": { "type": "disabled" } }
+            "extraArgsFragment": {
+              "thinking": {
+                "type": "disabled"
+              }
+            }
           },
           "high": {
             "extraArgsFragment": {
-              "thinking": { "type": "enabled" },
+              "thinking": {
+                "type": "enabled"
+              },
               "reasoning_effort": "high"
             }
           },
           "max": {
             "extraArgsFragment": {
-              "thinking": { "type": "enabled" },
+              "thinking": {
+                "type": "enabled"
+              },
               "reasoning_effort": "max"
             }
           }
         },
         "anthropic": {
           "none": {
-            "extraArgsFragment": { "thinking": { "type": "disabled" } }
+            "extraArgsFragment": {
+              "thinking": {
+                "type": "disabled"
+              }
+            }
           },
           "high": {
             "extraArgsFragment": {
-              "thinking": { "type": "enabled" },
-              "output_config": { "effort": "high" }
+              "thinking": {
+                "type": "enabled"
+              },
+              "output_config": {
+                "effort": "high"
+              }
             }
           },
           "max": {
             "extraArgsFragment": {
-              "thinking": { "type": "enabled" },
-              "output_config": { "effort": "max" }
+              "thinking": {
+                "type": "enabled"
+              },
+              "output_config": {
+                "effort": "max"
+              }
             }
           }
         }
@@ -256,7 +468,15 @@
     "aliases": [],
     "platform": "gemini",
     "contextWindow": 1048576,
-    "maxOutputTokens": 8192
+    "maxOutputTokens": 8192,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gemini-1.5-pro",
@@ -264,7 +484,15 @@
     "aliases": [],
     "platform": "gemini",
     "contextWindow": 2097152,
-    "maxOutputTokens": 8192
+    "maxOutputTokens": 8192,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gemini-2.0-flash",
@@ -272,7 +500,15 @@
     "aliases": [],
     "platform": "gemini",
     "contextWindow": 1048576,
-    "maxOutputTokens": 8192
+    "maxOutputTokens": 8192,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gemini-2.0-flash-lite",
@@ -280,7 +516,15 @@
     "aliases": [],
     "platform": "gemini",
     "contextWindow": 1048576,
-    "maxOutputTokens": 8192
+    "maxOutputTokens": 8192,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gemini-2.5-flash",
@@ -288,7 +532,15 @@
     "aliases": [],
     "platform": "gemini",
     "contextWindow": 1048576,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gemini-2.5-flash-lite",
@@ -296,7 +548,15 @@
     "aliases": [],
     "platform": "gemini",
     "contextWindow": 1048576,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gemini-2.5-pro",
@@ -304,7 +564,15 @@
     "aliases": ["gemini-2.5-pro-preview-05-06"],
     "platform": "gemini",
     "contextWindow": 1048576,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gemini-3-flash-preview",
@@ -312,7 +580,15 @@
     "aliases": [],
     "platform": "gemini",
     "contextWindow": 1048576,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gemini-3-pro-preview",
@@ -320,7 +596,15 @@
     "aliases": [],
     "platform": "gemini",
     "contextWindow": 1048576,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-4.1",
@@ -328,7 +612,15 @@
     "aliases": ["gpt-4.1-2025-04-14"],
     "platform": "openai-responses",
     "contextWindow": 1047576,
-    "maxOutputTokens": 32768
+    "maxOutputTokens": 32768,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-4.1-mini",
@@ -336,7 +628,15 @@
     "aliases": ["gpt-4.1-mini-2025-04-14"],
     "platform": "openai-responses",
     "contextWindow": 1047576,
-    "maxOutputTokens": 32768
+    "maxOutputTokens": 32768,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-4.1-nano",
@@ -344,7 +644,15 @@
     "aliases": ["gpt-4.1-nano-2025-04-14"],
     "platform": "openai-responses",
     "contextWindow": 1047576,
-    "maxOutputTokens": 32768
+    "maxOutputTokens": 32768,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-4o",
@@ -352,7 +660,15 @@
     "aliases": ["gpt-4o-2024-11-20"],
     "platform": "openai-responses",
     "contextWindow": 128000,
-    "maxOutputTokens": 16384
+    "maxOutputTokens": 16384,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-4o-mini",
@@ -360,7 +676,15 @@
     "aliases": ["gpt-4o-mini-2024-07-18"],
     "platform": "openai-responses",
     "contextWindow": 128000,
-    "maxOutputTokens": 16384
+    "maxOutputTokens": 16384,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-5",
@@ -368,7 +692,15 @@
     "aliases": [],
     "platform": "openai-responses",
     "contextWindow": 400000,
-    "maxOutputTokens": 128000
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-5-codex",
@@ -376,7 +708,15 @@
     "aliases": [],
     "platform": "openai-responses",
     "contextWindow": 400000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-5-mini",
@@ -384,7 +724,15 @@
     "aliases": [],
     "platform": "openai-responses",
     "contextWindow": 400000,
-    "maxOutputTokens": 128000
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-5-nano",
@@ -392,7 +740,15 @@
     "aliases": [],
     "platform": "openai-responses",
     "contextWindow": 400000,
-    "maxOutputTokens": 128000
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-5.1",
@@ -400,7 +756,15 @@
     "aliases": [],
     "platform": "openai-responses",
     "contextWindow": 400000,
-    "maxOutputTokens": 128000
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-5.1-codex",
@@ -408,7 +772,15 @@
     "aliases": [],
     "platform": "openai-responses",
     "contextWindow": 400000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-5.1-codex-mini",
@@ -416,7 +788,15 @@
     "aliases": [],
     "platform": "openai-responses",
     "contextWindow": 400000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-5.2",
@@ -424,7 +804,15 @@
     "aliases": [],
     "platform": "openai-responses",
     "contextWindow": 400000,
-    "maxOutputTokens": 128000
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-5.2-codex",
@@ -432,7 +820,15 @@
     "aliases": [],
     "platform": "openai-responses",
     "contextWindow": 400000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-5.3-chat-latest",
@@ -440,7 +836,15 @@
     "aliases": [],
     "platform": "openai-responses",
     "contextWindow": 128000,
-    "maxOutputTokens": 16384
+    "maxOutputTokens": 16384,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-5.3-codex",
@@ -448,7 +852,15 @@
     "aliases": [],
     "platform": "openai-responses",
     "contextWindow": 400000,
-    "maxOutputTokens": 128000
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-5.3-codex-spark",
@@ -456,7 +868,15 @@
     "aliases": [],
     "platform": "openai-responses",
     "contextWindow": 128000,
-    "maxOutputTokens": 32000
+    "maxOutputTokens": 32000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-5.4",
@@ -464,7 +884,15 @@
     "aliases": [],
     "platform": "openai-responses",
     "contextWindow": 1050000,
-    "maxOutputTokens": 128000
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-5.4-mini",
@@ -472,7 +900,15 @@
     "aliases": [],
     "platform": "openai-responses",
     "contextWindow": 400000,
-    "maxOutputTokens": 128000
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-5.4-nano",
@@ -480,7 +916,15 @@
     "aliases": [],
     "platform": "openai-responses",
     "contextWindow": 400000,
-    "maxOutputTokens": 128000
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-5.4-pro",
@@ -488,7 +932,15 @@
     "aliases": [],
     "platform": "openai-responses",
     "contextWindow": 1050000,
-    "maxOutputTokens": 128000
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-5.5",
@@ -496,7 +948,79 @@
     "aliases": ["gpt-5.5-2026-04-23"],
     "platform": "openai-responses",
     "contextWindow": 1050000,
-    "maxOutputTokens": 128000
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
+    "id": "gpt-5.6",
+    "name": "GPT-5.6",
+    "aliases": [],
+    "platform": "openai-responses",
+    "contextWindow": 1050000,
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
+    "id": "gpt-5.6-luna",
+    "name": "GPT-5.6 Luna",
+    "aliases": ["gpt-5.6-luna-pro"],
+    "platform": "openai-responses",
+    "contextWindow": 1050000,
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
+    "id": "gpt-5.6-sol",
+    "name": "GPT-5.6 Sol",
+    "aliases": ["gpt-5.6-sol-pro"],
+    "platform": "openai-responses",
+    "contextWindow": 1050000,
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
+    "id": "gpt-5.6-terra",
+    "name": "GPT-5.6 Terra",
+    "aliases": ["gpt-5.6-terra-pro"],
+    "platform": "openai-responses",
+    "contextWindow": 1050000,
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-oss-120b",
@@ -504,7 +1028,15 @@
     "aliases": [],
     "platform": "openai-responses",
     "contextWindow": 131072,
-    "maxOutputTokens": 32768
+    "maxOutputTokens": 32768,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "gpt-oss-20b",
@@ -512,7 +1044,15 @@
     "aliases": [],
     "platform": "openai-responses",
     "contextWindow": 131072,
-    "maxOutputTokens": 65536
+    "maxOutputTokens": 65536,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "grok-4",
@@ -520,7 +1060,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 256000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "grok-4-fast",
@@ -528,7 +1076,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 2000000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "grok-4.1-fast",
@@ -536,7 +1092,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 2000000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "grok-4.1-fast-non-reasoning",
@@ -544,7 +1108,31 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 2000000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
+    "id": "grok-4.5",
+    "name": "Grok 4.5",
+    "aliases": ["grok-4-5"],
+    "platform": "openai-completions",
+    "contextWindow": 500000,
+    "maxOutputTokens": 500000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "grok-code-fast-1",
@@ -552,7 +1140,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 256000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "kimi-k2",
@@ -560,7 +1156,15 @@
     "aliases": ["kimi-k2-0905", "moonshotai/kimi-k2"],
     "platform": "openai-completions",
     "contextWindow": 262144,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "kimi-k2-thinking",
@@ -568,7 +1172,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 262144,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "kimi-k2.5",
@@ -576,7 +1188,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 262144,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "kimi-k2.7-code",
@@ -584,7 +1204,15 @@
     "aliases": ["moonshotai/kimi-k2.7-code"],
     "platform": "openai-completions",
     "contextWindow": 262144,
-    "maxOutputTokens": 262144
+    "maxOutputTokens": 262144,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "mimo-v2-flash",
@@ -592,7 +1220,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 256000,
-    "maxOutputTokens": 32000
+    "maxOutputTokens": 32000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "mimo-v2-omni",
@@ -600,7 +1236,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 256000,
-    "maxOutputTokens": 128000
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "mimo-v2-pro",
@@ -608,7 +1252,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 1000000,
-    "maxOutputTokens": 128000
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "mimo-v2.5",
@@ -616,7 +1268,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 1000000,
-    "maxOutputTokens": 131072
+    "maxOutputTokens": 131072,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "mimo-v2.5-pro",
@@ -624,7 +1284,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 1000000,
-    "maxOutputTokens": 131072
+    "maxOutputTokens": 131072,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "minimax-m2",
@@ -632,7 +1300,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 204000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "minimax-m2.1",
@@ -640,7 +1316,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 204800,
-    "maxOutputTokens": 131072
+    "maxOutputTokens": 131072,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "minimax-m2.5",
@@ -648,7 +1332,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 204800,
-    "maxOutputTokens": 131072
+    "maxOutputTokens": 131072,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "minimax-m2.7",
@@ -656,7 +1348,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 204800,
-    "maxOutputTokens": 131072
+    "maxOutputTokens": 131072,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "o1",
@@ -664,7 +1364,15 @@
     "aliases": ["o1-2024-12-17"],
     "platform": "openai-responses",
     "contextWindow": 200000,
-    "maxOutputTokens": 100000
+    "maxOutputTokens": 100000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "o1-mini",
@@ -672,7 +1380,15 @@
     "aliases": ["o1-mini-2024-09-12"],
     "platform": "openai-responses",
     "contextWindow": 128000,
-    "maxOutputTokens": 65536
+    "maxOutputTokens": 65536,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "o1-pro",
@@ -680,7 +1396,15 @@
     "aliases": ["o1-pro-2025-03-19"],
     "platform": "openai-responses",
     "contextWindow": 200000,
-    "maxOutputTokens": 100000
+    "maxOutputTokens": 100000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "o3",
@@ -688,7 +1412,15 @@
     "aliases": ["o3-2025-04-16"],
     "platform": "openai-responses",
     "contextWindow": 200000,
-    "maxOutputTokens": 100000
+    "maxOutputTokens": 100000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "o3-mini",
@@ -696,7 +1428,15 @@
     "aliases": ["o3-mini-2025-01-31"],
     "platform": "openai-responses",
     "contextWindow": 200000,
-    "maxOutputTokens": 100000
+    "maxOutputTokens": 100000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "o4-mini",
@@ -704,7 +1444,15 @@
     "aliases": ["o4-mini-2025-04-16"],
     "platform": "openai-responses",
     "contextWindow": 200000,
-    "maxOutputTokens": 100000
+    "maxOutputTokens": 100000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "qwen-max",
@@ -712,7 +1460,15 @@
     "aliases": ["qwen3-max"],
     "platform": "openai-completions",
     "contextWindow": 256000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "qwen-plus",
@@ -720,7 +1476,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 131072,
-    "maxOutputTokens": 8192
+    "maxOutputTokens": 8192,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "qwen-turbo",
@@ -728,7 +1492,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 1000000,
-    "maxOutputTokens": 8192
+    "maxOutputTokens": 8192,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "qwen3-coder-plus",
@@ -736,7 +1508,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 1000000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "glm-4.5",
@@ -744,7 +1524,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 131072,
-    "maxOutputTokens": 98304
+    "maxOutputTokens": 98304,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "glm-4.5-air",
@@ -752,7 +1540,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 131072,
-    "maxOutputTokens": 98304
+    "maxOutputTokens": 98304,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "glm-4.5-flash",
@@ -760,7 +1556,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 131072,
-    "maxOutputTokens": 98304
+    "maxOutputTokens": 98304,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "glm-4.6",
@@ -768,7 +1572,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 204800,
-    "maxOutputTokens": 131072
+    "maxOutputTokens": 131072,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "glm-4.7",
@@ -776,7 +1588,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 204800,
-    "maxOutputTokens": 131072
+    "maxOutputTokens": 131072,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "glm-4.7-flash",
@@ -784,7 +1604,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 200000,
-    "maxOutputTokens": 131072
+    "maxOutputTokens": 131072,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "glm-5",
@@ -792,7 +1620,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 204800,
-    "maxOutputTokens": 131072
+    "maxOutputTokens": 131072,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "glm-5-turbo",
@@ -800,7 +1636,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 200000,
-    "maxOutputTokens": 131072
+    "maxOutputTokens": 131072,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "glm-5.1",
@@ -808,7 +1652,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 200000,
-    "maxOutputTokens": 131072
+    "maxOutputTokens": 131072,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "glm-5.2",
@@ -823,17 +1675,29 @@
         "anthropic": {
           "high": {
             "extraArgsFragment": {
-              "thinking": { "type": "enabled" },
-              "output_config": { "effort": "high" }
+              "thinking": {
+                "type": "enabled"
+              },
+              "output_config": {
+                "effort": "high"
+              }
             }
           },
           "max": {
             "extraArgsFragment": {
-              "thinking": { "type": "enabled" },
-              "output_config": { "effort": "max" }
+              "thinking": {
+                "type": "enabled"
+              },
+              "output_config": {
+                "effort": "max"
+              }
             }
           }
         }
+      },
+      "profiles": {
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
       }
     }
   },
@@ -843,7 +1707,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 256000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "doubao-seed-2.0-pro",
@@ -851,7 +1723,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 256000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "doubao-seed-2.0-mini",
@@ -859,7 +1739,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 256000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "doubao-seed-2.0-lite",
@@ -867,7 +1755,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 256000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "doubao-seed-code",
@@ -875,7 +1771,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 256000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "ernie-5.0-thinking-preview",
@@ -883,7 +1787,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 128000,
-    "maxOutputTokens": 64000
+    "maxOutputTokens": 64000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "mistral-large-latest",
@@ -891,7 +1803,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 128000,
-    "maxOutputTokens": 8192
+    "maxOutputTokens": 8192,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "mistral-small-latest",
@@ -899,7 +1819,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 128000,
-    "maxOutputTokens": 8192
+    "maxOutputTokens": 8192,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "codestral-latest",
@@ -907,7 +1835,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 256000,
-    "maxOutputTokens": 8192
+    "maxOutputTokens": 8192,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "devstral-small-latest",
@@ -915,7 +1851,15 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 128000,
-    "maxOutputTokens": 8192
+    "maxOutputTokens": 8192,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   },
   {
     "id": "magistral-small-latest",
@@ -923,6 +1867,14 @@
     "aliases": [],
     "platform": "openai-completions",
     "contextWindow": 131072,
-    "maxOutputTokens": 131072
+    "maxOutputTokens": 131072,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
   }
 ]

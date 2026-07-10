@@ -186,6 +186,8 @@ function ModelForm({
 
   // If the currently selected effort isn't supported by a model, snap it down
   // to the highest supported level. xhigh -> high, max -> xhigh -> high.
+  // Registry efforts are authoritative when present; pattern fallback is only
+  // for unregistered model IDs.
   const clampEffortToModel = (
     effort: string,
     nextModelId: string,
@@ -212,13 +214,13 @@ function ModelForm({
       return supported[0] ?? 'high'
     }
 
-    // Fallback Anthropic UI still exposes xhigh/max, so preserve an existing
-    // selection instead of silently downgrading it on open or model changes.
+    // Unregistered model IDs only: Anthropic UI still exposes xhigh/max, so
+    // preserve an existing selection instead of silently downgrading it.
     if (nextProvider === 'anthropic') {
       return effort
     }
 
-    // Fallback to old logic
+    // Fallback to pattern helpers for unregistered non-Anthropic IDs
     if (effort === 'max' && !supportsMaxEffort(nextModelId)) {
       return supportsXhighEffort(nextModelId) ? 'xhigh' : 'high'
     }
@@ -293,7 +295,7 @@ function ModelForm({
     // When reasoning effort is 'none', don't inject any encoding.
     // This respects the user's explicit choice to clear extraArgs.
     if (nextEffort !== 'none') {
-      // Registry whitelist takes priority
+      // Registry (profiles or custom encoding) is authoritative when present.
       const encoding = getEffortEncoding(nextModelId, nextProvider, nextEffort)
       if (encoding) {
         Object.assign(parsed, encoding)
@@ -307,7 +309,7 @@ function ModelForm({
           : ''
       }
 
-      // Fallback to old logic
+      // Unregistered model IDs only: pattern-based encoding fallback
       if (
         nextProvider === 'anthropic' &&
         isAnthropicAdaptiveThinkingModel(nextModelId)
@@ -529,7 +531,7 @@ function ModelForm({
     // When reasoning effort is 'none', don't inject any encoding.
     // This respects the user's explicit choice to clear extraArgs.
     if (reasoningEffort !== 'none') {
-      // Registry whitelist takes priority
+      // Registry (profiles or custom encoding) is authoritative when present.
       const encoding = getEffortEncoding(modelId, provider, reasoningEffort)
       if (encoding) {
         Object.assign(parsed, encoding)
@@ -541,7 +543,7 @@ function ModelForm({
         return Object.keys(parsed).length > 0 ? parsed : undefined
       }
 
-      // Fallback to old logic
+      // Unregistered model IDs only: pattern-based encoding fallback
       if (
         provider === 'anthropic' &&
         isAnthropicAdaptiveThinkingModel(modelId)
@@ -837,6 +839,8 @@ function ModelForm({
                   </SelectTrigger>
                   <SelectContent>
                     {(() => {
+                      // Registry is authoritative for registered models.
+                      // Pattern fallback only applies to unregistered IDs.
                       const supported = getSupportedEfforts(modelId, provider)
                       if (supported) {
                         return supported.map(effort => (
@@ -845,7 +849,6 @@ function ModelForm({
                           </SelectItem>
                         ))
                       }
-                      // Fallback to old logic
                       return (
                         <>
                           <SelectItem value="none">

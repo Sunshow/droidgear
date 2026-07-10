@@ -103,21 +103,29 @@ describe('supportsMaxEffort', () => {
 
   it('applies to registry whitelist models with max effort', () => {
     expect(supportsMaxEffort('deepseek-v4-pro')).toBe(true)
+    expect(supportsMaxEffort('gpt-5.6')).toBe(true)
+    expect(supportsMaxEffort('gpt-5.6-luna')).toBe(true)
   })
 
-  it('does not apply to openai models', () => {
+  it('does not apply to older openai models without max', () => {
     expect(supportsMaxEffort('gpt-5.2')).toBe(false)
     expect(supportsMaxEffort('o3-mini')).toBe(false)
   })
 })
 
 describe('supportsXhighEffort', () => {
-  it('allows xhigh on Opus 4.7, Jupiter v1 P and openai reasoning models', () => {
+  it('allows xhigh from registry for Claude and openai reasoning models', () => {
+    // All registered Claude models expose full effort list including xhigh.
     expect(supportsXhighEffort('claude-opus-4.7')).toBe(true)
     expect(supportsXhighEffort('claude-opus-4-7')).toBe(true)
     expect(supportsXhighEffort('claude-opus-4.8')).toBe(true)
     expect(supportsXhighEffort('claude-opus-4-8')).toBe(true)
     expect(supportsXhighEffort('claude-jupiter-v1-p')).toBe(true)
+    expect(supportsXhighEffort('claude-opus-4.6')).toBe(true)
+    expect(supportsXhighEffort('claude-sonnet-4.6')).toBe(true)
+    expect(supportsXhighEffort('claude-opus-4.5')).toBe(true)
+    expect(supportsXhighEffort('claude-sonnet-4.5')).toBe(true)
+    expect(supportsXhighEffort('claude-haiku-4.5')).toBe(true)
     expect(supportsXhighEffort('gpt-5.2')).toBe(true)
     expect(supportsXhighEffort('o3-mini')).toBe(true)
   })
@@ -127,13 +135,16 @@ describe('supportsXhighEffort', () => {
     expect(supportsXhighEffort('deepseek-v4-pro')).toBe(false)
   })
 
-  it('rejects xhigh on other claude models and non-reasoning models', () => {
-    expect(supportsXhighEffort('claude-opus-4.6')).toBe(false)
-    expect(supportsXhighEffort('claude-sonnet-4.6')).toBe(false)
-    expect(supportsXhighEffort('claude-opus-4.5')).toBe(false)
-    expect(supportsXhighEffort('claude-sonnet-4.5')).toBe(false)
-    expect(supportsXhighEffort('claude-haiku-4.5')).toBe(false)
+  it('rejects xhigh on non-reasoning registry models', () => {
     expect(supportsXhighEffort('gemini-2.5-pro')).toBe(false)
+    expect(supportsXhighEffort('grok-4.5')).toBe(false)
+  })
+
+  it('uses pattern fallback for unregistered Claude IDs', () => {
+    // Unregistered adaptive-ish IDs still get xhigh via pattern.
+    expect(supportsXhighEffort('claude-opus-4.7-custom-deploy')).toBe(true)
+    // Unregistered older Claude IDs do not.
+    expect(supportsXhighEffort('claude-opus-4.5-custom-deploy')).toBe(false)
   })
 
   it('is permissive for unknown/empty IDs', () => {

@@ -327,6 +327,7 @@ pub(super) fn handle_codex_profile_key(app: &mut app::App, code: KeyCode) -> Opt
                     }
                     let options = vec![
                         "(none)".to_string(),
+                        "max".to_string(),
                         "xhigh".to_string(),
                         "high".to_string(),
                         "medium".to_string(),
@@ -485,6 +486,7 @@ pub(super) fn handle_codex_provider_key(app: &mut app::App, code: KeyCode) -> Op
                 }
                 let options = vec![
                     "(none)".to_string(),
+                    "max".to_string(),
                     "xhigh".to_string(),
                     "high".to_string(),
                     "medium".to_string(),
