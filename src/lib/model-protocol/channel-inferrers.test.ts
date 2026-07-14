@@ -19,6 +19,16 @@ describe('Sub2ApiInferrer', () => {
       ).toBe('anthropic')
     })
 
+    it('infers anthropic from grok platform', () => {
+      expect(
+        inferrer.inferFromChannel({
+          channelType: 'sub-2-api',
+          platform: 'grok',
+          baseUrl: 'https://api.example.com',
+        })
+      ).toBe('anthropic')
+    })
+
     it('infers openai from platform', () => {
       expect(
         inferrer.inferFromChannel({

@@ -15,7 +15,7 @@ export class Sub2ApiInferrer implements ChannelInferrer {
     const { platform } = context
 
     if (platform === 'openai') return 'openai'
-    if (platform === 'anthropic') return 'anthropic'
+    if (platform === 'anthropic' || platform === 'grok') return 'anthropic'
     if (platform === 'gemini') return 'google-ai'
 
     // antigravity 需要根据模型名称判断，返回 null 让模型推断处理

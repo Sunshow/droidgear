@@ -10,6 +10,7 @@ export const platformColors: Record<string, string> = {
   gemini:
     'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
   antigravity: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200',
+  grok: 'bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200',
 }
 
 // Provider colors map to platform colors where applicable

@@ -40,6 +40,15 @@ describe('sub2api platform mapping', () => {
       baseUrl: 'https://example.com',
     })
   })
+
+  it('maps grok platform to anthropic provider', () => {
+    expect(
+      getProviderConfigFromPlatform('grok', 'https://api.example.com')
+    ).toEqual({
+      provider: 'anthropic',
+      baseUrl: 'https://api.example.com',
+    })
+  })
 })
 
 describe('inferProviderFromPlatformAndModel', () => {
@@ -52,6 +61,10 @@ describe('inferProviderFromPlatformAndModel', () => {
     )
     expect(inferProviderFromPlatformAndModel('gemini', 'some-model')).toBe(
       'generic-chat-completion-api'
+    )
+    expect(inferProviderFromPlatformAndModel('grok', 'gpt-4')).toBe('anthropic')
+    expect(inferProviderFromPlatformAndModel('grok', 'some-model')).toBe(
+      'anthropic'
     )
   })
 
@@ -122,6 +135,10 @@ describe('inferProviderFromPlatformAndModel', () => {
     expect(
       inferProviderFromPlatformAndModel('Antigravity', 'claude-3-opus')
     ).toBe('anthropic')
+    expect(inferProviderFromPlatformAndModel('Grok', 'some-model')).toBe(
+      'anthropic'
+    )
+    expect(inferProviderFromPlatformAndModel('GROK', 'gpt-4')).toBe('anthropic')
   })
 
   it('defaults to generic for unknown platform and model', () => {

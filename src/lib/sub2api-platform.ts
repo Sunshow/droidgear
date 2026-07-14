@@ -17,7 +17,8 @@ export const inferProviderFromPlatformAndModel = (
 
   // 1. Platform-based binding (highest priority)
   if (platformLower === 'openai') return 'openai'
-  if (platformLower === 'anthropic') return 'anthropic'
+  if (platformLower === 'anthropic' || platformLower === 'grok')
+    return 'anthropic'
   if (platformLower === 'gemini') return 'generic-chat-completion-api'
   if (platformLower === 'antigravity') {
     // Antigravity supports both Claude and Gemini, infer from model name
@@ -94,7 +95,7 @@ export const getProviderConfigFromPlatform = (
     }
   }
 
-  if (platformLower === 'anthropic') {
+  if (platformLower === 'anthropic' || platformLower === 'grok') {
     return { provider: 'anthropic', baseUrl }
   }
 

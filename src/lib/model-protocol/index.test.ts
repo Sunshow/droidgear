@@ -13,6 +13,9 @@ describe('inferModelProtocol', () => {
       expect(
         inferModelProtocol('sub-2-api', 'gemini', 'https://api.example.com')
       ).toBe('google-ai')
+      expect(
+        inferModelProtocol('sub-2-api', 'grok', 'https://api.example.com')
+      ).toBe('anthropic')
     })
 
     it('platform takes priority over model id', () => {
@@ -25,6 +28,15 @@ describe('inferModelProtocol', () => {
           'claude-3-opus'
         )
       ).toBe('openai')
+      // grok platform always defaults to anthropic
+      expect(
+        inferModelProtocol(
+          'sub-2-api',
+          'grok',
+          'https://api.example.com',
+          'gpt-4'
+        )
+      ).toBe('anthropic')
     })
 
     it('antigravity falls through to model inference', () => {
