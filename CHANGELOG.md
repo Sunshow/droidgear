@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.1.6
+
+**New Features / 新功能**
+
+- Improve Codex official subscription auth UX: use `model_provider=openai` in subscription mode with auth restore, snapshot model on save, support overwrite-save for auth profiles, and remove the auto-created fixed official Codex profile / 改进 Codex 官方订阅认证体验：订阅模式使用 `model_provider=openai` 并支持认证恢复，保存时快照模型，支持覆盖保存认证配置，并移除自动创建的固定官方 Codex 配置
+- Default sub2api Grok platform to Anthropic protocol when adding models / 通过 sub2api 添加模型时，Grok 平台默认使用 Anthropic 协议
+
 ## v1.1.5
 
 **New Features / 新功能**
