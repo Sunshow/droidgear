@@ -826,6 +826,17 @@ async readCodexCurrentConfig() : Promise<Result<CodexCurrentConfig, string>> {
 }
 },
 /**
+ * Prepare a temporary run plan (codex -c overrides + env) without writing any files
+ */
+async prepareCodexTempRun(id: string) : Promise<Result<CodexTempRun, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("prepare_codex_temp_run", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * List all Hermes profiles
  */
 async listHermesProfiles() : Promise<Result<HermesProfile[], string>> {
@@ -1562,6 +1573,14 @@ export type CodexProfile = { id: string; name: string; description?: string | nu
  * Codex Provider 配置（对应 config.toml 中的 [model_providers.<id>]）
  */
 export type CodexProviderConfig = { name?: string | null; baseUrl?: string | null; wireApi?: string | null; requiresOpenaiAuth?: boolean | null; envKey?: string | null; envKeyInstructions?: string | null; httpHeaders?: Partial<{ [key in string]: string }> | null; queryParams?: Partial<{ [key in string]: string }> | null; model?: string | null; modelReasoningEffort?: string | null; apiKey?: string | null }
+/**
+ * 临时运行计划：不写盘，供前端拼装 `codex -c <override>` 命令并注入进程环境。
+ * 
+ * `config_overrides` 每项形如 `model="gpt-5.2"`（value 为 TOML 字面量），
+ * 由前端按平台包裹单引号后拼成 `codex -c '...' -c '...'`。
+ * API key 仅通过 `env` 注入进程环境，绝不出现在 `config_overrides` 中。
+ */
+export type CodexTempRun = { configOverrides: string[]; env: Partial<{ [key in string]: string }> }
 /**
  * User-defined configuration paths (only stores explicitly set paths)
  */

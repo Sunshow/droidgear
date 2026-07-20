@@ -796,6 +796,10 @@
   "codex.actions.applied": "Applied",
   "codex.actions.loadFromLive": "Load Live",
   "codex.actions.loadedFromLive": "Loaded from live config",
+  "codex.actions.tempRun": "Temp Run",
+  "codex.actions.tempRunHint": "Run codex with the selected profile in a new terminal, without modifying ~/.codex",
+  "codex.actions.tempRunSelectDir": "Select working directory for Codex",
+  "codex.actions.tempRunStarted": "Codex temp run started in a new terminal",
 
   "sidebar.openclaw": "OpenClaw",
 

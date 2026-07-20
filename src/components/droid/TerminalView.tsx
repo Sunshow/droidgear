@@ -29,6 +29,7 @@ interface TerminalViewProps {
   copyOnSelect?: boolean
   prefillCommand?: string
   autoExecute?: boolean
+  env?: Record<string, string>
   onExit?: (exitCode: number) => void
   onReady?: () => void
 }
@@ -48,6 +49,7 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
       copyOnSelect,
       prefillCommand,
       autoExecute,
+      env,
       onExit,
       onReady,
     },
@@ -64,6 +66,7 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
     const copyOnSelectRef = useRef(copyOnSelect)
     const initialPrefillCommandRef = useRef(prefillCommand)
     const initialAutoExecuteRef = useRef(autoExecute)
+    const initialEnvRef = useRef(env)
     const isInitializedRef = useRef(false)
     const { theme } = useTheme()
     const initialThemeRef = useRef(theme)
@@ -253,7 +256,7 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
       // Pass shell environment variables for GUI apps that don't inherit shell env
       // Manually add TERM since passing env replaces PTY defaults
       // Ensure locale is set for proper CJK character display
-      const envToPass = shellEnvData
+      const baseEnv = shellEnvData
         ? {
             ...shellEnvData,
             TERM: 'xterm-256color',
@@ -267,6 +270,10 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
             LANG: 'en_US.UTF-8',
             LC_ALL: 'en_US.UTF-8',
           }
+      // Caller-provided env (e.g. Codex temp run API key) takes precedence.
+      const envToPass = initialEnvRef.current
+        ? { ...baseEnv, ...initialEnvRef.current }
+        : baseEnv
 
       let pty: IPty
       try {

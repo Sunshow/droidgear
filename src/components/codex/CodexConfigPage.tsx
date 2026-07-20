@@ -8,8 +8,10 @@ import {
   Copy,
   Trash2,
   Download,
+  Terminal,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { open } from '@tauri-apps/plugin-dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -40,10 +42,35 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useCodexStore } from '@/store/codex-store'
-import type { CodexProviderConfig } from '@/lib/bindings'
+import { useTerminalStore } from '@/store/terminal-store'
+import { useUIStore } from '@/store/ui-store'
+import { getPlatform } from '@/hooks/use-platform'
+import { commands, type CodexProviderConfig } from '@/lib/bindings'
 import { ProviderCard } from './ProviderCard'
 import { ProviderDialog } from './ProviderDialog'
 import { ConfigStatus } from './ConfigStatus'
+
+// Wrap a codex `-c key=value` override as a single shell-literal argument.
+// The value part is already a TOML literal (may contain double quotes/spaces).
+function quoteConfigArg(value: string, isWindows: boolean): string {
+  if (isWindows) {
+    // PowerShell single-quoted literal: a literal single quote is doubled.
+    return `'${value.replace(/'/g, "''")}'`
+  }
+  // POSIX (zsh/bash) single-quoted literal: close, escaped quote, reopen.
+  return `'${value.replace(/'/g, "'\\''")}'`
+}
+
+function buildCodexTempRunCommand(
+  configOverrides: string[],
+  isWindows: boolean
+): string {
+  const parts = ['codex']
+  for (const override of configOverrides) {
+    parts.push('-c', quoteConfigArg(override, isWindows))
+  }
+  return parts.join(' ')
+}
 
 export function CodexConfigPage() {
   const { t } = useTranslation()
@@ -70,6 +97,10 @@ export function CodexConfigPage() {
   const deleteProvider = useCodexStore(state => state.deleteProvider)
   const setActiveProvider = useCodexStore(state => state.setActiveProvider)
   const setError = useCodexStore(state => state.setError)
+
+  const createTerminal = useTerminalStore(state => state.createTerminal)
+  const setCurrentView = useUIStore(state => state.setCurrentView)
+  const setDroidSubView = useUIStore(state => state.setDroidSubView)
 
   const [showApplyConfirm, setShowApplyConfirm] = useState(false)
   const [showDeleteProfileConfirm, setShowDeleteProfileConfirm] =
@@ -150,6 +181,39 @@ export function CodexConfigPage() {
     toast.success(t('codex.actions.applySuccess'))
   }
 
+  const handleTempRun = async () => {
+    if (!currentProfile) return
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: t('codex.actions.tempRunSelectDir'),
+    })
+    if (!selected) return
+    const dirPath = selected as string
+    const dirName = dirPath.split(/[/\\]/).filter(Boolean).pop() || undefined
+
+    const result = await commands.prepareCodexTempRun(currentProfile.id)
+    if (result.status === 'error') {
+      toast.error(result.error)
+      return
+    }
+
+    const isWindows = getPlatform() === 'windows'
+    const command = buildCodexTempRunCommand(
+      result.data.configOverrides,
+      isWindows
+    )
+
+    createTerminal(dirName, dirPath, {
+      prefillCommand: command,
+      autoExecute: true,
+      env: result.data.env as Record<string, string>,
+    })
+    setCurrentView('droid')
+    setDroidSubView('terminal')
+    toast.success(t('codex.actions.tempRunStarted'))
+  }
+
   const handleLoadFromConfig = async () => {
     await loadFromLiveConfig()
     toast.success(t('codex.actions.loadedFromLive'))
@@ -202,6 +266,15 @@ export function CodexConfigPage() {
             title={t('common.refresh')}
           >
             <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleTempRun}
+            disabled={!currentProfile || isLoading}
+            title={t('codex.actions.tempRunHint')}
+          >
+            <Terminal className="h-4 w-4 mr-2" />
+            {t('codex.actions.tempRun')}
           </Button>
           <Button
             onClick={() => setShowApplyConfirm(true)}

@@ -29,6 +29,11 @@ export interface TerminalInstance {
   createdAt: number
   derivedTerminals: DerivedTerminal[]
   selectedDerivedId: string | null // null = main terminal
+  // Transient (never persisted): used to auto-run a command in a freshly
+  // spawned terminal, e.g. Codex "temp run". Secrets in env must not persist.
+  prefillCommand?: string
+  autoExecute?: boolean
+  env?: Record<string, string>
 }
 
 interface TerminalState {
@@ -39,7 +44,15 @@ interface TerminalState {
   snippets: TerminalSnippet[]
 
   // Actions
-  createTerminal: (name?: string, cwd?: string) => string
+  createTerminal: (
+    name?: string,
+    cwd?: string,
+    opts?: {
+      prefillCommand?: string
+      autoExecute?: boolean
+      env?: Record<string, string>
+    }
+  ) => string
   closeTerminal: (id: string) => void
   renameTerminal: (id: string, name: string) => void
   selectTerminal: (id: string | null) => void
@@ -95,7 +108,7 @@ export const useTerminalStore = create<TerminalState>()(
         terminalCopyOnSelect: false,
         snippets: [],
 
-        createTerminal: (name?: string, cwd?: string) => {
+        createTerminal: (name?: string, cwd?: string, opts?) => {
           // Sync counter with existing terminals to avoid ID conflicts
           const existingIds = get().terminals.map(t => {
             const match = t.id.match(/terminal-\d+-(\d+)/)
@@ -116,6 +129,9 @@ export const useTerminalStore = create<TerminalState>()(
             createdAt: Date.now(),
             derivedTerminals: [],
             selectedDerivedId: null,
+            prefillCommand: opts?.prefillCommand,
+            autoExecute: opts?.autoExecute,
+            env: opts?.env,
           }
           set(
             state => ({

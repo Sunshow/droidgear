@@ -2,7 +2,9 @@
 //!
 //! Core logic lives in `droidgear-core`.
 
-pub use droidgear_core::codex::{CodexConfigStatus, CodexCurrentConfig, CodexProfile};
+pub use droidgear_core::codex::{
+    CodexConfigStatus, CodexCurrentConfig, CodexProfile, CodexTempRun,
+};
 
 /// List all Codex profiles
 #[tauri::command]
@@ -72,4 +74,11 @@ pub async fn get_codex_config_status() -> Result<CodexConfigStatus, String> {
 #[specta::specta]
 pub async fn read_codex_current_config() -> Result<CodexCurrentConfig, String> {
     droidgear_core::codex::read_codex_current_config()
+}
+
+/// Prepare a temporary run plan (codex -c overrides + env) without writing any files
+#[tauri::command]
+#[specta::specta]
+pub async fn prepare_codex_temp_run(id: String) -> Result<CodexTempRun, String> {
+    droidgear_core::codex::prepare_codex_temp_run(&id)
 }

@@ -93,6 +93,18 @@ pub struct CodexCurrentConfig {
     pub api_key: Option<String>,
 }
 
+/// 临时运行计划：不写盘，供前端拼装 `codex -c <override>` 命令并注入进程环境。
+///
+/// `config_overrides` 每项形如 `model="gpt-5.2"`（value 为 TOML 字面量），
+/// 由前端按平台包裹单引号后拼成 `codex -c '...' -c '...'`。
+/// API key 仅通过 `env` 注入进程环境，绝不出现在 `config_overrides` 中。
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct CodexTempRun {
+    pub config_overrides: Vec<String>,
+    pub env: HashMap<String, String>,
+}
+
 // ============================================================================
 // Path Helpers
 // ============================================================================
@@ -516,16 +528,22 @@ fn set_active_profile_id_for_home(home_dir: &Path, id: &str) -> Result<(), Strin
 }
 
 // ============================================================================
-// Apply + status
+// Effective profile resolution (shared by apply + temp run)
 // ============================================================================
 
-/// 应用指定 Profile 到 `~/.codex/*`
-///
-/// 只替换 config.toml 中的模型相关配置（model_provider, model, model_reasoning_effort,
-/// [model_providers]），保留其他所有配置（projects, network_access 等）。
-pub fn apply_codex_profile_for_home(home_dir: &Path, id: &str) -> Result<(), String> {
-    let profile = load_profile_by_id(home_dir, id)?;
+/// 已解析的有效 Profile 配置：确定生效的 provider、model、reasoning effort 与 api key。
+struct ResolvedProfile<'a> {
+    effective_provider_id: String,
+    active_provider: Option<&'a CodexProviderConfig>,
+    model: String,
+    effort: Option<String>,
+    api_key: Option<String>,
+}
 
+/// 解析 Profile 的有效配置：
+/// - provider：优先用 `model_provider` 指向的 provider；否则退回第一个；都没有则保留 id、provider 为 None
+/// - model/effort/api_key：优先取 provider 级，否则退回 profile 级
+fn resolve_effective_profile(profile: &CodexProfile) -> ResolvedProfile<'_> {
     let (effective_provider_id, active_provider) =
         if profile.providers.contains_key(&profile.model_provider) {
             (
@@ -538,16 +556,43 @@ pub fn apply_codex_profile_for_home(home_dir: &Path, id: &str) -> Result<(), Str
             (profile.model_provider.clone(), None)
         };
 
-    let resolved_model = active_provider
+    let model = active_provider
         .and_then(|p| p.model.as_deref())
         .filter(|s| !s.is_empty())
-        .unwrap_or(&profile.model);
-    let resolved_effort = active_provider
+        .unwrap_or(&profile.model)
+        .to_string();
+    let effort = active_provider
         .and_then(|p| p.model_reasoning_effort.clone())
         .or(profile.model_reasoning_effort.clone());
-    let resolved_api_key = active_provider
+    let api_key = active_provider
         .and_then(|p| p.api_key.clone())
         .or(profile.api_key.clone());
+
+    ResolvedProfile {
+        effective_provider_id,
+        active_provider,
+        model,
+        effort,
+        api_key,
+    }
+}
+
+// ============================================================================
+// Apply + status
+// ============================================================================
+
+/// 应用指定 Profile 到 `~/.codex/*`
+///
+/// 只替换 config.toml 中的模型相关配置（model_provider, model, model_reasoning_effort,
+/// [model_providers]），保留其他所有配置（projects, network_access 等）。
+pub fn apply_codex_profile_for_home(home_dir: &Path, id: &str) -> Result<(), String> {
+    let profile = load_profile_by_id(home_dir, id)?;
+
+    let resolved = resolve_effective_profile(&profile);
+    let effective_provider_id = resolved.effective_provider_id;
+    let resolved_model = resolved.model;
+    let resolved_effort = resolved.effort;
+    let resolved_api_key = resolved.api_key;
 
     let config_path = codex_config_path_for_home(home_dir)?;
     let mut config = if config_path.exists() {
@@ -567,10 +612,7 @@ pub fn apply_codex_profile_for_home(home_dir: &Path, id: &str) -> Result<(), Str
         "model_provider".to_string(),
         toml::Value::String(effective_provider_id),
     );
-    config.insert(
-        "model".to_string(),
-        toml::Value::String(resolved_model.to_string()),
-    );
+    config.insert("model".to_string(), toml::Value::String(resolved_model));
     if let Some(ref effort) = resolved_effort {
         config.insert(
             "model_reasoning_effort".to_string(),
@@ -713,6 +755,112 @@ pub fn read_codex_current_config_for_home(home_dir: &Path) -> Result<CodexCurren
 }
 
 // ============================================================================
+// Temp run (codex -c overrides, no disk writes)
+// ============================================================================
+
+fn non_empty_str(value: &Option<String>) -> Option<&str> {
+    value.as_deref().filter(|s| !s.is_empty())
+}
+
+/// Render a Rust string as a TOML basic string literal (quoted, escaped).
+fn toml_string_literal(value: &str) -> String {
+    toml::Value::String(value.to_string()).to_string()
+}
+
+/// 组装临时运行计划：把选中 Profile 解析为 `codex -c` 覆盖项，API key 仅经进程环境注入。
+///
+/// 不写任何文件；覆盖项层叠在真实 `~/.codex/config.toml` 之上，命令结束即失效。
+pub fn prepare_codex_temp_run_for_home(home_dir: &Path, id: &str) -> Result<CodexTempRun, String> {
+    let profile = load_profile_by_id(home_dir, id)?;
+    let resolved = resolve_effective_profile(&profile);
+
+    let mut config_overrides: Vec<String> = Vec::new();
+
+    if !resolved.model.is_empty() {
+        config_overrides.push(format!("model={}", toml_string_literal(&resolved.model)));
+    }
+    if !resolved.effective_provider_id.is_empty() {
+        config_overrides.push(format!(
+            "model_provider={}",
+            toml_string_literal(&resolved.effective_provider_id)
+        ));
+    }
+    if let Some(effort) = &resolved.effort {
+        config_overrides.push(format!(
+            "model_reasoning_effort={}",
+            toml_string_literal(effort)
+        ));
+    }
+
+    // Env var that codex reads the API key from (provider.env_key or default).
+    let mut env_var_name = OPENAI_API_KEY_FIELD.to_string();
+
+    if let Some(provider) = resolved.active_provider {
+        let pid = &resolved.effective_provider_id;
+        if let Some(name) = non_empty_str(&provider.name) {
+            config_overrides.push(format!(
+                "model_providers.{pid}.name={}",
+                toml_string_literal(name)
+            ));
+        }
+        if let Some(base_url) = non_empty_str(&provider.base_url) {
+            config_overrides.push(format!(
+                "model_providers.{pid}.base_url={}",
+                toml_string_literal(base_url)
+            ));
+        }
+        if let Some(wire_api) = non_empty_str(&provider.wire_api) {
+            config_overrides.push(format!(
+                "model_providers.{pid}.wire_api={}",
+                toml_string_literal(wire_api)
+            ));
+        }
+        if let Some(requires_openai_auth) = provider.requires_openai_auth {
+            config_overrides.push(format!(
+                "model_providers.{pid}.requires_openai_auth={requires_openai_auth}"
+            ));
+        }
+        if let Some(env_key) = non_empty_str(&provider.env_key) {
+            env_var_name = env_key.to_string();
+        }
+        config_overrides.push(format!(
+            "model_providers.{pid}.env_key={}",
+            toml_string_literal(&env_var_name)
+        ));
+        if let Some(http_headers) = &provider.http_headers {
+            let mut keys: Vec<&String> = http_headers.keys().collect();
+            keys.sort();
+            for k in keys {
+                config_overrides.push(format!(
+                    "model_providers.{pid}.http_headers.{k}={}",
+                    toml_string_literal(&http_headers[k])
+                ));
+            }
+        }
+        if let Some(query_params) = &provider.query_params {
+            let mut keys: Vec<&String> = query_params.keys().collect();
+            keys.sort();
+            for k in keys {
+                config_overrides.push(format!(
+                    "model_providers.{pid}.query_params.{k}={}",
+                    toml_string_literal(&query_params[k])
+                ));
+            }
+        }
+    }
+
+    let mut env: HashMap<String, String> = HashMap::new();
+    if let Some(api_key) = non_empty_str(&resolved.api_key) {
+        env.insert(env_var_name, api_key.to_string());
+    }
+
+    Ok(CodexTempRun {
+        config_overrides,
+        env,
+    })
+}
+
+// ============================================================================
 // System wrappers (use system home dir)
 // ============================================================================
 
@@ -758,4 +906,119 @@ pub fn get_codex_config_status() -> Result<CodexConfigStatus, String> {
 
 pub fn read_codex_current_config() -> Result<CodexCurrentConfig, String> {
     read_codex_current_config_for_home(&system_home_dir()?)
+}
+
+pub fn prepare_codex_temp_run(id: &str) -> Result<CodexTempRun, String> {
+    prepare_codex_temp_run_for_home(&system_home_dir()?, id)
+}
+
+#[cfg(test)]
+mod temp_run_tests {
+    use super::*;
+
+    fn custom_provider_profile() -> CodexProfile {
+        let mut providers = HashMap::new();
+        providers.insert(
+            "custom".to_string(),
+            CodexProviderConfig {
+                name: Some("Custom Provider".to_string()),
+                base_url: Some("https://api.example.com/v1".to_string()),
+                wire_api: Some("responses".to_string()),
+                requires_openai_auth: Some(true),
+                env_key: None,
+                env_key_instructions: None,
+                http_headers: None,
+                query_params: None,
+                model: Some("gpt-5.2".to_string()),
+                model_reasoning_effort: Some("high".to_string()),
+                api_key: Some("sk-secret-123".to_string()),
+            },
+        );
+        CodexProfile {
+            id: "tmp_profile".to_string(),
+            name: "Temp".to_string(),
+            description: None,
+            created_at: "2020-01-01T00:00:00Z".to_string(),
+            updated_at: "2020-01-01T00:00:00Z".to_string(),
+            providers,
+            model_provider: "custom".to_string(),
+            model: "gpt-5.2".to_string(),
+            model_reasoning_effort: Some("high".to_string()),
+            api_key: None,
+        }
+    }
+
+    #[test]
+    fn temp_run_builds_overrides_and_env_without_leaking_key() {
+        let home = tempfile::tempdir().unwrap();
+        let profile = custom_provider_profile();
+        save_codex_profile_for_home(home.path(), profile).unwrap();
+
+        let plan = prepare_codex_temp_run_for_home(home.path(), "tmp_profile").unwrap();
+
+        assert_eq!(
+            plan.config_overrides,
+            vec![
+                "model=\"gpt-5.2\"".to_string(),
+                "model_provider=\"custom\"".to_string(),
+                "model_reasoning_effort=\"high\"".to_string(),
+                "model_providers.custom.name=\"Custom Provider\"".to_string(),
+                "model_providers.custom.base_url=\"https://api.example.com/v1\"".to_string(),
+                "model_providers.custom.wire_api=\"responses\"".to_string(),
+                "model_providers.custom.requires_openai_auth=true".to_string(),
+                "model_providers.custom.env_key=\"OPENAI_API_KEY\"".to_string(),
+            ]
+        );
+
+        // API key is only exposed via process env, never in the overrides.
+        assert_eq!(
+            plan.env.get("OPENAI_API_KEY").map(String::as_str),
+            Some("sk-secret-123")
+        );
+        assert!(
+            !plan
+                .config_overrides
+                .iter()
+                .any(|o| o.contains("sk-secret-123")),
+            "API key must not appear in config overrides"
+        );
+    }
+
+    #[test]
+    fn temp_run_uses_provider_env_key_when_set() {
+        let home = tempfile::tempdir().unwrap();
+        let mut profile = custom_provider_profile();
+        if let Some(p) = profile.providers.get_mut("custom") {
+            p.env_key = Some("MY_API_KEY".to_string());
+        }
+        save_codex_profile_for_home(home.path(), profile).unwrap();
+
+        let plan = prepare_codex_temp_run_for_home(home.path(), "tmp_profile").unwrap();
+
+        assert!(plan
+            .config_overrides
+            .contains(&"model_providers.custom.env_key=\"MY_API_KEY\"".to_string()));
+        assert_eq!(
+            plan.env.get("MY_API_KEY").map(String::as_str),
+            Some("sk-secret-123")
+        );
+        assert!(!plan.env.contains_key("OPENAI_API_KEY"));
+    }
+
+    #[test]
+    fn temp_run_without_api_key_injects_no_env() {
+        let home = tempfile::tempdir().unwrap();
+        let mut profile = custom_provider_profile();
+        if let Some(p) = profile.providers.get_mut("custom") {
+            p.api_key = None;
+        }
+        save_codex_profile_for_home(home.path(), profile).unwrap();
+
+        let plan = prepare_codex_temp_run_for_home(home.path(), "tmp_profile").unwrap();
+
+        assert!(plan.env.is_empty());
+        assert!(plan
+            .config_overrides
+            .contains(&"model_providers.custom.env_key=\"OPENAI_API_KEY\"".to_string()));
+    }
 }

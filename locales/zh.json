@@ -796,6 +796,10 @@
   "codex.actions.applied": "已应用",
   "codex.actions.loadFromLive": "读取当前配置",
   "codex.actions.loadedFromLive": "已从当前配置读取",
+  "codex.actions.tempRun": "临时运行",
+  "codex.actions.tempRunHint": "使用选中的 Profile 在新终端启动 codex，不修改 ~/.codex",
+  "codex.actions.tempRunSelectDir": "选择 Codex 的工作目录",
+  "codex.actions.tempRunStarted": "已在新终端启动 Codex 临时运行",
 
   "sidebar.openclaw": "OpenClaw",
 
