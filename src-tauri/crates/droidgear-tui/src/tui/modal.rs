@@ -271,7 +271,42 @@ pub(super) fn run_select_action(
             };
             let mut profile = droidgear_core::codex::get_codex_profile_for_home(&app.home_dir, &id)
                 .map_err(anyhow::Error::msg)?;
-            profile.model_provider = selected;
+            profile.model_provider = if selected == "openai" {
+                "openai".to_string()
+            } else if selected == "custom" {
+                let mut provider_ids = profile.providers.keys().cloned().collect::<Vec<_>>();
+                provider_ids.sort_by_key(|a| a.to_lowercase());
+                provider_ids
+                    .into_iter()
+                    .next()
+                    .unwrap_or_else(|| "custom".to_string())
+            } else {
+                selected
+            };
+            if profile.model_provider != "openai" {
+                profile.auth_profile_name = None;
+            }
+            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::SelectAction::CodexSetProfileAuthProfile { id } => {
+            let Some(selected) = selected else {
+                return Ok(());
+            };
+            let mut profile = droidgear_core::codex::get_codex_profile_for_home(&app.home_dir, &id)
+                .map_err(anyhow::Error::msg)?;
+            if profile.model_provider != "openai" {
+                return Err(anyhow::Error::msg(
+                    "Auth profile is only used when model provider is openai",
+                ));
+            }
+            profile.auth_profile_name = if selected == "(none)" {
+                None
+            } else {
+                Some(selected)
+            };
             droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
                 .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
@@ -1620,6 +1655,15 @@ pub(super) fn run_confirm_action(
                 .map_err(anyhow::Error::msg)?;
             Ok(())
         }
+        app::ConfirmAction::CodexAuthOverwrite { name, label } => {
+            droidgear_core::codex_auth_profiles::save_current_as_profile_for_home(
+                &app.home_dir,
+                &name,
+                &label,
+            )
+            .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
     }
 }
 
@@ -1805,6 +1849,7 @@ pub(super) fn run_input_action(
                 model: "gpt-5.2".to_string(),
                 model_reasoning_effort: Some("high".to_string()),
                 api_key: Some(String::new()),
+                auth_profile_name: None,
             };
 
             droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)

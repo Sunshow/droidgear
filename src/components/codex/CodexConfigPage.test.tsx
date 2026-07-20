@@ -25,6 +25,7 @@ const { toastMock, commandMocks, openMock } = vi.hoisted(() => {
       saveCodexProfile: vi.fn(),
       deleteCodexProfile: vi.fn(),
       duplicateCodexProfile: vi.fn(),
+      listCodexAuthProfiles: vi.fn(),
     },
   }
 })
@@ -131,6 +132,22 @@ describe('CodexConfigPage', () => {
     commandMocks.duplicateCodexProfile.mockResolvedValue({
       status: 'ok',
       data: sampleProfiles[0],
+    })
+    commandMocks.listCodexAuthProfiles.mockResolvedValue({
+      status: 'ok',
+      data: {
+        active: null,
+        profiles: [
+          {
+            name: 'sub1',
+            label: 'Subscription 1',
+            createdAt: '2026-01-01T00:00:00Z',
+            isOfficial: true,
+            codexProfileId: null,
+          },
+        ],
+        isCurrentOfficial: false,
+      },
     })
   })
 
@@ -276,5 +293,51 @@ describe('CodexConfigPage', () => {
     })
     expect(commandMocks.saveCodexProfile).not.toHaveBeenCalled()
     expect(commandMocks.launchCodex).not.toHaveBeenCalled()
+  })
+
+  it('hides Providers when model provider is openai and shows subscription hints', async () => {
+    render(<CodexConfigPage />)
+
+    await screen.findByText('Model Provider')
+    expect(
+      screen.getByText('Select openai to use an official ChatGPT subscription.')
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'If you see Error: account/read failed during TUI bootstrap, run: codex logout'
+      )
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Providers')).not.toBeInTheDocument()
+    expect(screen.queryByText('Add Provider')).not.toBeInTheDocument()
+    expect(await screen.findByText('Load Auth')).toBeInTheDocument()
+  })
+
+  it('shows Providers when model provider is custom', async () => {
+    commandMocks.listCodexProfiles.mockResolvedValue({
+      status: 'ok',
+      data: [
+        {
+          ...sampleProfiles[0],
+          modelProvider: 'custom',
+          providers: {
+            custom: {
+              name: 'Custom',
+              model: 'gpt-5.5',
+              apiKey: null,
+            },
+          },
+        },
+      ],
+    })
+
+    render(<CodexConfigPage />)
+
+    await screen.findByText('Providers')
+    expect(screen.getByText('Add Provider')).toBeInTheDocument()
+    expect(
+      screen.queryByText(
+        'If you see Error: account/read failed during TUI bootstrap, run: codex logout'
+      )
+    ).not.toBeInTheDocument()
   })
 })

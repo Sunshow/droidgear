@@ -478,6 +478,7 @@ fn list_codex_temporary_run_targets_lists_index_name_and_id() {
             model: "gpt-5".to_string(),
             model_reasoning_effort: None,
             api_key: None,
+            auth_profile_name: None,
         },
     )
     .unwrap();
@@ -494,6 +495,7 @@ fn list_codex_temporary_run_targets_lists_index_name_and_id() {
             model: "gpt-5".to_string(),
             model_reasoning_effort: None,
             api_key: None,
+            auth_profile_name: None,
         },
     )
     .unwrap();
@@ -519,10 +521,11 @@ fn preview_codex_temporary_run_lists_secret_keys_without_secret_values() {
             created_at: "2026-01-01T00:00:00Z".to_string(),
             updated_at: "2026-01-01T00:00:00Z".to_string(),
             providers: HashMap::new(),
-            model_provider: "openai".to_string(),
+            model_provider: "custom".to_string(),
             model: "gpt-5".to_string(),
             model_reasoning_effort: None,
             api_key: Some("sk-secret".to_string()),
+            auth_profile_name: None,
         },
     )
     .unwrap();

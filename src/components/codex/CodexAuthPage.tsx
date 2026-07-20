@@ -7,6 +7,7 @@ import {
   Pencil,
   Check,
   ShieldAlert,
+  Save,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -43,6 +44,7 @@ export function CodexAuthPage() {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const [renameDialogOpen, setRenameDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [overwriteDialogOpen, setOverwriteDialogOpen] = useState(false)
   const [conflictDialogOpen, setConflictDialogOpen] = useState(false)
   const [conflictProfileName, setConflictProfileName] = useState<string | null>(
     null
@@ -174,6 +176,24 @@ export function CodexAuthPage() {
     }
   }
 
+  const handleOverwrite = async () => {
+    if (!selectedProfile) return
+    const result = await commands.saveCurrentCodexAuthProfile(
+      selectedProfile.name,
+      selectedProfile.label
+    )
+    if (result.status === 'ok') {
+      toast.success(
+        t('codexAuth.overwriteSuccess', { name: selectedProfile.label })
+      )
+      setOverwriteDialogOpen(false)
+      setSelectedProfile(null)
+      await loadProfiles()
+    } else {
+      toast.error(result.error)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -277,6 +297,22 @@ export function CodexAuthPage() {
                           <Check className="h-4 w-4" />
                         </ActionButton>
                       )}
+                      <ActionButton
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedProfile(profile)
+                          setOverwriteDialogOpen(true)
+                        }}
+                        disabled={!state.isCurrentOfficial}
+                        title={
+                          state.isCurrentOfficial
+                            ? t('codexAuth.profiles.overwrite')
+                            : t('codexAuth.saveCurrentDisabled')
+                        }
+                      >
+                        <Save className="h-4 w-4" />
+                      </ActionButton>
                       <ActionButton
                         variant="ghost"
                         size="sm"
@@ -396,6 +432,29 @@ export function CodexAuthPage() {
             <Button variant="destructive" onClick={handleDelete}>
               {t('common.delete')}
             </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Overwrite Confirmation */}
+      <AlertDialog
+        open={overwriteDialogOpen}
+        onOpenChange={setOverwriteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('codexAuth.overwriteDialog.title')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('codexAuth.overwriteDialog.description', {
+                name: selectedProfile?.label,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <Button onClick={handleOverwrite}>{t('common.save')}</Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

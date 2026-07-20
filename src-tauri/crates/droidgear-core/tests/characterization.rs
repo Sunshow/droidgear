@@ -90,6 +90,7 @@ base_url = "https://api.openai.com/v1"
         model: "fallback-model".to_string(),
         model_reasoning_effort: Some("medium".to_string()),
         api_key: Some("sk-profile-level".to_string()),
+        auth_profile_name: None,
     };
     let profile_json = serde_json::to_string_pretty(&profile).unwrap();
     write_file(
@@ -192,6 +193,7 @@ fn codex_apply_can_remove_openai_api_key_without_destroying_official_auth() {
         model: "gpt-5.2".to_string(),
         model_reasoning_effort: None,
         api_key: None,
+        auth_profile_name: None,
     };
     write_file(
         &home
@@ -214,7 +216,222 @@ fn codex_apply_can_remove_openai_api_key_without_destroying_official_auth() {
 }
 
 #[test]
-fn codex_auto_creates_official_profile_when_official_auth_exists() {
+fn codex_apply_openai_mode_deletes_auth_json_when_only_api_key_exists() {
+    let temp = TempDir::new().unwrap();
+    let home = home_dir(&temp);
+    let auth_path = home.join(".codex").join("auth.json");
+
+    write_file(
+        &auth_path,
+        r#"{
+  "OPENAI_API_KEY": "sk-only-byok"
+}"#,
+    );
+
+    let profile = codex::CodexProfile {
+        id: "any-name".to_string(),
+        name: "Any Name".to_string(),
+        description: None,
+        created_at: "2026-01-01T00:00:00Z".to_string(),
+        updated_at: "2026-01-01T00:00:00Z".to_string(),
+        providers: HashMap::new(),
+        model_provider: "openai".to_string(),
+        model: "gpt-5.2".to_string(),
+        model_reasoning_effort: None,
+        // Residual key must be ignored in openai mode.
+        api_key: Some("sk-residual".to_string()),
+        auth_profile_name: None,
+    };
+    write_file(
+        &home
+            .join(".droidgear")
+            .join("codex")
+            .join("profiles")
+            .join("any-name.json"),
+        &serde_json::to_string_pretty(&profile).unwrap(),
+    );
+
+    codex::apply_codex_profile_for_home(home, "any-name").unwrap();
+
+    assert!(
+        !auth_path.exists(),
+        "auth.json must be deleted (empty {{}} is not accepted by Codex)"
+    );
+}
+
+#[test]
+fn codex_apply_openai_mode_preserves_auth_mode_session() {
+    let temp = TempDir::new().unwrap();
+    let home = home_dir(&temp);
+
+    write_file(
+        &home.join(".codex").join("auth.json"),
+        r#"{
+  "auth_mode": "chatgpt",
+  "tokens": {"access_token": "tok"},
+  "OPENAI_API_KEY": "sk-should-be-removed"
+}"#,
+    );
+
+    let profile = codex::CodexProfile {
+        id: "user-openai".to_string(),
+        name: "User OpenAI".to_string(),
+        description: None,
+        created_at: "2026-01-01T00:00:00Z".to_string(),
+        updated_at: "2026-01-01T00:00:00Z".to_string(),
+        providers: HashMap::new(),
+        model_provider: "openai".to_string(),
+        model: "gpt-5.2".to_string(),
+        model_reasoning_effort: None,
+        api_key: Some("sk-ignored".to_string()),
+        auth_profile_name: None,
+    };
+    write_file(
+        &home
+            .join(".droidgear")
+            .join("codex")
+            .join("profiles")
+            .join("user-openai.json"),
+        &serde_json::to_string_pretty(&profile).unwrap(),
+    );
+
+    codex::apply_codex_profile_for_home(home, "user-openai").unwrap();
+
+    let auth_after = read_to_string(&home.join(".codex").join("auth.json"));
+    let auth_json: Value = serde_json::from_str(&auth_after).unwrap();
+    assert!(auth_json.get("OPENAI_API_KEY").is_none());
+    assert_eq!(
+        auth_json.get("auth_mode").and_then(|v| v.as_str()),
+        Some("chatgpt")
+    );
+    assert!(auth_json.get("tokens").is_some());
+}
+
+#[test]
+fn codex_apply_openai_mode_restores_selected_auth_profile() {
+    let temp = TempDir::new().unwrap();
+    let home = home_dir(&temp);
+
+    // Live is BYOK only with empty/wrong model.
+    write_file(
+        &home.join(".codex").join("auth.json"),
+        r#"{ "OPENAI_API_KEY": "sk-live" }"#,
+    );
+    write_file(
+        &home.join(".codex").join("config.toml"),
+        r#"
+model_provider = "custom"
+model = ""
+"#
+        .trim_start(),
+    );
+
+    // Saved official auth backup with model snapshot.
+    write_file(
+        &home
+            .join(".droidgear")
+            .join("auth-profiles")
+            .join("codex")
+            .join("profiles.json"),
+        r#"{
+  "active": null,
+  "profiles": [
+    {
+      "name": "sub1",
+      "label": "Subscription 1",
+      "createdAt": "2026-01-01T00:00:00Z",
+      "isOfficial": true,
+      "model": "gpt-5.4",
+      "modelReasoningEffort": "high"
+    }
+  ]
+}"#,
+    );
+    write_file(
+        &home
+            .join(".droidgear")
+            .join("auth-profiles")
+            .join("codex")
+            .join("sub1")
+            .join("auth.json"),
+        r#"{
+  "auth_mode": "chatgpt",
+  "tokens": { "access_token": "restored-token" }
+}"#,
+    );
+
+    let profile = codex::CodexProfile {
+        id: "p-openai".to_string(),
+        name: "OpenAI Profile".to_string(),
+        description: None,
+        created_at: "2026-01-01T00:00:00Z".to_string(),
+        updated_at: "2026-01-01T00:00:00Z".to_string(),
+        providers: HashMap::new(),
+        model_provider: "openai".to_string(),
+        // Empty model on Codex profile; auth snapshot should restore it.
+        model: String::new(),
+        model_reasoning_effort: None,
+        api_key: Some("sk-ignored".to_string()),
+        auth_profile_name: Some("sub1".to_string()),
+    };
+    write_file(
+        &home
+            .join(".droidgear")
+            .join("codex")
+            .join("profiles")
+            .join("p-openai.json"),
+        &serde_json::to_string_pretty(&profile).unwrap(),
+    );
+
+    codex::apply_codex_profile_for_home(home, "p-openai").unwrap();
+
+    let auth_after = read_to_string(&home.join(".codex").join("auth.json"));
+    let auth_json: Value = serde_json::from_str(&auth_after).unwrap();
+    assert!(auth_json.get("OPENAI_API_KEY").is_none());
+    assert_eq!(
+        auth_json.get("auth_mode").and_then(|v| v.as_str()),
+        Some("chatgpt")
+    );
+    assert_eq!(
+        auth_json
+            .pointer("/tokens/access_token")
+            .and_then(|v| v.as_str()),
+        Some("restored-token")
+    );
+
+    let config_after = read_to_string(&home.join(".codex").join("config.toml"));
+    let config: toml::Value = toml::from_str(&config_after).unwrap();
+    assert_eq!(
+        config.get("model_provider").and_then(|v| v.as_str()),
+        Some("openai")
+    );
+    assert_eq!(
+        config.get("model").and_then(|v| v.as_str()),
+        Some("gpt-5.4")
+    );
+    assert_eq!(
+        config
+            .get("model_reasoning_effort")
+            .and_then(|v| v.as_str()),
+        Some("high")
+    );
+
+    let manifest = read_to_string(
+        &home
+            .join(".droidgear")
+            .join("auth-profiles")
+            .join("codex")
+            .join("profiles.json"),
+    );
+    let manifest_json: Value = serde_json::from_str(&manifest).unwrap();
+    assert_eq!(
+        manifest_json.get("active").and_then(|v| v.as_str()),
+        Some("sub1")
+    );
+}
+
+#[test]
+fn codex_does_not_auto_create_official_profile_when_official_auth_exists() {
     let temp = TempDir::new().unwrap();
     let home = home_dir(&temp);
 
@@ -226,7 +443,6 @@ fn codex_auto_creates_official_profile_when_official_auth_exists() {
 }"#,
     );
 
-    // Live config present so the profile can snapshot model fields (best-effort).
     write_file(
         &home.join(".codex").join("config.toml"),
         r#"
@@ -238,17 +454,17 @@ model = "gpt-5.2"
 
     let profiles = codex::list_codex_profiles_for_home(home).unwrap();
     assert!(
-        profiles.iter().any(|p| p.id == "official"),
-        "expected system official profile to exist"
+        profiles.iter().all(|p| p.id != "official"),
+        "should not auto-create a system official profile"
     );
-    assert_eq!(
-        profiles[0].id, "official",
-        "official profile should be sorted first"
+    assert!(
+        profiles.is_empty(),
+        "no profiles should exist until the user creates one"
     );
 
-    // Ensure creating the default BYOK profile is still allowed when only official exists.
     let created = codex::create_default_codex_profile_for_home(home).unwrap();
     assert_ne!(created.id, "official");
+    assert_eq!(created.model_provider, "custom");
 }
 
 #[test]
@@ -490,6 +706,7 @@ model = "existing-live-model"
         model: "fallback".to_string(),
         model_reasoning_effort: Some("medium".to_string()),
         api_key: Some("sk-profile".to_string()),
+        auth_profile_name: None,
     };
     write_file(
         &home

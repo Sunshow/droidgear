@@ -97,8 +97,8 @@ pub(super) fn refresh_codex(app: &mut app::App) {
         Err(e) => app.set_toast(e, true),
     }
 
-    let has_user_profiles = app.codex_profiles.iter().any(|p| p.id != "official");
-    if !has_user_profiles
+    let has_profiles = !app.codex_profiles.is_empty();
+    if !has_profiles
         && droidgear_core::codex::create_default_codex_profile_for_home(&app.home_dir).is_ok()
     {
         if let Ok(list) = droidgear_core::codex::list_codex_profiles_for_home(&app.home_dir) {

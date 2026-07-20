@@ -23,10 +23,6 @@ pub(super) fn handle_codex_key(app: &mut app::App, code: KeyCode) -> Option<Acti
         }
         KeyCode::Char('E') => {
             if let Some(p) = app.codex_profiles.get(app.codex_index) {
-                if p.id == "official" {
-                    app.set_toast("Official profile is read-only", true);
-                    return None;
-                }
                 return Some(Action::EditCodexProfile { id: p.id.clone() });
             }
         }
@@ -80,10 +76,6 @@ pub(super) fn handle_codex_key(app: &mut app::App, code: KeyCode) -> Option<Acti
         }
         KeyCode::Char('d') => {
             if let Some(p) = app.codex_profiles.get(app.codex_index) {
-                if p.id == "official" {
-                    app.set_toast("Cannot delete official profile", true);
-                    return None;
-                }
                 app.modal = Some(app::Modal::Confirm {
                     message: format!("Delete Codex profile '{}'?", p.name),
                     action: app::ConfirmAction::CodexDelete { id: p.id.clone() },
@@ -92,10 +84,6 @@ pub(super) fn handle_codex_key(app: &mut app::App, code: KeyCode) -> Option<Acti
         }
         KeyCode::Char('c') => {
             if let Some(p) = app.codex_profiles.get(app.codex_index) {
-                if p.id == "official" {
-                    app.set_toast("Official profile is read-only", true);
-                    return None;
-                }
                 app.modal = Some(app::Modal::Input {
                     title: "Duplicate profile name".to_string(),
                     value: format!("{} (copy)", p.name),
@@ -118,8 +106,6 @@ pub(super) fn handle_codex_profile_key(app: &mut app::App, code: KeyCode) -> Opt
     let Some(profile) = app.codex_detail.as_ref() else {
         return None;
     };
-    let is_official = profile_id == "official";
-
     match code {
         KeyCode::Esc | KeyCode::Char('q') => {
             app.screen = app::Screen::Codex;
@@ -160,10 +146,6 @@ pub(super) fn handle_codex_profile_key(app: &mut app::App, code: KeyCode) -> Opt
             })
         }
         KeyCode::Char('E') => {
-            if is_official {
-                app.set_toast("Official profile is read-only", true);
-                return None;
-            }
             return Some(Action::EditCodexProfile { id: profile_id });
         }
         KeyCode::Char('a') => {
@@ -192,10 +174,6 @@ pub(super) fn handle_codex_profile_key(app: &mut app::App, code: KeyCode) -> Opt
             }
         }
         KeyCode::Char('l') => {
-            if is_official {
-                app.set_toast("Official profile is read-only", true);
-                return None;
-            }
             if let Err(e) = codex_load_from_live_config(app, &profile_id) {
                 app.set_toast(e.to_string(), true);
             } else {
@@ -204,8 +182,8 @@ pub(super) fn handle_codex_profile_key(app: &mut app::App, code: KeyCode) -> Opt
             }
         }
         KeyCode::Char('n') => {
-            if is_official {
-                app.set_toast("Official profile is read-only", true);
+            if profile.model_provider == "openai" {
+                app.set_toast("Switch model provider to custom to manage providers", true);
                 return None;
             }
             if app.codex_detail_focus == app::CodexDetailFocus::Providers {
@@ -219,8 +197,8 @@ pub(super) fn handle_codex_profile_key(app: &mut app::App, code: KeyCode) -> Opt
             }
         }
         KeyCode::Char('s') => {
-            if is_official {
-                app.set_toast("Official profile is read-only", true);
+            if profile.model_provider == "openai" {
+                app.set_toast("Switch model provider to custom to manage providers", true);
                 return None;
             }
             if app.codex_detail_focus == app::CodexDetailFocus::Providers {
@@ -239,8 +217,8 @@ pub(super) fn handle_codex_profile_key(app: &mut app::App, code: KeyCode) -> Opt
             }
         }
         KeyCode::Char('d') => {
-            if is_official {
-                app.set_toast("Official profile is read-only", true);
+            if profile.model_provider == "openai" {
+                app.set_toast("Switch model provider to custom to manage providers", true);
                 return None;
             }
             if app.codex_detail_focus == app::CodexDetailFocus::Providers {
@@ -261,10 +239,6 @@ pub(super) fn handle_codex_profile_key(app: &mut app::App, code: KeyCode) -> Opt
         KeyCode::Enter | KeyCode::Char('e') => match app.codex_detail_focus {
             app::CodexDetailFocus::Fields => match app.codex_detail_field_index {
                 0 => {
-                    if is_official {
-                        app.set_toast("Official profile is read-only", true);
-                        return None;
-                    }
                     app.modal = Some(app::Modal::Input {
                         title: "Profile name".to_string(),
                         value: profile.name.clone(),
@@ -274,10 +248,6 @@ pub(super) fn handle_codex_profile_key(app: &mut app::App, code: KeyCode) -> Opt
                     });
                 }
                 1 => {
-                    if is_official {
-                        app.set_toast("Official profile is read-only", true);
-                        return None;
-                    }
                     app.modal = Some(app::Modal::Input {
                         title: "Profile description".to_string(),
                         value: profile.description.clone().unwrap_or_default(),
@@ -287,31 +257,58 @@ pub(super) fn handle_codex_profile_key(app: &mut app::App, code: KeyCode) -> Opt
                     });
                 }
                 2 => {
-                    if is_official {
-                        app.set_toast("Official profile is read-only", true);
-                        return None;
-                    }
-                    if app.codex_detail_provider_ids.is_empty() {
-                        app.set_toast("No providers configured", true);
-                        return None;
-                    }
-                    let options = app.codex_detail_provider_ids.clone();
-                    let index = options
-                        .iter()
-                        .position(|p| p == &profile.model_provider)
-                        .unwrap_or(0);
+                    let options = vec!["custom".to_string(), "openai".to_string()];
+                    let index = if profile.model_provider == "openai" {
+                        1
+                    } else {
+                        0
+                    };
                     app.modal = Some(app::Modal::Select {
-                        title: "Model provider".to_string(),
+                        title: "Model provider (openai = official subscription)".to_string(),
                         options,
                         index,
                         action: app::SelectAction::CodexSetProfileModelProvider { id: profile_id },
                     });
                 }
                 3 => {
-                    if is_official {
-                        app.set_toast("Official profile is read-only", true);
+                    if profile.model_provider != "openai" {
+                        app.set_toast(
+                            "Auth profile is only used when model provider is openai",
+                            true,
+                        );
                         return None;
                     }
+                    let state = match droidgear_core::codex_auth_profiles::list_profiles_for_home(
+                        &app.home_dir,
+                    ) {
+                        Ok(state) => state,
+                        Err(e) => {
+                            app.set_toast(e, true);
+                            return None;
+                        }
+                    };
+                    let mut options = vec!["(none)".to_string()];
+                    let mut official_names = state
+                        .profiles
+                        .into_iter()
+                        .filter(|p| p.is_official)
+                        .map(|p| p.name)
+                        .collect::<Vec<_>>();
+                    official_names.sort();
+                    options.extend(official_names);
+                    let index = profile
+                        .auth_profile_name
+                        .as_deref()
+                        .and_then(|name| options.iter().position(|o| o == name))
+                        .unwrap_or(0);
+                    app.modal = Some(app::Modal::Select {
+                        title: "Auth profile (restore on apply)".to_string(),
+                        options,
+                        index,
+                        action: app::SelectAction::CodexSetProfileAuthProfile { id: profile_id },
+                    });
+                }
+                4 => {
                     app.modal = Some(app::Modal::Input {
                         title: "Model".to_string(),
                         value: profile.model.clone(),
@@ -320,11 +317,7 @@ pub(super) fn handle_codex_profile_key(app: &mut app::App, code: KeyCode) -> Opt
                         action: app::InputAction::CodexSetProfileModel { id: profile_id },
                     });
                 }
-                4 => {
-                    if is_official {
-                        app.set_toast("Official profile is read-only", true);
-                        return None;
-                    }
+                5 => {
                     let options = vec![
                         "(none)".to_string(),
                         "max".to_string(),
@@ -348,11 +341,7 @@ pub(super) fn handle_codex_profile_key(app: &mut app::App, code: KeyCode) -> Opt
                         },
                     });
                 }
-                5 => {
-                    if is_official {
-                        app.set_toast("Official profile is read-only", true);
-                        return None;
-                    }
+                6 => {
                     app.modal = Some(app::Modal::Input {
                         title: "API key".to_string(),
                         value: profile.api_key.clone().unwrap_or_default(),
@@ -364,6 +353,10 @@ pub(super) fn handle_codex_profile_key(app: &mut app::App, code: KeyCode) -> Opt
                 _ => {}
             },
             app::CodexDetailFocus::Providers => {
+                if profile.model_provider == "openai" {
+                    app.set_toast("Switch model provider to custom to manage providers", true);
+                    return None;
+                }
                 if let Some(provider_id) = app
                     .codex_detail_provider_ids
                     .get(app.codex_detail_provider_index)
@@ -397,8 +390,6 @@ pub(super) fn handle_codex_provider_key(app: &mut app::App, code: KeyCode) -> Op
         app.screen = app::Screen::CodexProfile;
         return None;
     };
-    let is_official = profile_id == "official";
-
     match code {
         KeyCode::Esc | KeyCode::Char('q') => {
             app.screen = app::Screen::CodexProfile;
@@ -411,10 +402,6 @@ pub(super) fn handle_codex_provider_key(app: &mut app::App, code: KeyCode) -> Op
         }
         KeyCode::Enter | KeyCode::Char('e') => match app.codex_provider_field_index {
             0 => {
-                if is_official {
-                    app.set_toast("Official profile is read-only", true);
-                    return None;
-                }
                 app.modal = Some(app::Modal::Input {
                     title: "Provider name".to_string(),
                     value: config.name.clone().unwrap_or_default(),
@@ -427,10 +414,6 @@ pub(super) fn handle_codex_provider_key(app: &mut app::App, code: KeyCode) -> Op
                 });
             }
             1 => {
-                if is_official {
-                    app.set_toast("Official profile is read-only", true);
-                    return None;
-                }
                 app.modal = Some(app::Modal::Input {
                     title: "Provider base URL".to_string(),
                     value: config.base_url.clone().unwrap_or_default(),
@@ -443,10 +426,6 @@ pub(super) fn handle_codex_provider_key(app: &mut app::App, code: KeyCode) -> Op
                 });
             }
             2 => {
-                if is_official {
-                    app.set_toast("Official profile is read-only", true);
-                    return None;
-                }
                 let options = vec!["responses".to_string(), "chat".to_string()];
                 let index = config
                     .wire_api
@@ -464,10 +443,6 @@ pub(super) fn handle_codex_provider_key(app: &mut app::App, code: KeyCode) -> Op
                 });
             }
             3 => {
-                if is_official {
-                    app.set_toast("Official profile is read-only", true);
-                    return None;
-                }
                 app.modal = Some(app::Modal::Input {
                     title: "Provider model".to_string(),
                     value: config.model.clone().unwrap_or_default(),
@@ -480,10 +455,6 @@ pub(super) fn handle_codex_provider_key(app: &mut app::App, code: KeyCode) -> Op
                 });
             }
             4 => {
-                if is_official {
-                    app.set_toast("Official profile is read-only", true);
-                    return None;
-                }
                 let options = vec![
                     "(none)".to_string(),
                     "max".to_string(),
@@ -509,10 +480,6 @@ pub(super) fn handle_codex_provider_key(app: &mut app::App, code: KeyCode) -> Op
                 });
             }
             5 => {
-                if is_official {
-                    app.set_toast("Official profile is read-only", true);
-                    return None;
-                }
                 app.modal = Some(app::Modal::Input {
                     title: "Provider API key".to_string(),
                     value: config.api_key.clone().unwrap_or_default(),

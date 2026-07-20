@@ -14,7 +14,6 @@ use crate::{codex, json, paths, storage};
 const CODEX_CONFIG_SUPPORT_MIN_VERSION: &str = "0.128.0";
 const CODEX_RUNTIME_DIR: &str = "runtime/codex";
 const TEMP_RUNTIME_PREFIX: &str = "temporary-run-";
-const OFFICIAL_PROFILE_ID: &str = "official";
 const TOKENS_FIELD: &str = "tokens";
 const AUTH_MODE_FIELD: &str = "auth_mode";
 const LAST_REFRESH_FIELD: &str = "last_refresh";
@@ -299,6 +298,17 @@ fn build_runtime_auth_snapshot(
     provider: Option<&codex::CodexProviderConfig>,
     mut live_auth: HashMap<String, serde_json::Value>,
 ) -> Result<Option<HashMap<String, serde_json::Value>>, String> {
+    // Official subscription mode: never inject profile API keys.
+    if profile.model_provider == "openai" {
+        codex::apply_api_key_to_auth_map(&mut live_auth, None);
+        if has_portable_managed_auth(&live_auth) {
+            return Ok(Some(live_auth));
+        }
+        return Err(
+            "Codex temporary run could not snapshot official auth from live CODEX_HOME. Keyring-backed official auth is not supported yet; use a file-backed Codex auth store or an API-key profile.".to_string(),
+        );
+    }
+
     if let Some(api_key) = codex::resolved_api_key(profile, provider) {
         let mut auth = HashMap::new();
         auth.insert(
@@ -314,12 +324,6 @@ fn build_runtime_auth_snapshot(
         return Ok(Some(live_auth));
     }
 
-    if profile.id == OFFICIAL_PROFILE_ID {
-        return Err(
-            "Codex temporary run could not snapshot official auth from live CODEX_HOME. Keyring-backed official auth is not supported yet; use a file-backed Codex auth store or an API-key profile.".to_string(),
-        );
-    }
-
     if provider.and_then(|config| config.requires_openai_auth) == Some(true) {
         return Err(
             "Codex temporary run requires live Codex auth for this profile, but no portable auth snapshot was available. Use an API-key profile or switch Codex CLI auth storage to file.".to_string(),
@@ -333,6 +337,10 @@ fn build_secret_env(
     profile: &codex::CodexProfile,
     provider: Option<&codex::CodexProviderConfig>,
 ) -> Vec<(String, String)> {
+    if profile.model_provider == "openai" {
+        return Vec::new();
+    }
+
     let Some(api_key) = codex::resolved_api_key(profile, provider) else {
         return Vec::new();
     };
@@ -562,6 +570,7 @@ mod tests {
             model: "fallback-model".to_string(),
             model_reasoning_effort: Some("medium".to_string()),
             api_key: Some("sk-profile".to_string()),
+            auth_profile_name: None,
         }
     }
 
@@ -879,6 +888,7 @@ env_key = "OLD_API_KEY"
             model: "gpt-5".to_string(),
             model_reasoning_effort: None,
             api_key: None,
+            auth_profile_name: None,
         };
 
         let error = build_temporary_run_plan_for_home(temp.path(), &profile).unwrap_err();

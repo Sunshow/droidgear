@@ -2301,7 +2301,15 @@ isOfficial: boolean;
  * The CodexProfile ID that was active when this auth profile was saved.
  * When restoring, this profile will also be applied (config.toml only).
  */
-codexProfileId?: string | null }
+codexProfileId?: string | null; 
+/**
+ * Live config.toml `model` snapshotted when this auth was saved.
+ */
+model?: string | null; 
+/**
+ * Live config.toml `model_reasoning_effort` snapshotted when this auth was saved.
+ */
+modelReasoningEffort?: string | null }
 export type CodexAuthProfileState = { active: string | null; profiles: CodexAuthProfile[]; isCurrentOfficial: boolean }
 export type CodexCliCapability = { version: string; supportsConfigOverride: boolean }
 /**
@@ -2315,7 +2323,11 @@ export type CodexCurrentConfig = { providers?: Partial<{ [key in string]: CodexP
 /**
  * Codex Profile（用于在 DroidGear 内部保存并切换）
  */
-export type CodexProfile = { id: string; name: string; description?: string | null; createdAt: string; updatedAt: string; providers?: Partial<{ [key in string]: CodexProviderConfig }>; modelProvider: string; model: string; modelReasoningEffort?: string | null; apiKey?: string | null }
+export type CodexProfile = { id: string; name: string; description?: string | null; createdAt: string; updatedAt: string; providers?: Partial<{ [key in string]: CodexProviderConfig }>; modelProvider: string; model: string; modelReasoningEffort?: string | null; apiKey?: string | null; 
+/**
+ * Saved Codex auth profile name to restore on apply (openai mode only).
+ */
+authProfileName?: string | null }
 /**
  * Codex Provider 配置（对应 config.toml 中的 [model_providers.<id>]）
  */

@@ -28,6 +28,10 @@ interface CodexState {
   loadFromLiveConfig: () => Promise<void>
   updateProfileName: (name: string) => Promise<void>
   updateProfileDescription: (description: string) => Promise<void>
+  updateModelProvider: (mode: 'custom' | 'openai') => Promise<void>
+  updateAuthProfileName: (name: string | null) => Promise<void>
+  updateProfileModel: (model: string) => Promise<void>
+  updateProfileReasoningEffort: (effort: string | null) => Promise<void>
 
   // Provider management
   addProvider: (id: string, config: CodexProviderConfig) => Promise<void>
@@ -58,16 +62,12 @@ export const useCodexStore = create<CodexState>()(
           const result = await commands.listCodexProfiles()
           if (result.status === 'ok') {
             let profiles = result.data
-            const hasUserProfiles = profiles.some(p => p.id !== 'official')
-            if (!hasUserProfiles) {
+            if (profiles.length === 0) {
               const created = await commands.createDefaultCodexProfile()
               if (created.status === 'ok') {
-                // Re-list to keep ordering stable (official profile should remain first).
                 const refreshed = await commands.listCodexProfiles()
                 profiles =
-                  refreshed.status === 'ok'
-                    ? refreshed.data
-                    : [...profiles, created.data]
+                  refreshed.status === 'ok' ? refreshed.data : [created.data]
               }
             }
             set(
@@ -158,6 +158,7 @@ export const useCodexStore = create<CodexState>()(
           model: '',
           modelReasoningEffort: null,
           apiKey: '',
+          authProfileName: null,
         }
         const result = await commands.saveCodexProfile(profile)
         if (result.status !== 'ok') throw new Error(result.error)
@@ -281,6 +282,79 @@ export const useCodexStore = create<CodexState>()(
           { currentProfile: updated },
           undefined,
           'codex/updateProfileDescription'
+        )
+        await get().saveProfile()
+      },
+
+      updateModelProvider: async mode => {
+        const { currentProfile } = get()
+        if (!currentProfile) return
+
+        let modelProvider: string
+        let authProfileName = currentProfile.authProfileName ?? null
+        if (mode === 'openai') {
+          modelProvider = 'openai'
+        } else if (currentProfile.modelProvider === 'openai') {
+          const providerIds = Object.keys(
+            (currentProfile.providers ?? {}) as Record<string, unknown>
+          ).sort((a, b) => a.localeCompare(b))
+          modelProvider = providerIds[0] ?? 'custom'
+          authProfileName = null
+        } else {
+          modelProvider = currentProfile.modelProvider || 'custom'
+          authProfileName = null
+        }
+
+        const updated = {
+          ...currentProfile,
+          modelProvider,
+          authProfileName,
+          updatedAt: new Date().toISOString(),
+        }
+        set({ currentProfile: updated }, undefined, 'codex/updateModelProvider')
+        await get().saveProfile()
+      },
+
+      updateAuthProfileName: async name => {
+        const { currentProfile } = get()
+        if (!currentProfile) return
+        const updated = {
+          ...currentProfile,
+          authProfileName: name,
+          updatedAt: new Date().toISOString(),
+        }
+        set(
+          { currentProfile: updated },
+          undefined,
+          'codex/updateAuthProfileName'
+        )
+        await get().saveProfile()
+      },
+
+      updateProfileModel: async model => {
+        const { currentProfile } = get()
+        if (!currentProfile) return
+        const updated = {
+          ...currentProfile,
+          model,
+          updatedAt: new Date().toISOString(),
+        }
+        set({ currentProfile: updated }, undefined, 'codex/updateProfileModel')
+        await get().saveProfile()
+      },
+
+      updateProfileReasoningEffort: async effort => {
+        const { currentProfile } = get()
+        if (!currentProfile) return
+        const updated = {
+          ...currentProfile,
+          modelReasoningEffort: effort,
+          updatedAt: new Date().toISOString(),
+        }
+        set(
+          { currentProfile: updated },
+          undefined,
+          'codex/updateProfileReasoningEffort'
         )
         await get().saveProfile()
       },

@@ -2065,6 +2065,20 @@ fn draw_codex_profile(frame: &mut Frame, app: &app::App, area: Rect) {
         .as_deref()
         .is_some_and(|k| !k.trim().is_empty());
 
+    let model_provider_display = if profile.model_provider == "openai" {
+        "openai".to_string()
+    } else {
+        "custom".to_string()
+    };
+    let auth_profile_display = if profile.model_provider != "openai" {
+        "(n/a)".to_string()
+    } else {
+        profile
+            .auth_profile_name
+            .clone()
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or_else(|| "(none)".to_string())
+    };
     let fields: Vec<(&str, String)> = vec![
         ("Name", profile.name.clone()),
         (
@@ -2074,7 +2088,8 @@ fn draw_codex_profile(frame: &mut Frame, app: &app::App, area: Rect) {
                 .clone()
                 .unwrap_or_else(|| "".to_string()),
         ),
-        ("Model Provider", profile.model_provider.clone()),
+        ("Model Provider", model_provider_display),
+        ("Auth Profile", auth_profile_display),
         ("Model", profile.model.clone()),
         ("Reasoning Effort", effort.to_string()),
         (
@@ -2116,34 +2131,52 @@ fn draw_codex_profile(frame: &mut Frame, app: &app::App, area: Rect) {
         .wrap(Wrap { trim: false });
     frame.render_widget(fields_block, chunks[0]);
 
+    let openai_mode = profile.model_provider == "openai";
     let mut provider_items: Vec<ListItem> = Vec::new();
-    for pid in app.codex_detail_provider_ids.iter() {
-        let active_tag = if pid == &profile.model_provider {
-            " *"
-        } else {
-            ""
-        };
-        if active_tag.is_empty() {
-            provider_items.push(ListItem::new(Line::from(Span::raw(pid.clone()))));
-        } else {
-            provider_items.push(ListItem::new(Line::from(vec![
-                Span::raw(pid.clone()),
-                Span::styled(active_tag.to_string(), t.success_style()),
-            ])));
-        }
-    }
-    if provider_items.is_empty() {
+    if openai_mode {
         provider_items.push(ListItem::new(Line::from(Span::styled(
-            "No providers",
+            "Hidden (model provider = openai)",
             t.placeholder_style(),
         ))));
+        provider_items.push(ListItem::new(Line::from(Span::styled(
+            "If account/read failed: codex logout",
+            t.placeholder_style(),
+        ))));
+    } else {
+        for pid in app.codex_detail_provider_ids.iter() {
+            let active_tag = if pid == &profile.model_provider {
+                " *"
+            } else {
+                ""
+            };
+            if active_tag.is_empty() {
+                provider_items.push(ListItem::new(Line::from(Span::raw(pid.clone()))));
+            } else {
+                provider_items.push(ListItem::new(Line::from(vec![
+                    Span::raw(pid.clone()),
+                    Span::styled(active_tag.to_string(), t.success_style()),
+                ])));
+            }
+        }
+        if provider_items.is_empty() {
+            provider_items.push(ListItem::new(Line::from(Span::styled(
+                "No providers",
+                t.placeholder_style(),
+            ))));
+        }
     }
     let providers_selected = (app.codex_detail_focus == app::CodexDetailFocus::Providers
+        && !openai_mode
         && !app.codex_detail_provider_ids.is_empty())
     .then_some(app.codex_detail_provider_index);
+    let providers_title = if openai_mode {
+        "Providers (disabled for openai)"
+    } else {
+        "Providers (Tab to focus)"
+    };
     let providers_list = List::new(provider_items)
         .block(block_focus(
-            "Providers (Tab to focus)",
+            providers_title,
             app.codex_detail_focus == app::CodexDetailFocus::Providers,
         ))
         .highlight_style(t.selected_row_style());
@@ -3425,7 +3458,7 @@ fn draw_codex_auth(frame: &mut Frame, app: &app::App, area: Rect) {
     frame.render_widget(list, chunks[0]);
 
     let help = help_paragraph(
-        "Up/Down: select  Enter: switch  s: save current  r: rename  d: delete  q/Esc: back",
+        "Up/Down: select  Enter: switch  s: save current  w: overwrite  r: rename  d: delete  q/Esc: back",
     );
     frame.render_widget(help, chunks[1]);
 }

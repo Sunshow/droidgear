@@ -17,7 +17,6 @@ use crate::{json, paths, storage};
 // Types
 // ============================================================================
 
-const OFFICIAL_PROFILE_ID: &str = "official";
 pub(crate) const OPENAI_API_KEY_FIELD: &str = "OPENAI_API_KEY";
 
 /// Codex Provider 配置（对应 config.toml 中的 [model_providers.<id>]）
@@ -67,6 +66,9 @@ pub struct CodexProfile {
     pub model_reasoning_effort: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api_key: Option<String>,
+    /// Saved Codex auth profile name to restore on apply (openai mode only).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auth_profile_name: Option<String>,
 }
 
 /// Codex Live 配置状态
@@ -160,64 +162,6 @@ fn now_rfc3339() -> String {
     Utc::now().to_rfc3339()
 }
 
-fn is_official_profile_id(id: &str) -> bool {
-    id == OFFICIAL_PROFILE_ID
-}
-
-fn has_official_auth_for_home(home_dir: &Path) -> Result<bool, String> {
-    let auth_path = codex_auth_path_for_home(home_dir)?;
-    let auth = json::read_json_object_file(&auth_path).unwrap_or_default();
-    Ok(auth.keys().any(|k| k != OPENAI_API_KEY_FIELD))
-}
-
-fn ensure_official_profile_for_home(home_dir: &Path) -> Result<(), String> {
-    if !has_official_auth_for_home(home_dir)? {
-        return Ok(());
-    }
-
-    let official_path = profile_path_for_home(home_dir, OFFICIAL_PROFILE_ID)?;
-    if official_path.exists() {
-        return Ok(());
-    }
-
-    // Best-effort: snapshot the current live config as a starting point for the official profile.
-    // The official profile intentionally never stores API keys.
-    let live = read_codex_current_config_for_home(home_dir).unwrap_or(CodexCurrentConfig {
-        providers: HashMap::new(),
-        model_provider: "openai".to_string(),
-        model: String::new(),
-        model_reasoning_effort: None,
-        api_key: None,
-    });
-
-    let mut providers = HashMap::new();
-    // Prefer preserving any explicit openai provider config from config.toml, if present.
-    if let Some(mut openai_provider) = live.providers.get("openai").cloned() {
-        openai_provider.api_key = None;
-        providers.insert("openai".to_string(), openai_provider);
-    }
-
-    let now = now_rfc3339();
-    let profile = CodexProfile {
-        id: OFFICIAL_PROFILE_ID.to_string(),
-        name: "Official Login / 官方登录".to_string(),
-        description: Some(
-            "Uses `codex login` credentials (Apply will clear OPENAI_API_KEY and preserve other fields in auth.json) / 使用 codex login 的官方认证（应用时会清除 OPENAI_API_KEY，且会保留 auth.json 里其它字段）"
-                .to_string(),
-        ),
-        created_at: now.clone(),
-        updated_at: now,
-        providers,
-        model_provider: "openai".to_string(),
-        model: live.model,
-        model_reasoning_effort: live.model_reasoning_effort,
-        api_key: None,
-    };
-
-    // Write under ~/.droidgear/codex/profiles/official.json
-    write_profile_file(home_dir, &profile)
-}
-
 // ============================================================================
 // TOML helpers
 // ============================================================================
@@ -280,6 +224,10 @@ pub(crate) fn provider_config_to_toml(config: &CodexProviderConfig) -> Result<to
 pub(crate) fn resolve_active_provider(
     profile: &CodexProfile,
 ) -> (String, Option<&CodexProviderConfig>) {
+    // Built-in OpenAI provider must never fall back to a custom provider id.
+    if profile.model_provider == "openai" {
+        return ("openai".to_string(), profile.providers.get("openai"));
+    }
     if profile.providers.contains_key(&profile.model_provider) {
         (
             profile.model_provider.clone(),
@@ -330,6 +278,7 @@ pub(crate) fn apply_profile_to_config_map(
     let (effective_provider_id, active_provider) = resolve_active_provider(profile);
     let resolved_model = resolved_model(profile, active_provider);
     let resolved_effort = resolved_reasoning_effort(profile, active_provider);
+    let is_openai_provider = effective_provider_id == "openai";
 
     config.insert(
         "model_provider".to_string(),
@@ -346,8 +295,9 @@ pub(crate) fn apply_profile_to_config_map(
         config.remove("model_reasoning_effort");
     }
 
+    // Official OpenAI mode should not inject custom model_providers into live config.
     config.remove("model_providers");
-    if !profile.providers.is_empty() {
+    if !is_openai_provider && !profile.providers.is_empty() {
         let mut providers_table = toml::map::Map::new();
         for (provider_id, provider_config) in &profile.providers {
             providers_table.insert(
@@ -495,10 +445,6 @@ fn resolve_profile_by_name<'a>(
 }
 
 pub fn list_codex_profiles_for_home(home_dir: &Path) -> Result<Vec<CodexProfile>, String> {
-    // Auto-create a system "official" profile if the user has codex login credentials.
-    // This keeps GUI/TUI in sync without extra UI logic.
-    let _ = ensure_official_profile_for_home(home_dir);
-
     let dir = profiles_dir_for_home(home_dir)?;
     if !dir.exists() {
         return Ok(vec![]);
@@ -519,13 +465,7 @@ pub fn list_codex_profiles_for_home(home_dir: &Path) -> Result<Vec<CodexProfile>
         }
     }
 
-    profiles.sort_by(
-        |a, b| match (is_official_profile_id(&a.id), is_official_profile_id(&b.id)) {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-        },
-    );
+    profiles.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     Ok(profiles)
 }
 
@@ -592,9 +532,6 @@ pub fn save_codex_profile_for_home(
 }
 
 pub fn delete_codex_profile_for_home(home_dir: &Path, id: &str) -> Result<(), String> {
-    if is_official_profile_id(id) {
-        return Err("Cannot delete the official profile".to_string());
-    }
     let path = profile_path_for_home(home_dir, id)?;
     if path.exists() {
         std::fs::remove_file(&path).map_err(|e| format!("Failed to delete profile: {e}"))?;
@@ -625,7 +562,7 @@ pub fn duplicate_codex_profile_for_home(
 
 pub fn create_default_codex_profile_for_home(home_dir: &Path) -> Result<CodexProfile, String> {
     let profiles = list_codex_profiles_for_home(home_dir)?;
-    if profiles.iter().any(|p| !is_official_profile_id(&p.id)) {
+    if !profiles.is_empty() {
         return Err("Profiles already exist".to_string());
     }
 
@@ -661,6 +598,7 @@ pub fn create_default_codex_profile_for_home(home_dir: &Path) -> Result<CodexPro
         model: "gpt-5.2".to_string(),
         model_reasoning_effort: Some("high".to_string()),
         api_key: Some(String::new()),
+        auth_profile_name: None,
     };
 
     write_profile_file(home_dir, &profile)?;
@@ -695,60 +633,67 @@ fn set_active_profile_id_for_home(home_dir: &Path, id: &str) -> Result<(), Strin
 // Apply + status
 // ============================================================================
 
+fn uses_openai_subscription_auth(profile: &CodexProfile) -> bool {
+    profile.model_provider == "openai"
+}
+
+fn write_auth_or_delete_if_empty(
+    auth_path: &Path,
+    auth: &HashMap<String, Value>,
+) -> Result<(), String> {
+    if auth.is_empty() {
+        if auth_path.exists() {
+            std::fs::remove_file(auth_path)
+                .map_err(|e| format!("Failed to delete auth.json: {e}"))?;
+        }
+        return Ok(());
+    }
+    json::write_json_object_file(auth_path, auth)
+}
+
 /// Apply a CodexProfile's auth to auth.json.
 ///
-/// When there's an auth mode conflict (official ↔ BYOK), the entire auth.json
-/// is replaced. Otherwise, only OPENAI_API_KEY is merged (old behavior).
+/// When `model_provider == "openai"`, treat as official subscription mode:
+/// never write OPENAI_API_KEY; if no non-key fields remain, delete auth.json
+/// (empty `{}` is not accepted by Codex). Otherwise merge/replace BYOK key.
 pub(crate) fn apply_auth_for_profile(
     home_dir: &Path,
     profile: &CodexProfile,
     resolved_api_key: Option<&str>,
 ) -> Result<(), String> {
     let auth_path = codex_auth_path_for_home(home_dir)?;
-    let is_official_profile = profile.id == "official";
-
-    // Determine if there's an auth mode conflict
     let current_auth = json::read_json_object_file(&auth_path).unwrap_or_default();
-    let current_is_official = current_auth.contains_key("auth_mode");
-    let has_conflict = current_is_official != is_official_profile;
 
-    if has_conflict {
-        // Full replacement: the two modes are incompatible
-        if is_official_profile {
-            let mut auth = current_auth;
-            auth.remove(OPENAI_API_KEY_FIELD);
-            json::write_json_object_file(&auth_path, &auth)?;
-        } else {
-            let mut auth: HashMap<String, Value> = HashMap::new();
-            if let Some(key) = resolved_api_key {
-                if !key.is_empty() {
-                    auth.insert(
-                        OPENAI_API_KEY_FIELD.to_string(),
-                        Value::String(key.to_string()),
-                    );
-                }
-            }
-            json::write_json_object_file(&auth_path, &auth)?;
-        }
-        // Clear the auth profile manifest active marker since no saved
-        // auth profile matches the newly written auth.json.
-        let _ = crate::codex_auth_profiles::clear_active_for_home(home_dir);
-    } else {
-        // Same mode: merge only OPENAI_API_KEY (preserve other fields)
+    if uses_openai_subscription_auth(profile) {
         let mut auth = current_auth;
+        auth.remove(OPENAI_API_KEY_FIELD);
+        write_auth_or_delete_if_empty(&auth_path, &auth)?;
+        // Auth no longer matches a BYOK saved profile marker.
+        let _ = crate::codex_auth_profiles::clear_active_for_home(home_dir);
+        return Ok(());
+    }
+
+    // BYOK mode (custom model_provider)
+    let current_is_official = current_auth.contains_key("auth_mode");
+
+    if current_is_official {
+        // Full replacement: official OAuth and BYOK are incompatible
+        let mut auth: HashMap<String, Value> = HashMap::new();
         if let Some(key) = resolved_api_key {
             if !key.is_empty() {
                 auth.insert(
                     OPENAI_API_KEY_FIELD.to_string(),
                     Value::String(key.to_string()),
                 );
-            } else {
-                auth.remove(OPENAI_API_KEY_FIELD);
             }
-        } else {
-            auth.remove(OPENAI_API_KEY_FIELD);
         }
-        json::write_json_object_file(&auth_path, &auth)?;
+        write_auth_or_delete_if_empty(&auth_path, &auth)?;
+        let _ = crate::codex_auth_profiles::clear_active_for_home(home_dir);
+    } else {
+        // Same mode: merge only OPENAI_API_KEY (preserve other fields)
+        let mut auth = current_auth;
+        apply_api_key_to_auth_map(&mut auth, resolved_api_key);
+        write_auth_or_delete_if_empty(&auth_path, &auth)?;
     }
     Ok(())
 }
@@ -787,11 +732,15 @@ pub fn apply_codex_profile_config_only_for_home(home_dir: &Path, id: &str) -> Re
 ///
 /// 只替换 config.toml 中的模型相关配置（model_provider, model, model_reasoning_effort,
 /// [model_providers]），保留其他所有配置（projects, network_access 等）。
-/// Auth.json is fully replaced based on profile mode (official vs BYOK).
+/// Auth.json is updated based on model_provider (openai subscription vs BYOK).
 pub fn apply_codex_profile_for_home(home_dir: &Path, id: &str) -> Result<(), String> {
     let profile = load_profile_by_id(home_dir, id)?;
     let (_, active_provider) = resolve_active_provider(&profile);
-    let resolved_api_key = resolved_api_key(&profile, active_provider);
+    let resolved_api_key = if uses_openai_subscription_auth(&profile) {
+        None
+    } else {
+        resolved_api_key(&profile, active_provider)
+    };
 
     let config_path = codex_config_path_for_home(home_dir)?;
     let mut config = if config_path.exists() {
@@ -813,7 +762,25 @@ pub fn apply_codex_profile_for_home(home_dir: &Path, id: &str) -> Result<(), Str
         .map_err(|e| format!("Failed to serialize config.toml: {e}"))?;
     storage::atomic_write(&config_path, toml_str.as_bytes())?;
 
-    apply_auth_for_profile(home_dir, &profile, resolved_api_key.as_deref())?;
+    if uses_openai_subscription_auth(&profile) {
+        if let Some(auth_name) = profile
+            .auth_profile_name
+            .as_deref()
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+        {
+            crate::codex_auth_profiles::restore_auth_file_for_home(home_dir, auth_name)?;
+            // Official subscription should not keep a residual API key.
+            let auth_path = codex_auth_path_for_home(home_dir)?;
+            let mut auth = json::read_json_object_file(&auth_path).unwrap_or_default();
+            auth.remove(OPENAI_API_KEY_FIELD);
+            write_auth_or_delete_if_empty(&auth_path, &auth)?;
+        } else {
+            apply_auth_for_profile(home_dir, &profile, None)?;
+        }
+    } else {
+        apply_auth_for_profile(home_dir, &profile, resolved_api_key.as_deref())?;
+    }
 
     set_active_profile_id_for_home(home_dir, id)?;
     Ok(())
@@ -972,7 +939,9 @@ pub fn read_codex_current_config() -> Result<CodexCurrentConfig, String> {
 #[cfg(test)]
 mod tests {
     use super::{
+        apply_profile_to_config_map, resolve_active_provider,
         resolve_codex_profile_selector_for_home, save_codex_profile_for_home, CodexProfile,
+        CodexProviderConfig,
     };
     use std::collections::HashMap;
     use tempfile::TempDir;
@@ -989,6 +958,7 @@ mod tests {
             model: "gpt-5".to_string(),
             model_reasoning_effort: None,
             api_key: None,
+            auth_profile_name: None,
         }
     }
 
@@ -1018,5 +988,94 @@ mod tests {
         let error = resolve_codex_profile_selector_for_home(temp.path(), "Shared").unwrap_err();
 
         assert!(error.contains("Multiple Codex profiles share the name 'Shared'"));
+    }
+
+    #[test]
+    fn resolve_active_provider_keeps_openai_even_with_custom_providers() {
+        let mut providers = HashMap::new();
+        providers.insert(
+            "custom".to_string(),
+            CodexProviderConfig {
+                name: Some("Custom".to_string()),
+                base_url: Some("https://example.com".to_string()),
+                wire_api: Some("responses".to_string()),
+                requires_openai_auth: Some(true),
+                env_key: None,
+                env_key_instructions: None,
+                http_headers: None,
+                query_params: None,
+                model: Some("gpt-custom".to_string()),
+                model_reasoning_effort: None,
+                api_key: None,
+            },
+        );
+        let profile = CodexProfile {
+            id: "p1".to_string(),
+            name: "P1".to_string(),
+            description: None,
+            created_at: String::new(),
+            updated_at: String::new(),
+            providers,
+            model_provider: "openai".to_string(),
+            model: "gpt-5".to_string(),
+            model_reasoning_effort: None,
+            api_key: None,
+            auth_profile_name: None,
+        };
+
+        let (id, config) = resolve_active_provider(&profile);
+        assert_eq!(id, "openai");
+        assert!(config.is_none());
+    }
+
+    #[test]
+    fn apply_profile_to_config_map_skips_model_providers_for_openai() {
+        let mut providers = HashMap::new();
+        providers.insert(
+            "custom".to_string(),
+            CodexProviderConfig {
+                name: Some("Custom".to_string()),
+                base_url: Some("https://example.com".to_string()),
+                wire_api: Some("responses".to_string()),
+                requires_openai_auth: Some(true),
+                env_key: None,
+                env_key_instructions: None,
+                http_headers: None,
+                query_params: None,
+                model: Some("gpt-custom".to_string()),
+                model_reasoning_effort: None,
+                api_key: None,
+            },
+        );
+        let profile = CodexProfile {
+            id: "p1".to_string(),
+            name: "P1".to_string(),
+            description: None,
+            created_at: String::new(),
+            updated_at: String::new(),
+            providers,
+            model_provider: "openai".to_string(),
+            model: "gpt-5.4".to_string(),
+            model_reasoning_effort: Some("high".to_string()),
+            api_key: None,
+            auth_profile_name: None,
+        };
+
+        let mut config = toml::map::Map::new();
+        config.insert(
+            "model_providers".to_string(),
+            toml::Value::Table(toml::map::Map::new()),
+        );
+        apply_profile_to_config_map(&mut config, &profile).unwrap();
+
+        assert_eq!(
+            config.get("model_provider").and_then(|v| v.as_str()),
+            Some("openai")
+        );
+        assert_eq!(
+            config.get("model").and_then(|v| v.as_str()),
+            Some("gpt-5.4")
+        );
+        assert!(!config.contains_key("model_providers"));
     }
 }

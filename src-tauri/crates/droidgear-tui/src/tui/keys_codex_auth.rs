@@ -81,6 +81,27 @@ pub(super) fn handle_codex_auth_key(app: &mut app::App, code: KeyCode) -> Option
                 });
             }
         }
+        KeyCode::Char('w') => {
+            if !app.codex_auth_is_current_official {
+                app.set_toast(
+                    "Overwrite only available for official login configs".to_string(),
+                    true,
+                );
+                return None;
+            }
+            if let Some(profile) = app.codex_auth_profiles.get(app.codex_auth_index) {
+                app.modal = Some(app::Modal::Confirm {
+                    message: format!(
+                        "Overwrite auth profile '{}' with current login (auth + model)?",
+                        profile.label
+                    ),
+                    action: app::ConfirmAction::CodexAuthOverwrite {
+                        name: profile.name.clone(),
+                        label: profile.label.clone(),
+                    },
+                });
+            }
+        }
         KeyCode::Char('d') | KeyCode::Delete => {
             if let Some(profile) = app.codex_auth_profiles.get(app.codex_auth_index) {
                 if app.codex_auth_active.as_deref() != Some(&profile.name) {

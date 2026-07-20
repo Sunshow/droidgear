@@ -214,6 +214,10 @@ pub enum ConfirmAction {
     CodexAuthDelete {
         name: String,
     },
+    CodexAuthOverwrite {
+        name: String,
+        label: String,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -526,6 +530,9 @@ pub enum SelectAction {
         id: String,
     },
     CodexSetProfileModelProvider {
+        id: String,
+    },
+    CodexSetProfileAuthProfile {
         id: String,
     },
     CodexSetProfileReasoningEffort {

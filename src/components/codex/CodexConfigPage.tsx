@@ -42,7 +42,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useCodexStore } from '@/store/codex-store'
-import type { CodexProviderConfig } from '@/lib/bindings'
+import type { CodexAuthProfile, CodexProviderConfig } from '@/lib/bindings'
 import { ProviderCard } from './ProviderCard'
 import { ProviderDialog } from './ProviderDialog'
 import { ConfigStatus } from './ConfigStatus'
@@ -70,6 +70,14 @@ export function CodexConfigPage() {
   const updateProfileDescription = useCodexStore(
     state => state.updateProfileDescription
   )
+  const updateModelProvider = useCodexStore(state => state.updateModelProvider)
+  const updateAuthProfileName = useCodexStore(
+    state => state.updateAuthProfileName
+  )
+  const updateProfileModel = useCodexStore(state => state.updateProfileModel)
+  const updateProfileReasoningEffort = useCodexStore(
+    state => state.updateProfileReasoningEffort
+  )
   const deleteProvider = useCodexStore(state => state.deleteProvider)
   const setActiveProvider = useCodexStore(state => state.setActiveProvider)
   const setError = useCodexStore(state => state.setError)
@@ -92,6 +100,10 @@ export function CodexConfigPage() {
   )
   const [isLaunching, setIsLaunching] = useState(false)
   const [showApplyConflictDialog, setShowApplyConflictDialog] = useState(false)
+  const [officialAuthProfiles, setOfficialAuthProfiles] = useState<
+    CodexAuthProfile[]
+  >([])
+  const [editingModel, setEditingModel] = useState(currentProfile?.model ?? '')
 
   // Use profile id as key to reset local editing state
   const profileKey = currentProfile?.id ?? ''
@@ -106,6 +118,7 @@ export function CodexConfigPage() {
     setLastProfileKey(profileKey)
     setEditingName(currentProfile?.name ?? '')
     setEditingDescription(currentProfile?.description ?? '')
+    setEditingModel(currentProfile?.model ?? '')
   }
 
   const providers = (currentProfile?.providers ?? {}) as Record<
@@ -113,7 +126,8 @@ export function CodexConfigPage() {
     CodexProviderConfig
   >
   const providerIds = Object.keys(providers)
-  const isOfficialProfile = currentProfile?.id === 'official'
+  const isOpenaiModelProvider = currentProfile?.modelProvider === 'openai'
+  const modelProviderMode = isOpenaiModelProvider ? 'openai' : 'custom'
 
   useEffect(() => {
     const init = async () => {
@@ -123,6 +137,27 @@ export function CodexConfigPage() {
     init()
     loadConfigStatus()
   }, [loadProfiles, loadActiveProfileId, loadConfigStatus])
+
+  useEffect(() => {
+    if (!isOpenaiModelProvider) {
+      setOfficialAuthProfiles([])
+      return
+    }
+    let cancelled = false
+    const loadAuthProfiles = async () => {
+      const result = await commands.listCodexAuthProfiles()
+      if (cancelled) return
+      if (result.status === 'ok') {
+        setOfficialAuthProfiles(
+          result.data.profiles.filter(profile => profile.isOfficial)
+        )
+      }
+    }
+    loadAuthProfiles()
+    return () => {
+      cancelled = true
+    }
+  }, [isOpenaiModelProvider, currentProfile?.id])
 
   const handleProfileChange = (profileId: string) => {
     selectProfile(profileId)
@@ -205,13 +240,11 @@ export function CodexConfigPage() {
     setError(null)
 
     try {
-      if (currentProfile.id !== 'official') {
-        await saveProfile()
-        const saveState = useCodexStore.getState()
-        if (saveState.error) {
-          toast.error(saveState.error)
-          return
-        }
+      await saveProfile()
+      const saveState = useCodexStore.getState()
+      if (saveState.error) {
+        toast.error(saveState.error)
+        return
       }
 
       const result = await commands.launchCodex(currentProfile.id, cwd)
@@ -352,7 +385,7 @@ export function CodexConfigPage() {
                 )
                 setShowDuplicateProfileDialog(true)
               }}
-              disabled={!currentProfile || isOfficialProfile}
+              disabled={!currentProfile}
               title={t('codex.profile.duplicate')}
             >
               <Copy className="h-4 w-4" />
@@ -361,9 +394,7 @@ export function CodexConfigPage() {
               variant="outline"
               size="icon"
               onClick={() => setShowDeleteProfileConfirm(true)}
-              disabled={
-                !currentProfile || profiles.length <= 1 || isOfficialProfile
-              }
+              disabled={!currentProfile || profiles.length <= 1}
               title={t('codex.profile.delete')}
             >
               <Trash2 className="h-4 w-4" />
@@ -383,7 +414,6 @@ export function CodexConfigPage() {
                     }
                   }}
                   placeholder={t('codex.profile.name')}
-                  disabled={isOfficialProfile}
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -399,15 +429,123 @@ export function CodexConfigPage() {
                     }
                   }}
                   placeholder={t('codex.profile.descriptionPlaceholder')}
-                  disabled={isOfficialProfile}
                 />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label className="w-24">
+                    {t('codex.profile.modelProvider')}
+                  </Label>
+                  <Select
+                    value={modelProviderMode}
+                    onValueChange={value => {
+                      if (value === 'custom' || value === 'openai') {
+                        updateModelProvider(value)
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="custom">
+                        {t('codex.profile.modelProviderCustom')}
+                      </SelectItem>
+                      <SelectItem value="openai">
+                        {t('codex.profile.modelProviderOpenai')}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-sm text-muted-foreground ml-[6.5rem]">
+                  {t('codex.profile.modelProviderHint')}
+                </p>
+                {isOpenaiModelProvider && (
+                  <p className="text-sm text-muted-foreground ml-[6.5rem]">
+                    {t('codex.profile.modelProviderLogoutHint')}
+                  </p>
+                )}
               </div>
             </>
           )}
         </div>
 
+        {/* Auth Profile Section (openai mode) */}
+        {currentProfile && isOpenaiModelProvider && (
+          <div className="space-y-3 p-4 border rounded-lg">
+            <h2 className="text-lg font-medium">
+              {t('codex.profile.authProfile')}
+            </h2>
+            <div className="flex items-center gap-2">
+              <Label className="w-24">
+                {t('codex.profile.authProfileSelect')}
+              </Label>
+              <Select
+                value={currentProfile.authProfileName ?? '__none__'}
+                onValueChange={async value => {
+                  if (value === '__none__') {
+                    await updateAuthProfileName(null)
+                    return
+                  }
+                  const selected = officialAuthProfiles.find(
+                    profile => profile.name === value
+                  )
+                  await updateAuthProfileName(value)
+                  if (selected?.model) {
+                    setEditingModel(selected.model)
+                    await updateProfileModel(selected.model)
+                  }
+                  if (selected?.modelReasoningEffort !== undefined) {
+                    await updateProfileReasoningEffort(
+                      selected.modelReasoningEffort ?? null
+                    )
+                  }
+                }}
+              >
+                <SelectTrigger className="flex-1">
+                  <SelectValue
+                    placeholder={t('codex.profile.authProfileNone')}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">
+                    {t('codex.profile.authProfileNone')}
+                  </SelectItem>
+                  {officialAuthProfiles.map(profile => (
+                    <SelectItem key={profile.name} value={profile.name}>
+                      {profile.label || profile.name}
+                      {profile.model ? ` (${profile.model})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="w-24">{t('codex.profile.model')}</Label>
+              <Input
+                value={editingModel}
+                onChange={e => setEditingModel(e.target.value)}
+                onBlur={() => {
+                  if (editingModel !== (currentProfile.model ?? '')) {
+                    updateProfileModel(editingModel)
+                  }
+                }}
+                placeholder={t('codex.profile.modelPlaceholder')}
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {t('codex.profile.authProfileHint')}
+            </p>
+            {officialAuthProfiles.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                {t('codex.profile.authProfileEmpty')}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Providers Section */}
-        {currentProfile && (
+        {currentProfile && !isOpenaiModelProvider && (
           <div className="space-y-3 p-4 border rounded-lg">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-medium">
@@ -418,18 +556,13 @@ export function CodexConfigPage() {
                   variant="outline"
                   size="sm"
                   onClick={handleLoadFromConfig}
-                  disabled={!configStatus?.configExists || isOfficialProfile}
+                  disabled={!configStatus?.configExists}
                   title={t('codex.provider.loadFromConfig')}
                 >
                   <Download className="h-4 w-4 mr-2" />
                   {t('codex.provider.loadFromConfig')}
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddProvider}
-                  disabled={isOfficialProfile}
-                >
+                <Button variant="outline" size="sm" onClick={handleAddProvider}>
                   <Plus className="h-4 w-4 mr-2" />
                   {t('codex.provider.add')}
                 </Button>
@@ -454,7 +587,6 @@ export function CodexConfigPage() {
                       onEdit={() => handleEditProvider(id)}
                       onDelete={() => handleDeleteProviderClick(id)}
                       onSetActive={() => setActiveProvider(id)}
-                      disabled={isOfficialProfile}
                     />
                   )
                 })}

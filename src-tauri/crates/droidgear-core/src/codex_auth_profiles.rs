@@ -31,6 +31,12 @@ pub struct CodexAuthProfile {
     /// When restoring, this profile will also be applied (config.toml only).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub codex_profile_id: Option<String>,
+    /// Live config.toml `model` snapshotted when this auth was saved.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    /// Live config.toml `model_reasoning_effort` snapshotted when this auth was saved.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_reasoning_effort: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -84,6 +90,96 @@ fn codex_auth_path_for_home(home_dir: &Path) -> Result<PathBuf, String> {
     let config_paths = paths::load_config_paths_for_home(home_dir);
     let codex_home = paths::get_codex_home_for_home(home_dir, &config_paths)?;
     Ok(codex_home.join("auth.json"))
+}
+
+fn codex_config_path_for_home(home_dir: &Path) -> Result<PathBuf, String> {
+    let config_paths = paths::load_config_paths_for_home(home_dir);
+    let codex_home = paths::get_codex_home_for_home(home_dir, &config_paths)?;
+    Ok(codex_home.join("config.toml"))
+}
+
+fn read_live_model_snapshot(home_dir: &Path) -> (Option<String>, Option<String>) {
+    let Ok(config_path) = codex_config_path_for_home(home_dir) else {
+        return (None, None);
+    };
+    if !config_path.exists() {
+        return (None, None);
+    }
+    let Ok(s) = std::fs::read_to_string(&config_path) else {
+        return (None, None);
+    };
+    if s.trim().is_empty() {
+        return (None, None);
+    }
+    let Ok(config) = toml::from_str::<toml::map::Map<String, toml::Value>>(&s) else {
+        return (None, None);
+    };
+
+    let model = config
+        .get("model")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+    let model_reasoning_effort = config
+        .get("model_reasoning_effort")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+    (model, model_reasoning_effort)
+}
+
+fn apply_auth_profile_model_to_live_config(
+    home_dir: &Path,
+    profile: &CodexAuthProfile,
+) -> Result<(), String> {
+    let model = profile
+        .model
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    let effort = profile
+        .model_reasoning_effort
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+
+    if model.is_none() && effort.is_none() {
+        return Ok(());
+    }
+
+    let config_path = codex_config_path_for_home(home_dir)?;
+    if let Some(parent) = config_path.parent() {
+        ensure_dir(parent)?;
+    }
+
+    let mut config = if config_path.exists() {
+        let s = std::fs::read_to_string(&config_path)
+            .map_err(|e| format!("Failed to read config.toml: {e}"))?;
+        if s.trim().is_empty() {
+            toml::map::Map::new()
+        } else {
+            toml::from_str::<toml::map::Map<String, toml::Value>>(&s)
+                .map_err(|e| format!("Failed to parse config.toml: {e}"))?
+        }
+    } else {
+        toml::map::Map::new()
+    };
+
+    if let Some(model) = model {
+        config.insert("model".to_string(), toml::Value::String(model.to_string()));
+    }
+    if let Some(effort) = effort {
+        config.insert(
+            "model_reasoning_effort".to_string(),
+            toml::Value::String(effort.to_string()),
+        );
+    }
+
+    let toml_str = toml::to_string_pretty(&config)
+        .map_err(|e| format!("Failed to serialize config.toml: {e}"))?;
+    storage::atomic_write(&config_path, toml_str.as_bytes())
 }
 
 fn ensure_dir(dir: &Path) -> Result<(), String> {
@@ -268,6 +364,7 @@ pub fn save_current_as_profile_for_home(
     let auth = read_live_auth(home_dir)?;
     let is_official = is_auth_official(&auth);
     let active_codex_id = read_active_codex_profile_id(home_dir);
+    let (model, model_reasoning_effort) = read_live_model_snapshot(home_dir);
 
     let mut manifest = read_manifest(home_dir);
 
@@ -278,11 +375,15 @@ pub fn save_current_as_profile_for_home(
             created_at: Utc::now().to_rfc3339(),
             is_official,
             codex_profile_id: active_codex_id,
+            model,
+            model_reasoning_effort,
         });
     } else if let Some(p) = manifest.profiles.iter_mut().find(|p| p.name == name) {
         p.label = label.to_string();
         p.is_official = is_official;
         p.codex_profile_id = active_codex_id;
+        p.model = model;
+        p.model_reasoning_effort = model_reasoning_effort;
     }
 
     if manifest.active.is_none() {
@@ -320,9 +421,10 @@ pub fn switch_profile_for_home(home_dir: &Path, name: &str) -> Result<(), String
                 )
             })?;
 
-            // Update the is_official flag for the backed-up profile
+            // Update flags/snapshot for the backed-up profile
             if let Ok(auth) = read_live_auth(home_dir) {
                 let is_official = is_auth_official(&auth);
+                let (model, model_reasoning_effort) = read_live_model_snapshot(home_dir);
                 if let Some(p) = manifest
                     .profiles
                     .iter()
@@ -330,6 +432,8 @@ pub fn switch_profile_for_home(home_dir: &Path, name: &str) -> Result<(), String
                 {
                     let mut updated_manifest = manifest.clone();
                     updated_manifest.profiles[p].is_official = is_official;
+                    updated_manifest.profiles[p].model = model;
+                    updated_manifest.profiles[p].model_reasoning_effort = model_reasoning_effort;
                     write_manifest(home_dir, &updated_manifest)?;
                 }
             }
@@ -346,10 +450,9 @@ pub fn switch_profile_for_home(home_dir: &Path, name: &str) -> Result<(), String
     manifest.active = Some(name.to_string());
 
     // Apply the associated CodexProfile (config.toml only) if one was stored
-    let codex_profile_id = manifest
-        .profiles
-        .iter()
-        .find(|p| p.name == name)
+    let auth_profile = manifest.profiles.iter().find(|p| p.name == name).cloned();
+    let codex_profile_id = auth_profile
+        .as_ref()
         .and_then(|p| p.codex_profile_id.clone());
     write_manifest(home_dir, &manifest)?;
 
@@ -366,6 +469,52 @@ pub fn switch_profile_for_home(home_dir: &Path, name: &str) -> Result<(), String
         }
     }
 
+    // Auth-profile model snapshot wins over possibly-empty CodexProfile.model.
+    if let Some(profile) = auth_profile {
+        apply_auth_profile_model_to_live_config(home_dir, &profile)?;
+    }
+
+    Ok(())
+}
+
+/// Restore a saved auth profile's auth.json into live CODEX_HOME without
+/// re-applying any associated CodexProfile config.toml.
+/// Used when applying a Codex profile with `model_provider == "openai"` and a
+/// selected `auth_profile_name`.
+pub fn restore_auth_file_for_home(home_dir: &Path, name: &str) -> Result<(), String> {
+    validate_profile_name(name)?;
+
+    let manifest = read_manifest(home_dir);
+    let profile = manifest
+        .profiles
+        .iter()
+        .find(|p| p.name == name)
+        .ok_or_else(|| format!("Auth profile '{name}' not found"))?;
+
+    if !profile.is_official {
+        return Err(format!(
+            "Auth profile '{name}' is not an official login backup"
+        ));
+    }
+
+    let target_auth_path = auth_json_in_profile_dir_for_home(home_dir, name);
+    if !target_auth_path.exists() {
+        return Err(format!("Auth file missing for profile '{name}'"));
+    }
+
+    let live_auth_path = codex_auth_path_for_home(home_dir)?;
+    if let Some(codex_dir) = live_auth_path.parent() {
+        ensure_dir(codex_dir)?;
+    }
+    std::fs::copy(&target_auth_path, &live_auth_path)
+        .map_err(|e| format!("Failed to restore auth profile '{name}': {e}"))?;
+
+    let mut manifest = read_manifest(home_dir);
+    manifest.active = Some(name.to_string());
+    write_manifest(home_dir, &manifest)?;
+
+    // Overlay snapshotted model after auth restore.
+    apply_auth_profile_model_to_live_config(home_dir, profile)?;
     Ok(())
 }
 
@@ -473,7 +622,7 @@ pub fn detect_auth_conflict(profile_name: &str) -> Result<CodexAuthConflictInfo,
 }
 
 /// Check if applying a CodexProfile would cause an auth mode conflict.
-/// Determines the target auth mode from the profile id (official vs BYOK).
+/// Target official subscription mode is determined by `model_provider == "openai"`.
 pub fn detect_apply_auth_conflict_for_home(
     home_dir: &Path,
     codex_profile_id: &str,
@@ -486,7 +635,8 @@ pub fn detect_apply_auth_conflict_for_home(
         false
     };
 
-    let target_is_official = codex_profile_id == "official";
+    let profile = crate::codex::get_codex_profile_for_home(home_dir, codex_profile_id)?;
+    let target_is_official = profile.model_provider == "openai";
 
     Ok(CodexAuthConflictInfo {
         has_conflict: current_is_official != target_is_official,
@@ -595,6 +745,58 @@ mod tests {
     }
 
     #[test]
+    fn save_official_profile_snapshots_live_model() {
+        let tmp = TempDir::new().unwrap();
+        setup_official_auth(tmp.path());
+
+        let codex_dir = tmp.path().join(".codex");
+        std::fs::write(
+            codex_dir.join("config.toml"),
+            r#"
+model_provider = "openai"
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+"#
+            .trim_start(),
+        )
+        .unwrap();
+
+        save_current_as_profile_for_home(tmp.path(), "acct-1", "Account 1").unwrap();
+
+        let state = list_profiles_for_home(tmp.path()).unwrap();
+        assert_eq!(state.profiles[0].model.as_deref(), Some("gpt-5.4"));
+        assert_eq!(
+            state.profiles[0].model_reasoning_effort.as_deref(),
+            Some("high")
+        );
+
+        // Wipe live model then restore via switch
+        std::fs::write(
+            codex_dir.join("config.toml"),
+            r#"
+model_provider = "openai"
+model = ""
+"#
+            .trim_start(),
+        )
+        .unwrap();
+        switch_profile_for_home(tmp.path(), "acct-1").unwrap();
+
+        let config = std::fs::read_to_string(codex_dir.join("config.toml")).unwrap();
+        let parsed: toml::Value = toml::from_str(&config).unwrap();
+        assert_eq!(
+            parsed.get("model").and_then(|v| v.as_str()),
+            Some("gpt-5.4")
+        );
+        assert_eq!(
+            parsed
+                .get("model_reasoning_effort")
+                .and_then(|v| v.as_str()),
+            Some("high")
+        );
+    }
+
+    #[test]
     fn switch_profile_copies_auth() {
         let tmp = TempDir::new().unwrap();
         setup_official_auth(tmp.path());
@@ -699,6 +901,8 @@ mod tests {
                 created_at: Utc::now().to_rfc3339(),
                 is_official: true,
                 codex_profile_id: None,
+                model: None,
+                model_reasoning_effort: None,
             }],
         };
         write_manifest(tmp.path(), &manifest).unwrap();
