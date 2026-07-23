@@ -3,6 +3,13 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 static LAUNCH_ARTIFACT_COUNTER: AtomicU64 = AtomicU64::new(0);
 
+/// Hide helper console processes (PATH probes, etc.) spawned from the GUI app.
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+/// Open a dedicated console for the user-visible terminal (no `cmd /c start` hop).
+#[cfg(target_os = "windows")]
+const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LaunchSpec {
     pub program: String,
@@ -254,10 +261,10 @@ fn write_secure_posix_wrapper(spec: &LaunchSpec) -> Result<PathBuf, String> {
 #[cfg(target_os = "windows")]
 fn write_secure_cmd_wrapper(spec: &LaunchSpec) -> Result<PathBuf, String> {
     let path = launch_artifact_path(spec, "terminal-launch.cmd");
+    // No `cls`: clearing the console causes an extra visible flash on launch.
     let mut lines = vec![
         "@echo off".to_string(),
         "setlocal".to_string(),
-        "cls".to_string(),
         format!("echo {}", startup_message(&spec.program)),
     ];
 
@@ -281,14 +288,15 @@ fn write_secure_cmd_wrapper(spec: &LaunchSpec) -> Result<PathBuf, String> {
 }
 
 /// Self-deleting PowerShell launcher with Machine+User PATH refresh, env, secrets, cwd.
+/// Used only when `secret_env` is present so secrets stay out of process command lines.
 #[cfg(target_os = "windows")]
 fn write_secure_ps_wrapper(spec: &LaunchSpec) -> Result<PathBuf, String> {
     let path = launch_artifact_path(spec, "terminal-launch.ps1");
+    // No Clear-Host: wiping the console adds a visible flash before the CLI starts.
     let mut lines = vec![
         "$ErrorActionPreference = 'Continue'".to_string(),
         "try {".to_string(),
         format!("  {}", render_powershell_path_refresh()),
-        "  Clear-Host".to_string(),
         format!("  {}", render_powershell_banner(&spec.program)),
     ];
 
@@ -675,22 +683,12 @@ fn launch_linux(spec: &LaunchSpec, preferred: &str) -> Result<(), String> {
     ))
 }
 
-/// Build `cmd /c start "" [/D cwd] cmd /k <payload>` args (explicit cmd preference only).
-///
-/// `start` treats the first quoted argument as the window title, so an empty
-/// title (`""`) is required before the real command. `/D` sets the process
-/// starting directory so nested `cd` inside the payload is not the only cwd path.
+/// Build `cmd /k` payload args. Prefer direct `/k` (no `start` hop) so the GUI
+/// does not briefly show an intermediate console before the real terminal.
+/// `cwd` is applied via `Command::current_dir` at spawn time.
 #[cfg(target_os = "windows")]
-fn windows_cmd_start_args(payload: &str, cwd: Option<&Path>) -> Vec<String> {
-    let mut args = vec!["/c".to_string(), "start".to_string(), String::new()];
-    if let Some(dir) = cwd {
-        args.push("/D".to_string());
-        args.push(dir.to_string_lossy().into_owned());
-    }
-    args.push("cmd".to_string());
-    args.push("/k".to_string());
-    args.push(payload.to_string());
-    args
+fn windows_cmd_k_args(payload: &str) -> Vec<String> {
+    vec!["/k".to_string(), payload.to_string()]
 }
 
 /// Build Windows Terminal + PowerShell args with optional `-d <cwd>`.
@@ -698,6 +696,7 @@ fn windows_cmd_start_args(payload: &str, cwd: Option<&Path>) -> Vec<String> {
 /// Default product path is a new WT window running PowerShell (not cmd).
 /// Avoid `-w` / `new-tab` — they caused CLI parse errors on some WT versions.
 /// `shell` is typically the resolved `pwsh` or `powershell` executable path/name.
+/// `-NoLogo -NoProfile` cuts the PowerShell copyright banner flash on cold start.
 #[cfg(target_os = "windows")]
 fn windows_wt_ps_args(shell: &str, command: &str, cwd: Option<&Path>) -> Vec<String> {
     let mut args = Vec::new();
@@ -706,6 +705,8 @@ fn windows_wt_ps_args(shell: &str, command: &str, cwd: Option<&Path>) -> Vec<Str
         args.push(dir.to_string_lossy().into_owned());
     }
     args.push(shell.to_string());
+    args.push("-NoLogo".to_string());
+    args.push("-NoProfile".to_string());
     args.push("-NoExit".to_string());
     args.push("-Command".to_string());
     args.push(command.to_string());
@@ -720,6 +721,8 @@ fn windows_powershell_args(command: &str, cwd: Option<&Path>) -> Vec<String> {
         args.push("-WorkingDirectory".to_string());
         args.push(dir.to_string_lossy().into_owned());
     }
+    args.push("-NoLogo".to_string());
+    args.push("-NoProfile".to_string());
     args.push("-NoExit".to_string());
     args.push("-Command".to_string());
     args.push(command.to_string());
@@ -765,7 +768,8 @@ fn find_windows_shell_executable(name: &str) -> Option<String> {
     None
 }
 
-/// Resolve a bare program name against Machine/User/process PATH when possible.
+/// Resolve a bare program name against process PATH first, then Machine/User PATH.
+/// Prefer process PATH so common installs avoid spawning helper PowerShell probes.
 #[cfg(target_os = "windows")]
 fn resolve_windows_program(program: &str) -> String {
     let path = Path::new(program);
@@ -779,6 +783,19 @@ fn resolve_windows_program(program: &str) -> String {
         return program.to_string();
     }
 
+    let candidates = if program.to_ascii_lowercase().ends_with(".exe") {
+        vec![program.to_string()]
+    } else {
+        vec![format!("{program}.exe"), program.to_string()]
+    };
+
+    if let Ok(process_path) = std::env::var("PATH") {
+        if let Some(found) = search_program_in_path_value(&process_path, &candidates) {
+            return found;
+        }
+    }
+
+    // Fallback: registry-backed Machine/User PATH (GUI apps often miss user installs).
     let mut search_dirs: Vec<PathBuf> = Vec::new();
     for scope in ["Machine", "User"] {
         if let Some(value) = windows_environment_path(scope) {
@@ -790,20 +807,6 @@ fn resolve_windows_program(program: &str) -> String {
             }
         }
     }
-    if let Ok(process_path) = std::env::var("PATH") {
-        for part in process_path.split(';') {
-            let part = part.trim();
-            if !part.is_empty() {
-                search_dirs.push(PathBuf::from(part));
-            }
-        }
-    }
-
-    let candidates = if program.to_ascii_lowercase().ends_with(".exe") {
-        vec![program.to_string()]
-    } else {
-        vec![format!("{program}.exe"), program.to_string()]
-    };
 
     for dir in search_dirs {
         for name in &candidates {
@@ -818,13 +821,36 @@ fn resolve_windows_program(program: &str) -> String {
 }
 
 #[cfg(target_os = "windows")]
+fn search_program_in_path_value(path_value: &str, candidates: &[String]) -> Option<String> {
+    for part in path_value.split(';') {
+        let part = part.trim();
+        if part.is_empty() {
+            continue;
+        }
+        let dir = PathBuf::from(part);
+        for name in candidates {
+            let candidate = dir.join(name);
+            if candidate.is_file() {
+                return Some(candidate.to_string_lossy().into_owned());
+            }
+        }
+    }
+    None
+}
+
+#[cfg(target_os = "windows")]
 fn windows_environment_path(scope: &str) -> Option<String> {
+    use std::os::windows::process::CommandExt;
+
     let output = std::process::Command::new("powershell")
         .args([
+            "-NoLogo",
             "-NoProfile",
             "-Command",
             &format!("[Environment]::GetEnvironmentVariable('Path','{scope}')"),
         ])
+        // Helper probe only — never flash a console from the GUI process.
+        .creation_flags(CREATE_NO_WINDOW)
         .output()
         .ok()?;
     if !output.status.success() {
@@ -840,8 +866,16 @@ fn windows_environment_path(scope: &str) -> Option<String> {
 
 #[cfg(target_os = "windows")]
 fn launch_windows_cmd_payload(payload: &str, cwd: Option<&Path>) -> Result<(), String> {
-    std::process::Command::new("cmd")
-        .args(windows_cmd_start_args(payload, cwd))
+    use std::os::windows::process::CommandExt;
+
+    let mut command = std::process::Command::new("cmd");
+    command.args(windows_cmd_k_args(payload));
+    if let Some(dir) = cwd {
+        command.current_dir(dir);
+    }
+    // One visible console for the terminal; avoid `cmd /c start ... cmd /k` multi-hop flash.
+    command.creation_flags(CREATE_NEW_CONSOLE);
+    command
         .spawn()
         .map_err(|e| format!("Failed to launch cmd: {e}"))?;
     Ok(())
@@ -853,8 +887,13 @@ fn launch_windows_powershell_payload(
     command: &str,
     cwd: Option<&Path>,
 ) -> Result<(), String> {
-    std::process::Command::new(shell)
-        .args(windows_powershell_args(command, cwd))
+    use std::os::windows::process::CommandExt;
+
+    let mut process = std::process::Command::new(shell);
+    process.args(windows_powershell_args(command, cwd));
+    // Explicit new console when the parent is a GUI app.
+    process.creation_flags(CREATE_NEW_CONSOLE);
+    process
         .spawn()
         .map_err(|e| format!("Failed to launch PowerShell: {e}"))?;
     Ok(())
@@ -879,13 +918,12 @@ fn launch_windows_wt_or_ps_payload(
 }
 
 /// Build the PowerShell -Command payload for non-cmd launches.
+///
+/// Temp wrappers are only required when secrets must stay out of argv.
+/// Non-secret env/unset/cwd go inline (and cwd is also set via `-d` / `-WorkingDirectory`).
 #[cfg(target_os = "windows")]
 fn windows_ps_launch_command(spec: &LaunchSpec) -> Result<String, String> {
-    if needs_secure_wrapper(spec)
-        || !spec.env.is_empty()
-        || !spec.unset_env.is_empty()
-        || spec.cwd.is_some()
-    {
+    if needs_secure_wrapper(spec) {
         let wrapper_path = write_secure_ps_wrapper(spec)?;
         Ok(format!(
             "& {}",
@@ -905,11 +943,7 @@ fn launch_windows(spec: &LaunchSpec, preferred: &str) -> Result<(), String> {
 
     match preferred {
         "cmd" => {
-            if needs_secure_wrapper(&resolved)
-                || !resolved.env.is_empty()
-                || !resolved.unset_env.is_empty()
-                || resolved.cwd.is_some()
-            {
+            if needs_secure_wrapper(&resolved) {
                 let wrapper_path = write_secure_cmd_wrapper(&resolved)?;
                 let wrapper_cmd = wrapper_path.to_string_lossy().to_string();
                 launch_windows_cmd_payload(&wrapper_cmd, cwd)
@@ -1061,42 +1095,22 @@ mod tests {
 
     #[cfg(target_os = "windows")]
     #[test]
-    fn windows_cmd_start_args_include_empty_title_and_optional_d() {
-        use super::windows_cmd_start_args;
-        use std::path::Path;
+    fn windows_cmd_k_args_are_direct_without_start_hop() {
+        use super::windows_cmd_k_args;
 
-        let without_cwd = windows_cmd_start_args(r"C:\temp\run.cmd", None);
         assert_eq!(
-            without_cwd,
-            vec![
-                "/c".to_string(),
-                "start".to_string(),
-                String::new(),
-                "cmd".to_string(),
-                "/k".to_string(),
-                r"C:\temp\run.cmd".to_string(),
-            ]
+            windows_cmd_k_args(r"C:\temp\run.cmd"),
+            vec!["/k".to_string(), r"C:\temp\run.cmd".to_string()]
         );
-
-        let with_cwd = windows_cmd_start_args(r"C:\temp\run.cmd", Some(Path::new(r"D:\work tree")));
         assert_eq!(
-            with_cwd,
-            vec![
-                "/c".to_string(),
-                "start".to_string(),
-                String::new(),
-                "/D".to_string(),
-                r"D:\work tree".to_string(),
-                "cmd".to_string(),
-                "/k".to_string(),
-                r"C:\temp\run.cmd".to_string(),
-            ]
+            windows_cmd_k_args(r#"set "FOO=bar" && "droid""#),
+            vec!["/k".to_string(), r#"set "FOO=bar" && "droid""#.to_string()]
         );
     }
 
     #[cfg(target_os = "windows")]
     #[test]
-    fn windows_wt_and_powershell_args_include_start_directory() {
+    fn windows_wt_and_powershell_args_include_start_directory_and_quiet_flags() {
         use super::{windows_powershell_args, windows_wt_ps_args};
         use std::path::Path;
 
@@ -1108,6 +1122,8 @@ mod tests {
                 "-d".to_string(),
                 r"D:\proj".to_string(),
                 "pwsh".to_string(),
+                "-NoLogo".to_string(),
+                "-NoProfile".to_string(),
                 "-NoExit".to_string(),
                 "-Command".to_string(),
                 "& 'C:\\temp\\run.ps1'".to_string(),
@@ -1119,6 +1135,8 @@ mod tests {
             wt_plain,
             vec![
                 "powershell".to_string(),
+                "-NoLogo".to_string(),
+                "-NoProfile".to_string(),
                 "-NoExit".to_string(),
                 "-Command".to_string(),
                 "& 'C:\\temp\\run.ps1'".to_string(),
@@ -1131,10 +1149,64 @@ mod tests {
             vec![
                 "-WorkingDirectory".to_string(),
                 r"D:\work".to_string(),
+                "-NoLogo".to_string(),
+                "-NoProfile".to_string(),
                 "-NoExit".to_string(),
                 "-Command".to_string(),
                 r"& 'C:\temp\run.ps1'".to_string(),
             ]
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_ps_launch_command_inlines_non_secret_env_without_wrapper() {
+        use super::windows_ps_launch_command;
+
+        let command = windows_ps_launch_command(&sample_spec()).unwrap();
+        assert!(
+            command.contains("$env:FOO = 'bar baz'"),
+            "expected inline env: {command}"
+        );
+        assert!(
+            command.contains("Remove-Item Env:ANTHROPIC_AUTH_TOKEN"),
+            "expected inline unset: {command}"
+        );
+        assert!(
+            command.contains("& 'droid'"),
+            "expected program: {command}"
+        );
+        assert!(
+            !command.contains("terminal-launch.ps1"),
+            "non-secret launches should not write a temp wrapper: {command}"
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_ps_launch_command_uses_wrapper_only_for_secrets() {
+        use super::windows_ps_launch_command;
+
+        let support_dir = std::env::temp_dir().join(format!(
+            "droidgear-ps-launch-secret-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&support_dir).unwrap();
+
+        let mut spec = sample_spec();
+        spec.secret_env = vec![("EXAMPLE_API_KEY".to_string(), "sk-secret".to_string())];
+        spec.support_dir = Some(support_dir.clone());
+
+        let command = windows_ps_launch_command(&spec).unwrap();
+        let _ = std::fs::remove_dir_all(&support_dir);
+
+        assert!(
+            command.contains("terminal-launch.ps1"),
+            "secret launches must use a temp wrapper: {command}"
+        );
+        assert!(
+            !command.contains("sk-secret"),
+            "secret value must not appear in the outer command: {command}"
         );
     }
 
