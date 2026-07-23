@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.1.8
+
+**Bug Fixes / 问题修复**
+
+- Reduce Windows CLI terminal launch flash: hide PATH-probe helper consoles, skip temp wrappers for non-secret launches, and start PowerShell with cleaner flags / 减少 Windows CLI 终端启动闪烁：隐藏 PATH 探测辅助控制台，非密钥启动跳过临时包装脚本，并以更干净的参数启动 PowerShell
+- Keep preferred_terminal=cmd launches detached and hidden with CREATE_NO_WINDOW so the shell survives GUI process cleanup / preferred_terminal=cmd 时保持隐藏的 detached cmd /c start 启动，确保 shell 在 GUI 进程清理后仍存活
+- Harden CLI launch after flash regressions: restore clear-screen and env/cwd wrappers, resolve pwsh via WindowsApps, and prefer PATHEXT launchers over npm extensionless shims / 闪烁修复后加固 CLI 启动：恢复清屏与 env/cwd 包装，通过 WindowsApps 解析 pwsh，优先使用 PATHEXT 启动器而非 npm 无扩展名 shim
+
 ## v1.1.7
 
 **Bug Fixes / 问题修复**
