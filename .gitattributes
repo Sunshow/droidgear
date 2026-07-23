@@ -1,16 +1,18 @@
-# Auto-detect text files and normalize line endings to LF
-* text=auto
+# Normalize all text to LF in the repo (Windows-safe with core.autocrlf=false)
+* text=auto eol=lf
 
-# Rust / Cargo files - force LF
+# Source / config
 *.rs text eol=lf
-Cargo.toml text eol=lf
+*.toml text eol=lf
 Cargo.lock text eol=lf
-
-# JavaScript / TypeScript / npm files - force LF
 *.js text eol=lf
+*.cjs text eol=lf
+*.mjs text eol=lf
 *.ts text eol=lf
 *.tsx text eol=lf
 *.jsx text eol=lf
+*.mts text eol=lf
+*.cts text eol=lf
 *.json text eol=lf
 *.css text eol=lf
 *.scss text eol=lf
@@ -19,17 +21,32 @@ Cargo.lock text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
 *.env text eol=lf
+*.txt text eol=lf
+*.svg text eol=lf
+*.sh text eol=lf
+*.bash text eol=lf
+*.ps1 text eol=lf
 
-# Binary files - keep as-is
+# Windows-only scripts keep CRLF
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binary
 *.png binary
 *.jpg binary
 *.jpeg binary
 *.gif binary
 *.ico binary
-*.svg binary
 *.ttf binary
 *.woff binary
 *.woff2 binary
 *.eot binary
 *.icns binary
-*.ico binary
+*.webp binary
+*.mp4 binary
+*.zip binary
+*.7z binary
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
