@@ -3,10 +3,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 static LAUNCH_ARTIFACT_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-/// Hide helper console processes (PATH probes, etc.) spawned from the GUI app.
+/// Hide helper/launcher console processes (PATH probes, `cmd /c start` outer hop).
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-/// Open a dedicated console for the user-visible terminal (no `cmd /c start` hop).
+/// Open a dedicated console for a user-visible PowerShell window launched from the GUI.
 #[cfg(target_os = "windows")]
 const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
 
@@ -683,12 +683,23 @@ fn launch_linux(spec: &LaunchSpec, preferred: &str) -> Result<(), String> {
     ))
 }
 
-/// Build `cmd /k` payload args. Prefer direct `/k` (no `start` hop) so the GUI
-/// does not briefly show an intermediate console before the real terminal.
-/// `cwd` is applied via `Command::current_dir` at spawn time.
+/// Build `cmd /c start "" [/D cwd] cmd /k <payload>` args (explicit cmd preference only).
+///
+/// `start` detaches the user-visible console from the GUI process tree (survives app
+/// exit / job cleanup). The empty title (`""`) is required because `start` treats the
+/// first quoted argument as the window title. `/D` sets the starting directory.
+/// Pair with `CREATE_NO_WINDOW` on the outer `cmd` so the launcher hop itself never flashes.
 #[cfg(target_os = "windows")]
-fn windows_cmd_k_args(payload: &str) -> Vec<String> {
-    vec!["/k".to_string(), payload.to_string()]
+fn windows_cmd_start_args(payload: &str, cwd: Option<&Path>) -> Vec<String> {
+    let mut args = vec!["/c".to_string(), "start".to_string(), String::new()];
+    if let Some(dir) = cwd {
+        args.push("/D".to_string());
+        args.push(dir.to_string_lossy().into_owned());
+    }
+    args.push("cmd".to_string());
+    args.push("/k".to_string());
+    args.push(payload.to_string());
+    args
 }
 
 /// Build Windows Terminal + PowerShell args with optional `-d <cwd>`.
@@ -868,14 +879,11 @@ fn windows_environment_path(scope: &str) -> Option<String> {
 fn launch_windows_cmd_payload(payload: &str, cwd: Option<&Path>) -> Result<(), String> {
     use std::os::windows::process::CommandExt;
 
-    let mut command = std::process::Command::new("cmd");
-    command.args(windows_cmd_k_args(payload));
-    if let Some(dir) = cwd {
-        command.current_dir(dir);
-    }
-    // One visible console for the terminal; avoid `cmd /c start ... cmd /k` multi-hop flash.
-    command.creation_flags(CREATE_NEW_CONSOLE);
-    command
+    // Keep `start` so the terminal detaches from the GUI process tree, but hide the
+    // outer `cmd /c start` launcher console to avoid the intermediate black flash.
+    std::process::Command::new("cmd")
+        .args(windows_cmd_start_args(payload, cwd))
+        .creation_flags(CREATE_NO_WINDOW)
         .spawn()
         .map_err(|e| format!("Failed to launch cmd: {e}"))?;
     Ok(())
@@ -1095,16 +1103,36 @@ mod tests {
 
     #[cfg(target_os = "windows")]
     #[test]
-    fn windows_cmd_k_args_are_direct_without_start_hop() {
-        use super::windows_cmd_k_args;
+    fn windows_cmd_start_args_include_empty_title_and_optional_d() {
+        use super::windows_cmd_start_args;
+        use std::path::Path;
 
+        let without_cwd = windows_cmd_start_args(r"C:\temp\run.cmd", None);
         assert_eq!(
-            windows_cmd_k_args(r"C:\temp\run.cmd"),
-            vec!["/k".to_string(), r"C:\temp\run.cmd".to_string()]
+            without_cwd,
+            vec![
+                "/c".to_string(),
+                "start".to_string(),
+                String::new(),
+                "cmd".to_string(),
+                "/k".to_string(),
+                r"C:\temp\run.cmd".to_string(),
+            ]
         );
+
+        let with_cwd = windows_cmd_start_args(r"C:\temp\run.cmd", Some(Path::new(r"D:\work tree")));
         assert_eq!(
-            windows_cmd_k_args(r#"set "FOO=bar" && "droid""#),
-            vec!["/k".to_string(), r#"set "FOO=bar" && "droid""#.to_string()]
+            with_cwd,
+            vec![
+                "/c".to_string(),
+                "start".to_string(),
+                String::new(),
+                "/D".to_string(),
+                r"D:\work tree".to_string(),
+                "cmd".to_string(),
+                "/k".to_string(),
+                r"C:\temp\run.cmd".to_string(),
+            ]
         );
     }
 
