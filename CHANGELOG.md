@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.7
+
+**Bug Fixes / 问题修复**
+
+- Harden Codex external terminal launch on Windows: default to Windows Terminal + pwsh with cwd, PATH refresh, and secure wrappers; prefer pwsh over Windows PowerShell; remove duplicate Windows Terminal option from preferred-terminal UI / 加固 Windows 下 Codex 外部终端启动：默认使用 Windows Terminal + pwsh，并处理工作目录、PATH 刷新与安全包装；优先使用 pwsh 而非 Windows PowerShell；偏好终端 UI 移除重复的 Windows Terminal 选项
+
 ## v1.1.6
 
 **New Features / 新功能**
