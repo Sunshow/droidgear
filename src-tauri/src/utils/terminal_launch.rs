@@ -1215,10 +1215,8 @@ mod tests {
     fn windows_ps_launch_command_uses_wrapper_when_env_or_cwd_present() {
         use super::windows_ps_launch_command;
 
-        let support_dir = std::env::temp_dir().join(format!(
-            "droidgear-ps-launch-env-{}",
-            std::process::id()
-        ));
+        let support_dir =
+            std::env::temp_dir().join(format!("droidgear-ps-launch-env-{}", std::process::id()));
         std::fs::create_dir_all(&support_dir).unwrap();
 
         let mut spec = sample_spec();
@@ -1241,10 +1239,8 @@ mod tests {
     fn windows_ps_launch_command_uses_wrapper_for_secrets() {
         use super::windows_ps_launch_command;
 
-        let support_dir = std::env::temp_dir().join(format!(
-            "droidgear-ps-launch-secret-{}",
-            std::process::id()
-        ));
+        let support_dir =
+            std::env::temp_dir().join(format!("droidgear-ps-launch-secret-{}", std::process::id()));
         std::fs::create_dir_all(&support_dir).unwrap();
 
         let mut spec = sample_spec();
@@ -1269,10 +1265,8 @@ mod tests {
     fn resolve_windows_program_prefers_cmd_over_extensionless_shim() {
         use super::resolve_windows_program;
 
-        let support_dir = std::env::temp_dir().join(format!(
-            "droidgear-resolve-codex-{}",
-            std::process::id()
-        ));
+        let support_dir =
+            std::env::temp_dir().join(format!("droidgear-resolve-codex-{}", std::process::id()));
         std::fs::create_dir_all(&support_dir).unwrap();
         // npm-style layout: bare `codex` shell shim + Windows `codex.cmd`
         std::fs::write(support_dir.join("codex"), b"#!/bin/sh\nnode codex.js\n").unwrap();
