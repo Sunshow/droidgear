@@ -716,6 +716,10 @@ export function TerminalPage() {
                     cwd={terminal.cwd || undefined}
                     forceDark={terminalForceDark}
                     copyOnSelect={terminalCopyOnSelect}
+                    prefillCommand={terminal.prefillCommand}
+                    autoExecute={terminal.autoExecute}
+                    env={terminal.env}
+                    unsetEnv={terminal.unsetEnv}
                     onExit={exitCode =>
                       handleTerminalExit(terminal.id, exitCode)
                     }

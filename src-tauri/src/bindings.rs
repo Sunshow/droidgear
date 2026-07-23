@@ -110,6 +110,7 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         codex::read_codex_current_config,
         codex::get_codex_cli_capability,
         codex::get_codex_temporary_run_plan,
+        codex::prepare_codex_in_app_run,
         codex::launch_codex,
         hermes::list_hermes_profiles,
         hermes::get_hermes_profile,

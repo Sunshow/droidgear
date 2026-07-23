@@ -245,13 +245,20 @@ export function GeneralPane() {
           description={t('preferences.general.preferredTerminalDescription')}
         >
           <Select
-            value={preferences?.preferred_terminal || 'system-default'}
+            value={
+              !preferences?.preferred_terminal ||
+              preferences.preferred_terminal === 'windows-terminal'
+                ? 'system-default'
+                : preferences.preferred_terminal
+            }
             onValueChange={value => {
               if (preferences) {
                 savePreferences.mutate({
                   ...preferences,
                   preferred_terminal:
-                    value === 'system-default' ? null : value || null,
+                    value === 'system-default' || value === 'windows-terminal'
+                      ? null
+                      : value || null,
                 })
               }
             }}
@@ -263,11 +270,9 @@ export function GeneralPane() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="system-default">
-                {isMacOS
+                {isMacOS || isWindows
                   ? t('preferences.general.terminalSystemDefault')
-                  : isWindows
-                    ? t('preferences.general.terminalWindowsTerminal')
-                    : t('preferences.general.terminalAutoDetect')}
+                  : t('preferences.general.terminalAutoDetect')}
               </SelectItem>
               {isMacOS && (
                 <>
@@ -290,9 +295,6 @@ export function GeneralPane() {
               )}
               {isWindows && (
                 <>
-                  <SelectItem value="windows-terminal">
-                    {t('preferences.general.terminalWindowsTerminal')}
-                  </SelectItem>
                   <SelectItem value="cmd">
                     {t('preferences.general.terminalCmd')}
                   </SelectItem>

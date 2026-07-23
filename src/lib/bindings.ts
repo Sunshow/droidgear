@@ -1140,6 +1140,20 @@ async getCodexTemporaryRunPlan(id: string) : Promise<Result<CodexTemporaryRunPla
 }
 },
 /**
+ * Prepare a one-shot in-app terminal run (runtime CODEX_HOME + env, including secrets).
+ * 
+ * Does not open an external terminal. The frontend injects env into the PTY and
+ * auto-executes the command. Secret values must not be persisted client-side.
+ */
+async prepareCodexInAppRun(id: string) : Promise<Result<CodexInAppRunPlan, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("prepare_codex_in_app_run", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Launch Codex using a runtime `CODEX_HOME` snapshot instead of mutating live config.
  */
 async launchCodex(id: string, cwd: string | null) : Promise<Result<null, string>> {
@@ -2320,6 +2334,18 @@ export type CodexConfigStatus = { authExists: boolean; configExists: boolean; au
  * 当前 Codex Live 配置（从 `~/.codex/*` 读取）
  */
 export type CodexCurrentConfig = { providers?: Partial<{ [key in string]: CodexProviderConfig }>; modelProvider: string; model: string; modelReasoningEffort?: string | null; apiKey?: string | null }
+/**
+ * One-shot plan for launching Codex inside the app PTY terminal.
+ * 
+ * Unlike [`CodexTemporaryRunPlan`], secret env values are included so the
+ * frontend can inject them into the PTY process environment. They must not be
+ * persisted on the client.
+ */
+export type CodexInAppRunPlan = { program: string; args: string[]; 
+/**
+ * Public env (e.g. CODEX_HOME) plus secret API keys for PTY injection.
+ */
+env: ([string, string])[]; unsetEnv: string[]; warnings: string[] }
 /**
  * Codex Profile（用于在 DroidGear 内部保存并切换）
  */

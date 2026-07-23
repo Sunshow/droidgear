@@ -38,6 +38,22 @@ pub struct CodexTemporaryRunPlan {
     pub warnings: Vec<String>,
 }
 
+/// One-shot plan for launching Codex inside the app PTY terminal.
+///
+/// Unlike [`CodexTemporaryRunPlan`], secret env values are included so the
+/// frontend can inject them into the PTY process environment. They must not be
+/// persisted on the client.
+#[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct CodexInAppRunPlan {
+    pub program: String,
+    pub args: Vec<String>,
+    /// Public env (e.g. CODEX_HOME) plus secret API keys for PTY injection.
+    pub env: Vec<(String, String)>,
+    pub unset_env: Vec<String>,
+    pub warnings: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodexTemporaryLaunchPlan {
     pub program: String,
@@ -57,6 +73,20 @@ impl From<&CodexTemporaryLaunchPlan> for CodexTemporaryRunPlan {
             env: plan.env.clone(),
             unset_env: plan.unset_env.clone(),
             secret_env_keys: plan.secret_env.iter().map(|(key, _)| key.clone()).collect(),
+            warnings: plan.warnings.clone(),
+        }
+    }
+}
+
+impl From<&CodexTemporaryLaunchPlan> for CodexInAppRunPlan {
+    fn from(plan: &CodexTemporaryLaunchPlan) -> Self {
+        let mut env = plan.env.clone();
+        env.extend(plan.secret_env.iter().cloned());
+        Self {
+            program: plan.program.clone(),
+            args: plan.args.clone(),
+            env,
+            unset_env: plan.unset_env.clone(),
             warnings: plan.warnings.clone(),
         }
     }
@@ -530,11 +560,11 @@ mod tests {
     use super::{
         build_cli_overrides, build_temporary_run_plan_for_home,
         cleanup_stale_runtime_homes_for_home, parse_codex_cli_capability, validate_cli_capability,
-        version_is_at_least,
+        version_is_at_least, CodexInAppRunPlan, CodexTemporaryLaunchPlan,
     };
     use crate::codex::{CodexProfile, CodexProviderConfig};
     use std::collections::HashMap;
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
     use tempfile::TempDir;
 
     fn sample_profile() -> CodexProfile {
@@ -943,5 +973,30 @@ env_key = "OLD_API_KEY"
         assert!(!stale_dir.exists());
         assert!(fresh_dir.exists());
         assert!(other_dir.exists());
+    }
+
+    #[test]
+    fn in_app_run_plan_merges_secret_env_into_env() {
+        let plan = CodexTemporaryLaunchPlan {
+            program: "codex".to_string(),
+            args: vec![],
+            env: vec![("CODEX_HOME".to_string(), "/tmp/runtime".to_string())],
+            secret_env: vec![("EXAMPLE_API_KEY".to_string(), "sk-secret".to_string())],
+            unset_env: vec!["OPENAI_API_KEY".to_string()],
+            warnings: vec![],
+            runtime_home_path: PathBuf::from("/tmp/runtime"),
+        };
+
+        let in_app: CodexInAppRunPlan = (&plan).into();
+        assert_eq!(in_app.program, "codex");
+        assert!(in_app.args.is_empty());
+        assert_eq!(
+            in_app.env,
+            vec![
+                ("CODEX_HOME".to_string(), "/tmp/runtime".to_string()),
+                ("EXAMPLE_API_KEY".to_string(), "sk-secret".to_string()),
+            ]
+        );
+        assert_eq!(in_app.unset_env, vec!["OPENAI_API_KEY".to_string()]);
     }
 }

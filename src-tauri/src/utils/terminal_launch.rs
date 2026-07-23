@@ -280,6 +280,51 @@ fn write_secure_cmd_wrapper(spec: &LaunchSpec) -> Result<PathBuf, String> {
     Ok(path)
 }
 
+/// Self-deleting PowerShell launcher with Machine+User PATH refresh, env, secrets, cwd.
+#[cfg(target_os = "windows")]
+fn write_secure_ps_wrapper(spec: &LaunchSpec) -> Result<PathBuf, String> {
+    let path = launch_artifact_path(spec, "terminal-launch.ps1");
+    let mut lines = vec![
+        "$ErrorActionPreference = 'Continue'".to_string(),
+        "try {".to_string(),
+        format!("  {}", render_powershell_path_refresh()),
+        "  Clear-Host".to_string(),
+        format!("  {}", render_powershell_banner(&spec.program)),
+    ];
+
+    for key in &spec.unset_env {
+        lines.push(format!(
+            "  Remove-Item Env:{key} -ErrorAction SilentlyContinue"
+        ));
+    }
+    for (key, value) in spec.env.iter().chain(spec.secret_env.iter()) {
+        lines.push(format!("  $env:{key} = {}", quote_powershell(value)));
+    }
+    if let Some(cd) = render_powershell_cd(spec.cwd.as_ref()) {
+        lines.push(format!("  {cd}"));
+    }
+    lines.push(format!(
+        "  & {}",
+        render_program_command(spec, quote_powershell)
+    ));
+    lines.push("} finally {".to_string());
+    lines.push(
+        "  Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue"
+            .to_string(),
+    );
+    lines.push("}".to_string());
+
+    let script = format!("{}\r\n", lines.join("\r\n"));
+    write_launch_script(&path, &script)?;
+    Ok(path)
+}
+
+/// Merge Machine + User Path so tools installed after the GUI app started are visible.
+#[cfg(target_os = "windows")]
+fn render_powershell_path_refresh() -> String {
+    "$machinePath = [Environment]::GetEnvironmentVariable('Path','Machine'); $userPath = [Environment]::GetEnvironmentVariable('Path','User'); if ($machinePath -or $userPath) { $env:Path = @($machinePath, $userPath, $env:Path | Where-Object { $_ }) -join ';' }".to_string()
+}
+
 #[cfg(not(target_os = "windows"))]
 pub fn prepare_posix_command(spec: &LaunchSpec) -> PreparedCommand {
     let env_setup = render_posix_env(&spec.env, &spec.unset_env);
@@ -303,13 +348,23 @@ pub fn prepare_posix_command(spec: &LaunchSpec) -> PreparedCommand {
 
 #[cfg(target_os = "windows")]
 pub fn prepare_powershell_command(spec: &LaunchSpec) -> PreparedCommand {
-    let env_setup = render_powershell_env(&spec.env, &spec.unset_env);
+    let path_refresh = render_powershell_path_refresh();
+    let env_setup = render_powershell_env(
+        &spec
+            .env
+            .iter()
+            .chain(spec.secret_env.iter())
+            .cloned()
+            .collect::<Vec<_>>(),
+        &spec.unset_env,
+    );
     let cd = render_powershell_cd(spec.cwd.as_ref());
     let command = format!("& {}", render_program_command(spec, quote_powershell));
     let banner = render_powershell_banner(&spec.program);
 
     let base = join_non_empty(
         [
+            Some(path_refresh),
             (!env_setup.is_empty()).then_some(env_setup),
             cd,
             Some(command),
@@ -620,101 +675,257 @@ fn launch_linux(spec: &LaunchSpec, preferred: &str) -> Result<(), String> {
     ))
 }
 
+/// Build `cmd /c start "" [/D cwd] cmd /k <payload>` args (explicit cmd preference only).
+///
+/// `start` treats the first quoted argument as the window title, so an empty
+/// title (`""`) is required before the real command. `/D` sets the process
+/// starting directory so nested `cd` inside the payload is not the only cwd path.
 #[cfg(target_os = "windows")]
-fn launch_windows(spec: &LaunchSpec, preferred: &str) -> Result<(), String> {
-    if needs_secure_wrapper(spec) {
-        let wrapper_path = write_secure_cmd_wrapper(spec)?;
-        let wrapper_cmd = wrapper_path.to_string_lossy().to_string();
+fn windows_cmd_start_args(payload: &str, cwd: Option<&Path>) -> Vec<String> {
+    let mut args = vec!["/c".to_string(), "start".to_string(), String::new()];
+    if let Some(dir) = cwd {
+        args.push("/D".to_string());
+        args.push(dir.to_string_lossy().into_owned());
+    }
+    args.push("cmd".to_string());
+    args.push("/k".to_string());
+    args.push(payload.to_string());
+    args
+}
 
-        return match preferred {
-            "cmd" => {
-                std::process::Command::new("cmd")
-                    .args(["/c", "start", "cmd", "/k", &wrapper_cmd])
-                    .spawn()
-                    .map_err(|e| format!("Failed to launch cmd: {e}"))?;
-                Ok(())
-            }
-            "powershell" => {
-                let command = format!("& {}", quote_powershell(&wrapper_cmd));
-                std::process::Command::new("powershell")
-                    .args(["-NoExit", "-Command", &command])
-                    .spawn()
-                    .map_err(|e| format!("Failed to launch PowerShell: {e}"))?;
-                Ok(())
-            }
-            _ => {
-                let wt_status = std::process::Command::new("wt")
-                    .args(["-w", "0", "new-tab", "cmd", "/k", &wrapper_cmd])
-                    .spawn();
+/// Build Windows Terminal + PowerShell args with optional `-d <cwd>`.
+///
+/// Default product path is a new WT window running PowerShell (not cmd).
+/// Avoid `-w` / `new-tab` — they caused CLI parse errors on some WT versions.
+/// `shell` is typically the resolved `pwsh` or `powershell` executable path/name.
+#[cfg(target_os = "windows")]
+fn windows_wt_ps_args(shell: &str, command: &str, cwd: Option<&Path>) -> Vec<String> {
+    let mut args = Vec::new();
+    if let Some(dir) = cwd {
+        args.push("-d".to_string());
+        args.push(dir.to_string_lossy().into_owned());
+    }
+    args.push(shell.to_string());
+    args.push("-NoExit".to_string());
+    args.push("-Command".to_string());
+    args.push(command.to_string());
+    args
+}
 
-                if wt_status.is_ok() {
-                    return Ok(());
-                }
+/// Build PowerShell launch args with optional `-WorkingDirectory`.
+#[cfg(target_os = "windows")]
+fn windows_powershell_args(command: &str, cwd: Option<&Path>) -> Vec<String> {
+    let mut args = Vec::new();
+    if let Some(dir) = cwd {
+        args.push("-WorkingDirectory".to_string());
+        args.push(dir.to_string_lossy().into_owned());
+    }
+    args.push("-NoExit".to_string());
+    args.push("-Command".to_string());
+    args.push(command.to_string());
+    args
+}
 
-                let wt_status2 = std::process::Command::new("wt")
-                    .args(["cmd", "/k", &wrapper_cmd])
-                    .spawn();
+/// Prefer PowerShell 7+ (`pwsh`) when installed; otherwise Windows PowerShell 5.1.
+#[cfg(target_os = "windows")]
+fn resolve_windows_powershell_shell() -> String {
+    if let Some(path) = find_windows_shell_executable("pwsh") {
+        return path;
+    }
+    if let Some(path) = find_windows_shell_executable("powershell") {
+        return path;
+    }
+    "powershell".to_string()
+}
 
-                if wt_status2.is_ok() {
-                    return Ok(());
-                }
-
-                std::process::Command::new("cmd")
-                    .args(["/c", "start", "cmd", "/k", &wrapper_cmd])
-                    .spawn()
-                    .map_err(|e| format!("Failed to launch command prompt: {e}"))?;
-                Ok(())
-            }
-        };
+#[cfg(target_os = "windows")]
+fn find_windows_shell_executable(name: &str) -> Option<String> {
+    let resolved = resolve_windows_program(name);
+    if Path::new(&resolved).is_file() {
+        return Some(resolved);
     }
 
-    let prepared_cmd = prepare_cmd_command(spec);
-    let prepared_ps = prepare_powershell_command(spec);
+    // Common install locations when PATH is stale (GUI apps often miss user installs).
+    if name.eq_ignore_ascii_case("pwsh") {
+        let mut candidates = Vec::new();
+        if let Ok(program_files) = std::env::var("ProgramFiles") {
+            candidates.push(PathBuf::from(&program_files).join(r"PowerShell\7\pwsh.exe"));
+            candidates.push(PathBuf::from(&program_files).join(r"PowerShell\7-preview\pwsh.exe"));
+        }
+        if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+            candidates.push(PathBuf::from(local_app_data).join(r"Microsoft\powershell\pwsh.exe"));
+        }
+        for candidate in candidates {
+            if candidate.is_file() {
+                return Some(candidate.to_string_lossy().into_owned());
+            }
+        }
+    }
+
+    None
+}
+
+/// Resolve a bare program name against Machine/User/process PATH when possible.
+#[cfg(target_os = "windows")]
+fn resolve_windows_program(program: &str) -> String {
+    let path = Path::new(program);
+    if path.is_absolute() {
+        return program.to_string();
+    }
+    if program.contains('\\') || program.contains('/') {
+        if path.exists() {
+            return path.to_string_lossy().into_owned();
+        }
+        return program.to_string();
+    }
+
+    let mut search_dirs: Vec<PathBuf> = Vec::new();
+    for scope in ["Machine", "User"] {
+        if let Some(value) = windows_environment_path(scope) {
+            for part in value.split(';') {
+                let part = part.trim();
+                if !part.is_empty() {
+                    search_dirs.push(PathBuf::from(part));
+                }
+            }
+        }
+    }
+    if let Ok(process_path) = std::env::var("PATH") {
+        for part in process_path.split(';') {
+            let part = part.trim();
+            if !part.is_empty() {
+                search_dirs.push(PathBuf::from(part));
+            }
+        }
+    }
+
+    let candidates = if program.to_ascii_lowercase().ends_with(".exe") {
+        vec![program.to_string()]
+    } else {
+        vec![format!("{program}.exe"), program.to_string()]
+    };
+
+    for dir in search_dirs {
+        for name in &candidates {
+            let candidate = dir.join(name);
+            if candidate.is_file() {
+                return candidate.to_string_lossy().into_owned();
+            }
+        }
+    }
+
+    program.to_string()
+}
+
+#[cfg(target_os = "windows")]
+fn windows_environment_path(scope: &str) -> Option<String> {
+    let output = std::process::Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-Command",
+            &format!("[Environment]::GetEnvironmentVariable('Path','{scope}')"),
+        ])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let value = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if value.is_empty() {
+        None
+    } else {
+        Some(value)
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn launch_windows_cmd_payload(payload: &str, cwd: Option<&Path>) -> Result<(), String> {
+    std::process::Command::new("cmd")
+        .args(windows_cmd_start_args(payload, cwd))
+        .spawn()
+        .map_err(|e| format!("Failed to launch cmd: {e}"))?;
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn launch_windows_powershell_payload(
+    shell: &str,
+    command: &str,
+    cwd: Option<&Path>,
+) -> Result<(), String> {
+    std::process::Command::new(shell)
+        .args(windows_powershell_args(command, cwd))
+        .spawn()
+        .map_err(|e| format!("Failed to launch PowerShell: {e}"))?;
+    Ok(())
+}
+
+/// Default path: Windows Terminal + PowerShell; fallback to PowerShell window.
+#[cfg(target_os = "windows")]
+fn launch_windows_wt_or_ps_payload(
+    shell: &str,
+    command: &str,
+    cwd: Option<&Path>,
+) -> Result<(), String> {
+    if std::process::Command::new("wt")
+        .args(windows_wt_ps_args(shell, command, cwd))
+        .spawn()
+        .is_ok()
+    {
+        return Ok(());
+    }
+
+    launch_windows_powershell_payload(shell, command, cwd)
+}
+
+/// Build the PowerShell -Command payload for non-cmd launches.
+#[cfg(target_os = "windows")]
+fn windows_ps_launch_command(spec: &LaunchSpec) -> Result<String, String> {
+    if needs_secure_wrapper(spec)
+        || !spec.env.is_empty()
+        || !spec.unset_env.is_empty()
+        || spec.cwd.is_some()
+    {
+        let wrapper_path = write_secure_ps_wrapper(spec)?;
+        Ok(format!(
+            "& {}",
+            quote_powershell(&wrapper_path.to_string_lossy())
+        ))
+    } else {
+        Ok(prepare_powershell_command(spec).keep_open_command)
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn launch_windows(spec: &LaunchSpec, preferred: &str) -> Result<(), String> {
+    let mut resolved = spec.clone();
+    resolved.program = resolve_windows_program(&resolved.program);
+    let cwd = resolved.cwd.as_deref();
+    let shell = resolve_windows_powershell_shell();
 
     match preferred {
         "cmd" => {
-            std::process::Command::new("cmd")
-                .args(["/c", "start", "cmd", "/k", &prepared_cmd.keep_open_command])
-                .spawn()
-                .map_err(|e| format!("Failed to launch cmd: {e}"))?;
-            Ok(())
+            if needs_secure_wrapper(&resolved)
+                || !resolved.env.is_empty()
+                || !resolved.unset_env.is_empty()
+                || resolved.cwd.is_some()
+            {
+                let wrapper_path = write_secure_cmd_wrapper(&resolved)?;
+                let wrapper_cmd = wrapper_path.to_string_lossy().to_string();
+                launch_windows_cmd_payload(&wrapper_cmd, cwd)
+            } else {
+                let prepared = prepare_cmd_command(&resolved);
+                launch_windows_cmd_payload(&prepared.keep_open_command, cwd)
+            }
         }
         "powershell" => {
-            std::process::Command::new("powershell")
-                .args(["-NoExit", "-Command", &prepared_ps.keep_open_command])
-                .spawn()
-                .map_err(|e| format!("Failed to launch PowerShell: {e}"))?;
-            Ok(())
+            let command = windows_ps_launch_command(&resolved)?;
+            launch_windows_powershell_payload(&shell, &command, cwd)
         }
         _ => {
-            let wt_status = std::process::Command::new("wt")
-                .args([
-                    "-w",
-                    "0",
-                    "new-tab",
-                    "cmd",
-                    "/k",
-                    &prepared_cmd.keep_open_command,
-                ])
-                .spawn();
-
-            if wt_status.is_ok() {
-                return Ok(());
-            }
-
-            let wt_status2 = std::process::Command::new("wt")
-                .args(["cmd", "/k", &prepared_cmd.keep_open_command])
-                .spawn();
-
-            if wt_status2.is_ok() {
-                return Ok(());
-            }
-
-            std::process::Command::new("cmd")
-                .args(["/c", "start", "cmd", "/k", &prepared_cmd.keep_open_command])
-                .spawn()
-                .map_err(|e| format!("Failed to launch command prompt: {e}"))?;
-            Ok(())
+            // Default: Windows Terminal + PowerShell/pwsh (never bare cmd).
+            let command = windows_ps_launch_command(&resolved)?;
+            launch_windows_wt_or_ps_payload(&shell, &command, cwd)
         }
     }
 }
@@ -786,6 +997,13 @@ mod tests {
         assert!(
             prepared
                 .command
+                .contains("GetEnvironmentVariable('Path','Machine')"),
+            "expected PATH refresh in command: {}",
+            prepared.command
+        );
+        assert!(
+            prepared
+                .command
                 .contains("Remove-Item Env:ANTHROPIC_AUTH_TOKEN -ErrorAction SilentlyContinue"),
             "expected unset env in command: {}",
             prepared.command
@@ -841,6 +1059,171 @@ mod tests {
         assert_eq!(prepared.command, prepared.keep_open_command);
     }
 
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_cmd_start_args_include_empty_title_and_optional_d() {
+        use super::windows_cmd_start_args;
+        use std::path::Path;
+
+        let without_cwd = windows_cmd_start_args(r"C:\temp\run.cmd", None);
+        assert_eq!(
+            without_cwd,
+            vec![
+                "/c".to_string(),
+                "start".to_string(),
+                String::new(),
+                "cmd".to_string(),
+                "/k".to_string(),
+                r"C:\temp\run.cmd".to_string(),
+            ]
+        );
+
+        let with_cwd = windows_cmd_start_args(r"C:\temp\run.cmd", Some(Path::new(r"D:\work tree")));
+        assert_eq!(
+            with_cwd,
+            vec![
+                "/c".to_string(),
+                "start".to_string(),
+                String::new(),
+                "/D".to_string(),
+                r"D:\work tree".to_string(),
+                "cmd".to_string(),
+                "/k".to_string(),
+                r"C:\temp\run.cmd".to_string(),
+            ]
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_wt_and_powershell_args_include_start_directory() {
+        use super::{windows_powershell_args, windows_wt_ps_args};
+        use std::path::Path;
+
+        let wt_with_cwd =
+            windows_wt_ps_args("pwsh", "& 'C:\\temp\\run.ps1'", Some(Path::new(r"D:\proj")));
+        assert_eq!(
+            wt_with_cwd,
+            vec![
+                "-d".to_string(),
+                r"D:\proj".to_string(),
+                "pwsh".to_string(),
+                "-NoExit".to_string(),
+                "-Command".to_string(),
+                "& 'C:\\temp\\run.ps1'".to_string(),
+            ]
+        );
+
+        let wt_plain = windows_wt_ps_args("powershell", "& 'C:\\temp\\run.ps1'", None);
+        assert_eq!(
+            wt_plain,
+            vec![
+                "powershell".to_string(),
+                "-NoExit".to_string(),
+                "-Command".to_string(),
+                "& 'C:\\temp\\run.ps1'".to_string(),
+            ]
+        );
+
+        let ps = windows_powershell_args(r"& 'C:\temp\run.ps1'", Some(Path::new(r"D:\work")));
+        assert_eq!(
+            ps,
+            vec![
+                "-WorkingDirectory".to_string(),
+                r"D:\work".to_string(),
+                "-NoExit".to_string(),
+                "-Command".to_string(),
+                r"& 'C:\temp\run.ps1'".to_string(),
+            ]
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn find_windows_shell_executable_prefers_existing_file() {
+        use super::find_windows_shell_executable;
+
+        let support_dir =
+            std::env::temp_dir().join(format!("droidgear-shell-resolve-{}", std::process::id()));
+        std::fs::create_dir_all(&support_dir).unwrap();
+        let fake_pwsh = support_dir.join("pwsh.exe");
+        std::fs::write(&fake_pwsh, b"").unwrap();
+
+        // Inject into process PATH so resolve_windows_program can find it.
+        let original_path = std::env::var("PATH").unwrap_or_default();
+        let mutated = format!("{};{}", support_dir.to_string_lossy(), original_path);
+        // SAFETY: test-only mutation of process PATH for resolution probe.
+        unsafe {
+            std::env::set_var("PATH", &mutated);
+        }
+
+        let found = find_windows_shell_executable("pwsh");
+
+        unsafe {
+            std::env::set_var("PATH", original_path);
+        }
+        let _ = std::fs::remove_dir_all(&support_dir);
+
+        let found = found.expect("pwsh should be resolved from temp PATH entry");
+        assert!(
+            found.to_ascii_lowercase().ends_with("pwsh.exe"),
+            "unexpected shell path: {found}"
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn secure_ps_wrapper_includes_path_refresh_env_and_program() {
+        use super::write_secure_ps_wrapper;
+
+        let support_dir =
+            std::env::temp_dir().join(format!("droidgear-ps-wrapper-test-{}", std::process::id()));
+        std::fs::create_dir_all(&support_dir).unwrap();
+
+        let spec = LaunchSpec {
+            program: "codex".to_string(),
+            args: vec![],
+            env: vec![("CODEX_HOME".to_string(), r"C:\tmp\runtime".to_string())],
+            secret_env: vec![("EXAMPLE_API_KEY".to_string(), "sk-secret".to_string())],
+            unset_env: vec!["OPENAI_API_KEY".to_string()],
+            cwd: Some(PathBuf::from(r"D:\work tree")),
+            support_dir: Some(support_dir.clone()),
+        };
+
+        let path = write_secure_ps_wrapper(&spec).unwrap();
+        let contents = std::fs::read_to_string(&path).unwrap();
+        let _ = std::fs::remove_dir_all(&support_dir);
+
+        assert!(
+            contents.contains("GetEnvironmentVariable('Path','Machine')"),
+            "expected PATH refresh: {contents}"
+        );
+        assert!(
+            contents.contains("Remove-Item Env:OPENAI_API_KEY"),
+            "expected unset env: {contents}"
+        );
+        assert!(
+            contents.contains("$env:CODEX_HOME = 'C:\\tmp\\runtime'"),
+            "expected CODEX_HOME: {contents}"
+        );
+        assert!(
+            contents.contains("$env:EXAMPLE_API_KEY = 'sk-secret'"),
+            "expected secret env: {contents}"
+        );
+        assert!(
+            contents.contains("Set-Location 'D:\\work tree'"),
+            "expected cwd: {contents}"
+        );
+        assert!(
+            contents.contains("& 'codex'"),
+            "expected program: {contents}"
+        );
+        assert!(
+            contents.contains("Remove-Item -LiteralPath $PSCommandPath"),
+            "expected self-delete: {contents}"
+        );
+    }
+
     #[cfg(not(target_os = "windows"))]
     #[test]
     fn prepare_commands_skip_empty_env_sections() {
@@ -876,7 +1259,18 @@ mod tests {
         let powershell = prepare_powershell_command(&spec);
         let cmd = prepare_cmd_command(&spec);
 
-        assert_eq!(powershell.command, "& 'droid'");
+        assert!(
+            powershell
+                .command
+                .contains("GetEnvironmentVariable('Path','Machine')"),
+            "expected PATH refresh even without env: {}",
+            powershell.command
+        );
+        assert!(
+            powershell.command.contains("& 'droid'"),
+            "expected program invocation: {}",
+            powershell.command
+        );
         assert_eq!(cmd.command, "\"droid\"");
     }
 

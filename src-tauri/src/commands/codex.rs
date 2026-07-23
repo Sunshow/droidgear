@@ -5,7 +5,7 @@
 pub use droidgear_core::codex::{CodexConfigStatus, CodexCurrentConfig, CodexProfile};
 
 use droidgear_core::codex_runtime::{
-    self, CodexCliCapability, CodexTemporaryLaunchPlan, CodexTemporaryRunPlan,
+    self, CodexCliCapability, CodexInAppRunPlan, CodexTemporaryLaunchPlan, CodexTemporaryRunPlan,
 };
 
 use crate::utils::login_shell::run_command_in_login_shell;
@@ -113,6 +113,23 @@ pub async fn get_codex_cli_capability() -> Result<CodexCliCapability, String> {
 #[tauri::command]
 #[specta::specta]
 pub async fn get_codex_temporary_run_plan(id: String) -> Result<CodexTemporaryRunPlan, String> {
+    let profile = droidgear_core::codex::get_codex_profile(&id)?;
+    let plan = codex_runtime::build_temporary_run_plan(&profile)?;
+    Ok((&plan).into())
+}
+
+/// Prepare a one-shot in-app terminal run (runtime CODEX_HOME + env, including secrets).
+///
+/// Does not open an external terminal. The frontend injects env into the PTY and
+/// auto-executes the command. Secret values must not be persisted client-side.
+#[tauri::command]
+#[specta::specta]
+pub async fn prepare_codex_in_app_run(id: String) -> Result<CodexInAppRunPlan, String> {
+    let home_dir = dirs::home_dir().ok_or_else(|| "Failed to get home directory".to_string())?;
+    if let Err(error) = codex_runtime::cleanup_stale_runtime_homes_for_home(&home_dir) {
+        log::warn!("Failed to clean up stale Codex runtime homes: {error}");
+    }
+
     let profile = droidgear_core::codex::get_codex_profile(&id)?;
     let plan = codex_runtime::build_temporary_run_plan(&profile)?;
     Ok((&plan).into())
