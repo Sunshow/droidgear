@@ -261,10 +261,10 @@ fn write_secure_posix_wrapper(spec: &LaunchSpec) -> Result<PathBuf, String> {
 #[cfg(target_os = "windows")]
 fn write_secure_cmd_wrapper(spec: &LaunchSpec) -> Result<PathBuf, String> {
     let path = launch_artifact_path(spec, "terminal-launch.cmd");
-    // No `cls`: clearing the console causes an extra visible flash on launch.
     let mut lines = vec![
         "@echo off".to_string(),
         "setlocal".to_string(),
+        "cls".to_string(),
         format!("echo {}", startup_message(&spec.program)),
     ];
 
@@ -288,15 +288,16 @@ fn write_secure_cmd_wrapper(spec: &LaunchSpec) -> Result<PathBuf, String> {
 }
 
 /// Self-deleting PowerShell launcher with Machine+User PATH refresh, env, secrets, cwd.
-/// Used only when `secret_env` is present so secrets stay out of process command lines.
+/// Used when secrets must stay out of argv, or when env/unset/cwd would make an unsafe
+/// multi-statement inline command through Windows Terminal's argv re-parse.
 #[cfg(target_os = "windows")]
 fn write_secure_ps_wrapper(spec: &LaunchSpec) -> Result<PathBuf, String> {
     let path = launch_artifact_path(spec, "terminal-launch.ps1");
-    // No Clear-Host: wiping the console adds a visible flash before the CLI starts.
     let mut lines = vec![
         "$ErrorActionPreference = 'Continue'".to_string(),
         "try {".to_string(),
         format!("  {}", render_powershell_path_refresh()),
+        "  Clear-Host".to_string(),
         format!("  {}", render_powershell_banner(&spec.program)),
     ];
 
@@ -707,7 +708,6 @@ fn windows_cmd_start_args(payload: &str, cwd: Option<&Path>) -> Vec<String> {
 /// Default product path is a new WT window running PowerShell (not cmd).
 /// Avoid `-w` / `new-tab` — they caused CLI parse errors on some WT versions.
 /// `shell` is typically the resolved `pwsh` or `powershell` executable path/name.
-/// `-NoLogo -NoProfile` cuts the PowerShell copyright banner flash on cold start.
 #[cfg(target_os = "windows")]
 fn windows_wt_ps_args(shell: &str, command: &str, cwd: Option<&Path>) -> Vec<String> {
     let mut args = Vec::new();
@@ -716,8 +716,6 @@ fn windows_wt_ps_args(shell: &str, command: &str, cwd: Option<&Path>) -> Vec<Str
         args.push(dir.to_string_lossy().into_owned());
     }
     args.push(shell.to_string());
-    args.push("-NoLogo".to_string());
-    args.push("-NoProfile".to_string());
     args.push("-NoExit".to_string());
     args.push("-Command".to_string());
     args.push(command.to_string());
@@ -732,8 +730,6 @@ fn windows_powershell_args(command: &str, cwd: Option<&Path>) -> Vec<String> {
         args.push("-WorkingDirectory".to_string());
         args.push(dir.to_string_lossy().into_owned());
     }
-    args.push("-NoLogo".to_string());
-    args.push("-NoProfile".to_string());
     args.push("-NoExit".to_string());
     args.push("-Command".to_string());
     args.push(command.to_string());
@@ -767,16 +763,45 @@ fn find_windows_shell_executable(name: &str) -> Option<String> {
             candidates.push(PathBuf::from(&program_files).join(r"PowerShell\7-preview\pwsh.exe"));
         }
         if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
-            candidates.push(PathBuf::from(local_app_data).join(r"Microsoft\powershell\pwsh.exe"));
+            let local = PathBuf::from(local_app_data);
+            candidates.push(local.join(r"Microsoft\powershell\pwsh.exe"));
+            // Store / winget App Execution Alias — often the only PS7 entry on user PATH.
+            candidates.push(local.join(r"Microsoft\WindowsApps\pwsh.exe"));
         }
         for candidate in candidates {
-            if candidate.is_file() {
+            // App Execution Aliases are reparse points; `exists` is more reliable than `is_file`.
+            if candidate.exists() {
                 return Some(candidate.to_string_lossy().into_owned());
             }
         }
     }
 
     None
+}
+
+/// Candidate names for a bare program on Windows.
+///
+/// Prefer PATHEXT-style launchers (`.exe` / `.cmd` / `.bat` / `.ps1`) and skip bare
+/// extensionless shims such as npm's `codex` (`#!/bin/sh`). Passing that absolute
+/// path into PowerShell bypasses PATHEXT and can leave the launcher shell empty
+/// while the real CUI binary opens a second console window.
+#[cfg(target_os = "windows")]
+fn windows_program_candidates(program: &str) -> Vec<String> {
+    let lower = program.to_ascii_lowercase();
+    if lower.ends_with(".exe")
+        || lower.ends_with(".cmd")
+        || lower.ends_with(".bat")
+        || lower.ends_with(".ps1")
+        || lower.ends_with(".com")
+    {
+        return vec![program.to_string()];
+    }
+    vec![
+        format!("{program}.exe"),
+        format!("{program}.cmd"),
+        format!("{program}.bat"),
+        format!("{program}.ps1"),
+    ]
 }
 
 /// Resolve a bare program name against process PATH first, then Machine/User PATH.
@@ -794,11 +819,7 @@ fn resolve_windows_program(program: &str) -> String {
         return program.to_string();
     }
 
-    let candidates = if program.to_ascii_lowercase().ends_with(".exe") {
-        vec![program.to_string()]
-    } else {
-        vec![format!("{program}.exe"), program.to_string()]
-    };
+    let candidates = windows_program_candidates(program);
 
     if let Ok(process_path) = std::env::var("PATH") {
         if let Some(found) = search_program_in_path_value(&process_path, &candidates) {
@@ -927,11 +948,16 @@ fn launch_windows_wt_or_ps_payload(
 
 /// Build the PowerShell -Command payload for non-cmd launches.
 ///
-/// Temp wrappers are only required when secrets must stay out of argv.
-/// Non-secret env/unset/cwd go inline (and cwd is also set via `-d` / `-WorkingDirectory`).
+/// Prefer a short temp wrapper whenever env/unset/cwd/secrets are present.
+/// Inline multi-statement PowerShell (PATH refresh + env + program) is unsafe through
+/// Windows Terminal's argv re-parse and can surface as CreateProcess 0x80070002.
 #[cfg(target_os = "windows")]
 fn windows_ps_launch_command(spec: &LaunchSpec) -> Result<String, String> {
-    if needs_secure_wrapper(spec) {
+    if needs_secure_wrapper(spec)
+        || !spec.env.is_empty()
+        || !spec.unset_env.is_empty()
+        || spec.cwd.is_some()
+    {
         let wrapper_path = write_secure_ps_wrapper(spec)?;
         Ok(format!(
             "& {}",
@@ -951,7 +977,11 @@ fn launch_windows(spec: &LaunchSpec, preferred: &str) -> Result<(), String> {
 
     match preferred {
         "cmd" => {
-            if needs_secure_wrapper(&resolved) {
+            if needs_secure_wrapper(&resolved)
+                || !resolved.env.is_empty()
+                || !resolved.unset_env.is_empty()
+                || resolved.cwd.is_some()
+            {
                 let wrapper_path = write_secure_cmd_wrapper(&resolved)?;
                 let wrapper_cmd = wrapper_path.to_string_lossy().to_string();
                 launch_windows_cmd_payload(&wrapper_cmd, cwd)
@@ -1138,7 +1168,7 @@ mod tests {
 
     #[cfg(target_os = "windows")]
     #[test]
-    fn windows_wt_and_powershell_args_include_start_directory_and_quiet_flags() {
+    fn windows_wt_and_powershell_args_include_start_directory() {
         use super::{windows_powershell_args, windows_wt_ps_args};
         use std::path::Path;
 
@@ -1150,8 +1180,6 @@ mod tests {
                 "-d".to_string(),
                 r"D:\proj".to_string(),
                 "pwsh".to_string(),
-                "-NoLogo".to_string(),
-                "-NoProfile".to_string(),
                 "-NoExit".to_string(),
                 "-Command".to_string(),
                 "& 'C:\\temp\\run.ps1'".to_string(),
@@ -1163,8 +1191,6 @@ mod tests {
             wt_plain,
             vec![
                 "powershell".to_string(),
-                "-NoLogo".to_string(),
-                "-NoProfile".to_string(),
                 "-NoExit".to_string(),
                 "-Command".to_string(),
                 "& 'C:\\temp\\run.ps1'".to_string(),
@@ -1177,8 +1203,6 @@ mod tests {
             vec![
                 "-WorkingDirectory".to_string(),
                 r"D:\work".to_string(),
-                "-NoLogo".to_string(),
-                "-NoProfile".to_string(),
                 "-NoExit".to_string(),
                 "-Command".to_string(),
                 r"& 'C:\temp\run.ps1'".to_string(),
@@ -1188,31 +1212,33 @@ mod tests {
 
     #[cfg(target_os = "windows")]
     #[test]
-    fn windows_ps_launch_command_inlines_non_secret_env_without_wrapper() {
+    fn windows_ps_launch_command_uses_wrapper_when_env_or_cwd_present() {
         use super::windows_ps_launch_command;
 
-        let command = windows_ps_launch_command(&sample_spec()).unwrap();
+        let support_dir = std::env::temp_dir().join(format!(
+            "droidgear-ps-launch-env-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&support_dir).unwrap();
+
+        let mut spec = sample_spec();
+        spec.support_dir = Some(support_dir.clone());
+        let command = windows_ps_launch_command(&spec).unwrap();
+        let _ = std::fs::remove_dir_all(&support_dir);
+
         assert!(
-            command.contains("$env:FOO = 'bar baz'"),
-            "expected inline env: {command}"
+            command.contains("terminal-launch.ps1"),
+            "env/cwd launches must use a temp wrapper to avoid wt re-parse errors: {command}"
         );
         assert!(
-            command.contains("Remove-Item Env:ANTHROPIC_AUTH_TOKEN"),
-            "expected inline unset: {command}"
-        );
-        assert!(
-            command.contains("& 'droid'"),
-            "expected program: {command}"
-        );
-        assert!(
-            !command.contains("terminal-launch.ps1"),
-            "non-secret launches should not write a temp wrapper: {command}"
+            !command.contains("$env:FOO"),
+            "outer command must stay short (no inline env): {command}"
         );
     }
 
     #[cfg(target_os = "windows")]
     #[test]
-    fn windows_ps_launch_command_uses_wrapper_only_for_secrets() {
+    fn windows_ps_launch_command_uses_wrapper_for_secrets() {
         use super::windows_ps_launch_command;
 
         let support_dir = std::env::temp_dir().join(format!(
@@ -1235,6 +1261,42 @@ mod tests {
         assert!(
             !command.contains("sk-secret"),
             "secret value must not appear in the outer command: {command}"
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn resolve_windows_program_prefers_cmd_over_extensionless_shim() {
+        use super::resolve_windows_program;
+
+        let support_dir = std::env::temp_dir().join(format!(
+            "droidgear-resolve-codex-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&support_dir).unwrap();
+        // npm-style layout: bare `codex` shell shim + Windows `codex.cmd`
+        std::fs::write(support_dir.join("codex"), b"#!/bin/sh\nnode codex.js\n").unwrap();
+        std::fs::write(
+            support_dir.join("codex.cmd"),
+            b"@ECHO off\nnode \"%~dp0\\node_modules\\@openai\\codex\\bin\\codex.js\" %*\n",
+        )
+        .unwrap();
+
+        let original_path = std::env::var("PATH").unwrap_or_default();
+        let mutated = format!("{};{}", support_dir.to_string_lossy(), original_path);
+        // SAFETY: test-only PATH isolation for resolver.
+        unsafe {
+            std::env::set_var("PATH", &mutated);
+        }
+        let found = resolve_windows_program("codex");
+        unsafe {
+            std::env::set_var("PATH", original_path);
+        }
+        let _ = std::fs::remove_dir_all(&support_dir);
+
+        assert!(
+            found.to_ascii_lowercase().ends_with("codex.cmd"),
+            "expected .cmd launcher, got: {found}"
         );
     }
 
@@ -1267,6 +1329,54 @@ mod tests {
         let found = found.expect("pwsh should be resolved from temp PATH entry");
         assert!(
             found.to_ascii_lowercase().ends_with("pwsh.exe"),
+            "unexpected shell path: {found}"
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn find_windows_shell_executable_checks_windowsapps_alias() {
+        use super::find_windows_shell_executable;
+
+        let support_dir = std::env::temp_dir().join(format!(
+            "droidgear-shell-windowsapps-{}",
+            std::process::id()
+        ));
+        let alias_dir = support_dir.join(r"Microsoft\WindowsApps");
+        std::fs::create_dir_all(&alias_dir).unwrap();
+        let alias = alias_dir.join("pwsh.exe");
+        std::fs::write(&alias, b"").unwrap();
+
+        let original_path = std::env::var("PATH").unwrap_or_default();
+        let original_local = std::env::var("LOCALAPPDATA").ok();
+        let original_pf = std::env::var("ProgramFiles").ok();
+        // SAFETY: test-only env isolation so only the WindowsApps candidate can match.
+        unsafe {
+            std::env::set_var("PATH", "");
+            std::env::set_var("LOCALAPPDATA", &support_dir);
+            std::env::set_var("ProgramFiles", support_dir.join("no-pf"));
+        }
+
+        let found = find_windows_shell_executable("pwsh");
+
+        unsafe {
+            std::env::set_var("PATH", original_path);
+            match original_local {
+                Some(v) => std::env::set_var("LOCALAPPDATA", v),
+                None => std::env::remove_var("LOCALAPPDATA"),
+            }
+            match original_pf {
+                Some(v) => std::env::set_var("ProgramFiles", v),
+                None => std::env::remove_var("ProgramFiles"),
+            }
+        }
+        let _ = std::fs::remove_dir_all(&support_dir);
+
+        let found = found.expect("pwsh should resolve via WindowsApps alias");
+        assert!(
+            found
+                .to_ascii_lowercase()
+                .ends_with("microsoft\\windowsapps\\pwsh.exe"),
             "unexpected shell path: {found}"
         );
     }
