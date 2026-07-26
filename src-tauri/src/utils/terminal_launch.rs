@@ -743,15 +743,17 @@ fn launch_linux(spec: &LaunchSpec, preferred: &str) -> Result<(), String> {
     ))
 }
 
-/// Build `cmd /c start "<title>" [/D cwd] cmd /k <payload>` args (explicit cmd preference only).
+/// Build `cmd /c start "" [/D cwd] cmd /k <payload>` args (explicit cmd preference only).
 ///
 /// `start` detaches the user-visible console from the GUI process tree (survives app
-/// exit / job cleanup). The first quoted argument is the window title (empty keeps the
-/// legacy default). `/D` sets the starting directory.
+/// exit / job cleanup). The empty title (`""`) is required because `start` treats the
+/// first quoted argument as the window title, and unquoted single-word arguments would
+/// be misinterpreted as program names. The actual window title is set by the `title`
+/// command inside the payload. `/D` sets the starting directory.
 /// Pair with `CREATE_NO_WINDOW` on the outer `cmd` so the launcher hop itself never flashes.
 #[cfg(target_os = "windows")]
-fn windows_cmd_start_args(payload: &str, cwd: Option<&Path>, title: &str) -> Vec<String> {
-    let mut args = vec!["/c".to_string(), "start".to_string(), title.to_string()];
+fn windows_cmd_start_args(payload: &str, cwd: Option<&Path>) -> Vec<String> {
+    let mut args = vec!["/c".to_string(), "start".to_string(), String::new()];
     if let Some(dir) = cwd {
         args.push("/D".to_string());
         args.push(dir.to_string_lossy().into_owned());
@@ -961,17 +963,13 @@ fn windows_environment_path(scope: &str) -> Option<String> {
 }
 
 #[cfg(target_os = "windows")]
-fn launch_windows_cmd_payload(
-    payload: &str,
-    cwd: Option<&Path>,
-    title: &str,
-) -> Result<(), String> {
+fn launch_windows_cmd_payload(payload: &str, cwd: Option<&Path>) -> Result<(), String> {
     use std::os::windows::process::CommandExt;
 
     // Keep `start` so the terminal detaches from the GUI process tree, but hide the
     // outer `cmd /c start` launcher console to avoid the intermediate black flash.
     std::process::Command::new("cmd")
-        .args(windows_cmd_start_args(payload, cwd, title))
+        .args(windows_cmd_start_args(payload, cwd))
         .creation_flags(CREATE_NO_WINDOW)
         .spawn()
         .map_err(|e| format!("Failed to launch cmd: {e}"))?;
@@ -1054,10 +1052,10 @@ fn launch_windows(spec: &LaunchSpec, preferred: &str) -> Result<(), String> {
             {
                 let wrapper_path = write_secure_cmd_wrapper(&resolved)?;
                 let wrapper_cmd = wrapper_path.to_string_lossy().to_string();
-                launch_windows_cmd_payload(&wrapper_cmd, cwd, &title)
+                launch_windows_cmd_payload(&wrapper_cmd, cwd)
             } else {
                 let prepared = prepare_cmd_command(&resolved);
-                launch_windows_cmd_payload(&prepared.keep_open_command, cwd, &title)
+                launch_windows_cmd_payload(&prepared.keep_open_command, cwd)
             }
         }
         "powershell" => {
@@ -1210,7 +1208,7 @@ mod tests {
         use super::windows_cmd_start_args;
         use std::path::Path;
 
-        let without_cwd = windows_cmd_start_args(r"C:\temp\run.cmd", None, "");
+        let without_cwd = windows_cmd_start_args(r"C:\temp\run.cmd", None);
         assert_eq!(
             without_cwd,
             vec![
@@ -1223,17 +1221,13 @@ mod tests {
             ]
         );
 
-        let with_cwd = windows_cmd_start_args(
-            r"C:\temp\run.cmd",
-            Some(Path::new(r"D:\work tree")),
-            "work tree",
-        );
+        let with_cwd = windows_cmd_start_args(r"C:\temp\run.cmd", Some(Path::new(r"D:\work tree")));
         assert_eq!(
             with_cwd,
             vec![
                 "/c".to_string(),
                 "start".to_string(),
-                "work tree".to_string(),
+                String::new(),
                 "/D".to_string(),
                 r"D:\work tree".to_string(),
                 "cmd".to_string(),
