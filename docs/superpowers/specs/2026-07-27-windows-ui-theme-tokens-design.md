@@ -30,11 +30,11 @@ DroidGear 桌面端（Tauri v2 + React 19 + shadcn/ui + Tailwind v4）当前主�
 
 已评估三种方案：
 
-| 方案 | 内容 | 结论 |
-| --- | --- | --- |
-| A. Token 轻量焕新 | 只改 CSS 变量与默认主题 | **采用** |
-| B. Token + 亚克力表面 | 额外改壳层 class | 暂不做 |
-| C. 系统强调色联动 | 平台 API | 暂不做 |
+| 方案                  | 内容                    | 结论     |
+| --------------------- | ----------------------- | -------- |
+| A. Token 轻量焕新     | 只改 CSS 变量与默认主题 | **采用** |
+| B. Token + 亚克力表面 | 额外改壳层 class        | 暂不做   |
+| C. 系统强调色联动     | 平台 API                | 暂不做   |
 
 ## 4. 设计细节
 
@@ -88,12 +88,12 @@ DroidGear 桌面端（Tauri v2 + React 19 + shadcn/ui + Tailwind v4）当前主�
 
 ## 5. 落地文件
 
-| 文件 | 变更 |
-| --- | --- |
-| `src/theme-variables.css` | 更新 `:root`、`.dark` 语义色；`--radius` |
-| `src/App.css` | 启动底色；body 字号/行高微调 |
-| `src/components/ThemeProvider.tsx` | `defaultTheme` 默认值改为 `dark` |
-| `src/services/preferences.ts` | 默认 preferences 中 `theme: 'dark'` |
+| 文件                               | 变更                                     |
+| ---------------------------------- | ---------------------------------------- |
+| `src/theme-variables.css`          | 更新 `:root`、`.dark` 语义色；`--radius` |
+| `src/App.css`                      | 启动底色；body 字号/行高微调             |
+| `src/components/ThemeProvider.tsx` | `defaultTheme` 默认值改为 `dark`         |
+| `src/services/preferences.ts`      | 默认 preferences 中 `theme: 'dark'`      |
 
 可选（仅当实现时发现测试/快照依赖旧默认）：
 
@@ -115,11 +115,11 @@ DroidGear 桌面端（Tauri v2 + React 19 + shadcn/ui + Tailwind v4）当前主�
 
 ## 8. 风险与回退
 
-| 风险 | 缓解 |
-| --- | --- |
+| 风险                                   | 缓解                                             |
+| -------------------------------------- | ------------------------------------------------ |
 | primary 从中性灰变蓝，部分按钮观感变化 | 依赖语义 token；目视检查 primary/secondary/ghost |
-| 硬编码旧灰色局部不协调 | 本轮不扫全库；明显问题定点修 |
-| 默认 dark 影响新用户/测试 | 仅默认值；老用户偏好保留 |
+| 硬编码旧灰色局部不协调                 | 本轮不扫全库；明显问题定点修                     |
+| 默认 dark 影响新用户/测试              | 仅默认值；老用户偏好保留                         |
 
 回退：还原上述 4 个文件即可。
 
