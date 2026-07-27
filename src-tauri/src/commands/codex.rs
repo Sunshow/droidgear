@@ -168,6 +168,7 @@ fn build_codex_launch_spec(plan: &CodexTemporaryLaunchPlan) -> LaunchSpec {
         unset_env: plan.unset_env.clone(),
         cwd: None,
         support_dir: Some(plan.runtime_home_path.clone()),
+        no_keep_open: false,
     }
 }
 

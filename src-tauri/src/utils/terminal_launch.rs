@@ -19,6 +19,9 @@ pub struct LaunchSpec {
     pub unset_env: Vec<String>,
     pub cwd: Option<PathBuf>,
     pub support_dir: Option<PathBuf>,
+    /// When true, the terminal wrapper should NOT keep the window open after
+    /// the command exits (e.g. Claude Code launches its own window).
+    pub no_keep_open: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -709,14 +712,16 @@ fn windows_cmd_start_args(payload: &str, cwd: Option<&Path>) -> Vec<String> {
 /// Avoid `-w` / `new-tab` — they caused CLI parse errors on some WT versions.
 /// `shell` is typically the resolved `pwsh` or `powershell` executable path/name.
 #[cfg(target_os = "windows")]
-fn windows_wt_ps_args(shell: &str, command: &str, cwd: Option<&Path>) -> Vec<String> {
+fn windows_wt_ps_args(shell: &str, command: &str, cwd: Option<&Path>, no_keep_open: bool) -> Vec<String> {
     let mut args = Vec::new();
     if let Some(dir) = cwd {
         args.push("-d".to_string());
         args.push(dir.to_string_lossy().into_owned());
     }
     args.push(shell.to_string());
-    args.push("-NoExit".to_string());
+    if !no_keep_open {
+        args.push("-NoExit".to_string());
+    }
     args.push("-Command".to_string());
     args.push(command.to_string());
     args
@@ -724,13 +729,15 @@ fn windows_wt_ps_args(shell: &str, command: &str, cwd: Option<&Path>) -> Vec<Str
 
 /// Build PowerShell launch args with optional `-WorkingDirectory`.
 #[cfg(target_os = "windows")]
-fn windows_powershell_args(command: &str, cwd: Option<&Path>) -> Vec<String> {
+fn windows_powershell_args(command: &str, cwd: Option<&Path>, no_keep_open: bool) -> Vec<String> {
     let mut args = Vec::new();
     if let Some(dir) = cwd {
         args.push("-WorkingDirectory".to_string());
         args.push(dir.to_string_lossy().into_owned());
     }
-    args.push("-NoExit".to_string());
+    if !no_keep_open {
+        args.push("-NoExit".to_string());
+    }
     args.push("-Command".to_string());
     args.push(command.to_string());
     args
@@ -915,11 +922,12 @@ fn launch_windows_powershell_payload(
     shell: &str,
     command: &str,
     cwd: Option<&Path>,
+    no_keep_open: bool,
 ) -> Result<(), String> {
     use std::os::windows::process::CommandExt;
 
     let mut process = std::process::Command::new(shell);
-    process.args(windows_powershell_args(command, cwd));
+    process.args(windows_powershell_args(command, cwd, no_keep_open));
     // Explicit new console when the parent is a GUI app.
     process.creation_flags(CREATE_NEW_CONSOLE);
     process
@@ -934,16 +942,17 @@ fn launch_windows_wt_or_ps_payload(
     shell: &str,
     command: &str,
     cwd: Option<&Path>,
+    no_keep_open: bool,
 ) -> Result<(), String> {
     if std::process::Command::new("wt")
-        .args(windows_wt_ps_args(shell, command, cwd))
+        .args(windows_wt_ps_args(shell, command, cwd, no_keep_open))
         .spawn()
         .is_ok()
     {
         return Ok(());
     }
 
-    launch_windows_powershell_payload(shell, command, cwd)
+    launch_windows_powershell_payload(shell, command, cwd, no_keep_open)
 }
 
 /// Build the PowerShell -Command payload for non-cmd launches.
@@ -992,12 +1001,12 @@ fn launch_windows(spec: &LaunchSpec, preferred: &str) -> Result<(), String> {
         }
         "powershell" => {
             let command = windows_ps_launch_command(&resolved)?;
-            launch_windows_powershell_payload(&shell, &command, cwd)
+            launch_windows_powershell_payload(&shell, &command, cwd, resolved.no_keep_open)
         }
         _ => {
             // Default: Windows Terminal + PowerShell/pwsh (never bare cmd).
             let command = windows_ps_launch_command(&resolved)?;
-            launch_windows_wt_or_ps_payload(&shell, &command, cwd)
+            launch_windows_wt_or_ps_payload(&shell, &command, cwd, resolved.no_keep_open)
         }
     }
 }
@@ -1022,6 +1031,7 @@ mod tests {
             unset_env: vec!["ANTHROPIC_AUTH_TOKEN".to_string()],
             cwd: Some(PathBuf::from("/work tree")),
             support_dir: None,
+            no_keep_open: false,
         }
     }
 

@@ -10,7 +10,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
-use crate::{claude, paths};
+use crate::{claude, claude_settings_files, paths};
 
 const CLAUDE_CONFIG_DIR_ENV: &str = "CLAUDE_CONFIG_DIR";
 const CLAUDE_ENV_FILE_ENV: &str = "CLAUDE_ENV_FILE";
@@ -740,6 +740,80 @@ pub fn run_internal_launcher_from_env() -> Result<(), String> {
 }
 
 // ============================================================================
+// File-based temporary run (settings file name → plan)
+// ============================================================================
+
+/// Builds a temporary-run plan from a named settings file.
+/// Resolves the file path, then delegates to the settings-launch infrastructure.
+pub fn build_temporary_run_plan_from_file(
+    home_dir: &Path,
+    file_name: &str,
+) -> Result<ClaudeTemporaryRunPlan, String> {
+    let settings_path =
+        claude_settings_files::get_settings_path_by_name_for_home(home_dir, file_name)?;
+    let plan = build_settings_preview_plan_for_home(
+        home_dir,
+        &settings_path,
+        false,
+        &std::env::current_exe()
+            .map_err(|e| format!("Failed to locate current launcher executable: {e}"))?
+            .to_string_lossy()
+            .to_string(),
+        &internal_settings_launcher_args(),
+    )?;
+    Ok(ClaudeTemporaryRunPlan {
+        program: plan.program,
+        args: plan.args,
+        env: plan.env,
+        unset_env: plan.unset_env,
+        secret_env_keys: plan.secret_env_keys,
+        warnings: plan.warnings,
+    })
+}
+
+/// Builds a debug preview for a temporary run from a named settings file.
+pub fn build_temporary_run_preview_from_file(
+    home_dir: &Path,
+    file_name: &str,
+) -> Result<ClaudeTemporaryRunDebugPreview, String> {
+    let settings_path =
+        claude_settings_files::get_settings_path_by_name_for_home(home_dir, file_name)?;
+
+    let process_env: HashMap<String, String> = std::env::vars().collect();
+    let (payload, warnings) = build_settings_launcher_payload_for_home_with_env(
+        home_dir,
+        &settings_path,
+        false,
+        &process_env,
+    )?;
+
+    let settings_overlay_json = std::fs::read_to_string(&settings_path)
+        .unwrap_or_else(|_| "{}".to_string());
+
+    Ok(ClaudeTemporaryRunDebugPreview {
+        profile_id: file_name.to_string(),
+        profile_name: file_name.to_string(),
+        program: std::env::current_exe()
+            .map_err(|e| format!("Failed to locate current launcher executable: {e}"))?
+            .to_string_lossy()
+            .to_string(),
+        args: internal_settings_launcher_args(),
+        child_program: "claude".to_string(),
+        child_args: vec!["--settings".to_string(), settings_path.to_string_lossy().to_string()],
+        live_config_dir: payload
+            .config_dir_env_override
+            .clone()
+            .unwrap_or_else(|| payload.settings_source_path.clone()),
+        inherited_env_file_source: payload.inherited_env_file_source.clone(),
+        env: build_visible_env(payload.config_dir_env_override.as_deref()),
+        unset_env: build_settings_unset_env(),
+        secret_env_keys: vec![],
+        warnings,
+        settings_overlay_json,
+    })
+}
+
+// ============================================================================
 // Settings-file based launch (Claude settings file → temporary --settings copy)
 // ============================================================================
 
@@ -997,9 +1071,15 @@ pub fn run_internal_settings_launcher_from_env() -> Result<(), String> {
 
     #[cfg(not(unix))]
     {
-        let status = command
-            .status()
+        let mut child_process = command
+            .spawn()
             .map_err(|e| format!("Failed to launch {}: {e}", child.program))?;
+        // Wait for Claude to exit so the parent (TUI or terminal wrapper)
+        // stays blocked while Claude owns the console. Without this the
+        // parent's shell wakes up and competes for stdin/stdout.
+        let status = child_process
+            .wait()
+            .map_err(|e| format!("Failed to wait for {}: {e}", child.program))?;
         if status.success() {
             Ok(())
         } else {

@@ -42,13 +42,13 @@ pub(super) fn run_action(app: &mut app::App, action: Action) -> anyhow::Result<(
             app.should_quit = true;
             Ok(())
         }
-        Action::PreviewClaudeRun { id } => {
-            let preview = preview_claude_temporary_run(&app.home_dir, &id)?;
+        Action::PreviewClaudeRun { name } => {
+            let preview = preview_claude_temporary_run_from_file(&app.home_dir, &name)?;
             open_text_in_pager(&preview)?;
             Ok(())
         }
-        Action::RunClaudeRun { id } => {
-            run_claude_temporary_run(&app.home_dir, &id)?;
+        Action::RunClaudeRun { name } => {
+            run_claude_temporary_run_from_file(&app.home_dir, &name)?;
             app.should_quit = true;
             Ok(())
         }
