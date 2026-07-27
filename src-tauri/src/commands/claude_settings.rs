@@ -75,6 +75,30 @@ pub async fn save_claude_settings_file(
     claude_settings_files::save_settings_file(&name, &contents)
 }
 
+/// Duplicates a settings file to a new name and activates it.
+#[tauri::command]
+#[specta::specta]
+pub async fn duplicate_claude_settings_file(
+    name: String,
+    new_name: String,
+) -> Result<ClaudeSettingsFileInfo, String> {
+    claude_settings_files::duplicate_settings_file(&name, &new_name)
+}
+
+/// Merges the contents of a settings file into the global settings.json.
+#[tauri::command]
+#[specta::specta]
+pub async fn merge_claude_settings_to_global(name: String) -> Result<(), String> {
+    claude_settings_files::merge_settings_file_to_global(&name)
+}
+
+/// Loads the current global settings.json content into a settings file.
+#[tauri::command]
+#[specta::specta]
+pub async fn load_claude_settings_from_live(name: String) -> Result<(), String> {
+    claude_settings_files::load_settings_file_from_live(&name)
+}
+
 /// Returns a shell command string preview for launching Claude with the
 /// active settings file. Useful for the "copy command" fallback.
 #[tauri::command]
@@ -89,6 +113,26 @@ pub async fn get_claude_settings_launch_command(
         command.push_str(" --dangerously-skip-permissions");
     }
     Ok((command, path))
+}
+
+/// Plan a temporary run using a named settings file (instead of a profile).
+#[tauri::command]
+#[specta::specta]
+pub async fn plan_claude_temporary_run_from_file(
+    name: String,
+) -> Result<claude_runtime::ClaudeTemporaryRunPlan, String> {
+    let home_dir = dirs::home_dir().ok_or_else(|| "Failed to get home directory".to_string())?;
+    claude_runtime::build_temporary_run_plan_from_file(&home_dir, &name)
+}
+
+/// Debug-preview a temporary run from a named settings file.
+#[tauri::command]
+#[specta::specta]
+pub async fn preview_claude_temporary_run_from_file(
+    name: String,
+) -> Result<claude_runtime::ClaudeTemporaryRunDebugPreview, String> {
+    let home_dir = dirs::home_dir().ok_or_else(|| "Failed to get home directory".to_string())?;
+    claude_runtime::build_temporary_run_preview_from_file(&home_dir, &name)
 }
 
 /// Launches Claude Code in a terminal using the active settings file. The
@@ -136,5 +180,6 @@ fn build_settings_launch_spec(plan: &claude_runtime::ClaudeSettingsLaunchPlan) -
         unset_env: plan.unset_env.clone(),
         cwd: None,
         support_dir: Some(plan.runtime_dir_path.clone()),
+        no_keep_open: true,
     }
 }

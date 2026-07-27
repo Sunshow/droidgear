@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use droidgear_core::{
     channel::Channel,
-    claude::ClaudeCodeProfile,
+    claude_settings_files::ClaudeSettingsFileInfo,
     codex::CodexProfile,
     codex_auth_profiles::CodexAuthProfile,
     droid_settings_files::SettingsFileInfo,
@@ -17,6 +17,7 @@ use droidgear_core::{
     sessions::SessionSummary,
     specs::SpecFile,
 };
+use serde_json::Value as JsonValue;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Screen {
@@ -29,8 +30,8 @@ pub enum Screen {
     McpServer,
     McpArgs,
     McpKeyValues,
-    Claude,
-    ClaudeProfile,
+    ClaudeSettings,
+    ClaudeSettingsDetail,
     Codex,
     CodexProfile,
     CodexProvider,
@@ -101,11 +102,11 @@ pub enum ConfirmAction {
     PathsResetKey {
         key: String,
     },
-    ClaudeApply {
-        id: String,
+    ClaudeSettingsApply {
+        name: String,
     },
-    ClaudeDelete {
-        id: String,
+    ClaudeSettingsDelete {
+        name: String,
     },
     CodexApply {
         id: String,
@@ -225,27 +226,13 @@ pub enum InputAction {
     PathsSetKey {
         key: String,
     },
-    ClaudeCreateProfile,
-    ClaudeDuplicate {
-        id: String,
+    ClaudeSettingsCreateFile,
+    ClaudeSettingsDuplicate {
+        name: String,
     },
-    ClaudeSetProfileName {
-        id: String,
-    },
-    ClaudeSetProfileDescription {
-        id: String,
-    },
-    ClaudeSetProfileBaseUrl {
-        id: String,
-    },
-    ClaudeSetProfileBearerToken {
-        id: String,
-    },
-    ClaudeSetProfileModel {
-        id: String,
-    },
-    ClaudeSetProfileSmallModel {
-        id: String,
+    ClaudeSettingsEditField {
+        name: String,
+        field_index: usize,
     },
     CodexCreateProfile,
     CodexDuplicate {
@@ -523,11 +510,17 @@ pub enum InputAction {
 #[derive(Debug, Clone)]
 pub enum SelectAction {
     GoToNav,
-    ClaudeSetProfileReasoningEffort {
-        id: String,
+    ClaudeSettingsSetReasoningEffort {
+        name: String,
     },
-    ClaudeSetProfileThinkingMode {
-        id: String,
+    ClaudeSettingsSetThinkingMode {
+        name: String,
+    },
+    ClaudeSettingsSetPermissionsDefaultMode {
+        name: String,
+    },
+    ClaudeSettingsSetDisableBypass {
+        name: String,
     },
     CodexSetProfileModelProvider {
         id: String,
@@ -657,11 +650,10 @@ pub struct App {
     pub mcp_kv_mode: McpKeyValuesMode,
     pub mcp_kv_index: usize,
 
-    pub claude_profiles: Vec<ClaudeCodeProfile>,
-    pub claude_active_id: Option<String>,
+    pub claude_files: Vec<ClaudeSettingsFileInfo>,
     pub claude_index: usize,
-    pub claude_detail_id: Option<String>,
-    pub claude_detail: Option<ClaudeCodeProfile>,
+    pub claude_detail_name: Option<String>,
+    pub claude_detail_json: Option<JsonValue>,
     pub claude_detail_field_index: usize,
 
     pub codex_profiles: Vec<CodexProfile>,
@@ -805,11 +797,10 @@ impl App {
             mcp_args_index: 0,
             mcp_kv_mode: McpKeyValuesMode::Env,
             mcp_kv_index: 0,
-            claude_profiles: Vec::new(),
-            claude_active_id: None,
+            claude_files: Vec::new(),
             claude_index: 0,
-            claude_detail_id: None,
-            claude_detail: None,
+            claude_detail_name: None,
+            claude_detail_json: None,
             claude_detail_field_index: 0,
             codex_profiles: Vec::new(),
             codex_active_id: None,
@@ -919,7 +910,7 @@ impl App {
             ("Droid Settings", Screen::DroidSettingsFiles),
             ("Factory", Screen::Factory),
             ("MCP", Screen::Mcp),
-            ("Claude", Screen::Claude),
+            ("Claude", Screen::ClaudeSettings),
             ("Codex", Screen::Codex),
             ("OpenCode", Screen::OpenCode),
             ("OpenClaw", Screen::OpenClaw),
@@ -990,10 +981,10 @@ impl App {
         if self.paths_index >= paths_count {
             self.paths_index = paths_count.saturating_sub(1);
         }
-        if self.claude_index >= self.claude_profiles.len() {
-            self.claude_index = self.claude_profiles.len().saturating_sub(1);
+        if self.claude_index >= self.claude_files.len() {
+            self.claude_index = self.claude_files.len().saturating_sub(1);
         }
-        let claude_fields_count = 9;
+        let claude_fields_count = 14;
         if self.claude_detail_field_index >= claude_fields_count {
             self.claude_detail_field_index = claude_fields_count.saturating_sub(1);
         }

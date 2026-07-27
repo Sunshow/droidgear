@@ -590,6 +590,119 @@ pub fn save_settings_file(name: &str, value: &Value) -> Result<(), String> {
     save_settings_file_for_home(&system_home_dir()?, name, value)
 }
 
+// ============================================================================
+// Duplicate
+// ============================================================================
+
+/// Copies a settings file to a new name and activates it.
+pub fn duplicate_settings_file(name: &str, new_name: &str) -> Result<ClaudeSettingsFileInfo, String> {
+    duplicate_settings_file_for_home(&system_home_dir()?, name, new_name)
+}
+
+pub fn duplicate_settings_file_for_home(
+    home_dir: &Path,
+    name: &str,
+    new_name: &str,
+) -> Result<ClaudeSettingsFileInfo, String> {
+    validate_custom_file_name(new_name)?;
+
+    let source_path = get_settings_path_by_name_for_home(home_dir, name)?;
+    if !source_path.exists() {
+        return Err(format!("Settings file '{name}' does not exist"));
+    }
+
+    let dir = claude_settings_dir_for_home(home_dir);
+    if !dir.exists() {
+        std::fs::create_dir_all(&dir)
+            .map_err(|e| format!("Failed to create claude-settings directory: {e}"))?;
+    }
+
+    let dest_path = dir.join(new_name).with_extension("json");
+    if dest_path.exists() {
+        return Err(format!("Settings file '{new_name}' already exists"));
+    }
+
+    std::fs::copy(&source_path, &dest_path)
+        .map_err(|e| format!("Failed to copy settings file: {e}"))?;
+
+    save_active_file_name_for_home(home_dir, Some(new_name))?;
+    get_active_settings_file_for_home(home_dir)
+}
+
+// ============================================================================
+// Merge to global
+// ============================================================================
+
+/// Merges the contents of a settings file into the global `~/.claude/settings.json`.
+///
+/// Merge rules:
+/// - `env` and `permissions` are shallow-merged (source keys override, live keys preserved).
+/// - All other top-level keys are directly overridden when present in the source.
+/// - Keys that exist only in the global file are never removed.
+pub fn merge_settings_file_to_global(name: &str) -> Result<(), String> {
+    merge_settings_file_to_global_for_home(&system_home_dir()?, name)
+}
+
+pub fn merge_settings_file_to_global_for_home(home_dir: &Path, name: &str) -> Result<(), String> {
+    let source = read_settings_file_for_home(home_dir, name)?;
+    let source_obj = source
+        .as_object()
+        .ok_or("Settings file root must be a JSON object")?;
+
+    let global_path = global_settings_path_for_home(home_dir)?;
+    let live = read_settings_file_for_home(home_dir, "Global")?;
+    let mut merged = match live {
+        Value::Object(map) => map,
+        _ => Map::new(),
+    };
+
+    for (key, value) in source_obj {
+        let should_shallow_merge = key == "env" || key == "permissions";
+        if should_shallow_merge {
+            if let (Value::Object(source_sub), Some(Value::Object(live_sub))) =
+                (value, merged.get(key))
+            {
+                let mut merged_sub = live_sub.clone();
+                for (sk, sv) in source_sub {
+                    merged_sub.insert(sk.clone(), sv.clone());
+                }
+                merged.insert(key.clone(), Value::Object(merged_sub));
+            } else {
+                merged.insert(key.clone(), value.clone());
+            }
+        } else {
+            merged.insert(key.clone(), value.clone());
+        }
+    }
+
+    let result = Value::Object(merged);
+    let bytes = serde_json::to_vec_pretty(&result)
+        .map_err(|e| format!("Failed to serialize merged settings: {e}"))?;
+
+    if let Some(parent) = global_path.parent() {
+        if !parent.exists() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create claude config dir: {e}"))?;
+        }
+    }
+    storage::atomic_write(&global_path, &bytes)
+}
+
+// ============================================================================
+// Load from live
+// ============================================================================
+
+/// Overwrites a settings file with the current contents of the global
+/// `~/.claude/settings.json`.
+pub fn load_settings_file_from_live(name: &str) -> Result<(), String> {
+    load_settings_file_from_live_for_home(&system_home_dir()?, name)
+}
+
+pub fn load_settings_file_from_live_for_home(home_dir: &Path, name: &str) -> Result<(), String> {
+    let live = read_settings_file_for_home(home_dir, "Global")?;
+    save_settings_file_for_home(home_dir, name, &live)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -115,8 +115,8 @@ pub(super) fn start_command_in_foreground(
     #[cfg(not(unix))]
     {
         command
-            .spawn()
-            .with_context(|| format!("start {program}"))?;
+            .status()
+            .with_context(|| format!("run {program}"))?;
         Ok(())
     }
 }
@@ -569,35 +569,31 @@ pub(super) fn preview_claude_temporary_run(
 }
 
 pub fn list_claude_temporary_run_targets(home_dir: &Path) -> anyhow::Result<String> {
-    let profiles = droidgear_core::claude::list_claude_profiles_for_home(home_dir)
+    let files = droidgear_core::claude_settings_files::list_settings_files_for_home(home_dir)
         .map_err(anyhow::Error::msg)?;
-    let active_profile_id = droidgear_core::claude::get_active_claude_profile_id_for_home(home_dir)
+    let active = droidgear_core::claude_settings_files::get_active_settings_file_for_home(home_dir)
         .map_err(anyhow::Error::msg)?;
 
-    let mut out = String::from("Available Claude run targets:\n");
-    if profiles.is_empty() {
-        out.push_str("(none)\n\nUse the Claude TUI/GUI to create a profile first.");
+    let mut out = String::from("Available Claude settings files:\n");
+    if files.is_empty() {
+        out.push_str("(none)\n\nUse the Claude TUI/GUI to create a settings file first.");
         return Ok(out);
     }
 
-    for (index, profile) in profiles.iter().enumerate() {
-        let marker = if active_profile_id.as_deref() == Some(profile.id.as_str()) {
-            "*"
-        } else {
-            " "
-        };
+    for (index, file) in files.iter().enumerate() {
+        let marker = if file.name == active.name { "*" } else { " " };
+        let global_mark = if file.is_global { " (global)" } else { "" };
         out.push_str(&format!(
-            "{marker} {}. {} [id: {}]\n",
+            "{marker} {}. {}{global_mark}\n",
             index + 1,
-            profile.name,
-            profile.id
+            file.name
         ));
     }
-    out.push_str("\nUse `droidgear-tui run claude <index|name|id>`.\n");
+    out.push_str("\nUse `droidgear-tui run claude -n <name>`.\n");
     out.push_str(
-        "Use `droidgear-tui run claude --preview <index|name|id>` to inspect the launch overlay and internal launcher payload.\n",
+        "Use `droidgear-tui run claude --preview -n <name>` to inspect the launch overlay.\n",
     );
-    out.push_str("`*` marks the currently active profile.");
+    out.push_str("`*` marks the currently active settings file.");
     Ok(out)
 }
 
@@ -621,6 +617,73 @@ pub fn preview_claude_temporary_run_for_selector(
         droidgear_core::claude::resolve_claude_profile_selector_for_home(home_dir, selector)
             .map_err(anyhow::Error::msg)?;
     preview_claude_temporary_run(home_dir, &profile.id)
+}
+
+// ---------------------------------------------------------------------------
+// File-based temp run (settings file name → plan)
+// ---------------------------------------------------------------------------
+
+pub fn run_claude_temporary_run_from_file(
+    home_dir: &Path,
+    file_name: &str,
+) -> anyhow::Result<()> {
+    probe_claude_cli().map_err(|error| {
+        let message = error.to_string();
+        if message.starts_with("Failed to execute claude --version") {
+            anyhow::Error::msg("Claude CLI is not installed or not available in PATH.")
+        } else if message == "Failed to read Claude CLI version" {
+            anyhow::Error::msg(
+                "Failed to inspect the installed Claude CLI. Check that `claude` runs correctly in your shell.",
+            )
+        } else {
+            error
+        }
+    })?;
+
+    droidgear_core::claude_runtime::cleanup_stale_runtime_dirs_for_home(home_dir)
+        .map_err(anyhow::Error::msg)?;
+
+    let settings_path =
+        droidgear_core::claude_settings_files::get_settings_path_by_name_for_home(home_dir, file_name)
+            .map_err(anyhow::Error::msg)?;
+    let launcher_program = current_launcher_program()?;
+    let launcher_args = droidgear_core::claude_runtime::internal_settings_launcher_args();
+    let launch_plan = droidgear_core::claude_runtime::build_settings_launch_plan_for_home(
+        home_dir,
+        &settings_path,
+        false,
+        &launcher_program,
+        &launcher_args,
+    )
+    .map_err(anyhow::Error::msg)?;
+
+    for warning in &launch_plan.warnings {
+        eprintln!("Warning: {warning}");
+    }
+
+    sanitize_terminal_for_direct_exec()?;
+    start_command_in_foreground(
+        &launch_plan.program,
+        &launch_plan.args,
+        &launch_plan.env,
+        &launch_plan.secret_env,
+        &launch_plan.unset_env,
+        None,
+    )?;
+    // The launcher spawns Claude and exits immediately. The caller sets
+    // should_quit so the TUI exits normally (TerminalGuard::drop restores
+    // the terminal) without resume_terminal reclaiming the console.
+    Ok(())
+}
+
+pub fn preview_claude_temporary_run_from_file(
+    home_dir: &Path,
+    file_name: &str,
+) -> anyhow::Result<String> {
+    let preview =
+        droidgear_core::claude_runtime::build_temporary_run_preview_from_file(home_dir, file_name)
+            .map_err(anyhow::Error::msg)?;
+    Ok(format_claude_temporary_run_preview(&preview))
 }
 
 pub(super) fn preview_opencode_apply(home_dir: &Path, profile_id: &str) -> anyhow::Result<String> {

@@ -233,36 +233,112 @@ pub(super) fn run_select_action(
             }
             Ok(())
         }
-        app::SelectAction::ClaudeSetProfileReasoningEffort { id } => {
-            let mut profile =
-                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
-                    .map_err(anyhow::Error::msg)?;
-            profile.reasoning_effort = match selected.as_deref() {
-                Some("(inherit)") | None => None,
-                Some("low") => Some(droidgear_core::claude::ClaudeReasoningEffort::Low),
-                Some("medium") => Some(droidgear_core::claude::ClaudeReasoningEffort::Medium),
-                Some("high") => Some(droidgear_core::claude::ClaudeReasoningEffort::High),
-                Some("max") => Some(droidgear_core::claude::ClaudeReasoningEffort::Max),
-                Some(_) => return Err(anyhow::Error::msg("Invalid reasoning effort")),
+        app::SelectAction::ClaudeSettingsSetReasoningEffort { name: _ } => {
+            let Some(ref mut json) = app.claude_detail_json else {
+                return Ok(());
             };
-            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
-            app.set_toast("Saved", false);
+            let obj = json.as_object_mut().unwrap();
+            let env = obj.entry("env".to_string()).or_insert_with(|| {
+                serde_json::Value::Object(serde_json::Map::new())
+            });
+            if let Some(env_obj) = env.as_object_mut() {
+                match selected.as_deref() {
+                    Some("inherit") | None => {
+                        env_obj.remove("CLAUDE_CODE_EFFORT_LEVEL");
+                        env_obj.remove("CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING");
+                    }
+                    Some("low") => {
+                        env_obj.insert("CLAUDE_CODE_EFFORT_LEVEL".to_string(), serde_json::Value::String("low".to_string()));
+                        env_obj.remove("CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING");
+                    }
+                    Some("medium") => {
+                        env_obj.insert("CLAUDE_CODE_EFFORT_LEVEL".to_string(), serde_json::Value::String("medium".to_string()));
+                        env_obj.remove("CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING");
+                    }
+                    Some("high") => {
+                        env_obj.insert("CLAUDE_CODE_EFFORT_LEVEL".to_string(), serde_json::Value::String("high".to_string()));
+                        env_obj.insert("CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING".to_string(), serde_json::Value::String("1".to_string()));
+                    }
+                    Some("max") => {
+                        env_obj.insert("CLAUDE_CODE_EFFORT_LEVEL".to_string(), serde_json::Value::String("max".to_string()));
+                        env_obj.insert("CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING".to_string(), serde_json::Value::String("1".to_string()));
+                    }
+                    _ => {}
+                }
+            }
             Ok(())
         }
-        app::SelectAction::ClaudeSetProfileThinkingMode { id } => {
-            let mut profile =
-                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
-                    .map_err(anyhow::Error::msg)?;
-            profile.thinking_mode = match selected.as_deref() {
-                Some("inherit") | None => droidgear_core::claude::ClaudeThinkingMode::Inherit,
-                Some("on") => droidgear_core::claude::ClaudeThinkingMode::On,
-                Some("off") => droidgear_core::claude::ClaudeThinkingMode::Off,
-                Some(_) => return Err(anyhow::Error::msg("Invalid thinking mode")),
+        app::SelectAction::ClaudeSettingsSetThinkingMode { name: _ } => {
+            let Some(ref mut json) = app.claude_detail_json else {
+                return Ok(());
             };
-            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
-            app.set_toast("Saved", false);
+            let obj = json.as_object_mut().unwrap();
+            match selected.as_deref() {
+                Some("inherit") | None => {
+                    obj.remove("alwaysThinkingEnabled");
+                    let env = obj.entry("env".to_string()).or_insert_with(|| {
+                        serde_json::Value::Object(serde_json::Map::new())
+                    });
+                    if let Some(env_obj) = env.as_object_mut() {
+                        env_obj.remove("CLAUDE_CODE_DISABLE_THINKING");
+                    }
+                }
+                Some("on") => {
+                    obj.insert("alwaysThinkingEnabled".to_string(), serde_json::Value::Bool(true));
+                    let env = obj.entry("env".to_string()).or_insert_with(|| {
+                        serde_json::Value::Object(serde_json::Map::new())
+                    });
+                    if let Some(env_obj) = env.as_object_mut() {
+                        env_obj.remove("CLAUDE_CODE_DISABLE_THINKING");
+                    }
+                }
+                Some("off") => {
+                    obj.insert("alwaysThinkingEnabled".to_string(), serde_json::Value::Bool(false));
+                    let env = obj.entry("env".to_string()).or_insert_with(|| {
+                        serde_json::Value::Object(serde_json::Map::new())
+                    });
+                    if let Some(env_obj) = env.as_object_mut() {
+                        env_obj.insert("CLAUDE_CODE_DISABLE_THINKING".to_string(), serde_json::Value::String("1".to_string()));
+                    }
+                }
+                _ => {}
+            }
+            Ok(())
+        }
+        app::SelectAction::ClaudeSettingsSetPermissionsDefaultMode { name: _ } => {
+            let Some(ref mut json) = app.claude_detail_json else {
+                return Ok(());
+            };
+            let obj = json.as_object_mut().unwrap();
+            let permissions = obj.entry("permissions".to_string()).or_insert_with(|| {
+                serde_json::Value::Object(serde_json::Map::new())
+            });
+            if let Some(perm_obj) = permissions.as_object_mut() {
+                match selected.as_deref() {
+                    Some("(unset)") | None => {
+                        perm_obj.remove("defaultMode");
+                    }
+                    Some(value) => {
+                        perm_obj.insert("defaultMode".to_string(), serde_json::Value::String(value.to_string()));
+                    }
+                }
+            }
+            Ok(())
+        }
+        app::SelectAction::ClaudeSettingsSetDisableBypass { name: _ } => {
+            let Some(ref mut json) = app.claude_detail_json else {
+                return Ok(());
+            };
+            let obj = json.as_object_mut().unwrap();
+            match selected.as_deref() {
+                Some("(unset)") | None => {
+                    obj.remove("disableBypassPermissionsMode");
+                }
+                Some("disable") => {
+                    obj.insert("disableBypassPermissionsMode".to_string(), serde_json::Value::String("disable".to_string()));
+                }
+                _ => {}
+            }
             Ok(())
         }
         app::SelectAction::CodexSetProfileModelProvider { id } => {
@@ -1285,14 +1361,14 @@ pub(super) fn run_confirm_action(
                 .map_err(anyhow::Error::msg)?;
             Ok(())
         }
-        app::ConfirmAction::ClaudeApply { id } => {
-            droidgear_core::claude::apply_claude_profile_for_home(&app.home_dir, &id)
+        app::ConfirmAction::ClaudeSettingsApply { name } => {
+            droidgear_core::claude_settings_files::merge_settings_file_to_global_for_home(&app.home_dir, &name)
                 .map_err(anyhow::Error::msg)?;
-            app.set_toast("Applied", false);
+            app.set_toast("Merged into global", false);
             Ok(())
         }
-        app::ConfirmAction::ClaudeDelete { id } => {
-            droidgear_core::claude::delete_claude_profile_for_home(&app.home_dir, &id)
+        app::ConfirmAction::ClaudeSettingsDelete { name } => {
+            droidgear_core::claude_settings_files::delete_settings_file_for_home(&app.home_dir, name)
                 .map_err(anyhow::Error::msg)?;
             Ok(())
         }
@@ -1679,133 +1755,119 @@ pub(super) fn run_input_action(
                 .map_err(anyhow::Error::msg)?;
             Ok(())
         }
-        app::InputAction::ClaudeCreateProfile => {
+        app::InputAction::ClaudeSettingsCreateFile => {
             if trimmed.is_empty() {
-                return Err(anyhow::Error::msg("Profile name is required"));
+                return Err(anyhow::Error::msg("File name is required"));
             }
-
-            let before = droidgear_core::claude::list_claude_profiles_for_home(&app.home_dir)
-                .map_err(anyhow::Error::msg)?;
-            let before_ids = before
-                .iter()
-                .map(|profile| profile.id.clone())
-                .collect::<std::collections::HashSet<String>>();
-
-            let profile = droidgear_core::claude::ClaudeCodeProfile {
-                id: String::new(),
-                name: trimmed.to_string(),
-                description: None,
-                base_url: None,
-                bearer_token: None,
-                model: None,
-                small_model_uses_main_model: false,
-                small_model: None,
-                reasoning_effort: None,
-                thinking_mode: droidgear_core::claude::ClaudeThinkingMode::Inherit,
-                created_at: String::new(),
-                updated_at: String::new(),
-            };
-
-            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
-
+            droidgear_core::claude_settings_files::create_settings_file_for_home(
+                &app.home_dir,
+                trimmed.to_string(),
+                false,
+            )
+            .map_err(anyhow::Error::msg)?;
             refresh_claude(app);
-            if let Some((idx, profile)) = app
-                .claude_profiles
+            // Find the new file and activate it
+            if let Some(idx) = app
+                .claude_files
                 .iter()
-                .enumerate()
-                .find(|(_, profile)| !before_ids.contains(&profile.id))
+                .position(|f| f.name == trimmed)
             {
                 app.claude_index = idx;
-                app.claude_detail_id = Some(profile.id.clone());
+                app.claude_detail_name = Some(trimmed.to_string());
                 app.claude_detail_field_index = 0;
-                app.screen = app::Screen::ClaudeProfile;
+                app.screen = app::Screen::ClaudeSettingsDetail;
                 refresh_claude_detail(app);
             }
-
             Ok(())
         }
-        app::InputAction::ClaudeDuplicate { id } => {
+        app::InputAction::ClaudeSettingsDuplicate { name } => {
             if trimmed.is_empty() {
-                return Err(anyhow::Error::msg("Profile name is required"));
+                return Err(anyhow::Error::msg("File name is required"));
             }
-            let new_profile = droidgear_core::claude::duplicate_claude_profile_for_home(
+            droidgear_core::claude_settings_files::duplicate_settings_file_for_home(
                 &app.home_dir,
-                &id,
+                &name,
                 trimmed,
             )
             .map_err(anyhow::Error::msg)?;
             refresh_claude(app);
             if let Some(idx) = app
-                .claude_profiles
+                .claude_files
                 .iter()
-                .position(|profile| profile.id == new_profile.id)
+                .position(|f| f.name == trimmed)
             {
                 app.claude_index = idx;
             }
             Ok(())
         }
-        app::InputAction::ClaudeSetProfileName { id } => {
-            if trimmed.is_empty() {
-                return Err(anyhow::Error::msg("Profile name is required"));
+        app::InputAction::ClaudeSettingsEditField { name, field_index } => {
+            let Some(ref mut json) = app.claude_detail_json else {
+                return Ok(());
+            };
+            let obj = json.as_object_mut().unwrap();
+
+            match field_index {
+                0 | 1 | 2 | 4 => {
+                    let env = obj.entry("env".to_string()).or_insert_with(|| {
+                        serde_json::Value::Object(serde_json::Map::new())
+                    });
+                    let env_obj = env.as_object_mut().unwrap();
+                    match field_index {
+                        0 => {
+                            if trimmed.is_empty() {
+                                env_obj.remove("ANTHROPIC_BASE_URL");
+                            } else {
+                                env_obj.insert(
+                                    "ANTHROPIC_BASE_URL".to_string(),
+                                    serde_json::Value::String(trimmed.to_string()),
+                                );
+                            }
+                        }
+                        1 => {
+                            if trimmed.is_empty() {
+                                env_obj.remove("ANTHROPIC_AUTH_TOKEN");
+                            } else {
+                                env_obj.insert(
+                                    "ANTHROPIC_AUTH_TOKEN".to_string(),
+                                    serde_json::Value::String(trimmed.to_string()),
+                                );
+                            }
+                        }
+                        2 => {
+                            if trimmed.is_empty() {
+                                env_obj.remove("ANTHROPIC_MODEL");
+                            } else {
+                                env_obj.insert(
+                                    "ANTHROPIC_MODEL".to_string(),
+                                    serde_json::Value::String(trimmed.to_string()),
+                                );
+                            }
+                        }
+                        4 => {
+                            if trimmed.is_empty() {
+                                env_obj.remove("ANTHROPIC_DEFAULT_HAIKU_MODEL");
+                            } else {
+                                env_obj.insert(
+                                    "ANTHROPIC_DEFAULT_HAIKU_MODEL".to_string(),
+                                    serde_json::Value::String(trimmed.to_string()),
+                                );
+                            }
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+                10 => {
+                    if let Ok(days) = trimmed.parse::<u64>() {
+                        obj.insert(
+                            "cleanupPeriodDays".to_string(),
+                            serde_json::Value::Number(serde_json::Number::from(days)),
+                        );
+                    } else {
+                        obj.remove("cleanupPeriodDays");
+                    }
+                }
+                _ => {}
             }
-            let mut profile =
-                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
-                    .map_err(anyhow::Error::msg)?;
-            profile.name = trimmed.to_string();
-            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
-            app.set_toast("Saved", false);
-            Ok(())
-        }
-        app::InputAction::ClaudeSetProfileDescription { id } => {
-            let mut profile =
-                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
-                    .map_err(anyhow::Error::msg)?;
-            profile.description = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
-            app.set_toast("Saved", false);
-            Ok(())
-        }
-        app::InputAction::ClaudeSetProfileBaseUrl { id } => {
-            let mut profile =
-                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
-                    .map_err(anyhow::Error::msg)?;
-            profile.base_url = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
-            app.set_toast("Saved", false);
-            Ok(())
-        }
-        app::InputAction::ClaudeSetProfileBearerToken { id } => {
-            let mut profile =
-                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
-                    .map_err(anyhow::Error::msg)?;
-            profile.bearer_token = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
-            app.set_toast("Saved", false);
-            Ok(())
-        }
-        app::InputAction::ClaudeSetProfileModel { id } => {
-            let mut profile =
-                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
-                    .map_err(anyhow::Error::msg)?;
-            profile.model = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
-            app.set_toast("Saved", false);
-            Ok(())
-        }
-        app::InputAction::ClaudeSetProfileSmallModel { id } => {
-            let mut profile =
-                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
-                    .map_err(anyhow::Error::msg)?;
-            profile.small_model = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
-            app.set_toast("Saved", false);
             Ok(())
         }
         app::InputAction::CodexCreateProfile => {

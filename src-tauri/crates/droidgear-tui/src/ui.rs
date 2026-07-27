@@ -376,8 +376,8 @@ fn draw_main(frame: &mut Frame, app: &app::App, area: Rect) {
         app::Screen::McpServer => draw_mcp_server(frame, app, area),
         app::Screen::McpArgs => draw_mcp_args(frame, app, area),
         app::Screen::McpKeyValues => draw_mcp_key_values(frame, app, area),
-        app::Screen::Claude => draw_claude_profiles(frame, app, area),
-        app::Screen::ClaudeProfile => draw_claude_profile(frame, app, area),
+        app::Screen::ClaudeSettings => draw_claude_settings_files(frame, app, area),
+        app::Screen::ClaudeSettingsDetail => draw_claude_settings_detail(frame, app, area),
         app::Screen::Codex => draw_codex_profiles(frame, app, area),
         app::Screen::CodexProfile => draw_codex_profile(frame, app, area),
         app::Screen::CodexProvider => draw_codex_provider(frame, app, area),
@@ -985,83 +985,108 @@ fn draw_codex_profiles(frame: &mut Frame, app: &app::App, area: Rect) {
     );
 }
 
-fn draw_claude_profiles(frame: &mut Frame, app: &app::App, area: Rect) {
-    let active = app.claude_active_id.as_deref();
+fn draw_claude_settings_files(frame: &mut Frame, app: &app::App, area: Rect) {
     let selected_index = app.claude_index;
     draw_profile_list(
         frame,
         area,
-        "Claude Profiles",
-        app.claude_profiles
+        "Claude Settings Files",
+        app.claude_files
             .iter()
-            .map(|profile| (profile.name.as_str(), profile.id.as_str())),
-        active,
+            .map(|f| (f.name.as_str(), f.path.as_str())),
+        None,
         selected_index,
-        "Up/Down: select  Enter/e: open  t: run preview  x: run+exit  a: apply  n: new  c: copy  d: delete  r: refresh  q/Esc: back",
+        "Up/Down: select  Enter/e: open  t: temp run  p: preview  a: merge to global  l: load live  n: new  c: copy  d: delete  r: refresh  q/Esc: back",
     );
 }
 
-fn draw_claude_profile(frame: &mut Frame, app: &app::App, area: Rect) {
+fn draw_claude_settings_detail(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
-    let Some(profile) = app.claude_detail.as_ref() else {
+    let Some(json) = app.claude_detail_json.as_ref() else {
         let p = Paragraph::new(vec![Line::from(Span::styled(
-            "Failed to load profile",
+            "Failed to load settings",
             t.error_style(),
         ))])
-        .block(block("Claude Profile"))
+        .block(block("Claude Settings"))
         .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
         return;
     };
+
+    let name = app.claude_detail_name.as_deref().unwrap_or("unknown");
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
         .split(area);
 
-    let small_model_value = if profile.small_model_uses_main_model {
-        "(uses main model)".to_string()
-    } else {
-        profile
-            .small_model
-            .clone()
+    // Helper to read env string
+    let env_str = |key: &str| -> String {
+        json.get("env")
+            .and_then(|e| e.get(key))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
             .unwrap_or_else(|| "(not set)".to_string())
     };
-    let reasoning_value = profile
-        .reasoning_effort
-        .map(|value| match value {
-            droidgear_core::claude::ClaudeReasoningEffort::Low => "low".to_string(),
-            droidgear_core::claude::ClaudeReasoningEffort::Medium => "medium".to_string(),
-            droidgear_core::claude::ClaudeReasoningEffort::High => "high".to_string(),
-            droidgear_core::claude::ClaudeReasoningEffort::Max => "max".to_string(),
-        })
-        .unwrap_or_else(|| "(inherit)".to_string());
-    let thinking_value = match profile.thinking_mode {
-        droidgear_core::claude::ClaudeThinkingMode::Inherit => "inherit",
-        droidgear_core::claude::ClaudeThinkingMode::On => "on",
-        droidgear_core::claude::ClaudeThinkingMode::Off => "off",
+
+    let base_url = env_str("ANTHROPIC_BASE_URL");
+    let bearer_token = env_str("ANTHROPIC_AUTH_TOKEN");
+    let token_set = !bearer_token.is_empty() && bearer_token != "(not set)";
+    let model = env_str("ANTHROPIC_MODEL");
+    let small_model = env_str("ANTHROPIC_DEFAULT_HAIKU_MODEL");
+    let mirror = small_model.is_empty() || small_model == "(not set)";
+
+    let context_1m = model.ends_with("[1m]");
+
+    let reasoning = env_str("CLAUDE_CODE_EFFORT_LEVEL");
+    let reasoning_display = if reasoning == "(not set)" {
+        "(inherit)".to_string()
+    } else {
+        reasoning
     };
-    let token_set = profile
-        .bearer_token
-        .as_deref()
-        .is_some_and(|value| !value.trim().is_empty());
+
+    let disable_thinking = env_str("CLAUDE_CODE_DISABLE_THINKING");
+    let always_thinking = json
+        .get("alwaysThinkingEnabled")
+        .and_then(|v| v.as_bool());
+    let thinking_display = match (disable_thinking.as_str(), always_thinking) {
+        ("1", _) => "off".to_string(),
+        (_, Some(true)) => "on".to_string(),
+        _ => "inherit".to_string(),
+    };
+
+    let auto_update = json
+        .get("autoUpdate")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let include_coauthored = json
+        .get("includeCoAuthoredBy")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let cleanup_days = json
+        .get("cleanupPeriodDays")
+        .and_then(|v| v.as_u64())
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| "30".to_string());
+
+    let permissions_default_mode = json
+        .get("permissions")
+        .and_then(|p| p.get("defaultMode"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("(unset)")
+        .to_string();
+    let disable_bypass = json
+        .get("disableBypassPermissionsMode")
+        .and_then(|v| v.as_str())
+        .unwrap_or("(unset)")
+        .to_string();
+    let skip_dangerous = json
+        .get("skipDangerousModePermissionPrompt")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
 
     let fields: Vec<(&str, String)> = vec![
-        ("Name", profile.name.clone()),
-        (
-            "Description",
-            profile
-                .description
-                .clone()
-                .unwrap_or_else(|| "".to_string()),
-        ),
-        (
-            "Base URL",
-            profile
-                .base_url
-                .clone()
-                .unwrap_or_else(|| "(not set)".to_string()),
-        ),
+        ("Base URL", base_url),
         (
             "Bearer Token",
             if token_set {
@@ -1070,48 +1095,61 @@ fn draw_claude_profile(frame: &mut Frame, app: &app::App, area: Rect) {
                 "(not set)".to_string()
             },
         ),
+        ("Model", model),
         (
-            "Main Model",
-            profile
-                .model
-                .clone()
-                .unwrap_or_else(|| "(not set)".to_string()),
+            "Use main for small",
+            if mirror { "yes".to_string() } else { "no".to_string() },
+        ),
+        ("Small Model", if mirror {
+            "(none - uses main)".to_string()
+        } else {
+            small_model
+        }),
+        (
+            "1M Context",
+            if context_1m { "yes".to_string() } else { "no".to_string() },
+        ),
+        ("Reasoning", reasoning_display),
+        ("Thinking", thinking_display.to_string()),
+        (
+            "autoUpdate",
+            if auto_update { "yes".to_string() } else { "no".to_string() },
         ),
         (
-            "Use Main Small",
-            if profile.small_model_uses_main_model {
-                "yes".to_string()
-            } else {
-                "no".to_string()
-            },
+            "includeCoAuthoredBy",
+            if include_coauthored { "yes".to_string() } else { "no".to_string() },
         ),
-        ("Small Model", small_model_value),
-        ("Reasoning", reasoning_value),
-        ("Thinking", thinking_value.to_string()),
+        ("cleanupPeriodDays", cleanup_days),
+        ("Permissions defaultMode", permissions_default_mode),
+        ("disableBypass", disable_bypass),
+        (
+            "skipDangerousPrompt",
+            if skip_dangerous { "yes".to_string() } else { "no".to_string() },
+        ),
     ];
 
     let mut items: Vec<ListItem> = Vec::new();
     for (index, (label, value)) in fields.into_iter().enumerate() {
         let selected = index == app.claude_detail_field_index;
         let line = if selected {
-            Line::from(format!("{label:>16}: {value}"))
+            Line::from(format!("{label:>24}: {value}"))
         } else {
             let custom_style = match label {
                 "Bearer Token" if value == "********" => Some(t.success_fg_style()),
                 _ => None,
             };
-            field_line_custom(label, &value, 16, custom_style)
+            field_line_custom(label, &value, 24, custom_style)
         };
         items.push(ListItem::new(line));
     }
 
     let list = List::new(items)
-        .block(block(format!("Claude Profile: {}", profile.name)))
+        .block(block(format!("Claude Settings: {}", name)))
         .highlight_style(t.selected_row_style());
     render_list(frame, list, chunks[0], Some(app.claude_detail_field_index));
 
     let help = help_paragraph(
-        "Up/Down: move  Enter/e: edit/toggle  l: load live  t: run preview  x: run+exit  a: apply  q/Esc: back",
+        "Up/Down: move  Enter: edit/toggle  s: save  l: load live  t: temp run  p: preview  a: merge to global  q/Esc: back",
     );
     frame.render_widget(help, chunks[1]);
 }

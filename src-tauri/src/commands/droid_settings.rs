@@ -89,6 +89,7 @@ fn build_droid_launch_spec(plan: &droid_runtime::DroidTemporaryRunPlan) -> Launc
         unset_env: plan.unset_env.clone(),
         cwd: None,
         support_dir: None,
+        no_keep_open: false,
     }
 }
 
