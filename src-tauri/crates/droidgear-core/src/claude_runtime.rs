@@ -755,10 +755,10 @@ pub fn build_temporary_run_plan_from_file(
         home_dir,
         &settings_path,
         false,
-        &std::env::current_exe()
+        std::env::current_exe()
             .map_err(|e| format!("Failed to locate current launcher executable: {e}"))?
             .to_string_lossy()
-            .to_string(),
+            .as_ref(),
         &internal_settings_launcher_args(),
     )?;
     Ok(ClaudeTemporaryRunPlan {
@@ -787,8 +787,8 @@ pub fn build_temporary_run_preview_from_file(
         &process_env,
     )?;
 
-    let settings_overlay_json = std::fs::read_to_string(&settings_path)
-        .unwrap_or_else(|_| "{}".to_string());
+    let settings_overlay_json =
+        std::fs::read_to_string(&settings_path).unwrap_or_else(|_| "{}".to_string());
 
     Ok(ClaudeTemporaryRunDebugPreview {
         profile_id: file_name.to_string(),
@@ -799,7 +799,10 @@ pub fn build_temporary_run_preview_from_file(
             .to_string(),
         args: internal_settings_launcher_args(),
         child_program: "claude".to_string(),
-        child_args: vec!["--settings".to_string(), settings_path.to_string_lossy().to_string()],
+        child_args: vec![
+            "--settings".to_string(),
+            settings_path.to_string_lossy().to_string(),
+        ],
         live_config_dir: payload
             .config_dir_env_override
             .clone()

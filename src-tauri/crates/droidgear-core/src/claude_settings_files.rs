@@ -595,7 +595,10 @@ pub fn save_settings_file(name: &str, value: &Value) -> Result<(), String> {
 // ============================================================================
 
 /// Copies a settings file to a new name and activates it.
-pub fn duplicate_settings_file(name: &str, new_name: &str) -> Result<ClaudeSettingsFileInfo, String> {
+pub fn duplicate_settings_file(
+    name: &str,
+    new_name: &str,
+) -> Result<ClaudeSettingsFileInfo, String> {
     duplicate_settings_file_for_home(&system_home_dir()?, name, new_name)
 }
 

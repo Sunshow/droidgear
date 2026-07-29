@@ -114,9 +114,7 @@ pub(super) fn start_command_in_foreground(
 
     #[cfg(not(unix))]
     {
-        command
-            .status()
-            .with_context(|| format!("run {program}"))?;
+        command.status().with_context(|| format!("run {program}"))?;
         Ok(())
     }
 }
@@ -449,54 +447,6 @@ pub fn run_codex_temporary_run_for_selector(home_dir: &Path, selector: &str) -> 
     run_codex_temporary_run(home_dir, &profile.id)
 }
 
-pub(super) fn build_claude_temporary_run_plan(
-    home_dir: &Path,
-    profile_id: &str,
-) -> anyhow::Result<droidgear_core::claude_runtime::ClaudeTemporaryLaunchPlan> {
-    droidgear_core::claude_runtime::cleanup_stale_runtime_dirs_for_home(home_dir)
-        .map_err(anyhow::Error::msg)?;
-    let profile = droidgear_core::claude::get_claude_profile_for_home(home_dir, profile_id)
-        .map_err(anyhow::Error::msg)?;
-    let launcher_program = current_launcher_program()?;
-    let launcher_args = droidgear_core::claude_runtime::internal_launcher_args();
-    droidgear_core::claude_runtime::build_temporary_run_plan_for_home(
-        home_dir,
-        &profile,
-        &launcher_program,
-        &launcher_args,
-    )
-    .map_err(|e| anyhow::Error::msg(format!("Failed to prepare Claude temporary run: {e}")))
-}
-
-pub(super) fn run_claude_temporary_run(home_dir: &Path, profile_id: &str) -> anyhow::Result<()> {
-    probe_claude_cli().map_err(|error| {
-        let message = error.to_string();
-        if message.starts_with("Failed to execute claude --version") {
-            anyhow::Error::msg("Claude CLI is not installed or not available in PATH.")
-        } else if message == "Failed to read Claude CLI version" {
-            anyhow::Error::msg(
-                "Failed to inspect the installed Claude CLI. Check that `claude` runs correctly in your shell.",
-            )
-        } else {
-            error
-        }
-    })?;
-
-    let plan = build_claude_temporary_run_plan(home_dir, profile_id)?;
-    for warning in &plan.warnings {
-        eprintln!("Warning: {warning}");
-    }
-    start_command_in_foreground(
-        &plan.program,
-        &plan.args,
-        &plan.env,
-        &plan.secret_env,
-        &plan.unset_env,
-        None,
-    )
-}
-
-#[cfg_attr(not(test), allow(dead_code))]
 pub(super) fn format_claude_temporary_run_preview(
     preview: &droidgear_core::claude_runtime::ClaudeTemporaryRunDebugPreview,
 ) -> String {
@@ -550,24 +500,6 @@ pub(super) fn format_claude_temporary_run_preview(
     out
 }
 
-pub(super) fn preview_claude_temporary_run(
-    home_dir: &Path,
-    profile_id: &str,
-) -> anyhow::Result<String> {
-    let profile = droidgear_core::claude::get_claude_profile_for_home(home_dir, profile_id)
-        .map_err(anyhow::Error::msg)?;
-    let launcher_program = current_launcher_program()?;
-    let launcher_args = droidgear_core::claude_runtime::internal_launcher_args();
-    let preview = droidgear_core::claude_runtime::build_temporary_run_debug_preview_for_home(
-        home_dir,
-        &profile,
-        &launcher_program,
-        &launcher_args,
-    )
-    .map_err(anyhow::Error::msg)?;
-    Ok(format_claude_temporary_run_preview(&preview))
-}
-
 pub fn list_claude_temporary_run_targets(home_dir: &Path) -> anyhow::Result<String> {
     let files = droidgear_core::claude_settings_files::list_settings_files_for_home(home_dir)
         .map_err(anyhow::Error::msg)?;
@@ -597,36 +529,11 @@ pub fn list_claude_temporary_run_targets(home_dir: &Path) -> anyhow::Result<Stri
     Ok(out)
 }
 
-pub fn run_claude_temporary_run_for_selector(
-    home_dir: &Path,
-    selector: &str,
-) -> anyhow::Result<()> {
-    // Claude temp runs already exec through the internal launcher, which owns
-    // the final terminal reset immediately before `exec claude`.
-    let profile =
-        droidgear_core::claude::resolve_claude_profile_selector_for_home(home_dir, selector)
-            .map_err(anyhow::Error::msg)?;
-    run_claude_temporary_run(home_dir, &profile.id)
-}
-
-pub fn preview_claude_temporary_run_for_selector(
-    home_dir: &Path,
-    selector: &str,
-) -> anyhow::Result<String> {
-    let profile =
-        droidgear_core::claude::resolve_claude_profile_selector_for_home(home_dir, selector)
-            .map_err(anyhow::Error::msg)?;
-    preview_claude_temporary_run(home_dir, &profile.id)
-}
-
 // ---------------------------------------------------------------------------
 // File-based temp run (settings file name → plan)
 // ---------------------------------------------------------------------------
 
-pub fn run_claude_temporary_run_from_file(
-    home_dir: &Path,
-    file_name: &str,
-) -> anyhow::Result<()> {
+pub fn run_claude_temporary_run_from_file(home_dir: &Path, file_name: &str) -> anyhow::Result<()> {
     probe_claude_cli().map_err(|error| {
         let message = error.to_string();
         if message.starts_with("Failed to execute claude --version") {
@@ -643,9 +550,10 @@ pub fn run_claude_temporary_run_from_file(
     droidgear_core::claude_runtime::cleanup_stale_runtime_dirs_for_home(home_dir)
         .map_err(anyhow::Error::msg)?;
 
-    let settings_path =
-        droidgear_core::claude_settings_files::get_settings_path_by_name_for_home(home_dir, file_name)
-            .map_err(anyhow::Error::msg)?;
+    let settings_path = droidgear_core::claude_settings_files::get_settings_path_by_name_for_home(
+        home_dir, file_name,
+    )
+    .map_err(anyhow::Error::msg)?;
     let launcher_program = current_launcher_program()?;
     let launcher_args = droidgear_core::claude_runtime::internal_settings_launcher_args();
     let launch_plan = droidgear_core::claude_runtime::build_settings_launch_plan_for_home(

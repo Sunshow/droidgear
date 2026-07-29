@@ -58,10 +58,7 @@ pub(super) fn refresh_claude_detail(app: &mut app::App) {
     }
 }
 
-pub(super) fn claude_load_from_live_config(
-    app: &mut app::App,
-    name: &str,
-) -> anyhow::Result<()> {
+pub(super) fn claude_load_from_live_config(app: &mut app::App, name: &str) -> anyhow::Result<()> {
     droidgear_core::claude_settings_files::load_settings_file_from_live_for_home(
         &app.home_dir,
         name,

@@ -65,22 +65,11 @@ fn claude_input_action_variants_exist() {
     let _dup = app::InputAction::ClaudeSettingsDuplicate {
         name: "x".to_string(),
     };
-    let _edit = app::InputAction::ClaudeSettingsEditField {
-        name: "x".to_string(),
-        field_index: 0,
-    };
-    let _reasoning = app::SelectAction::ClaudeSettingsSetReasoningEffort {
-        name: "x".to_string(),
-    };
-    let _thinking = app::SelectAction::ClaudeSettingsSetThinkingMode {
-        name: "x".to_string(),
-    };
-    let _perm = app::SelectAction::ClaudeSettingsSetPermissionsDefaultMode {
-        name: "x".to_string(),
-    };
-    let _bypass = app::SelectAction::ClaudeSettingsSetDisableBypass {
-        name: "x".to_string(),
-    };
+    let _edit = app::InputAction::ClaudeSettingsEditField { field_index: 0 };
+    let _reasoning = app::SelectAction::ClaudeSettingsSetReasoningEffort;
+    let _thinking = app::SelectAction::ClaudeSettingsSetThinkingMode;
+    let _perm = app::SelectAction::ClaudeSettingsSetPermissionsDefaultMode;
+    let _bypass = app::SelectAction::ClaudeSettingsSetDisableBypass;
 }
 
 #[test]
@@ -97,8 +86,8 @@ fn claude_run_action_variant_exists() {
 
 #[test]
 fn claude_list_t_key_routes_through_run_action() {
-    use std::path::PathBuf;
     use droidgear_core::claude_settings_files::ClaudeSettingsFileInfo;
+    use std::path::PathBuf;
 
     let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
     app.claude_files = vec![ClaudeSettingsFileInfo {

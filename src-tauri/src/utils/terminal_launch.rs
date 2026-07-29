@@ -712,7 +712,12 @@ fn windows_cmd_start_args(payload: &str, cwd: Option<&Path>) -> Vec<String> {
 /// Avoid `-w` / `new-tab` — they caused CLI parse errors on some WT versions.
 /// `shell` is typically the resolved `pwsh` or `powershell` executable path/name.
 #[cfg(target_os = "windows")]
-fn windows_wt_ps_args(shell: &str, command: &str, cwd: Option<&Path>, no_keep_open: bool) -> Vec<String> {
+fn windows_wt_ps_args(
+    shell: &str,
+    command: &str,
+    cwd: Option<&Path>,
+    no_keep_open: bool,
+) -> Vec<String> {
     let mut args = Vec::new();
     if let Some(dir) = cwd {
         args.push("-d".to_string());
@@ -1449,6 +1454,7 @@ mod tests {
             unset_env: vec![],
             cwd: None,
             support_dir: None,
+            no_keep_open: false,
         };
 
         let posix = prepare_posix_command(&spec);
@@ -1499,6 +1505,7 @@ mod tests {
             unset_env: vec![],
             cwd: None,
             support_dir: None,
+            no_keep_open: false,
         };
 
         let prepared = prepare_posix_command(&spec);
@@ -1567,6 +1574,7 @@ mod tests {
             unset_env: vec!["OPENAI_API_KEY".to_string()],
             cwd: Some(PathBuf::from("/workspace")),
             support_dir: Some(PathBuf::from("/tmp/runtime-codex")),
+            no_keep_open: false,
         };
 
         let child_command = render_posix_child_command(&spec);

@@ -1046,9 +1046,7 @@ fn draw_claude_settings_detail(frame: &mut Frame, app: &app::App, area: Rect) {
     };
 
     let disable_thinking = env_str("CLAUDE_CODE_DISABLE_THINKING");
-    let always_thinking = json
-        .get("alwaysThinkingEnabled")
-        .and_then(|v| v.as_bool());
+    let always_thinking = json.get("alwaysThinkingEnabled").and_then(|v| v.as_bool());
     let thinking_display = match (disable_thinking.as_str(), always_thinking) {
         ("1", _) => "off".to_string(),
         (_, Some(true)) => "on".to_string(),
@@ -1098,33 +1096,56 @@ fn draw_claude_settings_detail(frame: &mut Frame, app: &app::App, area: Rect) {
         ("Model", model),
         (
             "Use main for small",
-            if mirror { "yes".to_string() } else { "no".to_string() },
+            if mirror {
+                "yes".to_string()
+            } else {
+                "no".to_string()
+            },
         ),
-        ("Small Model", if mirror {
-            "(none - uses main)".to_string()
-        } else {
-            small_model
-        }),
+        (
+            "Small Model",
+            if mirror {
+                "(none - uses main)".to_string()
+            } else {
+                small_model
+            },
+        ),
         (
             "1M Context",
-            if context_1m { "yes".to_string() } else { "no".to_string() },
+            if context_1m {
+                "yes".to_string()
+            } else {
+                "no".to_string()
+            },
         ),
         ("Reasoning", reasoning_display),
         ("Thinking", thinking_display.to_string()),
         (
             "autoUpdate",
-            if auto_update { "yes".to_string() } else { "no".to_string() },
+            if auto_update {
+                "yes".to_string()
+            } else {
+                "no".to_string()
+            },
         ),
         (
             "includeCoAuthoredBy",
-            if include_coauthored { "yes".to_string() } else { "no".to_string() },
+            if include_coauthored {
+                "yes".to_string()
+            } else {
+                "no".to_string()
+            },
         ),
         ("cleanupPeriodDays", cleanup_days),
         ("Permissions defaultMode", permissions_default_mode),
         ("disableBypass", disable_bypass),
         (
             "skipDangerousPrompt",
-            if skip_dangerous { "yes".to_string() } else { "no".to_string() },
+            if skip_dangerous {
+                "yes".to_string()
+            } else {
+                "no".to_string()
+            },
         ),
     ];
 

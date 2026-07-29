@@ -231,7 +231,6 @@ pub enum InputAction {
         name: String,
     },
     ClaudeSettingsEditField {
-        name: String,
         field_index: usize,
     },
     CodexCreateProfile,
@@ -510,18 +509,10 @@ pub enum InputAction {
 #[derive(Debug, Clone)]
 pub enum SelectAction {
     GoToNav,
-    ClaudeSettingsSetReasoningEffort {
-        name: String,
-    },
-    ClaudeSettingsSetThinkingMode {
-        name: String,
-    },
-    ClaudeSettingsSetPermissionsDefaultMode {
-        name: String,
-    },
-    ClaudeSettingsSetDisableBypass {
-        name: String,
-    },
+    ClaudeSettingsSetReasoningEffort,
+    ClaudeSettingsSetThinkingMode,
+    ClaudeSettingsSetPermissionsDefaultMode,
+    ClaudeSettingsSetDisableBypass,
     CodexSetProfileModelProvider {
         id: String,
     },

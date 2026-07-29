@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.1.9
+
+**New Features / 新功能**
+
+- Unify Claude settings management: TUI migrates from profiles to settings files, with create / delete / duplicate / merge-apply / load-from-live and one-off temporary run / 统一 Claude 设置管理：TUI 从 Profile 模型迁移到设置文件模型，支持新建 / 删除 / 复制 / 合并应用 / 从实时配置加载及临时单次运行
+- Expand Claude settings fields from 9 to 14 structured items, adding 1M context, general settings, and permissions (defaultMode, disableBypass, skipDangerous) / Claude 设置结构化字段从 9 项扩展到 14 项，新增 1M 上下文、通用设置与权限项（defaultMode、disableBypass、skipDangerous）
+- Add merge-apply that shallow-merges env and permissions from a settings file into the global settings / 新增合并应用能力，将设置文件中的 env 与 permissions 浅合并到全局设置
+- Expose the new settings-file APIs as Tauri commands for the GUI / 将新的设置文件 API 暴露为 Tauri 命令供 GUI 使用
+
+**Bug Fixes / 问题修复**
+
+- Fix Windows launch chain: use spawn+wait instead of orphaned spawn so the shell and session no longer compete for the console / 修复 Windows 启动链：改用 spawn+wait 代替孤立 spawn，避免 shell 与会话争抢控制台
+- Fix TUI edit persistence: screen data refresh no longer overwrites unsaved in-memory JSON edits on modal confirmation / 修复 TUI 编辑持久化：确认弹窗时刷新屏幕数据不再覆盖内存中未保存的 JSON 编辑
+- Fix TUI exiting cleanly after a temporary run without leaving a competing shell session / 修复 TUI 在临时运行后可干净退出，不再残留争抢的 shell 会话
+- Add no_keep_open flag to LaunchSpec to avoid orphaned PowerShell windows when the launcher spawns Claude / 为 LaunchSpec 新增 no_keep_open 标记，避免启动 Claude 时残留孤立的 PowerShell 窗口
+- Remove the raw Env Editor from the Claude settings page where it conflicted with the structured fields / 移除 Claude 设置页中与结构化字段冲突的原始 Env 编辑器
+
 ## v1.1.8
 
 **Bug Fixes / 问题修复**

@@ -87,7 +87,9 @@ xattr -cr /Applications/DroidGear.app
 
 ### Claude 支持
 
-- **Claude 设置文件管理** - 多设置文件（Global + 自定义）切换与编辑，结构化 Provider / 模型 / Reasoning / Thinking 分段
+- **Claude 设置文件管理** - 多设置文件（Global + 自定义）切换与编辑，结构化 Provider / 模型 / Reasoning / Thinking / 通用设置 / 权限分段
+- **设置文件操作** - 新建、删除、复制、从实时配置加载，以及临时单次运行
+- **合并应用** - 将设置文件中的 env 与 permissions 浅合并到全局设置
 - **从渠道导入** - 一键从已配置渠道导入 Provider 配置（base URL、API Key、默认模型）
 - **运行时核心** - 启动时通过运行时覆盖层加载设置，从不修改实时配置文件
 
@@ -151,6 +153,7 @@ TUI 版本支持以下配置管理功能：
 
 - **Factory 配置**：自定义模型管理、默认模型设置
 - **MCP 服务器**：增删改查、启用/禁用、导入导出
+- **Claude 设置文件**：多设置文件管理、结构化字段编辑、合并应用、临时单次运行
 - **Codex Profile**：配置文件管理、变更预览、一键应用
 - **OpenCode Profile**：Provider/Auth 配置管理
 - **OpenClaw Profile**：配置管理与应用

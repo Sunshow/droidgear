@@ -233,14 +233,14 @@ pub(super) fn run_select_action(
             }
             Ok(())
         }
-        app::SelectAction::ClaudeSettingsSetReasoningEffort { name: _ } => {
+        app::SelectAction::ClaudeSettingsSetReasoningEffort => {
             let Some(ref mut json) = app.claude_detail_json else {
                 return Ok(());
             };
             let obj = json.as_object_mut().unwrap();
-            let env = obj.entry("env".to_string()).or_insert_with(|| {
-                serde_json::Value::Object(serde_json::Map::new())
-            });
+            let env = obj
+                .entry("env".to_string())
+                .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
             if let Some(env_obj) = env.as_object_mut() {
                 match selected.as_deref() {
                     Some("inherit") | None => {
@@ -248,27 +248,45 @@ pub(super) fn run_select_action(
                         env_obj.remove("CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING");
                     }
                     Some("low") => {
-                        env_obj.insert("CLAUDE_CODE_EFFORT_LEVEL".to_string(), serde_json::Value::String("low".to_string()));
+                        env_obj.insert(
+                            "CLAUDE_CODE_EFFORT_LEVEL".to_string(),
+                            serde_json::Value::String("low".to_string()),
+                        );
                         env_obj.remove("CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING");
                     }
                     Some("medium") => {
-                        env_obj.insert("CLAUDE_CODE_EFFORT_LEVEL".to_string(), serde_json::Value::String("medium".to_string()));
+                        env_obj.insert(
+                            "CLAUDE_CODE_EFFORT_LEVEL".to_string(),
+                            serde_json::Value::String("medium".to_string()),
+                        );
                         env_obj.remove("CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING");
                     }
                     Some("high") => {
-                        env_obj.insert("CLAUDE_CODE_EFFORT_LEVEL".to_string(), serde_json::Value::String("high".to_string()));
-                        env_obj.insert("CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING".to_string(), serde_json::Value::String("1".to_string()));
+                        env_obj.insert(
+                            "CLAUDE_CODE_EFFORT_LEVEL".to_string(),
+                            serde_json::Value::String("high".to_string()),
+                        );
+                        env_obj.insert(
+                            "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING".to_string(),
+                            serde_json::Value::String("1".to_string()),
+                        );
                     }
                     Some("max") => {
-                        env_obj.insert("CLAUDE_CODE_EFFORT_LEVEL".to_string(), serde_json::Value::String("max".to_string()));
-                        env_obj.insert("CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING".to_string(), serde_json::Value::String("1".to_string()));
+                        env_obj.insert(
+                            "CLAUDE_CODE_EFFORT_LEVEL".to_string(),
+                            serde_json::Value::String("max".to_string()),
+                        );
+                        env_obj.insert(
+                            "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING".to_string(),
+                            serde_json::Value::String("1".to_string()),
+                        );
                     }
                     _ => {}
                 }
             }
             Ok(())
         }
-        app::SelectAction::ClaudeSettingsSetThinkingMode { name: _ } => {
+        app::SelectAction::ClaudeSettingsSetThinkingMode => {
             let Some(ref mut json) = app.claude_detail_json else {
                 return Ok(());
             };
@@ -276,56 +294,68 @@ pub(super) fn run_select_action(
             match selected.as_deref() {
                 Some("inherit") | None => {
                     obj.remove("alwaysThinkingEnabled");
-                    let env = obj.entry("env".to_string()).or_insert_with(|| {
-                        serde_json::Value::Object(serde_json::Map::new())
-                    });
+                    let env = obj
+                        .entry("env".to_string())
+                        .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
                     if let Some(env_obj) = env.as_object_mut() {
                         env_obj.remove("CLAUDE_CODE_DISABLE_THINKING");
                     }
                 }
                 Some("on") => {
-                    obj.insert("alwaysThinkingEnabled".to_string(), serde_json::Value::Bool(true));
-                    let env = obj.entry("env".to_string()).or_insert_with(|| {
-                        serde_json::Value::Object(serde_json::Map::new())
-                    });
+                    obj.insert(
+                        "alwaysThinkingEnabled".to_string(),
+                        serde_json::Value::Bool(true),
+                    );
+                    let env = obj
+                        .entry("env".to_string())
+                        .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
                     if let Some(env_obj) = env.as_object_mut() {
                         env_obj.remove("CLAUDE_CODE_DISABLE_THINKING");
                     }
                 }
                 Some("off") => {
-                    obj.insert("alwaysThinkingEnabled".to_string(), serde_json::Value::Bool(false));
-                    let env = obj.entry("env".to_string()).or_insert_with(|| {
-                        serde_json::Value::Object(serde_json::Map::new())
-                    });
+                    obj.insert(
+                        "alwaysThinkingEnabled".to_string(),
+                        serde_json::Value::Bool(false),
+                    );
+                    let env = obj
+                        .entry("env".to_string())
+                        .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
                     if let Some(env_obj) = env.as_object_mut() {
-                        env_obj.insert("CLAUDE_CODE_DISABLE_THINKING".to_string(), serde_json::Value::String("1".to_string()));
+                        env_obj.insert(
+                            "CLAUDE_CODE_DISABLE_THINKING".to_string(),
+                            serde_json::Value::String("1".to_string()),
+                        );
                     }
                 }
                 _ => {}
             }
             Ok(())
         }
-        app::SelectAction::ClaudeSettingsSetPermissionsDefaultMode { name: _ } => {
+        app::SelectAction::ClaudeSettingsSetPermissionsDefaultMode => {
             let Some(ref mut json) = app.claude_detail_json else {
                 return Ok(());
             };
             let obj = json.as_object_mut().unwrap();
-            let permissions = obj.entry("permissions".to_string()).or_insert_with(|| {
-                serde_json::Value::Object(serde_json::Map::new())
-            });
+            let permissions = obj
+                .entry("permissions".to_string())
+                .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
             if let Some(perm_obj) = permissions.as_object_mut() {
                 match selected.as_deref() {
                     Some("(unset)") | None => {
                         perm_obj.remove("defaultMode");
                     }
                     Some(value) => {
-                        perm_obj.insert("defaultMode".to_string(), serde_json::Value::String(value.to_string()));
+                        perm_obj.insert(
+                            "defaultMode".to_string(),
+                            serde_json::Value::String(value.to_string()),
+                        );
                     }
                 }
             }
             Ok(())
         }
-        app::SelectAction::ClaudeSettingsSetDisableBypass { name: _ } => {
+        app::SelectAction::ClaudeSettingsSetDisableBypass => {
             let Some(ref mut json) = app.claude_detail_json else {
                 return Ok(());
             };
@@ -335,7 +365,10 @@ pub(super) fn run_select_action(
                     obj.remove("disableBypassPermissionsMode");
                 }
                 Some("disable") => {
-                    obj.insert("disableBypassPermissionsMode".to_string(), serde_json::Value::String("disable".to_string()));
+                    obj.insert(
+                        "disableBypassPermissionsMode".to_string(),
+                        serde_json::Value::String("disable".to_string()),
+                    );
                 }
                 _ => {}
             }
@@ -1362,14 +1395,20 @@ pub(super) fn run_confirm_action(
             Ok(())
         }
         app::ConfirmAction::ClaudeSettingsApply { name } => {
-            droidgear_core::claude_settings_files::merge_settings_file_to_global_for_home(&app.home_dir, &name)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::claude_settings_files::merge_settings_file_to_global_for_home(
+                &app.home_dir,
+                &name,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Merged into global", false);
             Ok(())
         }
         app::ConfirmAction::ClaudeSettingsDelete { name } => {
-            droidgear_core::claude_settings_files::delete_settings_file_for_home(&app.home_dir, name)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::claude_settings_files::delete_settings_file_for_home(
+                &app.home_dir,
+                name,
+            )
+            .map_err(anyhow::Error::msg)?;
             Ok(())
         }
         app::ConfirmAction::CodexApply { id } => {
@@ -1767,11 +1806,7 @@ pub(super) fn run_input_action(
             .map_err(anyhow::Error::msg)?;
             refresh_claude(app);
             // Find the new file and activate it
-            if let Some(idx) = app
-                .claude_files
-                .iter()
-                .position(|f| f.name == trimmed)
-            {
+            if let Some(idx) = app.claude_files.iter().position(|f| f.name == trimmed) {
                 app.claude_index = idx;
                 app.claude_detail_name = Some(trimmed.to_string());
                 app.claude_detail_field_index = 0;
@@ -1791,16 +1826,12 @@ pub(super) fn run_input_action(
             )
             .map_err(anyhow::Error::msg)?;
             refresh_claude(app);
-            if let Some(idx) = app
-                .claude_files
-                .iter()
-                .position(|f| f.name == trimmed)
-            {
+            if let Some(idx) = app.claude_files.iter().position(|f| f.name == trimmed) {
                 app.claude_index = idx;
             }
             Ok(())
         }
-        app::InputAction::ClaudeSettingsEditField { name, field_index } => {
+        app::InputAction::ClaudeSettingsEditField { field_index } => {
             let Some(ref mut json) = app.claude_detail_json else {
                 return Ok(());
             };
@@ -1808,9 +1839,9 @@ pub(super) fn run_input_action(
 
             match field_index {
                 0 | 1 | 2 | 4 => {
-                    let env = obj.entry("env".to_string()).or_insert_with(|| {
-                        serde_json::Value::Object(serde_json::Map::new())
-                    });
+                    let env = obj
+                        .entry("env".to_string())
+                        .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
                     let env_obj = env.as_object_mut().unwrap();
                     match field_index {
                         0 => {

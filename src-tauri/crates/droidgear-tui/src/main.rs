@@ -283,7 +283,14 @@ mod tests {
 
     #[test]
     fn cli_parses_claude_preview_subcommand() {
-        let cli = Cli::parse_from(["droidgear-tui", "run", "claude", "--preview", "-n", "profile-a"]);
+        let cli = Cli::parse_from([
+            "droidgear-tui",
+            "run",
+            "claude",
+            "--preview",
+            "-n",
+            "profile-a",
+        ]);
 
         match cli.command {
             Some(Command::Run {

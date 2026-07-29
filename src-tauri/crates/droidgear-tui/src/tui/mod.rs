@@ -77,11 +77,9 @@ use keys_specs::handle_specs_key;
 use modal::handle_modal_key;
 use refresh::*;
 use utils::{
-    factory_model_id, insert_char_at,
-    preview_codex_apply,
-    preview_codex_temporary_run, preview_droid_temporary_run, preview_openclaw_apply,
-    preview_opencode_apply, remove_char_at, run_codex_temporary_run,
-    run_droid_temporary_run,
+    factory_model_id, insert_char_at, preview_codex_apply, preview_codex_temporary_run,
+    preview_droid_temporary_run, preview_openclaw_apply, preview_opencode_apply, remove_char_at,
+    run_codex_temporary_run, run_droid_temporary_run,
 };
 
 type UiTerminal = Terminal<CrosstermBackend<io::Stdout>>;

@@ -26,10 +26,7 @@ pub(super) fn handle_claude_key(app: &mut app::App, code: KeyCode) -> Option<Act
         KeyCode::Char('a') => {
             if let Some(file) = app.claude_files.get(app.claude_index) {
                 app.modal = Some(app::Modal::Confirm {
-                    message: format!(
-                        "Merge Claude settings '{}' into global?",
-                        file.name
-                    ),
+                    message: format!("Merge Claude settings '{}' into global?", file.name),
                     action: app::ConfirmAction::ClaudeSettingsApply {
                         name: file.name.clone(),
                     },
@@ -68,10 +65,7 @@ pub(super) fn handle_claude_key(app: &mut app::App, code: KeyCode) -> Option<Act
                 let file_name = file.name.clone();
                 match claude_load_from_live_config(app, &file_name) {
                     Ok(()) => {
-                        app.set_toast(
-                            format!("Loaded live config into '{}'", file_name),
-                            false,
-                        );
+                        app.set_toast(format!("Loaded live config into '{}'", file_name), false);
                         refresh_claude_detail(app);
                     }
                     Err(e) => app.set_toast(e.to_string(), true),
@@ -112,8 +106,12 @@ pub(super) fn handle_claude_settings_detail_key(
             app.claude_detail_name = None;
             app.claude_detail_json = None;
         }
-        KeyCode::Down => app.claude_detail_field_index = app.claude_detail_field_index.saturating_add(1),
-        KeyCode::Up => app.claude_detail_field_index = app.claude_detail_field_index.saturating_sub(1),
+        KeyCode::Down => {
+            app.claude_detail_field_index = app.claude_detail_field_index.saturating_add(1)
+        }
+        KeyCode::Up => {
+            app.claude_detail_field_index = app.claude_detail_field_index.saturating_sub(1)
+        }
         KeyCode::Char('s') => {
             if let Some(ref json) = app.claude_detail_json {
                 match droidgear_core::claude_settings_files::save_settings_file_for_home(
@@ -129,7 +127,6 @@ pub(super) fn handle_claude_settings_detail_key(
         KeyCode::Enter => {
             // Edit the selected field
             let field_idx = app.claude_detail_field_index;
-            let name_clone = name.clone();
             match field_idx {
                 0 | 1 | 2 | 4 | 10 => {
                     // Text fields: base_url, bearer_token, model, small_model, cleanup_period
@@ -140,7 +137,6 @@ pub(super) fn handle_claude_settings_detail_key(
                         cursor: usize::MAX,
                         is_secret: field_idx == 1, // bearer_token is secret
                         action: app::InputAction::ClaudeSettingsEditField {
-                            name: name_clone,
                             field_index: field_idx,
                         },
                     });
@@ -161,24 +157,16 @@ pub(super) fn handle_claude_settings_detail_key(
                             "max".to_string(),
                         ],
                         index: claude_reasoning_index(app),
-                        action: app::SelectAction::ClaudeSettingsSetReasoningEffort {
-                            name: name_clone,
-                        },
+                        action: app::SelectAction::ClaudeSettingsSetReasoningEffort,
                     });
                 }
                 7 => {
                     // Thinking mode select
                     app.modal = Some(app::Modal::Select {
                         title: "Thinking Mode".to_string(),
-                        options: vec![
-                            "inherit".to_string(),
-                            "on".to_string(),
-                            "off".to_string(),
-                        ],
+                        options: vec!["inherit".to_string(), "on".to_string(), "off".to_string()],
                         index: claude_thinking_index(app),
-                        action: app::SelectAction::ClaudeSettingsSetThinkingMode {
-                            name: name_clone,
-                        },
+                        action: app::SelectAction::ClaudeSettingsSetThinkingMode,
                     });
                 }
                 11 => {
@@ -195,23 +183,24 @@ pub(super) fn handle_claude_settings_detail_key(
                             "bypassPermissions".to_string(),
                         ],
                         index: claude_permissions_default_mode_index(app),
-                        action: app::SelectAction::ClaudeSettingsSetPermissionsDefaultMode {
-                            name: name_clone,
-                        },
+                        action: app::SelectAction::ClaudeSettingsSetPermissionsDefaultMode,
                     });
                 }
                 12 => {
                     // disableBypass select
-                    let current = get_claude_permissions_string(app, "disableBypassPermissionsMode");
+                    let current =
+                        get_claude_permissions_string(app, "disableBypassPermissionsMode");
                     let options = vec!["(unset)".to_string(), "disable".to_string()];
-                    let idx = if current == Some("disable".to_string()) { 1 } else { 0 };
+                    let idx = if current == Some("disable".to_string()) {
+                        1
+                    } else {
+                        0
+                    };
                     app.modal = Some(app::Modal::Select {
                         title: "disableBypassPermissionsMode".to_string(),
                         options,
                         index: idx,
-                        action: app::SelectAction::ClaudeSettingsSetDisableBypass {
-                            name: name_clone,
-                        },
+                        action: app::SelectAction::ClaudeSettingsSetDisableBypass,
                     });
                 }
                 _ => {}
@@ -298,9 +287,9 @@ fn toggle_claude_field(app: &mut app::App, idx: usize) {
                 .and_then(|e| e.get("ANTHROPIC_DEFAULT_HAIKU_MODEL"))
                 .and_then(|v| v.as_str())
                 .is_some_and(|s| !s.is_empty());
-            let env = obj.entry("env".to_string()).or_insert_with(|| {
-                serde_json::Value::Object(serde_json::Map::new())
-            });
+            let env = obj
+                .entry("env".to_string())
+                .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
             if let Some(env_obj) = env.as_object_mut() {
                 if small_set {
                     // Currently explicit → switch to mirror.
@@ -323,9 +312,9 @@ fn toggle_claude_field(app: &mut app::App, idx: usize) {
         }
         5 => {
             // 1M context: toggle [1m] suffix on model
-            let env = obj.entry("env".to_string()).or_insert_with(|| {
-                serde_json::Value::Object(serde_json::Map::new())
-            });
+            let env = obj
+                .entry("env".to_string())
+                .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
             if let Some(env_obj) = env.as_object_mut() {
                 let current = env_obj
                     .get("ANTHROPIC_MODEL")
@@ -347,7 +336,10 @@ fn toggle_claude_field(app: &mut app::App, idx: usize) {
         }
         8 => {
             // autoUpdate toggle
-            let current = obj.get("autoUpdate").and_then(|v| v.as_bool()).unwrap_or(true);
+            let current = obj
+                .get("autoUpdate")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true);
             if current {
                 obj.insert("autoUpdate".to_string(), serde_json::Value::Bool(false));
             } else {
@@ -418,9 +410,9 @@ fn claude_thinking_index(app: &app::App) -> usize {
         .and_then(|j| j.get("alwaysThinkingEnabled"))
         .and_then(|v| v.as_bool());
     match (val, always) {
-        (Some("1"), _) => 2, // off
+        (Some("1"), _) => 2,  // off
         (_, Some(true)) => 1, // on
-        _ => 0, // inherit
+        _ => 0,               // inherit
     }
 }
 

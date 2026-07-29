@@ -87,7 +87,9 @@ Run the installer directly.
 
 ### Claude Support
 
-- **Claude Settings File Management** - Switch and edit multiple settings files (Global + custom) with structured Provider / Model / Reasoning / Thinking sections
+- **Claude Settings File Management** - Switch and edit multiple settings files (Global + custom) with structured Provider / Model / Reasoning / Thinking / General / Permissions sections
+- **Settings File Actions** - Create, delete, duplicate, load from live config, and run once temporarily
+- **Merge Apply** - Shallow-merge env and permissions from a settings file into the global settings
 - **Import from Channel** - One-click import of provider configuration (base URL, API key, default model) from configured channels
 - **Runtime Core** - Settings loaded via a runtime overlay at launch so the live configuration is never mutated
 
@@ -152,6 +154,7 @@ The TUI version supports the following configuration management features:
 
 - **Factory Configuration**: Custom model management, default model settings
 - **MCP Servers**: CRUD operations, enable/disable, import/export
+- **Claude Settings Files**: Multi-settings-file management, structured field editing, merge apply, one-off temporary run
 - **Codex Profiles**: Configuration file management, change preview, one-click apply
 - **OpenCode Profiles**: Provider/Auth configuration management
 - **OpenClaw Profiles**: Configuration management and apply
