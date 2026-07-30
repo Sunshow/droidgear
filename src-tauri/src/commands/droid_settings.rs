@@ -61,9 +61,15 @@ pub async fn get_droid_launch_command() -> Result<(String, String), String> {
 /// Launches Droid CLI in a terminal with the active settings file.
 /// Respects the user's preferredTerminal preference.
 /// If `cwd` is provided, the terminal will start in that directory.
+/// `title` pins the Windows terminal tab name (e.g. sessionTitle when resuming).
+/// When omitted, Windows uses the cwd basename (or `droid` when cwd is absent).
 #[tauri::command]
 #[specta::specta]
-pub async fn launch_droid(app: tauri::AppHandle, cwd: Option<String>) -> Result<(), String> {
+pub async fn launch_droid(
+    app: tauri::AppHandle,
+    cwd: Option<String>,
+    title: Option<String>,
+) -> Result<(), String> {
     // Read preferred terminal from preferences
     let prefs = load_preferences(&app).unwrap_or_default();
     let preferred = prefs.preferred_terminal.unwrap_or_default();
@@ -75,9 +81,29 @@ pub async fn launch_droid(app: tauri::AppHandle, cwd: Option<String>) -> Result<
     }
     let plan = droid_runtime::build_temporary_run_plan_for_home(&home_dir, &droid_run)?;
     let mut spec = build_droid_launch_spec(&plan);
-    spec.cwd = cwd.map(std::path::PathBuf::from);
+    spec.cwd = cwd.as_ref().map(std::path::PathBuf::from);
+    // Pin tab title on Windows so it stays fixed after droid exits.
+    spec.window_title = Some(resolve_droid_window_title(cwd.as_deref(), title.as_deref()));
 
     launch_in_terminal(&spec, &preferred)
+}
+
+/// Resolve the pinned terminal title for a droid launch.
+/// Prefer explicit title (sessionTitle / resume); else cwd basename; else `droid`.
+fn resolve_droid_window_title(cwd: Option<&str>, explicit: Option<&str>) -> String {
+    if let Some(title) = explicit.map(str::trim).filter(|value| !value.is_empty()) {
+        return title.to_string();
+    }
+
+    cwd.and_then(|path| {
+        std::path::Path::new(path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+            .map(str::to_string)
+    })
+    .unwrap_or_else(|| "droid".to_string())
 }
 
 fn build_droid_launch_spec(plan: &droid_runtime::DroidTemporaryRunPlan) -> LaunchSpec {
@@ -89,15 +115,33 @@ fn build_droid_launch_spec(plan: &droid_runtime::DroidTemporaryRunPlan) -> Launc
         unset_env: plan.unset_env.clone(),
         cwd: None,
         support_dir: None,
+        window_title: None,
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::build_droid_launch_spec;
+    use super::{build_droid_launch_spec, resolve_droid_window_title};
     use crate::utils::preferences::load_preferences_from_path;
     use droidgear_core::droid_runtime::{DroidRunPreferences, DroidTemporaryRunPlan};
     use std::path::PathBuf;
+
+    #[test]
+    fn resolve_droid_window_title_prefers_explicit_then_cwd_then_droid() {
+        assert_eq!(
+            resolve_droid_window_title(Some(r"D:\proj\foo"), Some("session title")),
+            "session title"
+        );
+        assert_eq!(
+            resolve_droid_window_title(Some(r"D:\proj\foo"), Some("  ")),
+            "foo"
+        );
+        assert_eq!(
+            resolve_droid_window_title(Some(r"D:\proj\foo"), None),
+            "foo"
+        );
+        assert_eq!(resolve_droid_window_title(None, None), "droid");
+    }
 
     #[test]
     fn build_droid_launch_spec_preserves_temp_run_args_and_env() {

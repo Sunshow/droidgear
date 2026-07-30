@@ -19,6 +19,8 @@ pub struct LaunchSpec {
     pub unset_env: Vec<String>,
     pub cwd: Option<PathBuf>,
     pub support_dir: Option<PathBuf>,
+    /// When set on Windows, the resolved title is applied at start and re-applied after the CLI exits.
+    pub window_title: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -72,10 +74,20 @@ fn quote_cmd(value: &str) -> String {
 }
 
 /// Escape a console title for `cmd`'s `title` builtin (rest-of-line, so no quoting).
+///
+/// Strips CR/LF so a title cannot inject extra batch lines. Doubles `%` so percent
+/// expansion cannot rewrite the title (or break out via expanded metacharacters).
 #[cfg(target_os = "windows")]
 fn escape_cmd_title(value: &str) -> String {
     let mut escaped = String::with_capacity(value.len());
     for ch in value.chars() {
+        if matches!(ch, '\r' | '\n') {
+            continue;
+        }
+        if ch == '%' {
+            escaped.push_str("%%");
+            continue;
+        }
         if matches!(ch, '^' | '&' | '<' | '>' | '|' | '(' | ')' | '"') {
             escaped.push('^');
         }
@@ -84,12 +96,21 @@ fn escape_cmd_title(value: &str) -> String {
     escaped
 }
 
-/// Terminal tab/window title: working directory name, falling back to the program name.
+/// Terminal tab/window title: explicit pin title, else cwd basename, else program name.
 ///
 /// CLIs that emit an OSC title sequence (e.g. `codex`) still override this at runtime;
 /// this only fixes the default for CLIs that never set one (e.g. `droid`).
 #[cfg(target_os = "windows")]
 fn launch_window_title(spec: &LaunchSpec) -> String {
+    if let Some(title) = spec
+        .window_title
+        .as_deref()
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+    {
+        return title.to_string();
+    }
+
     spec.cwd
         .as_deref()
         .and_then(|path| path.file_name())
@@ -107,9 +128,21 @@ fn launch_window_title(spec: &LaunchSpec) -> String {
         })
 }
 
+/// Pin only when callers set an explicit title (currently droid on Windows).
+#[cfg(target_os = "windows")]
+fn pins_window_title(spec: &LaunchSpec) -> bool {
+    spec.window_title
+        .as_deref()
+        .is_some_and(|title| !title.trim().is_empty())
+}
+
 #[cfg(target_os = "windows")]
 fn render_powershell_title(title: &str) -> String {
-    format!("$Host.UI.RawUI.WindowTitle = {}", quote_powershell(title))
+    let quoted = quote_powershell(title);
+    // Set both PowerShell host title and console title (some hosts only honor one).
+    format!(
+        "$Host.UI.RawUI.WindowTitle = {quoted}; try {{ [Console]::Title = {quoted} }} catch {{}}"
+    )
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -302,11 +335,12 @@ fn write_secure_posix_wrapper(spec: &LaunchSpec) -> Result<PathBuf, String> {
 #[cfg(target_os = "windows")]
 fn write_secure_cmd_wrapper(spec: &LaunchSpec) -> Result<PathBuf, String> {
     let path = launch_artifact_path(spec, "terminal-launch.cmd");
+    let title = launch_window_title(spec);
     let mut lines = vec![
         "@echo off".to_string(),
         "setlocal".to_string(),
         "cls".to_string(),
-        format!("title {}", escape_cmd_title(&launch_window_title(spec))),
+        format!("title {}", escape_cmd_title(&title)),
         format!("echo {}", startup_message(&spec.program)),
     ];
 
@@ -321,6 +355,11 @@ fn write_secure_cmd_wrapper(spec: &LaunchSpec) -> Result<PathBuf, String> {
     }
     lines.push(render_program_command(spec, quote_cmd));
     lines.push("set \"DROIDGEAR_EXIT_CODE=%ERRORLEVEL%\"".to_string());
+    if pins_window_title(spec) {
+        // Re-apply after the CLI exits so the tab does not fall back to "Windows PowerShell".
+        // Must run after capturing ERRORLEVEL so `title` does not clobber the exit code.
+        lines.push(format!("title {}", escape_cmd_title(&title)));
+    }
     lines.push("start \"\" /b cmd /c del /f /q \"%~f0\" >nul 2>nul".to_string());
     lines.push("endlocal & exit /b %DROIDGEAR_EXIT_CODE%".to_string());
 
@@ -335,12 +374,13 @@ fn write_secure_cmd_wrapper(spec: &LaunchSpec) -> Result<PathBuf, String> {
 #[cfg(target_os = "windows")]
 fn write_secure_ps_wrapper(spec: &LaunchSpec) -> Result<PathBuf, String> {
     let path = launch_artifact_path(spec, "terminal-launch.ps1");
+    let title = launch_window_title(spec);
     let mut lines = vec![
         "$ErrorActionPreference = 'Continue'".to_string(),
         "try {".to_string(),
         format!("  {}", render_powershell_path_refresh()),
         "  Clear-Host".to_string(),
-        format!("  {}", render_powershell_title(&launch_window_title(spec))),
+        format!("  {}", render_powershell_title(&title)),
         format!("  {}", render_powershell_banner(&spec.program)),
     ];
 
@@ -360,6 +400,17 @@ fn write_secure_ps_wrapper(spec: &LaunchSpec) -> Result<PathBuf, String> {
         render_program_command(spec, quote_powershell)
     ));
     lines.push("} finally {".to_string());
+    if pins_window_title(spec) {
+        // Re-apply after the CLI exits so the tab does not fall back to "Windows PowerShell".
+        // Keep this inside the .ps1 wrapper — never put multi-line PS (prompt hooks, nested
+        // quotes) on wt's outer -Command argv; WT re-parses it and fails with 0x80070057.
+        lines.push(format!("  {}", render_powershell_title(&title)));
+        // Bare PowerShell fallback (no --suppressApplicationTitle): re-pin on every prompt.
+        lines.push(format!(
+            "  function global:prompt {{ {}; \"PS $($executionContext.SessionState.Path.CurrentLocation)$('>' * ($nestedPromptLevel + 1)) \" }}",
+            render_powershell_title(&title)
+        ));
+    }
     lines.push(
         "  Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue"
             .to_string(),
@@ -413,6 +464,8 @@ pub fn prepare_powershell_command(spec: &LaunchSpec) -> PreparedCommand {
     let cd = render_powershell_cd(spec.cwd.as_ref());
     let command = format!("& {}", render_program_command(spec, quote_powershell));
     let banner = render_powershell_banner(&spec.program);
+    let title = launch_window_title(spec);
+    let title_cmd = render_powershell_title(&title);
 
     let base = join_non_empty(
         [
@@ -428,9 +481,10 @@ pub fn prepare_powershell_command(spec: &LaunchSpec) -> PreparedCommand {
         command: base.clone(),
         keep_open_command: join_non_empty(
             [
-                Some(render_powershell_title(&launch_window_title(spec))),
+                Some(title_cmd.clone()),
                 Some(banner),
                 Some(base),
+                pins_window_title(spec).then_some(title_cmd),
             ],
             "; ",
         ),
@@ -442,6 +496,8 @@ pub fn prepare_cmd_command(spec: &LaunchSpec) -> PreparedCommand {
     let env_setup = render_cmd_env(&spec.env, &spec.unset_env);
     let cd = render_cmd_cd(spec.cwd.as_ref());
     let command = render_program_command(spec, quote_cmd);
+    let title = launch_window_title(spec);
+    let title_cmd = format!("title {}", escape_cmd_title(&title));
 
     let base = join_non_empty(
         [
@@ -456,11 +512,9 @@ pub fn prepare_cmd_command(spec: &LaunchSpec) -> PreparedCommand {
         command: base.clone(),
         keep_open_command: join_non_empty(
             [
-                Some(format!(
-                    "title {}",
-                    escape_cmd_title(&launch_window_title(spec))
-                )),
+                Some(title_cmd.clone()),
                 Some(base),
+                pins_window_title(spec).then_some(title_cmd),
             ],
             " && ",
         ),
@@ -769,9 +823,18 @@ fn windows_cmd_start_args(payload: &str, cwd: Option<&Path>) -> Vec<String> {
 /// Default product path is a new WT window running PowerShell (not cmd).
 /// Avoid `-w` / `new-tab` — they caused CLI parse errors on some WT versions.
 /// `shell` is typically the resolved `pwsh` or `powershell` executable path/name.
-/// `--title` only seeds the tab title; CLIs that emit OSC title sequences still win.
+///
+/// `--title` seeds the tab title. When `suppress_application_title` is true, also pass
+/// `--suppressApplicationTitle` so PowerShell/droid cannot overwrite the tab after exit
+/// (otherwise the tab falls back to "Windows PowerShell").
 #[cfg(target_os = "windows")]
-fn windows_wt_ps_args(shell: &str, command: &str, cwd: Option<&Path>, title: &str) -> Vec<String> {
+fn windows_wt_ps_args(
+    shell: &str,
+    command: &str,
+    cwd: Option<&Path>,
+    title: &str,
+    suppress_application_title: bool,
+) -> Vec<String> {
     let mut args = Vec::new();
     if let Some(dir) = cwd {
         args.push("-d".to_string());
@@ -780,6 +843,9 @@ fn windows_wt_ps_args(shell: &str, command: &str, cwd: Option<&Path>, title: &st
     if !title.is_empty() {
         args.push("--title".to_string());
         args.push(title.to_string());
+        if suppress_application_title {
+            args.push("--suppressApplicationTitle".to_string());
+        }
     }
     args.push(shell.to_string());
     args.push("-NoExit".to_string());
@@ -1001,9 +1067,16 @@ fn launch_windows_wt_or_ps_payload(
     command: &str,
     cwd: Option<&Path>,
     title: &str,
+    suppress_application_title: bool,
 ) -> Result<(), String> {
     if std::process::Command::new("wt")
-        .args(windows_wt_ps_args(shell, command, cwd, title))
+        .args(windows_wt_ps_args(
+            shell,
+            command,
+            cwd,
+            title,
+            suppress_application_title,
+        ))
         .spawn()
         .is_ok()
     {
@@ -1015,15 +1088,17 @@ fn launch_windows_wt_or_ps_payload(
 
 /// Build the PowerShell -Command payload for non-cmd launches.
 ///
-/// Prefer a short temp wrapper whenever env/unset/cwd/secrets are present.
-/// Inline multi-statement PowerShell (PATH refresh + env + program) is unsafe through
-/// Windows Terminal's argv re-parse and can surface as CreateProcess 0x80070002.
+/// Prefer a short temp wrapper whenever env/unset/cwd/secrets are present, or when the
+/// window title is pinned. Inline multi-statement PowerShell is unsafe through Windows
+/// Terminal's argv re-parse and can surface as CreateProcess 0x80070057 / 0x80070002.
+/// Outer -Command must stay a short `& 'wrapper.ps1'` (or a simple keep-open string).
 #[cfg(target_os = "windows")]
 fn windows_ps_launch_command(spec: &LaunchSpec) -> Result<String, String> {
     if needs_secure_wrapper(spec)
         || !spec.env.is_empty()
         || !spec.unset_env.is_empty()
         || spec.cwd.is_some()
+        || pins_window_title(spec)
     {
         let wrapper_path = write_secure_ps_wrapper(spec)?;
         Ok(format!(
@@ -1042,6 +1117,7 @@ fn launch_windows(spec: &LaunchSpec, preferred: &str) -> Result<(), String> {
     let cwd = resolved.cwd.as_deref();
     let shell = resolve_windows_powershell_shell();
     let title = launch_window_title(&resolved);
+    let suppress_application_title = pins_window_title(&resolved);
 
     match preferred {
         "cmd" => {
@@ -1065,7 +1141,13 @@ fn launch_windows(spec: &LaunchSpec, preferred: &str) -> Result<(), String> {
         _ => {
             // Default: Windows Terminal + PowerShell/pwsh (never bare cmd).
             let command = windows_ps_launch_command(&resolved)?;
-            launch_windows_wt_or_ps_payload(&shell, &command, cwd, &title)
+            launch_windows_wt_or_ps_payload(
+                &shell,
+                &command,
+                cwd,
+                &title,
+                suppress_application_title,
+            )
         }
     }
 }
@@ -1090,6 +1172,7 @@ mod tests {
             unset_env: vec!["ANTHROPIC_AUTH_TOKEN".to_string()],
             cwd: Some(PathBuf::from("/work tree")),
             support_dir: None,
+            window_title: None,
         }
     }
 
@@ -1160,7 +1243,7 @@ mod tests {
         );
         assert!(
             prepared.keep_open_command.starts_with(
-                "$Host.UI.RawUI.WindowTitle = 'work tree'; Write-Host 'Starting droid...'; "
+                "$Host.UI.RawUI.WindowTitle = 'work tree'; try { [Console]::Title = 'work tree' } catch {}; Write-Host 'Starting droid...'; "
             ),
             "expected title and keep-open prefix in command: {}",
             prepared.keep_open_command
@@ -1248,6 +1331,7 @@ mod tests {
             "& 'C:\\temp\\run.ps1'",
             Some(Path::new(r"D:\proj")),
             "proj",
+            false,
         );
         assert_eq!(
             wt_with_cwd,
@@ -1263,7 +1347,29 @@ mod tests {
             ]
         );
 
-        let wt_plain = windows_wt_ps_args("powershell", "& 'C:\\temp\\run.ps1'", None, "");
+        let wt_pinned = windows_wt_ps_args(
+            "pwsh",
+            "& 'C:\\temp\\run.ps1'",
+            Some(Path::new(r"D:\proj")),
+            "proj",
+            true,
+        );
+        assert_eq!(
+            wt_pinned,
+            vec![
+                "-d".to_string(),
+                r"D:\proj".to_string(),
+                "--title".to_string(),
+                "proj".to_string(),
+                "--suppressApplicationTitle".to_string(),
+                "pwsh".to_string(),
+                "-NoExit".to_string(),
+                "-Command".to_string(),
+                "& 'C:\\temp\\run.ps1'".to_string(),
+            ]
+        );
+
+        let wt_plain = windows_wt_ps_args("powershell", "& 'C:\\temp\\run.ps1'", None, "", false);
         assert_eq!(
             wt_plain,
             vec![
@@ -1469,6 +1575,7 @@ mod tests {
             unset_env: vec!["OPENAI_API_KEY".to_string()],
             cwd: Some(PathBuf::from(r"D:\work tree")),
             support_dir: Some(support_dir.clone()),
+            window_title: None,
         };
 
         let path = write_secure_ps_wrapper(&spec).unwrap();
@@ -1500,6 +1607,10 @@ mod tests {
             "expected window title: {contents}"
         );
         assert!(
+            contents.contains("[Console]::Title = 'work tree'"),
+            "expected console title: {contents}"
+        );
+        assert!(
             contents.contains("& 'codex'"),
             "expected program: {contents}"
         );
@@ -1507,6 +1618,155 @@ mod tests {
             contents.contains("Remove-Item -LiteralPath $PSCommandPath"),
             "expected self-delete: {contents}"
         );
+        // Without an explicit pin title, do not re-apply after exit.
+        let finally_idx = contents
+            .find("} finally {")
+            .expect("expected finally block");
+        assert!(
+            !contents[finally_idx..].contains("$Host.UI.RawUI.WindowTitle"),
+            "unpinned launches must not re-apply title in finally: {contents}"
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn pinned_window_title_is_reapplied_after_cli_exit() {
+        use super::{
+            prepare_cmd_command, prepare_powershell_command, write_secure_cmd_wrapper,
+            write_secure_ps_wrapper,
+        };
+
+        let support_dir =
+            std::env::temp_dir().join(format!("droidgear-ps-pin-title-{}", std::process::id()));
+        std::fs::create_dir_all(&support_dir).unwrap();
+
+        let mut ps_spec = sample_spec();
+        ps_spec.program = "droid".to_string();
+        ps_spec.cwd = Some(PathBuf::from(r"D:\proj\DroidGear-new"));
+        ps_spec.window_title = Some("DroidGear-new".to_string());
+        ps_spec.support_dir = Some(support_dir.clone());
+
+        let ps_path = write_secure_ps_wrapper(&ps_spec).unwrap();
+        let ps_contents = std::fs::read_to_string(&ps_path).unwrap();
+
+        let cmd_support = support_dir.join("cmd");
+        std::fs::create_dir_all(&cmd_support).unwrap();
+        let mut cmd_spec = ps_spec.clone();
+        cmd_spec.support_dir = Some(cmd_support);
+        let cmd_path = write_secure_cmd_wrapper(&cmd_spec).unwrap();
+        let cmd_contents = std::fs::read_to_string(&cmd_path).unwrap();
+        let _ = std::fs::remove_dir_all(&support_dir);
+
+        let title_line = "$Host.UI.RawUI.WindowTitle = 'DroidGear-new'";
+        assert!(
+            ps_contents.matches(title_line).count() >= 2,
+            "pinned PS wrapper should set title at start and in finally: {ps_contents}"
+        );
+        assert!(
+            ps_contents.contains("[Console]::Title = 'DroidGear-new'"),
+            "expected console title pin: {ps_contents}"
+        );
+        assert!(
+            ps_contents.contains("function global:prompt"),
+            "pinned wrapper should install prompt hook: {ps_contents}"
+        );
+        assert!(
+            ps_contents.contains("& 'droid'"),
+            "expected program: {ps_contents}"
+        );
+
+        assert_eq!(
+            cmd_contents.matches("title DroidGear-new").count(),
+            2,
+            "pinned cmd wrapper should set title before and after program: {cmd_contents}"
+        );
+
+        let inline_ps = prepare_powershell_command(&ps_spec);
+        assert!(
+            inline_ps.keep_open_command.contains(title_line),
+            "expected pinned title in keep-open: {}",
+            inline_ps.keep_open_command
+        );
+        assert!(
+            inline_ps
+                .keep_open_command
+                .contains("[Console]::Title = 'DroidGear-new'"),
+            "expected console title in keep-open: {}",
+            inline_ps.keep_open_command
+        );
+
+        let inline_cmd = prepare_cmd_command(&cmd_spec);
+        assert!(
+            inline_cmd
+                .keep_open_command
+                .starts_with("title DroidGear-new && "),
+            "expected pinned cmd title prefix: {}",
+            inline_cmd.keep_open_command
+        );
+        assert!(
+            inline_cmd
+                .keep_open_command
+                .ends_with(" && title DroidGear-new"),
+            "expected pinned cmd title suffix: {}",
+            inline_cmd.keep_open_command
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_ps_launch_command_pins_via_short_wrapper_only() {
+        use super::windows_ps_launch_command;
+
+        let support_dir =
+            std::env::temp_dir().join(format!("droidgear-ps-launch-pin-{}", std::process::id()));
+        std::fs::create_dir_all(&support_dir).unwrap();
+
+        let mut spec = sample_spec();
+        spec.program = "droid".to_string();
+        spec.env.clear();
+        spec.unset_env.clear();
+        spec.cwd = None;
+        spec.window_title = Some("MyDir".to_string());
+        spec.support_dir = Some(support_dir.clone());
+
+        let command = windows_ps_launch_command(&spec).unwrap();
+        let wrapper_path = support_dir.join("terminal-launch.ps1");
+        let wrapper = std::fs::read_to_string(&wrapper_path).unwrap_or_default();
+        let _ = std::fs::remove_dir_all(&support_dir);
+
+        assert!(
+            command.contains("terminal-launch.ps1"),
+            "pinned launches must use a short temp wrapper for wt safety: {command}"
+        );
+        assert!(
+            !command.contains("function global:prompt"),
+            "outer -Command must not embed prompt hook (wt re-parse breaks): {command}"
+        );
+        assert!(
+            !command.contains("$Host.UI.RawUI.WindowTitle"),
+            "outer -Command must stay short (title pin lives in wrapper): {command}"
+        );
+        assert!(
+            wrapper.contains("function global:prompt"),
+            "prompt hook belongs inside wrapper: {wrapper}"
+        );
+        assert!(
+            wrapper.contains("$Host.UI.RawUI.WindowTitle = 'MyDir'"),
+            "wrapper must pin title: {wrapper}"
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn launch_window_title_prefers_explicit_window_title() {
+        use super::launch_window_title;
+
+        let mut spec = sample_spec();
+        spec.window_title = Some("session from client".to_string());
+        assert_eq!(launch_window_title(&spec), "session from client");
+
+        spec.window_title = Some("   ".to_string());
+        assert_eq!(launch_window_title(&spec), "work tree");
     }
 
     #[cfg(target_os = "windows")]
@@ -1522,6 +1782,17 @@ mod tests {
         assert_eq!(launch_window_title(&no_cwd), "codex");
     }
 
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn escape_cmd_title_strips_newlines_and_escapes_percent_and_meta() {
+        use super::escape_cmd_title;
+
+        assert_eq!(escape_cmd_title("ok\r\ncalc"), "okcalc");
+        assert_eq!(escape_cmd_title("100% ready"), "100%% ready");
+        assert_eq!(escape_cmd_title("a&b|c"), "a^&b^|c");
+        assert_eq!(escape_cmd_title(r#"say "hi""#), r#"say ^"hi^""#);
+    }
+
     #[cfg(not(target_os = "windows"))]
     #[test]
     fn prepare_commands_skip_empty_env_sections() {
@@ -1533,6 +1804,7 @@ mod tests {
             unset_env: vec![],
             cwd: None,
             support_dir: None,
+            window_title: None,
         };
 
         let posix = prepare_posix_command(&spec);
@@ -1552,6 +1824,7 @@ mod tests {
             unset_env: vec![],
             cwd: None,
             support_dir: None,
+            window_title: None,
         };
 
         let powershell = prepare_powershell_command(&spec);
@@ -1583,6 +1856,7 @@ mod tests {
             unset_env: vec![],
             cwd: None,
             support_dir: None,
+            window_title: None,
         };
 
         let prepared = prepare_posix_command(&spec);
@@ -1612,6 +1886,7 @@ mod tests {
             unset_env: vec![],
             cwd: Some(PathBuf::from(r"C:\Users\%USERNAME%\A^B")),
             support_dir: None,
+            window_title: None,
         };
 
         let prepared = prepare_cmd_command(&spec);
@@ -1651,6 +1926,7 @@ mod tests {
             unset_env: vec!["OPENAI_API_KEY".to_string()],
             cwd: Some(PathBuf::from("/workspace")),
             support_dir: Some(PathBuf::from("/tmp/runtime-codex")),
+            window_title: None,
         };
 
         let child_command = render_posix_child_command(&spec);

@@ -385,21 +385,70 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
         }
       })
 
-      // Handle resize
+      // Handle resize carefully:
+      // - Hidden tabs (display:none) report 0 size; never resize PTY to 0x0.
+      // - Only notify PTY when cols/rows actually change (TUIs full-redraw on SIGWINCH,
+      //   which snaps the viewport to the top of the active screen).
+      // - Debounce + ignore scrollbar-only thrash (cols oscillating by 1).
       const container = containerRef.current
-      const resizeObserver = new ResizeObserver(() => {
-        requestAnimationFrame(() => {
-          if (fitAddonRef.current && ptyRef.current) {
-            fitAddonRef.current.fit()
-            const newDims = fitAddonRef.current.proposeDimensions()
-            if (newDims?.cols && newDims?.rows) {
-              ptyRef.current.resize(newDims.cols, newDims.rows)
-            }
+      let lastCols = cols
+      let lastRows = rows
+      let resizeTimer: ReturnType<typeof setTimeout> | null = null
+      let resizeRaf: number | null = null
+
+      const applyFitAndResize = () => {
+        if (!fitAddonRef.current || !ptyRef.current || !containerRef.current) {
+          return
+        }
+        const el = containerRef.current
+        // Skip hidden / collapsed containers (other tabs use `hidden`).
+        if (el.clientWidth < 2 || el.clientHeight < 2) {
+          return
+        }
+
+        fitAddonRef.current.fit()
+        const newDims = fitAddonRef.current.proposeDimensions()
+        if (!newDims?.cols || !newDims?.rows) {
+          return
+        }
+        if (newDims.cols === lastCols && newDims.rows === lastRows) {
+          return
+        }
+        lastCols = newDims.cols
+        lastRows = newDims.rows
+        ptyRef.current.resize(newDims.cols, newDims.rows)
+      }
+
+      const scheduleResize = () => {
+        if (resizeTimer !== null) {
+          clearTimeout(resizeTimer)
+        }
+        resizeTimer = setTimeout(() => {
+          resizeTimer = null
+          if (resizeRaf !== null) {
+            cancelAnimationFrame(resizeRaf)
           }
-        })
+          resizeRaf = requestAnimationFrame(() => {
+            resizeRaf = null
+            applyFitAndResize()
+          })
+        }, 50)
+      }
+
+      const resizeObserver = new ResizeObserver(() => {
+        scheduleResize()
       })
 
       resizeObserver.observe(container)
+
+      // Keep scrollbar gutter stable so appearing scrollbars don't change cols
+      // (col flicker → PTY resize → TUI redraw → scroll jump to top).
+      const viewport = container.querySelector(
+        '.xterm-viewport'
+      ) as HTMLElement | null
+      if (viewport) {
+        viewport.style.scrollbarGutter = 'stable'
+      }
 
       // Handle mouseup outside terminal to clear selection
       const handleMouseDown = () => {
@@ -416,13 +465,7 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
 
       // Initial resize after a short delay
       setTimeout(() => {
-        if (fitAddonRef.current && ptyRef.current) {
-          fitAddonRef.current.fit()
-          const newDims = fitAddonRef.current.proposeDimensions()
-          if (newDims?.cols && newDims?.rows) {
-            ptyRef.current.resize(newDims.cols, newDims.rows)
-          }
-        }
+        applyFitAndResize()
 
         // Prefill command after terminal is ready
         if (initialPrefillCommandRef.current && ptyRef.current) {
@@ -445,6 +488,12 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
       }, 100)
 
       return () => {
+        if (resizeTimer !== null) {
+          clearTimeout(resizeTimer)
+        }
+        if (resizeRaf !== null) {
+          cancelAnimationFrame(resizeRaf)
+        }
         resizeObserver.disconnect()
         container.removeEventListener('mousedown', handleMouseDown)
         selectionDisposable.dispose()
@@ -470,7 +519,15 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
         ref={containerRef}
         className="h-full w-full"
         onPointerDown={e => {
-          e.preventDefault()
+          // preventDefault helps keep focus on the terminal canvas, but it also
+          // cancels native scrollbar dragging when the event target is the
+          // viewport (xterm draws the scrollbar on `.xterm-viewport`).
+          const target = e.target as HTMLElement | null
+          const onViewportScrollbar =
+            target?.classList.contains('xterm-viewport') === true
+          if (!onViewportScrollbar) {
+            e.preventDefault()
+          }
           terminalRef.current?.focus()
         }}
         style={{

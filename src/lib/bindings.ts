@@ -1956,10 +1956,12 @@ async getDroidLaunchCommand() : Promise<Result<[string, string], string>> {
  * Launches Droid CLI in a terminal with the active settings file.
  * Respects the user's preferredTerminal preference.
  * If `cwd` is provided, the terminal will start in that directory.
+ * `title` pins the Windows terminal tab name (e.g. sessionTitle when resuming).
+ * When omitted, Windows uses the cwd basename (or `droid` when cwd is absent).
  */
-async launchDroid(cwd: string | null) : Promise<Result<null, string>> {
+async launchDroid(cwd: string | null, title: string | null) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("launch_droid", { cwd }) };
+    return { status: "ok", data: await TAURI_INVOKE("launch_droid", { cwd, title }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

@@ -198,7 +198,7 @@ export function DroidFeatureList() {
       }
     }
 
-    const result = await commands.launchDroid(selected as string)
+    const result = await commands.launchDroid(selected as string, null)
     if (result.status === 'error') {
       const cmdResult = await commands.getDroidLaunchCommand()
       if (cmdResult.status === 'ok') {

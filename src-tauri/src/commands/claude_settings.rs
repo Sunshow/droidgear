@@ -136,5 +136,6 @@ fn build_settings_launch_spec(plan: &claude_runtime::ClaudeSettingsLaunchPlan) -
         unset_env: plan.unset_env.clone(),
         cwd: None,
         support_dir: Some(plan.runtime_dir_path.clone()),
+        window_title: None,
     }
 }

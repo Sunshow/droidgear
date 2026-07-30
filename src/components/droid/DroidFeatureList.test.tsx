@@ -90,7 +90,10 @@ describe('DroidFeatureList', () => {
     await user.click(launchButton)
 
     await waitFor(() => {
-      expect(commands.launchDroid).toHaveBeenCalledWith('/home/user/projects')
+      expect(commands.launchDroid).toHaveBeenCalledWith(
+        '/home/user/projects',
+        null
+      )
     })
     expect(commands.getDroidLaunchCommand).not.toHaveBeenCalled()
     expect(writeTextMock).not.toHaveBeenCalled()
@@ -134,7 +137,10 @@ describe('DroidFeatureList', () => {
 
     await waitFor(() => {
       expect(saveModels).toHaveBeenCalledTimes(1)
-      expect(commands.launchDroid).toHaveBeenCalledWith('/home/user/projects')
+      expect(commands.launchDroid).toHaveBeenCalledWith(
+        '/home/user/projects',
+        null
+      )
     })
   })
 
