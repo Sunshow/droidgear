@@ -72,7 +72,7 @@ pub async fn save_claude_settings_file(
     name: String,
     contents: serde_json::Value,
 ) -> Result<(), String> {
-    claude_settings_files::save_settings_file(&name, &contents)
+    claude_settings_files::save_settings_file(&name, contents)
 }
 
 /// Duplicates a settings file to a new name and activates it.

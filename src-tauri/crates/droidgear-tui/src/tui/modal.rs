@@ -284,6 +284,7 @@ pub(super) fn run_select_action(
                     _ => {}
                 }
             }
+            app.claude_detail_dirty = true;
             Ok(())
         }
         app::SelectAction::ClaudeSettingsSetThinkingMode => {
@@ -330,6 +331,7 @@ pub(super) fn run_select_action(
                 }
                 _ => {}
             }
+            app.claude_detail_dirty = true;
             Ok(())
         }
         app::SelectAction::ClaudeSettingsSetPermissionsDefaultMode => {
@@ -353,6 +355,7 @@ pub(super) fn run_select_action(
                     }
                 }
             }
+            app.claude_detail_dirty = true;
             Ok(())
         }
         app::SelectAction::ClaudeSettingsSetDisableBypass => {
@@ -372,6 +375,146 @@ pub(super) fn run_select_action(
                 }
                 _ => {}
             }
+            app.claude_detail_dirty = true;
+            Ok(())
+        }
+        app::SelectAction::ClaudeSettingsImportChannel => {
+            let Some(selected) = selected else {
+                return Ok(());
+            };
+            let channel = app
+                .channels
+                .iter()
+                .find(|c| format!("{} ({})", c.name, c.base_url) == selected)
+                .cloned();
+            let Some(channel) = channel else {
+                app.set_toast("Channel not found", true);
+                return Ok(());
+            };
+            if super::keys_channels::channel_type_uses_api_key(&channel.channel_type) {
+                let api_key = droidgear_core::channel::get_channel_api_key_for_home(
+                    &app.home_dir,
+                    &channel.id,
+                )
+                .map_err(anyhow::Error::msg)?;
+                match api_key {
+                    Some(key) if !key.trim().is_empty() => {
+                        claude_import_fetch_models(app, &channel, key.trim());
+                    }
+                    _ => {
+                        app.modal = Some(app::Modal::Input {
+                            title: format!("API key for '{}'", channel.name),
+                            value: String::new(),
+                            cursor: usize::MAX,
+                            is_secret: true,
+                            action: app::InputAction::ClaudeSettingsImportApiKey {
+                                channel_id: channel.id.clone(),
+                            },
+                        });
+                    }
+                }
+            } else {
+                let credentials = droidgear_core::channel::get_channel_credentials_for_home(
+                    &app.home_dir,
+                    &channel.id,
+                )
+                .map_err(anyhow::Error::msg)?;
+                let Some((username, password)) = credentials else {
+                    app.set_toast(
+                        format!("No credentials configured for '{}'", channel.name),
+                        true,
+                    );
+                    return Ok(());
+                };
+                let tokens = droidgear_core::channel::fetch_channel_tokens_blocking(
+                    channel.channel_type.clone(),
+                    &channel.base_url,
+                    &username,
+                    &password,
+                )
+                .map_err(anyhow::Error::msg)?;
+                if tokens.is_empty() {
+                    app.set_toast(format!("No tokens available on '{}'", channel.name), true);
+                    return Ok(());
+                }
+                app.modal = Some(app::Modal::Select {
+                    title: format!("Select Token ({})", channel.name),
+                    options: tokens
+                        .iter()
+                        .map(|t| format!("{} ({})", t.name, t.key))
+                        .collect(),
+                    index: 0,
+                    action: app::SelectAction::ClaudeSettingsImportToken,
+                });
+            }
+            Ok(())
+        }
+        app::SelectAction::ClaudeSettingsImportToken => {
+            let Some(selected) = selected else {
+                return Ok(());
+            };
+            let Some(channel) = app
+                .channels
+                .iter()
+                .find(|c| c.enabled && selected.starts_with(&format!("{} (", c.name)))
+                .cloned()
+            else {
+                app.set_toast("Channel not found", true);
+                return Ok(());
+            };
+            // Token lines are "name (key)"; extract the key.
+            let api_key = selected
+                .rsplit_once('(')
+                .and_then(|(_, rest)| rest.strip_suffix(')'))
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            if api_key.is_empty() {
+                app.set_toast("Invalid token selection", true);
+                return Ok(());
+            }
+            claude_import_fetch_models(app, &channel, &api_key);
+            Ok(())
+        }
+        app::SelectAction::ClaudeSettingsImportModel => {
+            let Some(selected) = selected else {
+                return Ok(());
+            };
+            let base_url = app
+                .claude_import_pending_base_url
+                .take()
+                .unwrap_or_default();
+            let api_key = app.claude_import_pending_api_key.take().unwrap_or_default();
+            app.claude_import_pending_platform = None;
+            if base_url.is_empty() || api_key.is_empty() {
+                app.set_toast("Import state missing", true);
+                return Ok(());
+            }
+            let Some(ref mut json) = app.claude_detail_json else {
+                return Ok(());
+            };
+            let obj = json.as_object_mut().unwrap();
+            let env = obj
+                .entry("env".to_string())
+                .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
+            if let Some(env_obj) = env.as_object_mut() {
+                env_obj.insert(
+                    "ANTHROPIC_BASE_URL".to_string(),
+                    serde_json::Value::String(base_url),
+                );
+                env_obj.insert(
+                    "ANTHROPIC_AUTH_TOKEN".to_string(),
+                    serde_json::Value::String(api_key),
+                );
+                if !selected.is_empty() && selected != "(skip model)" {
+                    env_obj.insert(
+                        "ANTHROPIC_MODEL".to_string(),
+                        serde_json::Value::String(selected.to_string()),
+                    );
+                }
+            }
+            app.claude_detail_dirty = true;
+            app.set_toast("Imported into editor — press s to save", false);
             Ok(())
         }
         app::SelectAction::CodexSetProfileModelProvider { id } => {
@@ -1318,6 +1461,37 @@ pub(super) fn run_select_action(
     }
 }
 
+/// Fetches the model list for a channel and opens the model Select for a
+/// Claude settings import. Mirrors the GUI ImportFromChannelDialog flow
+/// (channel → key/token → model → write into the editor).
+fn claude_import_fetch_models(
+    app: &mut app::App,
+    channel: &droidgear_core::channel::Channel,
+    api_key: &str,
+) {
+    match droidgear_core::channel::fetch_models_by_api_key_blocking(
+        &channel.base_url,
+        api_key,
+        None,
+    ) {
+        Ok(models) => {
+            app.claude_import_pending_base_url = Some(channel.base_url.clone());
+            app.claude_import_pending_api_key = Some(api_key.to_string());
+            let mut options = vec!["(skip model)".to_string()];
+            options.extend(models.iter().map(|m| m.id.clone()));
+            app.modal = Some(app::Modal::Select {
+                title: format!("Select Model ({})", channel.name),
+                options,
+                index: 0,
+                action: app::SelectAction::ClaudeSettingsImportModel,
+            });
+        }
+        Err(e) => {
+            app.set_toast(format!("Failed to fetch models: {e}"), true);
+        }
+    }
+}
+
 /// Try to resolve an API key from a channel's stored authentication.
 /// First checks for a stored API key (CliProxyApi/Ollama/General),
 /// then tries credentials to fetch a live token (NewApi/Sub2Api).
@@ -1409,6 +1583,10 @@ pub(super) fn run_confirm_action(
                 name,
             )
             .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
+        app::ConfirmAction::ClaudeSettingsDiscardDetail => {
+            super::keys_claude::exit_claude_detail(app);
             Ok(())
         }
         app::ConfirmAction::CodexApply { id } => {
@@ -1798,10 +1976,12 @@ pub(super) fn run_input_action(
             if trimmed.is_empty() {
                 return Err(anyhow::Error::msg("File name is required"));
             }
+            // Copy the active file by default, matching the GUI's
+            // copyFromActive default (true).
             droidgear_core::claude_settings_files::create_settings_file_for_home(
                 &app.home_dir,
                 trimmed.to_string(),
-                false,
+                true,
             )
             .map_err(anyhow::Error::msg)?;
             refresh_claude(app);
@@ -1810,6 +1990,7 @@ pub(super) fn run_input_action(
                 app.claude_index = idx;
                 app.claude_detail_name = Some(trimmed.to_string());
                 app.claude_detail_field_index = 0;
+                app.claude_detail_dirty = false;
                 app.screen = app::Screen::ClaudeSettingsDetail;
                 refresh_claude_detail(app);
             }
@@ -1899,6 +2080,24 @@ pub(super) fn run_input_action(
                 }
                 _ => {}
             }
+            app.claude_detail_dirty = true;
+            Ok(())
+        }
+        app::InputAction::ClaudeSettingsImportApiKey { channel_id } => {
+            if trimmed.is_empty() {
+                return Err(anyhow::Error::msg("API key is required"));
+            }
+            let Some(channel) = app.channels.iter().find(|c| c.id == channel_id).cloned() else {
+                app.set_toast("Channel not found", true);
+                return Ok(());
+            };
+            droidgear_core::channel::save_channel_api_key_for_home(
+                &app.home_dir,
+                &channel.id,
+                trimmed,
+            )
+            .map_err(anyhow::Error::msg)?;
+            claude_import_fetch_models(app, &channel, trimmed);
             Ok(())
         }
         app::InputAction::CodexCreateProfile => {

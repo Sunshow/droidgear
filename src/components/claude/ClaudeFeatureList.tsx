@@ -2,7 +2,13 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   ChevronDown,
+  CloudDownload,
+  Copy,
+  Eye,
   FileJson,
+  GitMerge,
+  Loader2,
+  MoreHorizontal,
   Play,
   Plus,
   Settings as SettingsIcon,
@@ -42,6 +48,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ActionDropdownMenuItem } from '@/components/ui/action-dropdown-menu-item'
 import { commands } from '@/lib/bindings'
+import { formatClaudePreview } from '@/lib/claude-preview-format'
 import { useClaudeSettingsStore } from '@/store/claude-settings-store'
 
 const features = [
@@ -58,12 +65,23 @@ export function ClaudeFeatureList() {
   const selectFile = useClaudeSettingsStore(state => state.selectFile)
   const createFile = useClaudeSettingsStore(state => state.createFile)
   const deleteFile = useClaudeSettingsStore(state => state.deleteFile)
+  const duplicateFile = useClaudeSettingsStore(state => state.duplicateFile)
+  const mergeToGlobal = useClaudeSettingsStore(state => state.mergeToGlobal)
+  const loadFromLive = useClaudeSettingsStore(state => state.loadFromLive)
+  const preview = useClaudeSettingsStore(state => state.preview)
   const launch = useClaudeSettingsStore(state => state.launch)
 
   const [newFileDialogOpen, setNewFileDialogOpen] = useState(false)
   const [deleteFileDialogOpen, setDeleteFileDialogOpen] = useState(false)
   const [newFileName, setNewFileName] = useState('')
   const [copyFromActive, setCopyFromActive] = useState(true)
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false)
+  const [duplicateName, setDuplicateName] = useState('')
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false)
+  const [loadLiveDialogOpen, setLoadLiveDialogOpen] = useState(false)
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false)
+  const [previewText, setPreviewText] = useState('')
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false)
 
   useEffect(() => {
     loadFiles()
@@ -90,6 +108,57 @@ export function ClaudeFeatureList() {
       setDeleteFileDialogOpen(false)
     } catch (err) {
       toast.error(String(err))
+    }
+  }
+
+  const handleDuplicateFile = async () => {
+    if (!activeFile || !duplicateName.trim()) return
+    try {
+      await duplicateFile(activeFile.name, duplicateName.trim())
+      setDuplicateDialogOpen(false)
+      toast.success(
+        t('claude.settingsFile.duplicateDone', { name: duplicateName.trim() })
+      )
+    } catch (err) {
+      toast.error(String(err))
+    }
+  }
+
+  const handleMergeToGlobal = async () => {
+    if (!activeFile) return
+    try {
+      await mergeToGlobal(activeFile.name)
+      setMergeDialogOpen(false)
+      toast.success(t('claude.settingsFile.mergeDone'))
+    } catch (err) {
+      toast.error(String(err))
+    }
+  }
+
+  const handleLoadFromLive = async () => {
+    if (!activeFile) return
+    try {
+      await loadFromLive(activeFile.name)
+      setLoadLiveDialogOpen(false)
+      toast.success(
+        t('claude.settingsFile.loadLiveDone', { name: activeFile.name })
+      )
+    } catch (err) {
+      toast.error(String(err))
+    }
+  }
+
+  const handlePreview = async () => {
+    if (!activeFile || isPreviewLoading) return
+    setIsPreviewLoading(true)
+    try {
+      const result = await preview(activeFile.name)
+      setPreviewText(formatClaudePreview(result))
+      setPreviewDialogOpen(true)
+    } catch (err) {
+      toast.error(String(err))
+    } finally {
+      setIsPreviewLoading(false)
     }
   }
 
@@ -198,6 +267,53 @@ export function ClaudeFeatureList() {
             >
               <Plus className="h-3.5 w-3.5" />
             </ActionButton>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <ActionButton
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 shrink-0"
+                  title={t('claude.settingsFile.more')}
+                >
+                  <MoreHorizontal className="h-3.5 w-3.5" />
+                </ActionButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-44">
+                <ActionDropdownMenuItem
+                  onClick={() => {
+                    setDuplicateName(`${activeFile.name}-copy`)
+                    setDuplicateDialogOpen(true)
+                  }}
+                >
+                  <Copy className="h-3.5 w-3.5 mr-2" />
+                  {t('claude.settingsFile.duplicate')}
+                </ActionDropdownMenuItem>
+                <ActionDropdownMenuItem
+                  onClick={() => setMergeDialogOpen(true)}
+                >
+                  <GitMerge className="h-3.5 w-3.5 mr-2" />
+                  {t('claude.settingsFile.merge')}
+                </ActionDropdownMenuItem>
+                <ActionDropdownMenuItem
+                  onClick={() => setLoadLiveDialogOpen(true)}
+                >
+                  <CloudDownload className="h-3.5 w-3.5 mr-2" />
+                  {t('claude.settingsFile.loadLive')}
+                </ActionDropdownMenuItem>
+                <ActionDropdownMenuItem
+                  onClick={handlePreview}
+                  disabled={isPreviewLoading}
+                >
+                  {isPreviewLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                  ) : (
+                    <Eye className="h-3.5 w-3.5 mr-2" />
+                  )}
+                  {t('claude.settingsFile.preview')}
+                </ActionDropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {!activeFile.isGlobal && (
               <ActionButton
@@ -315,6 +431,110 @@ export function ClaudeFeatureList() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('claude.settingsFile.duplicateTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('claude.settingsFile.duplicateNameLabel')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder={t('claude.settingsFile.duplicateNameLabel')}
+              value={duplicateName}
+              onChange={e => setDuplicateName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleDuplicateFile()
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDuplicateDialogOpen(false)}
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={handleDuplicateFile}
+              disabled={!duplicateName.trim()}
+            >
+              {t('claude.settingsFile.duplicate')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={mergeDialogOpen} onOpenChange={setMergeDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('claude.settingsFile.merge')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('claude.settingsFile.mergeConfirm', {
+                name: activeFile?.name ?? '',
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <Button onClick={handleMergeToGlobal}>
+              {t('claude.settingsFile.merge')}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={loadLiveDialogOpen}
+        onOpenChange={setLoadLiveDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('claude.settingsFile.loadLive')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('claude.settingsFile.loadLiveConfirm', {
+                name: activeFile?.name ?? '',
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <Button onClick={handleLoadFromLive}>
+              {t('claude.settingsFile.loadLive')}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t('claude.settingsFile.previewTitle')}</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-auto rounded-md border bg-muted/50 p-3">
+            {previewText ? (
+              <pre className="text-xs font-mono whitespace-pre-wrap">
+                {previewText}
+              </pre>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {t('claude.settingsFile.previewNoData')}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setPreviewDialogOpen(false)}>
+              {t('common.dismiss')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

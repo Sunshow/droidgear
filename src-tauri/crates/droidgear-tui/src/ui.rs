@@ -987,6 +987,11 @@ fn draw_codex_profiles(frame: &mut Frame, app: &app::App, area: Rect) {
 
 fn draw_claude_settings_files(frame: &mut Frame, app: &app::App, area: Rect) {
     let selected_index = app.claude_index;
+    let active_name = app
+        .claude_files
+        .iter()
+        .find(|f| f.is_active)
+        .map(|f| f.name.as_str());
     draw_profile_list(
         frame,
         area,
@@ -994,9 +999,9 @@ fn draw_claude_settings_files(frame: &mut Frame, app: &app::App, area: Rect) {
         app.claude_files
             .iter()
             .map(|f| (f.name.as_str(), f.path.as_str())),
-        None,
+        active_name,
         selected_index,
-        "Up/Down: select  Enter/e: open  t: temp run  p: preview  a: merge to global  l: load live  n: new  c: copy  d: delete  r: refresh  q/Esc: back",
+        "Up/Down: select  Enter/e: open  s: set active  t: temp run  T: temp run (skip)  p: preview  a: merge to global  l: load live  n: new  c: copy  d: delete  r: refresh  q/Esc: back",
     );
 }
 
@@ -1164,13 +1169,25 @@ fn draw_claude_settings_detail(frame: &mut Frame, app: &app::App, area: Rect) {
         items.push(ListItem::new(line));
     }
 
+    // Mirrors the GUI warning for project-style files: the skip-dangerous
+    // prompt field is not honoured outside the global file. The name is
+    // "Global" only for the real global file (`validate_custom_file_name`
+    // rejects "global" as a custom name, case-insensitively).
+    if skip_dangerous && !name.eq_ignore_ascii_case("global") {
+        items.push(ListItem::new(Line::from(Span::styled(
+            "Note: skipDangerousModePermissionPrompt is only honoured in the global settings file",
+            t.warning_style(),
+        ))));
+    }
+
+    let dirty_marker = if app.claude_detail_dirty { " *" } else { "" };
     let list = List::new(items)
-        .block(block(format!("Claude Settings: {}", name)))
+        .block(block(format!("Claude Settings: {name}{dirty_marker}")))
         .highlight_style(t.selected_row_style());
     render_list(frame, list, chunks[0], Some(app.claude_detail_field_index));
 
     let help = help_paragraph(
-        "Up/Down: move  Enter: edit/toggle  s: save  l: load live  t: temp run  p: preview  a: merge to global  q/Esc: back",
+        "Up/Down: move  Enter: edit/toggle  s: save  i: import from channel  t: temp run  T: temp run (skip)  p: preview  l: load live  a: merge to global  q/Esc: back",
     );
     frame.render_widget(help, chunks[1]);
 }

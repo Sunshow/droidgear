@@ -47,8 +47,11 @@ pub(super) fn run_action(app: &mut app::App, action: Action) -> anyhow::Result<(
             open_text_in_pager(&preview)?;
             Ok(())
         }
-        Action::RunClaudeRun { name } => {
-            run_claude_temporary_run_from_file(&app.home_dir, &name)?;
+        Action::RunClaudeRun {
+            name,
+            skip_dangerous,
+        } => {
+            run_claude_temporary_run_from_file(&app.home_dir, &name, skip_dangerous)?;
             app.should_quit = true;
             Ok(())
         }
@@ -121,6 +124,17 @@ pub(super) fn run_action(app: &mut app::App, action: Action) -> anyhow::Result<(
             droidgear_core::droid_settings_files::set_active_settings_file(name)
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
             refresh_droid_settings_files(app);
+            Ok(())
+        }
+        Action::SetActiveClaudeSettingsFile { name } => {
+            let active_label = name.clone().unwrap_or_else(|| "Global".to_string());
+            droidgear_core::claude_settings_files::set_active_settings_file_for_home(
+                &app.home_dir,
+                name,
+            )
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+            refresh_claude(app);
+            app.set_toast(format!("Active: {active_label}"), false);
             Ok(())
         }
     }

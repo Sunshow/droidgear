@@ -3,6 +3,7 @@ import { devtools } from 'zustand/middleware'
 import {
   commands,
   type ClaudeSettingsFileInfo,
+  type ClaudeTemporaryRunDebugPreview,
   type JsonValue,
 } from '@/lib/bindings'
 
@@ -21,6 +22,10 @@ interface ClaudeSettingsState {
   selectFile: (file: ClaudeSettingsFileInfo) => Promise<void>
   createFile: (name: string, copyFromActive: boolean) => Promise<void>
   deleteFile: (name: string) => Promise<void>
+  duplicateFile: (name: string, newName: string) => Promise<void>
+  mergeToGlobal: (name: string) => Promise<void>
+  loadFromLive: (name: string) => Promise<void>
+  preview: (name: string) => Promise<ClaudeTemporaryRunDebugPreview>
   patchJson: (mutator: (draft: ClaudeSettingsDoc) => void) => void
   setJson: (next: ClaudeSettingsDoc) => void
   saveFile: () => Promise<void>
@@ -152,6 +157,67 @@ export const useClaudeSettingsStore = create<ClaudeSettingsState>()(
           throw new Error(result.error)
         }
         await get().loadFiles()
+      },
+
+      duplicateFile: async (name, newName) => {
+        // The duplicate command copies the on-disk file, so flush any
+        // unsaved edits first (same as launch()).
+        if (get().hasChanges) {
+          await get().saveFile()
+          if (get().error) {
+            throw new Error(get().error ?? '')
+          }
+        }
+        const result = await commands.duplicateClaudeSettingsFile(name, newName)
+        if (result.status !== 'ok') {
+          set(
+            { error: result.error },
+            undefined,
+            'claudeSettings/duplicateFile/error'
+          )
+          throw new Error(result.error)
+        }
+        // The new file becomes active; reload so it is selected.
+        await get().loadFiles()
+      },
+
+      mergeToGlobal: async name => {
+        const result = await commands.mergeClaudeSettingsToGlobal(name)
+        if (result.status !== 'ok') {
+          set(
+            { error: result.error },
+            undefined,
+            'claudeSettings/mergeToGlobal/error'
+          )
+          throw new Error(result.error)
+        }
+      },
+
+      loadFromLive: async name => {
+        const result = await commands.loadClaudeSettingsFromLive(name)
+        if (result.status !== 'ok') {
+          set(
+            { error: result.error },
+            undefined,
+            'claudeSettings/loadFromLive/error'
+          )
+          throw new Error(result.error)
+        }
+        // Re-read the active file so currentJson reflects the loaded content.
+        await get().loadFiles()
+      },
+
+      preview: async name => {
+        const result = await commands.previewClaudeTemporaryRunFromFile(name)
+        if (result.status !== 'ok') {
+          set(
+            { error: result.error },
+            undefined,
+            'claudeSettings/preview/error'
+          )
+          throw new Error(result.error)
+        }
+        return result.data
       },
 
       patchJson: mutator => {

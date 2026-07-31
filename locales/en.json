@@ -1,6 +1,5 @@
 {
   "app.name": "DroidGear",
-
   "menu.about": "About {{appName}}",
   "menu.checkForUpdates": "Check for Updates...",
   "menu.preferences": "Preferences...",
@@ -19,14 +18,12 @@
   "menu.toggleLeftSidebar": "Toggle Left Sidebar",
   "menu.toggleRightSidebar": "Toggle Right Sidebar",
   "menu.resetWindow": "Reset Window",
-
   "preferences.title": "Preferences",
   "preferences.description": "Customize your application preferences here.",
   "preferences.general": "General",
   "preferences.appearance": "Appearance",
   "preferences.advanced": "Advanced",
   "preferences.about": "About",
-
   "preferences.about.description": "A full-featured companion tool for Factory Droid",
   "preferences.about.projectUrl": "Project URL",
   "preferences.about.license": "License",
@@ -34,14 +31,12 @@
   "preferences.about.techStack": "Built with",
   "preferences.about.acknowledgements": "Acknowledgements",
   "preferences.about.templateCredit": "Based on tauri-template by Danny Smith",
-
   "preferences.general.exampleSettings": "Example Settings",
   "preferences.general.exampleText": "Example Text Setting",
   "preferences.general.exampleTextDescription": "This is an example text input setting (not persisted)",
   "preferences.general.exampleTextPlaceholder": "Enter example text",
   "preferences.general.exampleToggle": "Example Toggle Setting",
   "preferences.general.exampleToggleDescription": "This is an example switch/toggle setting (not persisted)",
-
   "preferences.general.softwareUpdate": "Software Update",
   "preferences.general.currentVersion": "Current Version: {{version}}",
   "preferences.general.checkForUpdates": "Check for Updates",
@@ -62,7 +57,6 @@
   "preferences.general.terminalApp": "Terminal",
   "preferences.general.terminalWindowsTerminal": "Windows Terminal",
   "preferences.general.terminalCmd": "Command Prompt",
-
   "preferences.appearance.theme": "Theme",
   "preferences.appearance.colorTheme": "Color Theme",
   "preferences.appearance.colorThemeDescription": "Choose your preferred color theme",
@@ -80,7 +74,6 @@
   "preferences.appearance.terminalShell": "Terminal Shell (Windows)",
   "preferences.appearance.terminalShellDescription": "Custom shell command for terminal (e.g., cmd.exe, pwsh.exe, bash.exe -l -i)",
   "preferences.appearance.terminalShellPlaceholder": "powershell.exe (default)",
-
   "preferences.advanced.title": "Example Advanced Settings",
   "preferences.advanced.toggle": "Example Advanced Toggle",
   "preferences.advanced.toggleDescription": "This is an example advanced toggle setting (not persisted)",
@@ -89,7 +82,6 @@
   "preferences.advanced.option1": "Example Option 1",
   "preferences.advanced.option2": "Example Option 2",
   "preferences.advanced.option3": "Example Option 3",
-
   "preferences.models": "Model Registry",
   "preferences.models.title": "Model Registry",
   "preferences.models.description": "Built-in known model configurations including model ID, name, platform type, context window, etc.",
@@ -101,7 +93,6 @@
   "preferences.models.colMaxOutput": "Max Output",
   "preferences.models.noResults": "No matching models found",
   "preferences.models.totalCount": "{{count}} models total",
-
   "preferences.paths": "Paths",
   "preferences.paths.title": "Configuration Paths",
   "preferences.paths.description": "Customize the configuration directories for Droid, OpenCode, Codex, OpenClaw, and Hermes. Leave empty to use default paths.",
@@ -124,7 +115,6 @@
   "preferences.paths.custom": "Custom",
   "preferences.paths.loadError": "Failed to load configuration paths",
   "preferences.paths.restartNote": "Note: Changes to configuration paths may require restarting the application to take full effect.",
-
   "common.enabled": "Enabled",
   "common.showSecret": "Show",
   "common.hideSecret": "Hide",
@@ -154,14 +144,12 @@
   "common.actions": "Actions",
   "common.selectAll": "Select All",
   "common.deselectAll": "Deselect All",
-
   "commands.group.navigation": "Navigation",
   "commands.group.settings": "Settings",
   "commands.group.window": "Window",
   "commands.group.notification": "Notifications",
   "commands.group.debug": "Debug",
   "commands.group.other": "Other",
-
   "commands.showLeftSidebar.label": "Show Left Sidebar",
   "commands.showLeftSidebar.description": "Show the left sidebar",
   "commands.hideLeftSidebar.label": "Hide Left Sidebar",
@@ -172,7 +160,6 @@
   "commands.hideRightSidebar.description": "Hide the right sidebar",
   "commands.openPreferences.label": "Open Preferences",
   "commands.openPreferences.description": "Open the application preferences",
-
   "commands.windowClose.label": "Close Window",
   "commands.windowClose.description": "Close the current window",
   "commands.windowMinimize.label": "Minimize Window",
@@ -183,23 +170,19 @@
   "commands.windowFullscreen.description": "Enter fullscreen mode",
   "commands.windowExitFullscreen.label": "Exit Fullscreen",
   "commands.windowExitFullscreen.description": "Exit fullscreen mode",
-
   "commands.testToast.label": "Test Toast Notification",
   "commands.testToast.description": "Show a test toast notification",
   "commands.testUpdateToast.label": "Test Update Notification (Later)",
   "commands.testUpdateToast.description": "Show the auto-update toast in the bottom-right for manual testing",
-
   "commandPalette.title": "Command Palette",
   "commandPalette.placeholder": "Type a command or search...",
   "commandPalette.noResults": "No results found.",
-
   "titlebar.default": "DroidGear",
   "titlebar.showLeftSidebar": "Show Left Sidebar",
   "titlebar.hideLeftSidebar": "Hide Left Sidebar",
   "titlebar.showRightSidebar": "Show Right Sidebar",
   "titlebar.hideRightSidebar": "Hide Right Sidebar",
   "titlebar.settings": "Settings",
-
   "toast.success.preferencesSaved": "Preferences saved",
   "toast.success.testToast": "Test Toast",
   "toast.success.testToastDescription": "This is a test notification",
@@ -217,7 +200,6 @@
   "toast.error.pathSaveFailed": "Failed to save configuration path",
   "toast.error.pathResetFailed": "Failed to reset configuration path",
   "toast.error.wslPathFailed": "Failed to build WSL path",
-
   "preferences.paths.useWsl": "Use WSL",
   "preferences.paths.wslDialog.title": "Select WSL Distribution",
   "preferences.paths.wslDialog.description": "Choose a WSL distribution and username to configure the WSL path.",
@@ -230,12 +212,10 @@
   "preferences.paths.wslDialog.loadingUsername": "Fetching username...",
   "preferences.paths.wslDialog.preview": "Preview path:",
   "preferences.paths.wslDialog.apply": "Apply",
-
   "legacyConfig.title": "Legacy Configuration Found",
   "legacyConfig.description": "The old config.json file is deprecated and is no longer used. Would you like to delete it?",
   "legacyConfig.keep": "Keep",
   "legacyConfig.delete": "Delete",
-
   "sidebar.channels": "Channels",
   "sidebar.exportTemplates": "Custom Config",
   "sidebar.selectExportTemplate": "Select a config or create one",
@@ -248,7 +228,6 @@
   "sidebar.unsavedChanges.description": "You have unsaved changes. Do you want to save them?",
   "sidebar.unsavedChanges.save": "Save",
   "sidebar.unsavedChanges.discard": "Discard",
-
   "droid.features.models": "BYOK Models",
   "droid.features.settings": "Settings",
   "droid.features.specs": "Specs",
@@ -294,16 +273,13 @@
   "droid.settings.shellInstructions.zshPath": "~/.zshrc",
   "droid.settings.shellInstructions.powershell": "Windows (PowerShell)",
   "droid.settings.shellInstructions.powershellPath": "$PROFILE",
-
   "droid.settings.disableAutoUpdate.title": "Try Disable Auto Update",
   "droid.settings.disableAutoUpdate.setupButton": "Setup",
   "droid.settings.disableAutoUpdate.description": "Add FACTORY_DROID_AUTO_UPDATE_ENABLED=0 to your shell config file to disable Droid auto update.",
   "droid.settings.disableAutoUpdate.warning": "This may not work in all cases. You need to restart your terminal and the app for changes to take effect.",
   "droid.settings.disableAutoUpdate.instructions.title": "Add the following line to your shell config file:",
-
   "droid.settings.cloudSessionSync.title": "Cloud Session Sync",
   "droid.settings.cloudSessionSync.description": "When enabled, sessions will be automatically synced to the cloud",
-
   "droid.settings.sessionSettings.title": "Session Settings",
   "droid.settings.sessionSettings.reasoningEffort": "Reasoning Effort",
   "droid.settings.sessionSettings.reasoningEffortDescription": "Controls how much structured thinking the model performs",
@@ -335,7 +311,6 @@
   "droid.settings.sessionSettings.includeCoAuthoredByDroidDescription": "Automatically append the Droid co-author trailer to git commits",
   "droid.settings.sessionSettings.showThinkingInMainView": "Show Thinking in Main View",
   "droid.settings.sessionSettings.showThinkingInMainViewDescription": "Display AI thinking/reasoning blocks in the main chat view",
-
   "droid.settings.compaction.title": "Compaction Settings",
   "droid.settings.compaction.description": "Configure context window compaction behavior for long conversations",
   "droid.settings.compaction.modelMode": "Compaction Model Mode",
@@ -353,7 +328,6 @@
   "droid.settings.compaction.perModel.modelIdPlaceholder": "e.g., custom:claude-opus-4-7-sample",
   "droid.settings.compaction.perModel.tokenLimit": "Token Limit",
   "droid.settings.compaction.perModel.removeOverride": "Remove",
-
   "droid.specs.title": "Specs",
   "droid.specs.noSpecs": "No specs found",
   "droid.specs.noSpecsHint": "Specs will appear here when available in ~/.factory/specs",
@@ -375,7 +349,6 @@
   "droid.specs.saveSuccess": "Spec saved successfully",
   "droid.specs.unsavedChanges": "You have unsaved changes. Do you want to discard them?",
   "droid.specs.discardChanges": "Discard Changes",
-
   "droid.sessions.title": "Sessions",
   "droid.sessions.noSessions": "No sessions found",
   "droid.sessions.selectSessionHint": "Select a session from the list to view",
@@ -389,7 +362,6 @@
   "droid.sessions.hideEmptySessions": "Hide empty sessions",
   "droid.sessions.hideEmptySessionsOn": "Empty sessions hidden",
   "droid.sessions.hideEmptySessionsOff": "Click to hide empty sessions",
-
   "droid.terminal.title": "Terminal",
   "droid.terminal.newTerminal": "New Terminal",
   "droid.terminal.newTerminalInDir": "New Terminal in Directory",
@@ -418,12 +390,10 @@
   "droid.terminal.snippets.content": "Content",
   "droid.terminal.snippets.contentPlaceholder": "Enter command or text to insert",
   "droid.terminal.snippets.autoExecute": "Auto Execute (press Enter)",
-
   "droid.terminal.closeConfirmTitle": "Confirm Close",
   "droid.terminal.closeConfirmDescription": "There are running tasks in this terminal. Are you sure you want to close it?",
   "droid.terminal.closeConfirmCancel": "Cancel",
   "droid.terminal.closeConfirmAction": "Close",
-
   "mcp.title": "MCP Server Management",
   "mcp.noServers": "No MCP servers configured",
   "mcp.noServersHint": "Add MCP servers to extend Droid's capabilities",
@@ -460,10 +430,8 @@
   "mcp.presets.apiKeyDialog.description": "This server requires an API key to function",
   "mcp.presets.apiKeyDialog.inputLabel": "API Key",
   "mcp.presets.apiKeyDialog.validation.required": "API Key is required",
-
   "droid.install.title": "Install",
   "droid.install.learnMore": "Learn more at factory.ai",
-
   "droid.settingsFile.sectionLabel": "Settings File",
   "droid.settingsFile.global": "Global",
   "droid.settingsFile.switch": "Switch settings file",
@@ -478,11 +446,9 @@
   "droid.settingsFile.launchTooltip": "Open Droid CLI in a new terminal window",
   "droid.settingsFile.launchSaveFailed": "Could not launch Droid because model changes could not be saved",
   "droid.settingsFile.selectDirectory": "Select Working Directory",
-
   "common.rename": "Rename",
   "common.export": "Export",
   "common.copied": "Copied",
-
   "channels.title": "Channels",
   "channels.noChannels": "No channels configured",
   "channels.addChannel": "Add Channel",
@@ -519,7 +485,6 @@
   "channels.noKeysAvailable": "No keys available",
   "channels.importFromChannel": "Import from Channel",
   "channels.importFromChannelDescription": "Quickly add models from configured channels",
-
   "channels.export.button": "Export Channels",
   "channels.export.title": "Export Channels",
   "channels.export.description": "Export channel configurations to a JSON file.",
@@ -540,7 +505,6 @@
   "channels.import.noValidChannels": "No valid channels found in the file.",
   "channels.import.hasCredentials": "This file contains credentials that will be saved automatically on import.",
   "channels.import.withCredentials": "Has credentials",
-
   "keys.title": "API Keys",
   "keys.noKeys": "No keys found.",
   "keys.noKeysHint": "Click Refresh to fetch keys from the channel.",
@@ -554,7 +518,6 @@
   "keys.status.expired": "Expired",
   "keys.status.exhausted": "Exhausted",
   "keys.status.unknown": "Unknown",
-
   "models.title": "BYOK Model Configuration",
   "models.noModels": "No custom models configured",
   "models.noModelsHint": "Click \"Add Model\" to get started",
@@ -668,7 +631,6 @@
   "models.import.noValidModels": "No valid models found in the file.",
   "models.export.button": "Export",
   "models.export.success": "Models exported successfully",
-
   "update.available": "Update available: {{version}}\n\nWould you like to install this update now?",
   "update.availableNotification": "Update available: v{{version}}",
   "update.viewDetails": "View Details",
@@ -680,17 +642,13 @@
   "update.installing": "Download complete, installing...",
   "update.completed": "Update completed successfully!\n\nWould you like to restart the app now to use the new version?",
   "update.failed": "Update failed: There was a problem with the automatic download.\n\n{{error}}",
-
   "validation.bracketsNotAllowed": "Special characters that may affect regex are not recommended and may cause unexpected issues",
   "validation.officialModelNameNotAllowed": "Display name cannot match or start with official model names (e.g., Opus 4.7, Sonnet 4.6)",
-
   "sidebar.opencode": "OpenCode",
-
   "opencode.title": "OpenCode Configuration",
   "opencode.features.providers": "Providers",
   "opencode.install.title": "Install OpenCode",
   "opencode.install.learnMore": "Learn more at opencode.ai",
-
   "opencode.profile.select": "Profile",
   "opencode.profile.create": "New Profile",
   "opencode.profile.createDescription": "Create a new profile to manage provider configurations",
@@ -703,7 +661,6 @@
   "opencode.profile.description": "Description",
   "opencode.profile.descriptionPlaceholder": "Optional description",
   "opencode.profile.active": "Active",
-
   "opencode.provider.add": "Add Provider",
   "opencode.provider.edit": "Edit Provider",
   "opencode.provider.delete": "Delete Provider",
@@ -750,22 +707,17 @@
   "opencode.provider.outputLimit": "Output Limit (tokens)",
   "opencode.provider.modelIdRequired": "Model ID is required",
   "opencode.provider.modelIdDuplicate": "Model ID already exists",
-
   "opencode.config.status": "Target Configuration Status",
-
   "opencode.actions.save": "Save Profile",
   "opencode.actions.saveSuccess": "Profile saved successfully",
   "opencode.actions.apply": "Apply Profile",
   "opencode.actions.applyConfirm": "Apply this profile? This will update your OpenCode configuration files (opencode.json and auth.json).",
   "opencode.actions.applySuccess": "Profile applied successfully",
-
   "codex.title": "Codex Configuration",
-
   "codex.features.title": "Codex",
   "codex.features.providers": "Providers",
   "codex.features.authProfiles": "Auth Profiles",
   "codex.features.hint": "Manage Codex CLI configuration (auth.json / config.toml).",
-
   "codex.profile.active": "Active",
   "codex.profile.noProfile": "No profile available",
   "codex.profile.select": "Profile",
@@ -799,11 +751,9 @@
   "codex.profile.created": "Profile created",
   "codex.profile.duplicated": "Profile duplicated",
   "codex.profile.deleted": "Profile deleted",
-
   "codex.live.status": "Live Config",
   "codex.live.authPath": "auth.json",
   "codex.live.configPath": "config.toml",
-
   "codex.modelSelection.title": "Model Selection",
   "codex.modelSelection.provider": "Provider",
   "codex.modelSelection.providerPlaceholder": "Select Provider",
@@ -812,10 +762,8 @@
   "codex.modelSelection.reasoningEffort": "Reasoning Effort",
   "codex.modelSelection.reasoningEffortPlaceholder": "Select reasoning effort",
   "codex.modelSelection.reasoningEffortNone": "None",
-
   "codex.apiKey.title": "API Key",
   "codex.apiKey.hint": "Only for providers with requires_openai_auth = true. Saved to ~/.codex/auth.json",
-
   "codex.provider.title": "Providers",
   "codex.provider.add": "Add Provider",
   "codex.provider.edit": "Edit Provider",
@@ -826,7 +774,6 @@
   "codex.provider.importSuccess": "Imported from live config",
   "codex.provider.noProviders": "No providers configured",
   "codex.provider.dialogDescription": "Configure Codex provider settings",
-
   "codex.provider.id": "Provider ID",
   "codex.provider.name": "Display Name",
   "codex.provider.baseUrl": "Base URL",
@@ -846,18 +793,15 @@
   "codex.provider.setActive": "Set Active",
   "codex.provider.importFromChannel": "Import from Channel",
   "codex.provider.reservedProviderName": "Provider name cannot be 'OpenAI' (case-insensitive)",
-
   "codex.auth.title": "Authentication",
   "codex.auth.apiKey": "OPENAI_API_KEY",
   "codex.auth.apiKeyPlaceholder": "sk-...",
   "codex.auth.apiKeyHint": "Saved to ~/.codex/auth.json (local only).",
-
   "codex.config.title": "Configuration",
   "codex.config.loadFromLive": "Load from live config",
   "codex.configToml": "config.toml",
   "codex.configTomlHint": "Saved to ~/.codex/config.toml. Valid TOML is required.",
   "codex.configStatus.title": "Config Status",
-
   "codex.actions.apply": "Apply Profile",
   "codex.actions.applyConfirm": "Apply this profile? This will update your Codex CLI configuration files (~/.codex/auth.json and ~/.codex/config.toml).",
   "codex.actions.applySuccess": "Profile applied successfully",
@@ -868,7 +812,6 @@
   "codex.actions.selectDirectory": "Select working directory for Codex",
   "codex.actions.loadFromLive": "Load Live",
   "codex.actions.loadedFromLive": "Loaded from live config",
-
   "codexAuth.title": "Codex Auth Profiles",
   "codexAuth.description": "Manage codex login authentication profiles. Switch between official login (codex login) credentials and BYOK API keys.",
   "codexAuth.loadError": "Failed to load auth profiles",
@@ -910,12 +853,10 @@
   "codexAuth.applyConflictDialog.description": "Applying this profile will change the authentication mode. Your current auth.json will be overwritten. Do you want to save the current auth configuration as a profile first?",
   "codexAuth.applyConflictDialog.applyWithoutSaving": "Apply Without Saving",
   "codexAuth.applyConflictDialog.saveAndApply": "Save Current and Apply",
-
   "claude.title": "Claude Code Configuration",
   "claude.features.title": "Claude",
   "claude.features.settings": "Settings",
   "claude.features.hint": "Manage Claude Code settings files and launch claude with a chosen settings file.",
-
   "claude.settingsFile.sectionLabel": "Settings File",
   "claude.settingsFile.global": "Global",
   "claude.settingsFile.new": "New",
@@ -934,13 +875,11 @@
   "claude.settingsFile.launchSuccessSkip": "Claude launched with --dangerously-skip-permissions",
   "claude.settingsFile.launchFailedCopy": "Launch failed; command copied to clipboard",
   "claude.settingsFile.selectDirectory": "Select Working Directory",
-
   "claude.settings.title": "Claude Code Settings",
   "claude.settings.empty": "No settings file selected.",
   "claude.settings.saveSuccess": "Settings saved",
   "claude.settings.discard": "Discard",
   "claude.settings.resetDone": "Reverted to disk state",
-
   "claude.settings.general.title": "General",
   "claude.settings.general.hint": "Top-level settings applied to every Claude session that uses this file.",
   "claude.settings.general.autoUpdate": "Auto update",
@@ -949,7 +888,6 @@
   "claude.settings.general.includeCoAuthoredHint": "Whether to add the co-authored-by Claude byline in git commits and pull requests.",
   "claude.settings.general.cleanupPeriodDays": "Cleanup period (days)",
   "claude.settings.general.cleanupPeriodDaysHint": "Session files older than this many days are deleted at startup (default 30, minimum 1).",
-
   "claude.settings.permissions.title": "Permissions",
   "claude.settings.permissions.hint": "Controls how Claude prompts you before tool use.",
   "claude.settings.permissions.unset": "Inherit / Unset",
@@ -960,7 +898,6 @@
   "claude.settings.permissions.skipDangerousPrompt": "Skip dangerous-mode confirmation prompt",
   "claude.settings.permissions.skipDangerousPromptHint": "Skips the warning shown before entering bypass permissions mode. Ignored when set in project settings.",
   "claude.settings.permissions.skipDangerousProjectWarning": "This is a project-style settings file. Claude Code ignores this flag when loaded from project sources to protect against untrusted repos.",
-
   "claude.settings.envEditor.title": "Environment variables",
   "claude.settings.envEditor.hint": "Stored under the top-level env field. Applied to every session that uses this file.",
   "claude.settings.envEditor.insertPreset": "Insert preset",
@@ -969,7 +906,6 @@
   "claude.settings.envEditor.keyPlaceholder": "VARIABLE_NAME",
   "claude.settings.envEditor.valuePlaceholder": "value",
   "claude.settings.envEditor.alreadyPresent": "{{key}} is already in the list",
-
   "claude.provider.title": "Provider",
   "claude.provider.hint": "Maps to env.ANTHROPIC_BASE_URL and env.ANTHROPIC_AUTH_TOKEN.",
   "claude.provider.baseUrl": "Base URL",
@@ -992,7 +928,6 @@
   "claude.provider.importDialog.noApiKey": "Channel \"{{channel}}\" has no API key configured",
   "claude.provider.importDialog.import": "Import",
   "claude.provider.importDialog.imported": "Provider configuration imported from channel",
-
   "claude.model.title": "Model",
   "claude.model.hint": "Maps to env.ANTHROPIC_MODEL and env.ANTHROPIC_DEFAULT_HAIKU_MODEL.",
   "claude.model.name": "Main model",
@@ -1005,7 +940,6 @@
   "claude.model.capabilityWarningBody": "\"{{model}}\" doesn't look like an official Claude model id. Reasoning effort and thinking flags may not apply if the upstream gateway maps it to a non-Anthropic backend.",
   "claude.model.context1MSupport": "1M Context Support",
   "claude.model.context1MSupportHint": "Appends [1m] suffix to the model name. Claude Code natively strips this and enables the extended context window (up to 1M tokens) via the anthropic-beta header.",
-
   "claude.reasoning.title": "Reasoning & thinking",
   "claude.reasoning.hint": "Maps to env.CLAUDE_CODE_EFFORT_LEVEL / CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING / CLAUDE_CODE_DISABLE_THINKING and root alwaysThinkingEnabled.",
   "claude.reasoning.effort": "Reasoning effort",
@@ -1014,25 +948,19 @@
   "claude.reasoning.medium": "Medium",
   "claude.reasoning.high": "High",
   "claude.reasoning.max": "Max",
-
   "claude.thinking.mode": "Thinking mode",
   "claude.thinking.inherit": "Inherit / Unset",
   "claude.thinking.on": "Always on",
   "claude.thinking.off": "Off",
-
   "sidebar.openclaw": "OpenClaw",
-
   "openclaw.title": "OpenClaw Configuration",
-
   "openclaw.features.title": "OpenClaw",
   "openclaw.features.providers": "Providers",
   "openclaw.features.subagents": "Subagents",
   "openclaw.features.helpers": "Helpers",
   "openclaw.features.hint": "Manage OpenClaw configuration (providers and models).",
-
   "openclaw.install.title": "Install OpenClaw",
   "openclaw.install.learnMore": "Learn more",
-
   "openclaw.profile.active": "Active",
   "openclaw.profile.noProfile": "No profile available",
   "openclaw.profile.select": "Select Profile",
@@ -1046,20 +974,17 @@
   "openclaw.profile.duplicateDescription": "Create a copy of the current profile",
   "openclaw.profile.delete": "Delete Profile",
   "openclaw.profile.deleteConfirm": "Are you sure you want to delete this profile?",
-
   "openclaw.defaultModel.title": "Default Model",
   "openclaw.defaultModel.label": "Model Ref",
   "openclaw.defaultModel.hint": "Select a model from configured providers",
   "openclaw.defaultModel.selectPlaceholder": "Select a model...",
   "openclaw.defaultModel.noModelsConfigured": "No models configured",
-
   "openclaw.fallbacks.title": "Fallback Models",
   "openclaw.fallbacks.hint": "If the primary model fails, OpenClaw will try these models in order",
   "openclaw.fallbacks.add": "Add Fallback Models",
   "openclaw.fallbacks.remove": "Remove",
   "openclaw.fallbacks.noModels": "No fallback models configured",
   "openclaw.fallbacks.selectPlaceholder": "Select a model to add...",
-
   "openclaw.provider.add": "Add Provider",
   "openclaw.provider.edit": "Edit Provider",
   "openclaw.provider.delete": "Delete Provider",
@@ -1097,16 +1022,13 @@
   "openclaw.provider.modelsRequired": "Please add at least one model",
   "openclaw.provider.importFromChannel": "Import from Channel",
   "openclaw.defaultModel.required": "Please select a default model first",
-
   "openclaw.configStatus.title": "Config Status",
   "openclaw.configStatus.configPath": "Config Path",
-
   "openclaw.actions.apply": "Apply Profile",
   "openclaw.actions.applyConfirm": "Apply this profile? This will update your OpenClaw configuration file (~/.openclaw/openclaw.json).",
   "openclaw.actions.applySuccess": "Profile applied successfully",
   "openclaw.actions.saveSuccess": "Profile saved successfully",
   "openclaw.actions.loadedFromLive": "Loaded from live config",
-
   "openclaw.helpers.title": "Helpers",
   "openclaw.helpers.blockStreaming.title": "Block Streaming Settings",
   "openclaw.helpers.blockStreaming.description": "Configure message chunking behavior for streaming AI responses",
@@ -1122,7 +1044,6 @@
   "openclaw.helpers.telegram.chunkMode": "Chunk Mode",
   "openclaw.helpers.telegram.chunkMode.newline": "By newline",
   "openclaw.helpers.telegram.chunkMode.chars": "By character count",
-
   "openclaw.subagents.title": "Subagents",
   "openclaw.subagents.description": "Manage OpenClaw sub-agents and their model configurations",
   "openclaw.subagents.add": "Add Subagent",
@@ -1147,18 +1068,13 @@
   "openclaw.subagents.allowAgents": "Allow Agents",
   "openclaw.subagents.allowAgentsPlaceholder": "Type agent ID and press Enter",
   "openclaw.subagents.maxConcurrent": "Max Concurrent",
-
   "sidebar.hermes": "Hermes",
-
   "hermes.title": "Hermes Configuration",
-
   "hermes.features.title": "Hermes",
   "hermes.features.model": "Model Config",
   "hermes.features.hint": "Manage Hermes agent configuration (config.yaml).",
-
   "hermes.install.title": "Install Hermes",
   "hermes.install.learnMore": "Learn more",
-
   "hermes.profile.active": "Active",
   "hermes.profile.noProfile": "No profile available",
   "hermes.profile.select": "Profile",
@@ -1172,7 +1088,6 @@
   "hermes.profile.duplicateDescription": "Create a copy of the current profile",
   "hermes.profile.delete": "Delete Profile",
   "hermes.profile.deleteConfirm": "Are you sure you want to delete this profile? This action cannot be undone.",
-
   "hermes.model.title": "Model Configuration",
   "hermes.model.default": "Default",
   "hermes.model.defaultPlaceholder": "e.g. NousResearch/Hermes-3-Llama-3.1-70B",
@@ -1183,9 +1098,7 @@
   "hermes.model.apiKey": "API Key",
   "hermes.model.apiKeyPlaceholder": "Enter API key",
   "hermes.model.loadFromConfig": "Load from Config",
-
   "hermes.configStatus.title": "Config Status",
-
   "hermes.actions.apply": "Apply Profile",
   "hermes.actions.applyConfirm": "Apply this profile? This will update your Hermes configuration file (~/.hermes/config.yaml).",
   "hermes.actions.applySuccess": "Profile applied successfully",
@@ -1206,15 +1119,11 @@
   "hermes.model.importDialog.noApiKey": "Channel \"{{channel}}\" has no API key configured",
   "hermes.model.importDialog.import": "Import",
   "hermes.model.importDialog.imported": "Config imported from channel",
-
   "sidebar.pi": "Pi",
-
   "pi.title": "Pi Configuration",
-
   "pi.features.title": "Pi",
   "pi.features.providers": "Providers",
   "pi.features.hint": "Manage Pi agent model configuration (models.json).",
-
   "pi.profile.active": "Active",
   "pi.profile.noProfile": "No profile available",
   "pi.profile.select": "Profile",
@@ -1228,13 +1137,11 @@
   "pi.profile.duplicateDescription": "Create a copy of the current profile",
   "pi.profile.delete": "Delete Profile",
   "pi.profile.deleteConfirm": "Are you sure you want to delete this profile? This action cannot be undone.",
-
   "pi.providers.title": "Providers",
   "pi.providers.noProviders": "No providers configured.",
   "pi.providers.loadFromConfig": "Load from Live Config",
   "pi.providers.noBaseUrl": "No base URL",
   "pi.providers.modelsCount": "{{count}} model(s)",
-
   "pi.provider.add": "Add Provider",
   "pi.provider.edit": "Edit Provider",
   "pi.provider.delete": "Delete Provider",
@@ -1293,14 +1200,11 @@
   "pi.provider.importDialog.noApiKey": "Channel \"{{channel}}\" has no API key configured",
   "pi.provider.importDialog.import": "Import",
   "pi.provider.importDialog.imported": "Provider imported from channel",
-
   "pi.configStatus.title": "Config Status",
-
   "pi.actions.apply": "Apply Profile",
   "pi.actions.applyConfirm": "Apply this profile? This will update your Pi configuration file (~/.pi/agent/models.json).",
   "pi.actions.applySuccess": "Profile applied successfully",
   "pi.actions.loadedFromLive": "Loaded from live config",
-
   "connectivity.title": "Connectivity",
   "connectivity.summary": "Summary",
   "connectivity.testControls": "Test Controls",
@@ -1358,7 +1262,6 @@
   "factoryAuth.renameDialog.labelPlaceholder": "Enter new display name",
   "factoryAuth.deleteDialog.title": "Delete Profile",
   "factoryAuth.deleteDialog.description": "Are you sure you want to delete '{{name}}'? This cannot be undone.",
-
   "export.title": "Custom Config",
   "export.subtitle": "Define rules to export channel model info in JSON/YAML/TOML format",
   "export.addTemplate": "Add Config",
@@ -1401,5 +1304,20 @@
   "export.fields": "fields",
   "export.openFolder": "Open Folder",
   "export.nameRequired": "Config name is required",
-  "export.pathRequired": "Output path is required"
+  "export.pathRequired": "Output path is required",
+  "claude.settingsFile.more": "More",
+  "claude.settingsFile.duplicate": "Duplicate",
+  "claude.settingsFile.duplicateTitle": "Duplicate Settings File",
+  "claude.settingsFile.duplicateNameLabel": "New file name",
+  "claude.settingsFile.duplicateDone": "Duplicated as '{{name}}'",
+  "claude.settingsFile.merge": "Merge to global",
+  "claude.settingsFile.mergeConfirm": "Merge '{{name}}' into the global settings.json? Existing global values are overridden.",
+  "claude.settingsFile.mergeDone": "Merged into global settings",
+  "claude.settingsFile.loadLive": "Load from live",
+  "claude.settingsFile.loadLiveConfirm": "Overwrite '{{name}}' with the current global settings.json?",
+  "claude.settingsFile.loadLiveDone": "Loaded live config into '{{name}}'",
+  "claude.settingsFile.preview": "Preview",
+  "claude.settingsFile.previewTitle": "Launch Preview",
+  "claude.settingsFile.previewNoData": "No preview available",
+  "claude.model.smallModelUsesMainModelNoMain": "Set the main model first to use this option"
 }
