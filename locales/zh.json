@@ -1,5 +1,6 @@
 {
   "app.name": "DroidGear",
+
   "menu.about": "关于 {{appName}}",
   "menu.checkForUpdates": "检查更新...",
   "menu.preferences": "偏好设置...",
@@ -18,12 +19,14 @@
   "menu.toggleLeftSidebar": "切换左侧边栏",
   "menu.toggleRightSidebar": "切换右侧边栏",
   "menu.resetWindow": "重置窗口",
+
   "preferences.title": "偏好设置",
   "preferences.description": "在此自定义您的应用程序偏好设置。",
   "preferences.general": "通用",
   "preferences.appearance": "外观",
   "preferences.advanced": "高级",
   "preferences.about": "关于",
+
   "preferences.about.description": "Factory Droid 全功能辅助增强工具",
   "preferences.about.projectUrl": "项目地址",
   "preferences.about.license": "许可证",
@@ -31,12 +34,14 @@
   "preferences.about.techStack": "技术栈",
   "preferences.about.acknowledgements": "致谢",
   "preferences.about.templateCredit": "基于 Danny Smith 的 tauri-template 开发",
+
   "preferences.general.exampleSettings": "示例设置",
   "preferences.general.exampleText": "示例文本设置",
   "preferences.general.exampleTextDescription": "这是一个示例文本输入设置（不会保存）",
   "preferences.general.exampleTextPlaceholder": "输入示例文本",
   "preferences.general.exampleToggle": "示例开关设置",
   "preferences.general.exampleToggleDescription": "这是一个示例开关设置（不会保存）",
+
   "preferences.general.softwareUpdate": "软件更新",
   "preferences.general.currentVersion": "当前版本：{{version}}",
   "preferences.general.checkForUpdates": "检查更新",
@@ -57,6 +62,7 @@
   "preferences.general.terminalApp": "终端",
   "preferences.general.terminalWindowsTerminal": "Windows 终端",
   "preferences.general.terminalCmd": "命令提示符",
+
   "preferences.appearance.theme": "主题",
   "preferences.appearance.colorTheme": "颜色主题",
   "preferences.appearance.colorThemeDescription": "选择您喜欢的颜色主题",
@@ -74,6 +80,7 @@
   "preferences.appearance.terminalShell": "终端 Shell (Windows)",
   "preferences.appearance.terminalShellDescription": "终端自定义 Shell 命令（如 cmd.exe、pwsh.exe、bash.exe -l -i）",
   "preferences.appearance.terminalShellPlaceholder": "powershell.exe（默认）",
+
   "preferences.advanced.title": "示例高级设置",
   "preferences.advanced.toggle": "示例高级开关",
   "preferences.advanced.toggleDescription": "这是一个示例高级开关设置（不会保存）",
@@ -82,6 +89,7 @@
   "preferences.advanced.option1": "示例选项 1",
   "preferences.advanced.option2": "示例选项 2",
   "preferences.advanced.option3": "示例选项 3",
+
   "preferences.models": "模型注册表",
   "preferences.models.title": "模型注册表",
   "preferences.models.description": "内置的已知模型配置信息，包含模型 ID、名称、平台类型、上下文窗口等。",
@@ -93,6 +101,7 @@
   "preferences.models.colMaxOutput": "最大输出",
   "preferences.models.noResults": "未找到匹配的模型",
   "preferences.models.totalCount": "共 {{count}} 个模型",
+
   "preferences.paths": "路径",
   "preferences.paths.title": "配置路径",
   "preferences.paths.description": "自定义 Droid、OpenCode、Codex、OpenClaw 和 Hermes 的配置目录。留空将使用默认路径。",
@@ -115,6 +124,7 @@
   "preferences.paths.custom": "自定义",
   "preferences.paths.loadError": "加载配置路径失败",
   "preferences.paths.restartNote": "注意：配置路径的更改可能需要重启应用才能完全生效。",
+
   "common.enabled": "已启用",
   "common.showSecret": "显示",
   "common.hideSecret": "隐藏",
@@ -144,12 +154,14 @@
   "common.actions": "操作",
   "common.selectAll": "全选",
   "common.deselectAll": "取消全选",
+
   "commands.group.navigation": "导航",
   "commands.group.settings": "设置",
   "commands.group.window": "窗口",
   "commands.group.notification": "通知",
   "commands.group.debug": "调试",
   "commands.group.other": "其他",
+
   "commands.showLeftSidebar.label": "显示左侧边栏",
   "commands.showLeftSidebar.description": "显示左侧边栏",
   "commands.hideLeftSidebar.label": "隐藏左侧边栏",
@@ -160,6 +172,7 @@
   "commands.hideRightSidebar.description": "隐藏右侧边栏",
   "commands.openPreferences.label": "打开偏好设置",
   "commands.openPreferences.description": "打开应用程序偏好设置",
+
   "commands.windowClose.label": "关闭窗口",
   "commands.windowClose.description": "关闭当前窗口",
   "commands.windowMinimize.label": "最小化窗口",
@@ -170,19 +183,23 @@
   "commands.windowFullscreen.description": "进入全屏模式",
   "commands.windowExitFullscreen.label": "退出全屏",
   "commands.windowExitFullscreen.description": "退出全屏模式",
+
   "commands.testToast.label": "测试通知",
   "commands.testToast.description": "显示测试通知",
   "commands.testUpdateToast.label": "测试更新提示（稍后）",
   "commands.testUpdateToast.description": "在右下角弹出自动更新提示条，便于人工测试「稍后」",
+
   "commandPalette.title": "命令面板",
   "commandPalette.placeholder": "输入命令或搜索...",
   "commandPalette.noResults": "未找到结果。",
+
   "titlebar.default": "DroidGear",
   "titlebar.showLeftSidebar": "显示左侧边栏",
   "titlebar.hideLeftSidebar": "隐藏左侧边栏",
   "titlebar.showRightSidebar": "显示右侧边栏",
   "titlebar.hideRightSidebar": "隐藏右侧边栏",
   "titlebar.settings": "设置",
+
   "toast.success.preferencesSaved": "偏好设置已保存",
   "toast.success.testToast": "测试通知",
   "toast.success.testToastDescription": "这是一条测试通知",
@@ -200,6 +217,7 @@
   "toast.error.pathSaveFailed": "保存配置路径失败",
   "toast.error.pathResetFailed": "重置配置路径失败",
   "toast.error.wslPathFailed": "构建 WSL 路径失败",
+
   "preferences.paths.useWsl": "使用 WSL",
   "preferences.paths.wslDialog.title": "选择 WSL 发行版",
   "preferences.paths.wslDialog.description": "选择一个 WSL 发行版和用户名来配置 WSL 路径。",
@@ -212,10 +230,12 @@
   "preferences.paths.wslDialog.loadingUsername": "获取用户名中...",
   "preferences.paths.wslDialog.preview": "预览路径：",
   "preferences.paths.wslDialog.apply": "应用",
+
   "legacyConfig.title": "发现旧配置文件",
   "legacyConfig.description": "旧的 config.json 文件已弃用且不再使用。是否要删除它？",
   "legacyConfig.keep": "保留",
   "legacyConfig.delete": "删除",
+
   "sidebar.channels": "渠道",
   "sidebar.exportTemplates": "自定义配置",
   "sidebar.selectExportTemplate": "选择一个配置或创建一个新配置",
@@ -228,6 +248,7 @@
   "sidebar.unsavedChanges.description": "您有未保存的更改，是否保存？",
   "sidebar.unsavedChanges.save": "保存",
   "sidebar.unsavedChanges.discard": "丢弃",
+
   "droid.features.models": "BYOK 模型",
   "droid.features.settings": "设置",
   "droid.features.specs": "Specs",
@@ -273,13 +294,16 @@
   "droid.settings.shellInstructions.zshPath": "~/.zshrc",
   "droid.settings.shellInstructions.powershell": "Windows (PowerShell)",
   "droid.settings.shellInstructions.powershellPath": "$PROFILE",
+
   "droid.settings.disableAutoUpdate.title": "尝试关闭自动升级",
   "droid.settings.disableAutoUpdate.setupButton": "设置关闭自动升级",
   "droid.settings.disableAutoUpdate.description": "在您的 shell 配置文件中添加 FACTORY_DROID_AUTO_UPDATE_ENABLED=0 以关闭 Droid 自动升级。",
   "droid.settings.disableAutoUpdate.warning": "此功能可能不会在所有情况下生效。您需要重启终端和应用程序才能使更改生效。",
   "droid.settings.disableAutoUpdate.instructions.title": "将以下内容添加到您的 shell 配置文件：",
+
   "droid.settings.cloudSessionSync.title": "Session 云同步",
   "droid.settings.cloudSessionSync.description": "启用后 Session 会自动同步到云端",
+
   "droid.settings.sessionSettings.title": "Session 设置",
   "droid.settings.sessionSettings.reasoningEffort": "推理强度",
   "droid.settings.sessionSettings.reasoningEffortDescription": "控制模型进行结构化思考的程度",
@@ -311,6 +335,7 @@
   "droid.settings.sessionSettings.includeCoAuthoredByDroidDescription": "自动在 git 提交中添加 Droid 共同作者标记",
   "droid.settings.sessionSettings.showThinkingInMainView": "主视图显示思考过程",
   "droid.settings.sessionSettings.showThinkingInMainViewDescription": "在主聊天视图中显示 AI 的思考/推理过程",
+
   "droid.settings.compaction.title": "上下文压缩设置",
   "droid.settings.compaction.description": "配置长对话的上下文窗口压缩行为",
   "droid.settings.compaction.modelMode": "压缩模型模式",
@@ -328,6 +353,7 @@
   "droid.settings.compaction.perModel.modelIdPlaceholder": "例如: custom:claude-opus-4-7-sample",
   "droid.settings.compaction.perModel.tokenLimit": "Token 限制",
   "droid.settings.compaction.perModel.removeOverride": "移除",
+
   "droid.specs.title": "Specs",
   "droid.specs.noSpecs": "没有找到 Specs",
   "droid.specs.noSpecsHint": "Specs 将在 ~/.factory/specs 中可用时显示在这里",
@@ -349,6 +375,7 @@
   "droid.specs.saveSuccess": "Spec 保存成功",
   "droid.specs.unsavedChanges": "您有未保存的更改，是否放弃？",
   "droid.specs.discardChanges": "放弃更改",
+
   "droid.sessions.title": "会话",
   "droid.sessions.noSessions": "没有找到会话",
   "droid.sessions.selectSessionHint": "从列表中选择一个会话查看",
@@ -362,6 +389,7 @@
   "droid.sessions.hideEmptySessions": "隐藏空会话",
   "droid.sessions.hideEmptySessionsOn": "已隐藏空会话",
   "droid.sessions.hideEmptySessionsOff": "点击隐藏空会话",
+
   "droid.terminal.title": "终端",
   "droid.terminal.newTerminal": "新建终端",
   "droid.terminal.newTerminalInDir": "在目录中新建终端",
@@ -390,10 +418,12 @@
   "droid.terminal.snippets.content": "内容",
   "droid.terminal.snippets.contentPlaceholder": "输入要插入的命令或文本",
   "droid.terminal.snippets.autoExecute": "自动执行（按回车）",
+
   "droid.terminal.closeConfirmTitle": "确认关闭",
   "droid.terminal.closeConfirmDescription": "终端中有正在运行的任务，确定要关闭吗？",
   "droid.terminal.closeConfirmCancel": "取消",
   "droid.terminal.closeConfirmAction": "关闭",
+
   "mcp.title": "MCP 服务器管理",
   "mcp.noServers": "未配置 MCP 服务器",
   "mcp.noServersHint": "添加 MCP 服务器以扩展 Droid 的功能",
@@ -430,8 +460,10 @@
   "mcp.presets.apiKeyDialog.description": "此服务器需要 API Key 才能使用",
   "mcp.presets.apiKeyDialog.inputLabel": "API Key",
   "mcp.presets.apiKeyDialog.validation.required": "API Key 不能为空",
+
   "droid.install.title": "安装",
   "droid.install.learnMore": "了解更多请访问 factory.ai",
+
   "droid.settingsFile.sectionLabel": "配置文件",
   "droid.settingsFile.global": "全局",
   "droid.settingsFile.switch": "切换配置文件",
@@ -446,9 +478,11 @@
   "droid.settingsFile.launchTooltip": "在新终端窗口中打开 Droid CLI",
   "droid.settingsFile.launchSaveFailed": "无法启动 Droid，因为模型更改未能保存",
   "droid.settingsFile.selectDirectory": "选择工作目录",
+
   "common.rename": "重命名",
   "common.export": "导出",
   "common.copied": "已复制",
+
   "channels.title": "渠道",
   "channels.noChannels": "未配置渠道",
   "channels.addChannel": "添加渠道",
@@ -485,6 +519,7 @@
   "channels.noKeysAvailable": "没有可用的密钥",
   "channels.importFromChannel": "从渠道导入",
   "channels.importFromChannelDescription": "从已配置的渠道中选择模型快速添加",
+
   "channels.export.button": "导出渠道",
   "channels.export.title": "导出渠道",
   "channels.export.description": "将渠道配置导出为 JSON 文件。",
@@ -505,6 +540,7 @@
   "channels.import.noValidChannels": "文件中没有找到有效的渠道。",
   "channels.import.hasCredentials": "此文件包含凭据信息，导入时将自动保存。",
   "channels.import.withCredentials": "含凭据",
+
   "keys.title": "API 密钥",
   "keys.noKeys": "未找到密钥。",
   "keys.noKeysHint": "点击刷新从渠道获取密钥。",
@@ -518,6 +554,7 @@
   "keys.status.expired": "已过期",
   "keys.status.exhausted": "已耗尽",
   "keys.status.unknown": "未知",
+
   "models.title": "BYOK 模型配置",
   "models.noModels": "未配置自定义模型",
   "models.noModelsHint": "点击「添加模型」开始",
@@ -631,6 +668,7 @@
   "models.import.noValidModels": "文件中没有找到有效的模型。",
   "models.export.button": "导出",
   "models.export.success": "模型导出成功",
+
   "update.available": "有可用更新：{{version}}\n\n是否立即安装此更新？",
   "update.availableNotification": "有可用更新：v{{version}}",
   "update.viewDetails": "查看详情",
@@ -642,13 +680,17 @@
   "update.installing": "下载完成，正在安装...",
   "update.completed": "更新成功！\n\n是否立即重启应用以使用新版本？",
   "update.failed": "更新失败：自动下载出现问题。\n\n{{error}}",
+
   "validation.bracketsNotAllowed": "不建议使用可能影响正则表达式的特殊字符，可能导致不可预期的问题",
   "validation.officialModelNameNotAllowed": "显示名称不能与官方模型名相同或以其为前缀（如 Opus 4.7、Sonnet 4.6）",
+
   "sidebar.opencode": "OpenCode",
+
   "opencode.title": "OpenCode 配置",
   "opencode.features.providers": "Providers",
   "opencode.install.title": "安装 OpenCode",
   "opencode.install.learnMore": "了解更多请访问 opencode.ai",
+
   "opencode.profile.select": "Profile",
   "opencode.profile.create": "新建 Profile",
   "opencode.profile.createDescription": "创建新的 Profile 来管理 Provider 配置",
@@ -661,6 +703,7 @@
   "opencode.profile.description": "描述",
   "opencode.profile.descriptionPlaceholder": "可选描述",
   "opencode.profile.active": "已激活",
+
   "opencode.provider.add": "添加 Provider",
   "opencode.provider.edit": "编辑 Provider",
   "opencode.provider.delete": "删除 Provider",
@@ -707,17 +750,22 @@
   "opencode.provider.outputLimit": "输出限制 (tokens)",
   "opencode.provider.modelIdRequired": "模型 ID 不能为空",
   "opencode.provider.modelIdDuplicate": "模型 ID 已存在",
+
   "opencode.config.status": "目标配置状态",
+
   "opencode.actions.save": "保存 Profile",
   "opencode.actions.saveSuccess": "Profile 保存成功",
   "opencode.actions.apply": "应用 Profile",
   "opencode.actions.applyConfirm": "应用此 Profile？这将更新您的 OpenCode 配置文件（opencode.json 和 auth.json）。",
   "opencode.actions.applySuccess": "Profile 应用成功",
+
   "codex.title": "Codex 配置",
+
   "codex.features.title": "Codex",
   "codex.features.providers": "Providers",
   "codex.features.authProfiles": "认证配置",
   "codex.features.hint": "管理 Codex CLI 配置（auth.json / config.toml）。",
+
   "codex.profile.active": "当前生效",
   "codex.profile.noProfile": "暂无可用 Profile",
   "codex.profile.select": "Profile",
@@ -751,9 +799,11 @@
   "codex.profile.created": "Profile 已创建",
   "codex.profile.duplicated": "Profile 已复制",
   "codex.profile.deleted": "Profile 已删除",
+
   "codex.live.status": "当前配置",
   "codex.live.authPath": "auth.json",
   "codex.live.configPath": "config.toml",
+
   "codex.modelSelection.title": "模型选择",
   "codex.modelSelection.provider": "Provider",
   "codex.modelSelection.providerPlaceholder": "选择 Provider",
@@ -762,8 +812,10 @@
   "codex.modelSelection.reasoningEffort": "Reasoning Effort",
   "codex.modelSelection.reasoningEffortPlaceholder": "选择推理强度",
   "codex.modelSelection.reasoningEffortNone": "无",
+
   "codex.apiKey.title": "API Key",
   "codex.apiKey.hint": "仅用于 requires_openai_auth = true 的 Provider，写入 ~/.codex/auth.json",
+
   "codex.provider.title": "Providers",
   "codex.provider.add": "添加 Provider",
   "codex.provider.edit": "编辑 Provider",
@@ -774,6 +826,7 @@
   "codex.provider.importSuccess": "已从当前配置导入",
   "codex.provider.noProviders": "暂无 Provider",
   "codex.provider.dialogDescription": "配置 Codex Provider 信息",
+
   "codex.provider.id": "Provider ID",
   "codex.provider.name": "显示名称",
   "codex.provider.baseUrl": "Base URL",
@@ -793,15 +846,18 @@
   "codex.provider.setActive": "设为激活",
   "codex.provider.importFromChannel": "从渠道导入",
   "codex.provider.reservedProviderName": "Provider 名称不能为 OpenAI（不区分大小写）",
+
   "codex.auth.title": "认证",
   "codex.auth.apiKey": "OPENAI_API_KEY",
   "codex.auth.apiKeyPlaceholder": "sk-...",
   "codex.auth.apiKeyHint": "将写入 ~/.codex/auth.json（仅本地存储）。",
+
   "codex.config.title": "配置",
   "codex.config.loadFromLive": "从当前配置加载",
   "codex.configToml": "config.toml",
   "codex.configTomlHint": "将写入 ~/.codex/config.toml，需为合法 TOML。",
   "codex.configStatus.title": "配置状态",
+
   "codex.actions.apply": "应用 Profile",
   "codex.actions.applyConfirm": "确定应用该 Profile？这将更新 Codex CLI 配置文件（~/.codex/auth.json 与 ~/.codex/config.toml）。",
   "codex.actions.applySuccess": "Profile 应用成功",
@@ -812,6 +868,7 @@
   "codex.actions.selectDirectory": "选择 Codex 的工作目录",
   "codex.actions.loadFromLive": "读取当前配置",
   "codex.actions.loadedFromLive": "已从当前配置读取",
+
   "codexAuth.title": "Codex 认证配置",
   "codexAuth.description": "管理 codex 登录认证配置。在官方登录（codex login）和 BYOK API 密钥之间切换。",
   "codexAuth.loadError": "加载认证配置失败",
@@ -853,10 +910,12 @@
   "codexAuth.applyConflictDialog.description": "应用此配置将改变认证模式。当前的 auth.json 将被覆盖。是否先保存当前认证配置？",
   "codexAuth.applyConflictDialog.applyWithoutSaving": "不保存直接应用",
   "codexAuth.applyConflictDialog.saveAndApply": "保存当前并应用",
+
   "claude.title": "Claude Code 配置",
   "claude.features.title": "Claude",
   "claude.features.settings": "Settings",
   "claude.features.hint": "管理 Claude Code settings 文件，并以选定的 settings 文件启动 claude。",
+
   "claude.settingsFile.sectionLabel": "Settings 文件",
   "claude.settingsFile.global": "Global",
   "claude.settingsFile.new": "新建",
@@ -875,11 +934,27 @@
   "claude.settingsFile.launchSuccessSkip": "已以 --dangerously-skip-permissions 启动 Claude",
   "claude.settingsFile.launchFailedCopy": "启动失败，命令已复制到剪贴板",
   "claude.settingsFile.selectDirectory": "选择工作目录",
+  "claude.settingsFile.more": "更多",
+  "claude.settingsFile.duplicate": "复制",
+  "claude.settingsFile.duplicateTitle": "复制设置文件",
+  "claude.settingsFile.duplicateNameLabel": "新文件名",
+  "claude.settingsFile.duplicateDone": "已复制为 '{{name}}'",
+  "claude.settingsFile.merge": "合并到全局",
+  "claude.settingsFile.mergeConfirm": "将 '{{name}}' 合并到全局 settings.json？已有的全局值会被覆盖。",
+  "claude.settingsFile.mergeDone": "已合并到全局设置",
+  "claude.settingsFile.loadLive": "从实时配置加载",
+  "claude.settingsFile.loadLiveConfirm": "用当前全局 settings.json 覆盖 '{{name}}'？",
+  "claude.settingsFile.loadLiveDone": "已将实时配置加载到 '{{name}}'",
+  "claude.settingsFile.preview": "预览",
+  "claude.settingsFile.previewTitle": "启动预览",
+  "claude.settingsFile.previewNoData": "无预览内容",
+
   "claude.settings.title": "Claude Code Settings",
   "claude.settings.empty": "未选择任何 settings 文件。",
   "claude.settings.saveSuccess": "Settings 已保存",
   "claude.settings.discard": "撤销修改",
   "claude.settings.resetDone": "已回滚为磁盘上的状态",
+
   "claude.settings.general.title": "通用",
   "claude.settings.general.hint": "顶层字段，应用于使用该 settings 文件的每次 Claude 会话。",
   "claude.settings.general.autoUpdate": "自动更新",
@@ -888,6 +963,7 @@
   "claude.settings.general.includeCoAuthoredHint": "控制 git commit / PR 是否带上 co-authored-by Claude 署名。",
   "claude.settings.general.cleanupPeriodDays": "会话保留天数",
   "claude.settings.general.cleanupPeriodDaysHint": "启动时删除早于该天数的会话文件（默认 30，最小 1）。",
+
   "claude.settings.permissions.title": "权限",
   "claude.settings.permissions.hint": "控制 Claude 在调用工具前如何向你确认。",
   "claude.settings.permissions.unset": "继承 / 不设置",
@@ -898,6 +974,7 @@
   "claude.settings.permissions.skipDangerousPrompt": "跳过危险模式确认提示",
   "claude.settings.permissions.skipDangerousPromptHint": "进入 bypass 权限模式时跳过警告确认；在项目级 settings 中会被忽略。",
   "claude.settings.permissions.skipDangerousProjectWarning": "当前是项目类 settings 文件。Claude Code 在加载项目源时会忽略该标志，避免不可信仓库自动跳过提示。",
+
   "claude.settings.envEditor.title": "环境变量",
   "claude.settings.envEditor.hint": "写入顶层 env 字段。每次使用该 settings 文件的会话都会生效。",
   "claude.settings.envEditor.insertPreset": "插入预设",
@@ -906,6 +983,7 @@
   "claude.settings.envEditor.keyPlaceholder": "VARIABLE_NAME",
   "claude.settings.envEditor.valuePlaceholder": "value",
   "claude.settings.envEditor.alreadyPresent": "{{key}} 已在列表中",
+
   "claude.provider.title": "Provider",
   "claude.provider.hint": "对应 env.ANTHROPIC_BASE_URL 与 env.ANTHROPIC_AUTH_TOKEN。",
   "claude.provider.baseUrl": "Base URL",
@@ -923,11 +1001,13 @@
   "claude.provider.importDialog.modelPlaceholder": "选择或输入模型 ID...",
   "claude.provider.importDialog.skipModelHint": "留空可稍后手动填写",
   "claude.provider.importDialog.loadingTokens": "正在加载 API Key...",
+  "claude.model.smallModelUsesMainModelNoMain": "请先设置主模型",
   "claude.provider.importDialog.noTokens": "没有可用的 API Key",
   "claude.provider.importDialog.noChannels": "暂无 Channel，请先到 Channels 页面添加",
   "claude.provider.importDialog.noApiKey": "Channel “{{channel}}” 未配置 API Key",
   "claude.provider.importDialog.import": "导入",
   "claude.provider.importDialog.imported": "已从 Channel 导入 Provider 配置",
+
   "claude.model.title": "模型",
   "claude.model.hint": "对应 env.ANTHROPIC_MODEL 与 env.ANTHROPIC_DEFAULT_HAIKU_MODEL。",
   "claude.model.name": "主模型",
@@ -940,6 +1020,7 @@
   "claude.model.capabilityWarningBody": "“{{model}}” 不是标准 Claude 模型 ID。如上游网关将其映射到非 Anthropic 后端，思维和 effort 等参数可能不会生效。",
   "claude.model.context1MSupport": "1M 上下文支持",
   "claude.model.context1MSupportHint": "在模型名称后追加 [1m] 后缀。Claude Code 会自动去除此后缀并通过 anthropic-beta 头启用扩展上下文窗口（最高 100 万 tokens）。",
+
   "claude.reasoning.title": "推理与思考",
   "claude.reasoning.hint": "对应 env.CLAUDE_CODE_EFFORT_LEVEL / CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING / CLAUDE_CODE_DISABLE_THINKING 以及根级 alwaysThinkingEnabled。",
   "claude.reasoning.effort": "Reasoning effort",
@@ -948,19 +1029,25 @@
   "claude.reasoning.medium": "中",
   "claude.reasoning.high": "高",
   "claude.reasoning.max": "最高",
+
   "claude.thinking.mode": "Thinking 模式",
   "claude.thinking.inherit": "继承 / 不设置",
   "claude.thinking.on": "始终开启",
   "claude.thinking.off": "关闭",
+
   "sidebar.openclaw": "OpenClaw",
+
   "openclaw.title": "OpenClaw 配置",
+
   "openclaw.features.title": "OpenClaw",
   "openclaw.features.providers": "Provider 管理",
   "openclaw.features.subagents": "子代理",
   "openclaw.features.helpers": "辅助工具",
   "openclaw.features.hint": "管理 OpenClaw 配置（providers 和 models）。",
+
   "openclaw.install.title": "安装 OpenClaw",
   "openclaw.install.learnMore": "了解更多",
+
   "openclaw.profile.active": "当前生效",
   "openclaw.profile.noProfile": "暂无可用 Profile",
   "openclaw.profile.select": "选择 Profile",
@@ -974,17 +1061,20 @@
   "openclaw.profile.duplicateDescription": "复制当前 Profile",
   "openclaw.profile.delete": "删除 Profile",
   "openclaw.profile.deleteConfirm": "确定要删除此 Profile 吗？",
+
   "openclaw.defaultModel.title": "默认模型",
   "openclaw.defaultModel.label": "模型引用",
   "openclaw.defaultModel.hint": "从已配置的 Provider 中选择模型",
   "openclaw.defaultModel.selectPlaceholder": "选择模型...",
   "openclaw.defaultModel.noModelsConfigured": "暂无已配置的模型",
+
   "openclaw.fallbacks.title": "备用模型",
   "openclaw.fallbacks.hint": "当主模型失败时，OpenClaw 将按顺序尝试以下备用模型",
   "openclaw.fallbacks.add": "添加备用模型",
   "openclaw.fallbacks.remove": "移除",
   "openclaw.fallbacks.noModels": "未配置备用模型",
   "openclaw.fallbacks.selectPlaceholder": "选择要添加的模型...",
+
   "openclaw.provider.add": "添加 Provider",
   "openclaw.provider.edit": "编辑 Provider",
   "openclaw.provider.delete": "删除 Provider",
@@ -1022,13 +1112,16 @@
   "openclaw.provider.modelsRequired": "请至少添加一个模型",
   "openclaw.provider.importFromChannel": "从渠道导入",
   "openclaw.defaultModel.required": "请先选择默认模型",
+
   "openclaw.configStatus.title": "配置状态",
   "openclaw.configStatus.configPath": "配置路径",
+
   "openclaw.actions.apply": "应用 Profile",
   "openclaw.actions.applyConfirm": "确定应用该 Profile？这将更新 OpenClaw 配置文件（~/.openclaw/openclaw.json）。",
   "openclaw.actions.applySuccess": "Profile 应用成功",
   "openclaw.actions.saveSuccess": "Profile 保存成功",
   "openclaw.actions.loadedFromLive": "已从当前配置读取",
+
   "openclaw.helpers.title": "辅助工具",
   "openclaw.helpers.blockStreaming.title": "流式输出设置",
   "openclaw.helpers.blockStreaming.description": "配置消息分块发送行为，使 AI 响应能够边生成边发送",
@@ -1044,6 +1137,7 @@
   "openclaw.helpers.telegram.chunkMode": "切分方式",
   "openclaw.helpers.telegram.chunkMode.newline": "按段落切分",
   "openclaw.helpers.telegram.chunkMode.chars": "按字符数切分",
+
   "openclaw.subagents.title": "子代理",
   "openclaw.subagents.description": "管理 OpenClaw 子代理及其模型配置",
   "openclaw.subagents.add": "添加子代理",
@@ -1068,13 +1162,18 @@
   "openclaw.subagents.allowAgents": "允许的代理",
   "openclaw.subagents.allowAgentsPlaceholder": "输入代理 ID 后按回车添加",
   "openclaw.subagents.maxConcurrent": "最大并发数",
+
   "sidebar.hermes": "Hermes",
+
   "hermes.title": "Hermes 配置",
+
   "hermes.features.title": "Hermes",
   "hermes.features.model": "模型配置",
   "hermes.features.hint": "管理 Hermes 代理配置（config.yaml）。",
+
   "hermes.install.title": "安装 Hermes",
   "hermes.install.learnMore": "了解更多",
+
   "hermes.profile.active": "已激活",
   "hermes.profile.noProfile": "暂无配置文件",
   "hermes.profile.select": "配置文件",
@@ -1088,6 +1187,7 @@
   "hermes.profile.duplicateDescription": "创建当前配置文件的副本",
   "hermes.profile.delete": "删除配置文件",
   "hermes.profile.deleteConfirm": "确定要删除此配置文件吗？此操作无法撤销。",
+
   "hermes.model.title": "模型配置",
   "hermes.model.default": "默认模型",
   "hermes.model.defaultPlaceholder": "例如 NousResearch/Hermes-3-Llama-3.1-70B",
@@ -1098,7 +1198,9 @@
   "hermes.model.apiKey": "API 密钥",
   "hermes.model.apiKeyPlaceholder": "输入 API 密钥",
   "hermes.model.loadFromConfig": "从配置加载",
+
   "hermes.configStatus.title": "配置状态",
+
   "hermes.actions.apply": "应用配置文件",
   "hermes.actions.applyConfirm": "应用此配置文件？这将更新您的 Hermes 配置文件（~/.hermes/config.yaml）。",
   "hermes.actions.applySuccess": "配置文件已成功应用",
@@ -1119,11 +1221,15 @@
   "hermes.model.importDialog.noApiKey": "渠道「{{channel}}」尚未设置 API Key",
   "hermes.model.importDialog.import": "导入",
   "hermes.model.importDialog.imported": "已从渠道导入配置",
+
   "sidebar.pi": "Pi",
+
   "pi.title": "Pi 配置",
+
   "pi.features.title": "Pi",
   "pi.features.providers": "提供商",
   "pi.features.hint": "管理 Pi 代理模型配置 (models.json)。",
+
   "pi.profile.active": "当前活跃",
   "pi.profile.noProfile": "无可用配置",
   "pi.profile.select": "配置",
@@ -1137,11 +1243,13 @@
   "pi.profile.duplicateDescription": "创建当前配置的副本",
   "pi.profile.delete": "删除配置",
   "pi.profile.deleteConfirm": "确定要删除此配置吗？此操作不可撤销。",
+
   "pi.providers.title": "提供商",
   "pi.providers.noProviders": "未配置任何提供商。",
   "pi.providers.loadFromConfig": "从活跃配置加载",
   "pi.providers.noBaseUrl": "无基础 URL",
   "pi.providers.modelsCount": "{{count}} 个模型",
+
   "pi.provider.add": "添加提供商",
   "pi.provider.edit": "编辑提供商",
   "pi.provider.delete": "删除提供商",
@@ -1200,11 +1308,14 @@
   "pi.provider.importDialog.noApiKey": "渠道「{{channel}}」尚未设置 API Key",
   "pi.provider.importDialog.import": "导入",
   "pi.provider.importDialog.imported": "已从渠道导入提供商",
+
   "pi.configStatus.title": "配置状态",
+
   "pi.actions.apply": "应用配置",
   "pi.actions.applyConfirm": "应用此配置？这将更新您的 Pi 配置文件 (~/.pi/agent/models.json)。",
   "pi.actions.applySuccess": "配置已成功应用",
   "pi.actions.loadedFromLive": "已从活跃配置加载",
+
   "connectivity.title": "连接性",
   "connectivity.summary": "概览",
   "connectivity.testControls": "测试控制",
@@ -1262,6 +1373,7 @@
   "factoryAuth.renameDialog.labelPlaceholder": "输入新的显示名称",
   "factoryAuth.deleteDialog.title": "删除配置",
   "factoryAuth.deleteDialog.description": "确定要删除 '{{name}}' 吗？此操作无法撤销。",
+
   "export.title": "自定义配置",
   "export.subtitle": "定义规则，将 Channel 模型信息导出为 JSON/YAML/TOML 格式",
   "export.addTemplate": "添加配置",
@@ -1304,20 +1416,5 @@
   "export.fields": "个字段",
   "export.openFolder": "打开文件夹",
   "export.nameRequired": "配置名称不能为空",
-  "export.pathRequired": "输出路径不能为空",
-  "claude.settingsFile.more": "更多",
-  "claude.settingsFile.duplicate": "复制",
-  "claude.settingsFile.duplicateTitle": "复制设置文件",
-  "claude.settingsFile.duplicateNameLabel": "新文件名",
-  "claude.settingsFile.duplicateDone": "已复制为 '{{name}}'",
-  "claude.settingsFile.merge": "合并到全局",
-  "claude.settingsFile.mergeConfirm": "将 '{{name}}' 合并到全局 settings.json？已有的全局值会被覆盖。",
-  "claude.settingsFile.mergeDone": "已合并到全局设置",
-  "claude.settingsFile.loadLive": "从实时配置加载",
-  "claude.settingsFile.loadLiveConfirm": "用当前全局 settings.json 覆盖 '{{name}}'？",
-  "claude.settingsFile.loadLiveDone": "已将实时配置加载到 '{{name}}'",
-  "claude.settingsFile.preview": "预览",
-  "claude.settingsFile.previewTitle": "启动预览",
-  "claude.settingsFile.previewNoData": "无预览内容",
-  "claude.model.smallModelUsesMainModelNoMain": "请先设置主模型"
+  "export.pathRequired": "输出路径不能为空"
 }
