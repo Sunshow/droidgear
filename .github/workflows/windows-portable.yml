@@ -1,0 +1,42 @@
+name: 'Build Windows Portable'
+
+# Builds a plain `droidgear.exe` (no NSIS installer, no updater signing)
+# and uploads it as a workflow artifact. Intended for quick testing on
+# forks, which do not inherit the upstream signing secrets.
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows-portable:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # --no-bundle skips NSIS/updater artifacts, so no signing key is needed.
+      - name: Build portable binary
+        run: npm run tauri build -- --no-bundle --target x86_64-pc-windows-msvc
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: droidgear-windows-x64-portable
+          path: src-tauri/target/x86_64-pc-windows-msvc/release/droidgear.exe
+          if-no-files-found: error
