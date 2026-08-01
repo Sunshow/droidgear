@@ -585,6 +585,22 @@ pub fn save_codex_profile_for_home(
     write_profile_file(home_dir, &profile)
 }
 
+/// Save a profile and, when it is the currently applied profile (recorded in
+/// `active-profile.txt`), immediately apply it to `~/.codex/*` so edits take
+/// effect right away. Non-active profiles are only saved; they take effect
+/// when explicitly applied.
+pub fn save_codex_profile_for_home_and_apply_if_active(
+    home_dir: &Path,
+    profile: CodexProfile,
+) -> Result<(), String> {
+    let profile_id = profile.id.clone();
+    save_codex_profile_for_home(home_dir, profile)?;
+    if get_active_codex_profile_id_for_home(home_dir)? == Some(profile_id.clone()) {
+        apply_codex_profile_for_home(home_dir, &profile_id)?;
+    }
+    Ok(())
+}
+
 pub fn delete_codex_profile_for_home(home_dir: &Path, id: &str) -> Result<(), String> {
     let path = profile_path_for_home(home_dir, id)?;
     if path.exists() {
@@ -1000,9 +1016,10 @@ pub fn read_codex_current_config() -> Result<CodexCurrentConfig, String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_profile_to_config_map, is_deepseek_v4_model, provider_config_to_toml,
-        resolve_active_provider, resolve_codex_profile_selector_for_home,
-        save_codex_profile_for_home, sync_models_json_for_home, CodexProfile, CodexProviderConfig,
+        apply_codex_profile_for_home, apply_profile_to_config_map, is_deepseek_v4_model,
+        provider_config_to_toml, resolve_active_provider, resolve_codex_profile_selector_for_home,
+        save_codex_profile_for_home, save_codex_profile_for_home_and_apply_if_active,
+        sync_models_json_for_home, CodexProfile, CodexProviderConfig,
     };
     use std::collections::HashMap;
     use tempfile::TempDir;
@@ -1271,6 +1288,47 @@ mod tests {
         assert!(
             !config.contains_key("model_catalog_json"),
             "non-DeepSeek models must not reference the catalog"
+        );
+    }
+
+    #[test]
+    fn save_active_profile_applies_immediately() {
+        let temp = TempDir::new().unwrap();
+        let home = temp.path();
+
+        // Create a profile and apply it so it becomes the active one.
+        let profile = sample_profile_with_model("deepseek-v4-flash");
+        save_codex_profile_for_home(home, profile.clone()).unwrap();
+        apply_codex_profile_for_home(home, &profile.id).unwrap();
+
+        // Mutate the active profile (provider model — resolved_model prefers
+        // the provider's model over the profile-level one) and save via the
+        // new helper.
+        let mut updated = profile;
+        if let Some(provider) = updated.providers.get_mut("dsv4") {
+            provider.model = Some("gpt-5".to_string());
+        }
+        save_codex_profile_for_home_and_apply_if_active(home, updated.clone()).unwrap();
+
+        // The live config.toml must reflect the change immediately.
+        let config_path = home.join(".codex").join("config.toml");
+        let config = std::fs::read_to_string(&config_path).unwrap();
+        assert!(
+            config.contains("model = \"gpt-5\""),
+            "active profile edits should be applied right away"
+        );
+
+        // Saving a non-active profile must not touch config.toml.
+        let other = sample_profile_with_model("deepseek-v4-pro");
+        let mut other_updated = other;
+        other_updated.id = "other".to_string();
+        other_updated.model = "gpt-5.2".to_string();
+        save_codex_profile_for_home(home, other_updated.clone()).unwrap();
+        save_codex_profile_for_home_and_apply_if_active(home, other_updated).unwrap();
+        let config = std::fs::read_to_string(&config_path).unwrap();
+        assert!(
+            !config.contains("gpt-5.2"),
+            "non-active profile saves must not rewrite config.toml"
         );
     }
 }
