@@ -166,13 +166,22 @@ fn now_rfc3339() -> String {
 // TOML helpers
 // ============================================================================
 
-/// Convert CodexProviderConfig to toml::Value
-pub(crate) fn provider_config_to_toml(config: &CodexProviderConfig) -> Result<toml::Value, String> {
+/// Convert CodexProviderConfig to toml::Value. Codex rejects providers with
+/// an empty name (`model_providers.<id>: provider name must not be empty`),
+/// so a missing or blank name falls back to the provider id.
+pub(crate) fn provider_config_to_toml(
+    provider_id: &str,
+    config: &CodexProviderConfig,
+) -> Result<toml::Value, String> {
     let mut table = toml::map::Map::new();
 
-    if let Some(ref name) = config.name {
-        table.insert("name".to_string(), toml::Value::String(name.clone()));
-    }
+    let name = config
+        .name
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or(provider_id);
+    table.insert("name".to_string(), toml::Value::String(name.to_string()));
     if let Some(ref base_url) = config.base_url {
         table.insert(
             "base_url".to_string(),
@@ -302,7 +311,7 @@ pub(crate) fn apply_profile_to_config_map(
         for (provider_id, provider_config) in &profile.providers {
             providers_table.insert(
                 provider_id.clone(),
-                provider_config_to_toml(provider_config)?,
+                provider_config_to_toml(provider_id, provider_config)?,
             );
         }
         config.insert(
@@ -939,7 +948,7 @@ pub fn read_codex_current_config() -> Result<CodexCurrentConfig, String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_profile_to_config_map, resolve_active_provider,
+        apply_profile_to_config_map, provider_config_to_toml, resolve_active_provider,
         resolve_codex_profile_selector_for_home, save_codex_profile_for_home, CodexProfile,
         CodexProviderConfig,
     };
@@ -1077,5 +1086,54 @@ mod tests {
             Some("gpt-5.4")
         );
         assert!(!config.contains_key("model_providers"));
+    }
+
+    #[test]
+    fn provider_config_to_toml_defaults_empty_name_to_provider_id() {
+        // Codex rejects providers whose name is empty; a missing or blank
+        // display name must fall back to the provider id.
+        for name in [None, Some("".to_string()), Some("   ".to_string())] {
+            let config = CodexProviderConfig {
+                name,
+                base_url: Some("https://example.com".to_string()),
+                wire_api: None,
+                requires_openai_auth: None,
+                env_key: None,
+                env_key_instructions: None,
+                http_headers: None,
+                query_params: None,
+                model: None,
+                model_reasoning_effort: None,
+                api_key: None,
+            };
+            let table = provider_config_to_toml("custom", &config).unwrap();
+            assert_eq!(
+                table.get("name").and_then(|v| v.as_str()),
+                Some("custom"),
+                "name should fall back to the provider id"
+            );
+        }
+    }
+
+    #[test]
+    fn provider_config_to_toml_keeps_non_empty_name() {
+        let config = CodexProviderConfig {
+            name: Some("My Provider".to_string()),
+            base_url: Some("https://example.com".to_string()),
+            wire_api: None,
+            requires_openai_auth: None,
+            env_key: None,
+            env_key_instructions: None,
+            http_headers: None,
+            query_params: None,
+            model: None,
+            model_reasoning_effort: None,
+            api_key: None,
+        };
+        let table = provider_config_to_toml("custom", &config).unwrap();
+        assert_eq!(
+            table.get("name").and_then(|v| v.as_str()),
+            Some("My Provider")
+        );
     }
 }
