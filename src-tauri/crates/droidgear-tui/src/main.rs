@@ -112,7 +112,7 @@ fn main() -> anyhow::Result<()> {
                     let name = name.context(
                         "Missing Claude settings file name. Use `droidgear-tui run claude --list` to inspect available files.",
                     )?;
-                    tui::run_claude_temporary_run_from_file(&home_dir, &name)
+                    tui::run_claude_temporary_run_from_file(&home_dir, &name, false)
                 }
             }
             RunTarget::Droid {

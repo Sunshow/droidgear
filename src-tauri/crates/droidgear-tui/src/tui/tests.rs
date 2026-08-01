@@ -76,34 +76,224 @@ fn claude_input_action_variants_exist() {
 fn claude_run_action_variant_exists() {
     let action = super::Action::RunClaudeRun {
         name: "my-settings".to_string(),
+        skip_dangerous: false,
     };
 
     match action {
-        super::Action::RunClaudeRun { name } => assert_eq!(name, "my-settings"),
+        super::Action::RunClaudeRun {
+            name,
+            skip_dangerous,
+        } => {
+            assert_eq!(name, "my-settings");
+            assert!(!skip_dangerous);
+        }
         _ => panic!("expected RunClaudeRun action"),
+    }
+}
+
+fn claude_file(name: &str) -> droidgear_core::claude_settings_files::ClaudeSettingsFileInfo {
+    use droidgear_core::claude_settings_files::ClaudeSettingsFileInfo;
+    ClaudeSettingsFileInfo {
+        name: name.to_string(),
+        path: format!("/tmp/{name}.json"),
+        is_global: false,
+        is_active: true,
+        exists: true,
     }
 }
 
 #[test]
 fn claude_list_t_key_routes_through_run_action() {
-    use droidgear_core::claude_settings_files::ClaudeSettingsFileInfo;
     use std::path::PathBuf;
 
     let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
-    app.claude_files = vec![ClaudeSettingsFileInfo {
-        name: "my-settings".to_string(),
-        path: "/tmp/my-settings.json".to_string(),
-        is_global: false,
-        is_active: true,
-        exists: true,
-    }];
+    app.claude_files = vec![claude_file("my-settings")];
 
     let action = super::keys_claude::handle_claude_key(&mut app, KeyCode::Char('t'));
 
     match action {
-        Some(super::Action::RunClaudeRun { name }) => assert_eq!(name, "my-settings"),
+        Some(super::Action::RunClaudeRun {
+            name,
+            skip_dangerous,
+        }) => {
+            assert_eq!(name, "my-settings");
+            assert!(!skip_dangerous, "t should run without skip permissions");
+        }
         other => panic!("expected RunClaudeRun action, got {other:?}"),
     }
+}
+
+#[test]
+fn claude_list_uppercase_t_key_routes_through_skip_run() {
+    use std::path::PathBuf;
+
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.claude_files = vec![claude_file("my-settings")];
+
+    let action = super::keys_claude::handle_claude_key(&mut app, KeyCode::Char('T'));
+
+    match action {
+        Some(super::Action::RunClaudeRun {
+            name,
+            skip_dangerous,
+        }) => {
+            assert_eq!(name, "my-settings");
+            assert!(skip_dangerous, "T should run with skip permissions");
+        }
+        other => panic!("expected RunClaudeRun action, got {other:?}"),
+    }
+}
+
+#[test]
+fn claude_list_t_key_is_blocked_when_file_disables_skip_permissions() {
+    let home = TempDir::new().unwrap();
+    let mut app = app::App::new(home.path().to_path_buf());
+    app.claude_files = vec![claude_file("no-skip")];
+    // The guard reads the file from disk; write one that disables bypass.
+    write_file(
+        &home.path().join(".droidgear/claude-settings/no-skip.json"),
+        r#"{"disableBypassPermissionsMode":"disable"}"#,
+    );
+
+    let action = super::keys_claude::handle_claude_key(&mut app, KeyCode::Char('T'));
+    assert!(action.is_none(), "T should be blocked by the disable flag");
+    assert!(
+        app.toast_message().contains("disabled"),
+        "expected a toast explaining the block, got {:?}",
+        app.toast_message()
+    );
+}
+
+#[test]
+fn claude_list_s_key_sets_active_custom_file() {
+    use std::path::PathBuf;
+
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.claude_files = vec![claude_file("work"), claude_file("personal")];
+
+    let action = super::keys_claude::handle_claude_key(&mut app, KeyCode::Char('s'));
+
+    match action {
+        Some(super::Action::SetActiveClaudeSettingsFile { name }) => {
+            assert_eq!(name.as_deref(), Some("work"));
+        }
+        other => panic!("expected SetActiveClaudeSettingsFile action, got {other:?}"),
+    }
+}
+
+#[test]
+fn claude_detail_escape_with_dirty_edits_asks_for_confirmation() {
+    use std::path::PathBuf;
+
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.claude_detail_name = Some("work".to_string());
+    app.claude_detail_json = Some(serde_json::json!({"env": {}}));
+    app.claude_detail_dirty = true;
+    app.screen = app::Screen::ClaudeSettingsDetail;
+
+    super::keys_claude::handle_claude_settings_detail_key(&mut app, KeyCode::Esc);
+
+    match app.modal {
+        Some(app::Modal::Confirm {
+            action: app::ConfirmAction::ClaudeSettingsDiscardDetail,
+            ..
+        }) => {}
+        other => panic!("expected discard-confirm modal, got {other:?}"),
+    }
+    // Still on the detail screen until the user confirms.
+    assert_eq!(app.screen, app::Screen::ClaudeSettingsDetail);
+}
+
+#[test]
+fn claude_detail_escape_without_dirty_edits_exits() {
+    use std::path::PathBuf;
+
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.claude_detail_name = Some("work".to_string());
+    app.claude_detail_json = Some(serde_json::json!({"env": {}}));
+    app.claude_detail_dirty = false;
+    app.screen = app::Screen::ClaudeSettingsDetail;
+
+    super::keys_claude::handle_claude_settings_detail_key(&mut app, KeyCode::Esc);
+
+    assert_eq!(app.screen, app::Screen::ClaudeSettings);
+    assert!(app.claude_detail_name.is_none());
+}
+
+#[test]
+fn claude_detail_i_key_opens_channel_import_select() {
+    let home = TempDir::new().unwrap();
+    // The `i` key refreshes channels from disk, so write a real channels.json.
+    write_file(
+        &home.path().join(".droidgear/channels.json"),
+        r#"[{"id":"c1","name":"My Proxy","type":"general","baseUrl":"https://proxy.example.com","enabled":true,"createdAt":0}]"#,
+    );
+    let mut app = app::App::new(home.path().to_path_buf());
+    app.claude_detail_name = Some("work".to_string());
+    app.claude_detail_json = Some(serde_json::json!({"env": {}}));
+
+    super::keys_claude::handle_claude_settings_detail_key(&mut app, KeyCode::Char('i'));
+
+    match app.modal {
+        Some(app::Modal::Select {
+            action: app::SelectAction::ClaudeSettingsImportChannel,
+            options,
+            ..
+        }) => {
+            assert!(options.iter().any(|o| o.contains("My Proxy")));
+        }
+        other => panic!("expected channel-import select modal, got {other:?}"),
+    }
+}
+
+#[test]
+fn claude_detail_i_key_with_no_channels_shows_toast() {
+    use std::path::PathBuf;
+
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.claude_detail_name = Some("work".to_string());
+    app.claude_detail_json = Some(serde_json::json!({"env": {}}));
+
+    super::keys_claude::handle_claude_settings_detail_key(&mut app, KeyCode::Char('i'));
+
+    assert!(app.modal.is_none(), "no channels should not open a modal");
+    assert!(
+        app.toast_message().contains("No enabled channels"),
+        "expected a toast, got {:?}",
+        app.toast_message()
+    );
+}
+
+#[test]
+fn claude_detail_t_key_auto_saves_dirty_edits() {
+    let home = TempDir::new().unwrap();
+    write_file(&home.path().join(".claude/settings.json"), "{}");
+    write_file(
+        &home.path().join(".droidgear/claude-settings/work.json"),
+        r#"{"env":{"ANTHROPIC_MODEL":"claude-sonnet-4-5"}}"#,
+    );
+    let mut app = app::App::new(home.path().to_path_buf());
+    app.claude_detail_name = Some("work".to_string());
+    app.claude_detail_json = Some(serde_json::json!({
+        "env": {"ANTHROPIC_MODEL": "claude-sonnet-4-5", "ANTHROPIC_BASE_URL": "https://x"}
+    }));
+    app.claude_detail_dirty = true;
+
+    let action =
+        super::keys_claude::handle_claude_settings_detail_key(&mut app, KeyCode::Char('t'));
+
+    match action {
+        Some(super::Action::RunClaudeRun { name, .. }) => assert_eq!(name, "work"),
+        other => panic!("expected RunClaudeRun action, got {other:?}"),
+    }
+    assert!(!app.claude_detail_dirty, "auto-save should clear dirty");
+    let saved =
+        droidgear_core::claude_settings_files::read_settings_file_for_home(&home.path(), "work")
+            .unwrap();
+    assert_eq!(
+        saved["env"]["ANTHROPIC_BASE_URL"],
+        serde_json::Value::String("https://x".to_string())
+    );
 }
 
 #[test]

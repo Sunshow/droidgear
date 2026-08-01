@@ -108,6 +108,7 @@ pub enum ConfirmAction {
     ClaudeSettingsDelete {
         name: String,
     },
+    ClaudeSettingsDiscardDetail,
     CodexApply {
         id: String,
     },
@@ -232,6 +233,9 @@ pub enum InputAction {
     },
     ClaudeSettingsEditField {
         field_index: usize,
+    },
+    ClaudeSettingsImportApiKey {
+        channel_id: String,
     },
     CodexCreateProfile,
     CodexDuplicate {
@@ -513,6 +517,9 @@ pub enum SelectAction {
     ClaudeSettingsSetThinkingMode,
     ClaudeSettingsSetPermissionsDefaultMode,
     ClaudeSettingsSetDisableBypass,
+    ClaudeSettingsImportChannel,
+    ClaudeSettingsImportToken,
+    ClaudeSettingsImportModel,
     CodexSetProfileModelProvider {
         id: String,
     },
@@ -646,6 +653,12 @@ pub struct App {
     pub claude_detail_name: Option<String>,
     pub claude_detail_json: Option<JsonValue>,
     pub claude_detail_field_index: usize,
+    /// Whether the detail view has unsaved edits (mirrors the GUI's hasChanges).
+    pub claude_detail_dirty: bool,
+    /// Pending channel-import values, filled by the import flow in modal.rs.
+    pub claude_import_pending_base_url: Option<String>,
+    pub claude_import_pending_api_key: Option<String>,
+    pub claude_import_pending_platform: Option<String>,
 
     pub codex_profiles: Vec<CodexProfile>,
     pub codex_active_id: Option<String>,
@@ -793,6 +806,10 @@ impl App {
             claude_detail_name: None,
             claude_detail_json: None,
             claude_detail_field_index: 0,
+            claude_detail_dirty: false,
+            claude_import_pending_base_url: None,
+            claude_import_pending_api_key: None,
+            claude_import_pending_platform: None,
             codex_profiles: Vec::new(),
             codex_active_id: None,
             codex_index: 0,
@@ -921,6 +938,14 @@ impl App {
             message: message.into(),
             is_error,
         });
+    }
+
+    #[cfg(test)]
+    pub fn toast_message(&self) -> &str {
+        self.toast
+            .as_ref()
+            .map(|t| t.message.as_str())
+            .unwrap_or("")
     }
 
     pub fn clear_toast(&mut self) {

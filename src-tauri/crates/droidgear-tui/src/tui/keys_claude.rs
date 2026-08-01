@@ -19,6 +19,7 @@ pub(super) fn handle_claude_key(app: &mut app::App, code: KeyCode) -> Option<Act
             if let Some(file) = app.claude_files.get(app.claude_index) {
                 app.claude_detail_name = Some(file.name.clone());
                 app.claude_detail_field_index = 0;
+                app.claude_detail_dirty = false;
                 app.screen = app::Screen::ClaudeSettingsDetail;
                 refresh_claude_detail(app);
             }
@@ -72,10 +73,36 @@ pub(super) fn handle_claude_key(app: &mut app::App, code: KeyCode) -> Option<Act
                 }
             }
         }
+        KeyCode::Char('s') => {
+            if let Some(file) = app.claude_files.get(app.claude_index) {
+                let name = if file.is_global {
+                    None
+                } else {
+                    Some(file.name.clone())
+                };
+                return Some(Action::SetActiveClaudeSettingsFile { name });
+            }
+        }
         KeyCode::Char('t') => {
             if let Some(file) = app.claude_files.get(app.claude_index) {
                 return Some(Action::RunClaudeRun {
                     name: file.name.clone(),
+                    skip_dangerous: false,
+                });
+            }
+        }
+        KeyCode::Char('T') => {
+            if let Some(file) = app.claude_files.get(app.claude_index) {
+                if claude_skip_permissions_disabled(app, &file.name) {
+                    app.set_toast(
+                        "Running with --dangerously-skip-permissions is disabled by this settings file",
+                        true,
+                    );
+                    return None;
+                }
+                return Some(Action::RunClaudeRun {
+                    name: file.name.clone(),
+                    skip_dangerous: true,
                 });
             }
         }
@@ -92,6 +119,57 @@ pub(super) fn handle_claude_key(app: &mut app::App, code: KeyCode) -> Option<Act
     None
 }
 
+/// Returns true when the settings file disables `--dangerously-skip-permissions`
+/// via `disableBypassPermissionsMode`. Mirrors the GUI RunSkip button guard.
+fn claude_skip_permissions_disabled(app: &app::App, name: &str) -> bool {
+    droidgear_core::claude_settings_files::read_settings_file_for_home(&app.home_dir, name)
+        .ok()
+        .map(|json| {
+            json.get("disableBypassPermissionsMode")
+                .and_then(serde_json::Value::as_str)
+                .map(|s| s == "disable")
+                .unwrap_or(false)
+        })
+        .unwrap_or(false)
+}
+
+/// Saves the detail JSON to disk when it has unsaved edits. Returns true when
+/// nothing was pending or the save succeeded. Mirrors the GUI launch flow,
+/// which auto-saves before running.
+fn claude_save_detail_if_dirty(app: &mut app::App) -> bool {
+    if !app.claude_detail_dirty {
+        return true;
+    }
+    let Some(name) = app.claude_detail_name.clone() else {
+        return true;
+    };
+    let Some(json) = app.claude_detail_json.clone() else {
+        return true;
+    };
+    match droidgear_core::claude_settings_files::save_settings_file_for_home(
+        &app.home_dir,
+        &name,
+        json,
+    ) {
+        Ok(()) => {
+            app.claude_detail_dirty = false;
+            app.set_toast(format!("Saved '{}'", name), false);
+            true
+        }
+        Err(e) => {
+            app.set_toast(e, true);
+            false
+        }
+    }
+}
+
+pub(super) fn exit_claude_detail(app: &mut app::App) {
+    app.screen = app::Screen::ClaudeSettings;
+    app.claude_detail_name = None;
+    app.claude_detail_json = None;
+    app.claude_detail_dirty = false;
+}
+
 pub(super) fn handle_claude_settings_detail_key(
     app: &mut app::App,
     code: KeyCode,
@@ -102,9 +180,14 @@ pub(super) fn handle_claude_settings_detail_key(
 
     match code {
         KeyCode::Esc | KeyCode::Char('q') => {
-            app.screen = app::Screen::ClaudeSettings;
-            app.claude_detail_name = None;
-            app.claude_detail_json = None;
+            if app.claude_detail_dirty {
+                app.modal = Some(app::Modal::Confirm {
+                    message: format!("Discard unsaved changes to '{name}'?"),
+                    action: app::ConfirmAction::ClaudeSettingsDiscardDetail,
+                });
+            } else {
+                exit_claude_detail(app);
+            }
         }
         KeyCode::Down => {
             app.claude_detail_field_index = app.claude_detail_field_index.saturating_add(1)
@@ -117,12 +200,77 @@ pub(super) fn handle_claude_settings_detail_key(
                 match droidgear_core::claude_settings_files::save_settings_file_for_home(
                     &app.home_dir,
                     &name,
-                    json,
+                    json.clone(),
                 ) {
-                    Ok(()) => app.set_toast(format!("Saved '{}'", name), false),
+                    Ok(()) => {
+                        app.claude_detail_dirty = false;
+                        app.set_toast(format!("Saved '{}'", name), false);
+                    }
                     Err(e) => app.set_toast(e, true),
                 }
             }
+        }
+        KeyCode::Char('t') => {
+            if !claude_save_detail_if_dirty(app) {
+                return None;
+            }
+            return Some(Action::RunClaudeRun {
+                name,
+                skip_dangerous: false,
+            });
+        }
+        KeyCode::Char('T') => {
+            if claude_skip_permissions_disabled(app, &name) {
+                app.set_toast(
+                    "Running with --dangerously-skip-permissions is disabled by this settings file",
+                    true,
+                );
+                return None;
+            }
+            if !claude_save_detail_if_dirty(app) {
+                return None;
+            }
+            return Some(Action::RunClaudeRun {
+                name,
+                skip_dangerous: true,
+            });
+        }
+        KeyCode::Char('p') => {
+            if !claude_save_detail_if_dirty(app) {
+                return None;
+            }
+            return Some(Action::PreviewClaudeRun { name });
+        }
+        KeyCode::Char('a') => {
+            app.modal = Some(app::Modal::Confirm {
+                message: format!("Merge Claude settings '{name}' into global?"),
+                action: app::ConfirmAction::ClaudeSettingsApply { name },
+            });
+        }
+        KeyCode::Char('l') => match claude_load_from_live_config(app, &name) {
+            Ok(()) => {
+                app.set_toast(format!("Loaded live config into '{name}'"), false);
+                app.claude_detail_dirty = false;
+                refresh_claude_detail(app);
+            }
+            Err(e) => app.set_toast(e.to_string(), true),
+        },
+        KeyCode::Char('i') => {
+            refresh_channels(app);
+            let enabled: Vec<_> = app.channels.iter().filter(|c| c.enabled).collect();
+            if enabled.is_empty() {
+                app.set_toast("No enabled channels available for import", true);
+                return None;
+            }
+            app.modal = Some(app::Modal::Select {
+                title: "Import from Channel".to_string(),
+                options: enabled
+                    .iter()
+                    .map(|c| format!("{} ({})", c.name, c.base_url))
+                    .collect(),
+                index: 0,
+                action: app::SelectAction::ClaudeSettingsImportChannel,
+            });
         }
         KeyCode::Enter => {
             // Edit the selected field
@@ -144,6 +292,7 @@ pub(super) fn handle_claude_settings_detail_key(
                 3 | 5 | 8 | 9 | 13 => {
                     // Toggle fields: small_model_mirror, 1M_context, autoUpdate, includeCoAuthoredBy, skipDangerous
                     toggle_claude_field(app, field_idx);
+                    app.claude_detail_dirty = true;
                 }
                 6 => {
                     // Reasoning effort select
@@ -311,28 +460,43 @@ fn toggle_claude_field(app: &mut app::App, idx: usize) {
             }
         }
         5 => {
-            // 1M context: toggle [1m] suffix on model
+            // 1M context: toggle [1m] suffix on the model. Reads the resolved
+            // model (env first, then top-level `model`) and writes the result
+            // into env, removing a stale top-level `model` — same semantics as
+            // the GUI `toggleModel1MContext` + `syncTopLevelModel`.
+            let resolved = obj
+                .get("env")
+                .and_then(|env| env.get("ANTHROPIC_MODEL"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .or_else(|| {
+                    obj.get("model")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string())
+                })
+                .unwrap_or_default();
+            if resolved.is_empty() {
+                return;
+            }
+            let stripped = resolved.trim_end_matches("[1m]").to_string();
+            if stripped.is_empty() {
+                return;
+            }
+            let next = if resolved.ends_with("[1m]") {
+                stripped
+            } else {
+                format!("{stripped}[1m]")
+            };
             let env = obj
                 .entry("env".to_string())
                 .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
             if let Some(env_obj) = env.as_object_mut() {
-                let current = env_obj
-                    .get("ANTHROPIC_MODEL")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
-                if current.ends_with("[1m]") {
-                    let stripped = current.trim_end_matches("[1m]").to_string();
-                    env_obj.insert(
-                        "ANTHROPIC_MODEL".to_string(),
-                        serde_json::Value::String(stripped),
-                    );
-                } else if !current.is_empty() {
-                    env_obj.insert(
-                        "ANTHROPIC_MODEL".to_string(),
-                        serde_json::Value::String(format!("{current}[1m]")),
-                    );
-                }
+                env_obj.insert(
+                    "ANTHROPIC_MODEL".to_string(),
+                    serde_json::Value::String(next),
+                );
             }
+            obj.remove("model");
         }
         8 => {
             // autoUpdate toggle

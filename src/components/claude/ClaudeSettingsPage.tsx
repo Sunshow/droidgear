@@ -31,7 +31,6 @@ import {
   CLAUDE_SMALL_MODEL_ENV,
   type ClaudeReasoningEffort,
   type ClaudeThinkingMode,
-  cleanupDocument,
   getEnvString,
   getReasoningEffort,
   getThinkingMode,
@@ -124,8 +123,6 @@ export function ClaudeSettingsPage() {
   }
 
   const handleSave = async () => {
-    // Clean up stale top-level fields before persisting.
-    patchJson(cleanupDocument)
     await saveFile()
     const latestError = useClaudeSettingsStore.getState().error
     if (latestError) {
@@ -616,6 +613,10 @@ function ModelSection({ json, patchJson }: SectionProps) {
         <Checkbox
           id="claude-small-model-mirror"
           checked={mirror}
+          disabled={!model}
+          title={
+            !model ? t('claude.model.smallModelUsesMainModelNoMain') : undefined
+          }
           onCheckedChange={checked => {
             const next = checked === true
             patchJson(draft => {

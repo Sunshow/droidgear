@@ -533,7 +533,11 @@ pub fn list_claude_temporary_run_targets(home_dir: &Path) -> anyhow::Result<Stri
 // File-based temp run (settings file name → plan)
 // ---------------------------------------------------------------------------
 
-pub fn run_claude_temporary_run_from_file(home_dir: &Path, file_name: &str) -> anyhow::Result<()> {
+pub fn run_claude_temporary_run_from_file(
+    home_dir: &Path,
+    file_name: &str,
+    skip_dangerous: bool,
+) -> anyhow::Result<()> {
     probe_claude_cli().map_err(|error| {
         let message = error.to_string();
         if message.starts_with("Failed to execute claude --version") {
@@ -559,7 +563,7 @@ pub fn run_claude_temporary_run_from_file(home_dir: &Path, file_name: &str) -> a
     let launch_plan = droidgear_core::claude_runtime::build_settings_launch_plan_for_home(
         home_dir,
         &settings_path,
-        false,
+        skip_dangerous,
         &launcher_program,
         &launcher_args,
     )

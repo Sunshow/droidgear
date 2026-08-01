@@ -178,21 +178,19 @@ export function setThinkingMode(
 }
 
 /**
- * Mirroring is ON only when the small model is explicitly set to the same
- * value as the main model. This aligns with the Rust apply logic where
- * `small_model_uses_main_model = true` writes
- * `ANTHROPIC_DEFAULT_HAIKU_MODEL = model`.
+ * Mirroring is ON when the small model is not explicitly configured.
  *
- * When nothing is configured or the small model differs from the main
- * model, mirroring is OFF.
+ * This matches Claude Code's native behaviour: when
+ * `ANTHROPIC_DEFAULT_HAIKU_MODEL` is unset, the small model follows the main
+ * model at runtime. Explicitly setting a small model value (even one equal to
+ * the main model) exits mirroring.
+ *
+ * Kept in sync with the TUI (`keys_claude.rs` toggle + `ui.rs` detail view).
  */
 export function isSmallModelMirroringMain(
   doc: ClaudeSettingsDoc | null | undefined
 ): boolean {
-  const main = getEnvString(doc, CLAUDE_MODEL_ENV)
-  const small = getEnvString(doc, CLAUDE_SMALL_MODEL_ENV)
-  if (!main || !small) return false
-  return small === main
+  return !getEnvString(doc, CLAUDE_SMALL_MODEL_ENV)
 }
 
 export function setSmallModelMirroring(
@@ -201,16 +199,16 @@ export function setSmallModelMirroring(
   mainModel: string | null
 ): void {
   if (mirror) {
-    // Enable mirroring: set small model to main model value.
-    // This aligns with Rust `apply_profile_to_settings_path` which writes
-    // `ANTHROPIC_DEFAULT_HAIKU_MODEL = model` when
-    // `small_model_uses_main_model = true`.
+    // Enable mirroring: remove the explicit small model so Claude Code
+    // follows the main model. Mirrors the TUI toggle behaviour.
+    setEnvString(draft, CLAUDE_SMALL_MODEL_ENV, null)
+  } else {
+    // Disable mirroring: snapshot the main model into the small model field
+    // so the user has a concrete value to edit. No-op without a main model
+    // (mirrors the TUI toggle, which also cannot write a snapshot then).
     if (mainModel) {
       setEnvString(draft, CLAUDE_SMALL_MODEL_ENV, mainModel)
     }
-  } else {
-    // Disable mirroring: clear the small model so the user can input a different one.
-    setEnvString(draft, CLAUDE_SMALL_MODEL_ENV, null)
   }
 }
 
@@ -274,12 +272,4 @@ export function syncTopLevelModel(draft: ClaudeSettingsDoc): void {
   if (envModel) {
     Reflect.deleteProperty(draft, 'model')
   }
-}
-
-/**
- * Clean up the document before saving. Removes stale top-level `model` when
- * `ANTHROPIC_MODEL` env is present, keeping the config unambiguous.
- */
-export function cleanupDocument(draft: ClaudeSettingsDoc): void {
-  syncTopLevelModel(draft)
 }
