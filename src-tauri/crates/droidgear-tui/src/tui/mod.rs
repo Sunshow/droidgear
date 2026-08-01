@@ -200,7 +200,7 @@ fn resume_terminal(terminal: &mut UiTerminal) -> anyhow::Result<()> {
 
 fn refresh_screen_data(app: &mut app::App) {
     match app.screen {
-        app::Screen::Main => {}
+        app::Screen::Main | app::Screen::FeatureList => {}
         app::Screen::Paths => refresh_paths(app),
         app::Screen::Factory => refresh_factory(app),
         app::Screen::FactoryModel => {}

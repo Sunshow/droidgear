@@ -8,6 +8,7 @@ pub(super) fn handle_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
 
     match app.screen {
         app::Screen::Main => handle_main_key(app, code),
+        app::Screen::FeatureList => handle_feature_list_key(app, code),
         app::Screen::Paths => handle_paths_key(app, code),
         app::Screen::DroidSettingsFiles => handle_droid_settings_files_key(app, code),
         app::Screen::Factory => handle_factory_key(app, code),
@@ -49,6 +50,53 @@ pub(super) fn handle_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
     }
 }
 
+/// Open the module picker for the current screen's position.
+fn open_nav_picker(app: &mut app::App) {
+    let targets = app::App::nav_targets();
+    let options: Vec<String> = targets.iter().map(|(label, _)| label.clone()).collect();
+    let index = targets
+        .iter()
+        .position(|(_, screen)| *screen == app.screen)
+        .unwrap_or(0)
+        .min(options.len().saturating_sub(1));
+    app.modal_filter.clear();
+    app.modal = Some(app::Modal::Select {
+        title: "Open module".to_string(),
+        options,
+        index,
+        action: app::SelectAction::GoToNav,
+    });
+}
+
+/// Enter on the selected nav group: multi-item groups open the feature
+/// list, single-item groups open their screen directly.
+fn open_selected_group(app: &mut app::App) {
+    let Some(group) = app::App::nav_groups().get(app.nav_index) else {
+        return;
+    };
+    if group.items.len() > 1 {
+        app.screen = app::Screen::FeatureList;
+        app.feature_index = 0;
+    } else {
+        app.screen = group.items[0].1;
+        app.clear_toast();
+        refresh_screen_data(app);
+    }
+}
+
+/// Enter on the selected feature inside the current group.
+fn open_selected_feature(app: &mut app::App) {
+    let Some(group) = app::App::nav_groups().get(app.nav_index) else {
+        return;
+    };
+    let Some((_, screen)) = group.items.get(app.feature_index) else {
+        return;
+    };
+    app.screen = *screen;
+    app.clear_toast();
+    refresh_screen_data(app);
+}
+
 pub(super) fn handle_main_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
     match code {
         KeyCode::Char('q') => {
@@ -57,28 +105,22 @@ pub(super) fn handle_main_key(app: &mut app::App, code: KeyCode) -> Option<Actio
                 action: app::ConfirmAction::Quit,
             })
         }
-        KeyCode::Char('s') => {
-            let options: Vec<String> = app::App::nav_items()
-                .iter()
-                .map(|(label, _)| (*label).to_string())
-                .collect();
-            let index = app.nav_index.min(options.len().saturating_sub(1));
-            app.modal = Some(app::Modal::Select {
-                title: "Open module".to_string(),
-                options,
-                index,
-                action: app::SelectAction::GoToNav,
-            });
-        }
+        KeyCode::Char('s') => open_nav_picker(app),
         KeyCode::Down => app.nav_index = app.nav_index.saturating_add(1),
         KeyCode::Up => app.nav_index = app.nav_index.saturating_sub(1),
-        KeyCode::Enter => {
-            if let Some((_, screen)) = app::App::nav_items().get(app.nav_index) {
-                app.screen = *screen;
-                app.clear_toast();
-                refresh_screen_data(app);
-            }
-        }
+        KeyCode::Enter => open_selected_group(app),
+        _ => {}
+    }
+    None
+}
+
+pub(super) fn handle_feature_list_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
+    match code {
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
+        KeyCode::Char('s') => open_nav_picker(app),
+        KeyCode::Down => app.feature_index = app.feature_index.saturating_add(1),
+        KeyCode::Up => app.feature_index = app.feature_index.saturating_sub(1),
+        KeyCode::Enter => open_selected_feature(app),
         _ => {}
     }
     None

@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn handle_mcp_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
     match code {
-        KeyCode::Esc | KeyCode::Char('q') => app.screen = app::Screen::Main,
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
         KeyCode::Down => app.mcp_index = app.mcp_index.saturating_add(1),
         KeyCode::Up => app.mcp_index = app.mcp_index.saturating_sub(1),
         KeyCode::Char('r') => refresh_mcp(app),
@@ -70,7 +70,7 @@ pub(super) fn handle_mcp_server_key(app: &mut app::App, code: KeyCode) -> Option
         KeyCode::Esc | KeyCode::Char('q') => {
             app.mcp_edit_draft = None;
             app.mcp_edit_original_name = None;
-            app.screen = app::Screen::Mcp;
+            app.go_back();
         }
         KeyCode::Down => app.mcp_edit_field_index = app.mcp_edit_field_index.saturating_add(1),
         KeyCode::Up => app.mcp_edit_field_index = app.mcp_edit_field_index.saturating_sub(1),
@@ -277,7 +277,7 @@ pub(super) fn handle_mcp_server_key(app: &mut app::App, code: KeyCode) -> Option
 
 pub(super) fn handle_mcp_args_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
     match code {
-        KeyCode::Esc | KeyCode::Char('q') => app.screen = app::Screen::McpServer,
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
         KeyCode::Down => app.mcp_args_index = app.mcp_args_index.saturating_add(1),
         KeyCode::Up => app.mcp_args_index = app.mcp_args_index.saturating_sub(1),
         KeyCode::Char('n') => {
@@ -350,7 +350,7 @@ pub(super) fn handle_mcp_key_values_key(app: &mut app::App, code: KeyCode) -> Op
     keys.sort_by_key(|a| a.to_lowercase());
 
     match code {
-        KeyCode::Esc | KeyCode::Char('q') => app.screen = app::Screen::McpServer,
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
         KeyCode::Down => app.mcp_kv_index = app.mcp_kv_index.saturating_add(1),
         KeyCode::Up => app.mcp_kv_index = app.mcp_kv_index.saturating_sub(1),
         KeyCode::Char('n') => {

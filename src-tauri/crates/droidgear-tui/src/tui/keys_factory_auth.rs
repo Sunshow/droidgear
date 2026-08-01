@@ -15,7 +15,7 @@ pub(super) fn refresh_factory_auth(app: &mut app::App) {
 pub(super) fn handle_factory_auth_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
     match code {
         KeyCode::Esc | KeyCode::Char('q') => {
-            app.screen = app::Screen::Main;
+            app.go_back();
         }
         KeyCode::Up | KeyCode::Char('k') => {
             app.factory_auth_index = app.factory_auth_index.saturating_sub(1);
