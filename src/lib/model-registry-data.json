@@ -387,11 +387,80 @@
     "contextWindow": 1000000,
     "maxOutputTokens": 384000,
     "reasoningConfig": {
-      "efforts": ["none", "low", "medium", "high"],
-      "profiles": {
-        "anthropic": "anthropic-output-config",
-        "openai": "openai-reasoning",
-        "generic-chat-completion-api": "openai-reasoning"
+      "efforts": ["none", "low", "high", "max"],
+      "encoding": {
+        "openai": {
+          "none": {
+            "extraArgsFragment": {
+              "thinking": {
+                "type": "disabled"
+              }
+            }
+          },
+          "low": {
+            "extraArgsFragment": {
+              "thinking": {
+                "type": "enabled"
+              },
+              "reasoning_effort": "low"
+            }
+          },
+          "high": {
+            "extraArgsFragment": {
+              "thinking": {
+                "type": "enabled"
+              },
+              "reasoning_effort": "high"
+            }
+          },
+          "max": {
+            "extraArgsFragment": {
+              "thinking": {
+                "type": "enabled"
+              },
+              "reasoning_effort": "max"
+            }
+          }
+        },
+        "anthropic": {
+          "none": {
+            "extraArgsFragment": {
+              "thinking": {
+                "type": "disabled"
+              }
+            }
+          },
+          "low": {
+            "extraArgsFragment": {
+              "thinking": {
+                "type": "enabled"
+              },
+              "output_config": {
+                "effort": "low"
+              }
+            }
+          },
+          "high": {
+            "extraArgsFragment": {
+              "thinking": {
+                "type": "enabled"
+              },
+              "output_config": {
+                "effort": "high"
+              }
+            }
+          },
+          "max": {
+            "extraArgsFragment": {
+              "thinking": {
+                "type": "enabled"
+              },
+              "output_config": {
+                "effort": "max"
+              }
+            }
+          }
+        }
       }
     }
   },
