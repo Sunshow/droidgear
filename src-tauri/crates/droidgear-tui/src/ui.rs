@@ -344,8 +344,8 @@ pub fn draw(frame: &mut Frame, app: &app::App) {
     draw_nav(frame, app, chunks[0]);
     draw_main(frame, app, chunks[1]);
 
-    if let Some(modal) = app.modal.as_ref() {
-        draw_modal(frame, modal);
+    if app.modal.is_some() {
+        draw_modal(frame, app);
     } else if let Some(toast) = app.toast.as_ref() {
         draw_toast(frame, toast);
     }
@@ -353,12 +353,31 @@ pub fn draw(frame: &mut Frame, app: &app::App) {
 
 fn draw_nav(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
-    let items: Vec<ListItem> = app::App::nav_items()
-        .iter()
-        .map(|(label, _)| ListItem::new(Line::from(*label)))
-        .collect();
+    let groups = app::App::nav_groups();
+    let mut items: Vec<ListItem> = Vec::new();
+    // Rendered list row for each group: separators shift rows, but the
+    // selection (nav_index) indexes groups, so map group -> rendered row.
+    let mut rendered: Vec<usize> = Vec::with_capacity(groups.len());
+    for (i, group) in groups.iter().enumerate() {
+        // Separator before the first system group (global features such as
+        // Channels and Paths, set apart from the tool groups).
+        if group.system && i > 0 && !groups[i - 1].system {
+            items.push(ListItem::new(Line::from(Span::styled(
+                "─".repeat(area.width.saturating_sub(2) as usize),
+                t.dim_style(),
+            ))));
+        }
+        rendered.push(items.len());
+        let label = if group.items.len() > 1 {
+            format!("{} ({})", group.label, group.items.len())
+        } else {
+            group.label.to_string()
+        };
+        items.push(ListItem::new(Line::from(label)));
+    }
 
-    let selected = (app.screen == app::Screen::Main).then_some(app.nav_index);
+    let on_nav = app.screen == app::Screen::Main || app.screen == app::Screen::FeatureList;
+    let selected = on_nav.then(|| rendered.get(app.nav_index).copied().unwrap_or(0));
     let list = List::new(items)
         .block(block("DroidGear"))
         .highlight_style(t.selected_row_style());
@@ -368,6 +387,7 @@ fn draw_nav(frame: &mut Frame, app: &app::App, area: Rect) {
 fn draw_main(frame: &mut Frame, app: &app::App, area: Rect) {
     match app.screen {
         app::Screen::Main => draw_home(frame, area),
+        app::Screen::FeatureList => draw_feature_list(frame, app, area),
         app::Screen::Paths => draw_paths(frame, app, area),
         app::Screen::DroidSettingsFiles => draw_droid_settings_files(frame, app, area),
         app::Screen::Factory => draw_factory(frame, app, area),
@@ -411,7 +431,7 @@ fn draw_main(frame: &mut Frame, app: &app::App, area: Rect) {
 
 fn draw_home(frame: &mut Frame, area: Rect) {
     let text = vec![
-        help_line("Enter: open module"),
+        help_line("Enter: open group"),
         help_line("s: module picker"),
         help_line("Up/Down: navigate"),
         help_line("q: quit"),
@@ -420,6 +440,49 @@ fn draw_home(frame: &mut Frame, area: Rect) {
         .block(block("Home"))
         .wrap(Wrap { trim: true });
     frame.render_widget(p, area);
+}
+
+fn draw_feature_list(frame: &mut Frame, app: &app::App, area: Rect) {
+    let t = theme();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
+
+    let Some(group) = app::App::nav_groups().get(app.nav_index) else {
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "No group selected",
+            t.warning_style(),
+        ))])
+        .block(block("Features"))
+        .wrap(Wrap { trim: true });
+        frame.render_widget(p, chunks[0]);
+        frame.render_widget(help_paragraph("q/Esc: back"), chunks[1]);
+        return;
+    };
+
+    let mut items: Vec<ListItem> = Vec::new();
+    for (i, (feature, _)) in group.items.iter().enumerate() {
+        let marker = if i == app.feature_index { "▸ " } else { "  " };
+        items.push(ListItem::new(Line::from(format!("{marker}{feature}"))));
+    }
+
+    let list = List::new(items)
+        .block(block(group.label))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, list, chunks[0], Some(app.feature_index));
+
+    let help = help_paragraph("Up/Down: select  Enter: open  s: picker  q/Esc: back");
+    frame.render_widget(help, chunks[1]);
+}
+
+/// Block title for a screen in a multi-item nav group, e.g. "Droid ▸ Models".
+/// Screens without a crumb keep their original title.
+fn crumb_title(app: &app::App, original: &str) -> String {
+    match app::App::feature_crumb(app.screen) {
+        Some((group, feature)) => format!("{group} ▸ {feature}"),
+        None => original.to_string(),
+    }
 }
 
 fn draw_paths(frame: &mut Frame, app: &app::App, area: Rect) {
@@ -533,7 +596,7 @@ fn draw_droid_settings_files(frame: &mut Frame, app: &app::App, area: Rect) {
     }
 
     let p = Paragraph::new(lines)
-        .block(block("Droid Settings Files"))
+        .block(block(crumb_title(app, "Droid Settings Files")))
         .wrap(Wrap { trim: false });
     frame.render_widget(p, chunks[0]);
 
@@ -588,9 +651,12 @@ fn draw_factory(frame: &mut Frame, app: &app::App, area: Rect) {
         ))));
     }
 
+    let crumb = app::App::feature_crumb(app.screen)
+        .map(|(group, feature)| format!("{group} ▸ {feature}"))
+        .unwrap_or_else(|| "Factory".to_string());
     let title = match app.factory_default_model_id.as_deref() {
-        Some(id) => format!("Factory (default model: {id})"),
-        None => "Factory (default model: -)".to_string(),
+        Some(id) => format!("{crumb} (default model: {id})"),
+        None => format!("{crumb} (default model: -)"),
     };
 
     let selected = (!app.custom_models.is_empty()).then_some(app.factory_models_index);
@@ -783,7 +849,7 @@ fn draw_mcp(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let selected = (!app.mcp_servers.is_empty()).then_some(app.mcp_index);
     let list = List::new(items)
-        .block(block("MCP"))
+        .block(block(crumb_title(app, "MCP")))
         .highlight_style(t.selected_row_style());
     render_list(frame, list, chunks[0], selected);
 
@@ -975,7 +1041,7 @@ fn draw_codex_profiles(frame: &mut Frame, app: &app::App, area: Rect) {
     draw_profile_list(
         frame,
         area,
-        "Codex Profiles",
+        &crumb_title(app, "Codex Profiles"),
         app.codex_profiles
             .iter()
             .map(|p| (p.name.as_str(), p.id.as_str())),
@@ -1214,7 +1280,7 @@ fn draw_openclaw_profiles(frame: &mut Frame, app: &app::App, area: Rect) {
     draw_profile_list(
         frame,
         area,
-        "OpenClaw Profiles",
+        &crumb_title(app, "OpenClaw Profiles"),
         app.openclaw_profiles
             .iter()
             .map(|p| (p.name.as_str(), p.id.as_str())),
@@ -1559,7 +1625,7 @@ fn draw_openclaw_helpers(frame: &mut Frame, app: &app::App, area: Rect) {
             "Failed to load profile",
             t.error_style(),
         ))])
-        .block(block("OpenClaw Helpers"))
+        .block(block(crumb_title(app, "OpenClaw Helpers")))
         .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
         return;
@@ -1623,7 +1689,7 @@ fn draw_openclaw_helpers(frame: &mut Frame, app: &app::App, area: Rect) {
         .split(area);
 
     let list = List::new(items)
-        .block(block("OpenClaw Helpers"))
+        .block(block(crumb_title(app, "OpenClaw Helpers")))
         .highlight_style(t.selected_row_style());
     render_list(
         frame,
@@ -1705,7 +1771,7 @@ fn draw_openclaw_subagents(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let selected = (!non_main.is_empty()).then_some(app.openclaw_subagents_index);
     let list = List::new(items)
-        .block(block("OpenClaw Subagents"))
+        .block(block(crumb_title(app, "OpenClaw Subagents")))
         .highlight_style(t.selected_row_style());
     render_list(frame, list, chunks[0], selected);
 
@@ -2395,7 +2461,7 @@ fn draw_sessions(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let selected = (!app.sessions.is_empty()).then_some(app.sessions_index);
     let list = List::new(items)
-        .block(block("Sessions"))
+        .block(block(crumb_title(app, "Sessions")))
         .highlight_style(t.selected_row_style());
     render_list(frame, list, chunks[0], selected);
 
@@ -2423,7 +2489,7 @@ fn draw_specs(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let selected = (!app.specs.is_empty()).then_some(app.specs_index);
     let list = List::new(items)
-        .block(block("Specs"))
+        .block(block(crumb_title(app, "Specs")))
         .highlight_style(t.selected_row_style());
     render_list(frame, list, chunks[0], selected);
 
@@ -2633,10 +2699,13 @@ fn draw_profile_list<'a>(
     frame.render_widget(help, chunks[1]);
 }
 
-fn draw_modal(frame: &mut Frame, modal: &app::Modal) {
+fn draw_modal(frame: &mut Frame, app: &app::App) {
     let t = theme();
     let area = centered_rect(70, 30, frame.area());
     frame.render_widget(Clear, area);
+    let Some(modal) = app.modal.as_ref() else {
+        return;
+    };
     match modal {
         app::Modal::Confirm { message, .. } => {
             let text = vec![
@@ -2738,7 +2807,7 @@ fn draw_modal(frame: &mut Frame, modal: &app::Modal) {
             title,
             options,
             index,
-            ..
+            action,
         } => {
             let mut lines: Vec<Line> = Vec::new();
             if options.is_empty() {
@@ -2753,7 +2822,19 @@ fn draw_modal(frame: &mut Frame, modal: &app::Modal) {
                 }
             }
             lines.push(Line::from(""));
-            lines.push(hint_line("Up/Down: select  Enter: confirm  Esc: cancel"));
+            let hint = if matches!(action, app::SelectAction::GoToNav) {
+                format!(
+                    "Up/Down: select  type: filter ({})  Enter: confirm  Esc: cancel",
+                    if app.modal_filter.is_empty() {
+                        "none".to_string()
+                    } else {
+                        app.modal_filter.clone()
+                    }
+                )
+            } else {
+                "Up/Down: select  Enter: confirm  Esc: cancel".to_string()
+            };
+            lines.push(hint_line(&hint));
             let block = block(title.as_str()).border_style(t.focused_border_style());
             let p = Paragraph::new(lines)
                 .block(block)
@@ -2895,7 +2976,7 @@ fn draw_missions(frame: &mut Frame, app: &app::App, area: Rect) {
     }
 
     let list = List::new(items)
-        .block(block("Missions"))
+        .block(block(crumb_title(app, "Missions")))
         .highlight_style(t.selected_row_style());
     render_list(frame, list, chunks[0], Some(app.mission_field_index));
 
@@ -3467,7 +3548,7 @@ fn draw_factory_auth(frame: &mut Frame, app: &app::App, area: Rect) {
     let list = Paragraph::new(lines).block(
         Block::default()
             .borders(Borders::ALL)
-            .title(" Factory Auth Profiles "),
+            .title(crumb_title(app, " Factory Auth Profiles ")),
     );
     frame.render_widget(list, chunks[0]);
 
@@ -3525,10 +3606,11 @@ fn draw_codex_auth(frame: &mut Frame, app: &app::App, area: Rect) {
         )));
     }
 
+    let crumb = crumb_title(app, "Codex Auth Profiles");
     let title = if app.codex_auth_is_current_official {
-        " Codex Auth Profiles (current: official) "
+        format!(" {crumb} (current: official) ")
     } else {
-        " Codex Auth Profiles (current: BYOK) "
+        format!(" {crumb} (current: BYOK) ")
     };
     let list = Paragraph::new(lines).block(Block::default().borders(Borders::ALL).title(title));
     frame.render_widget(list, chunks[0]);

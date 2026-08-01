@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn handle_hermes_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
     match code {
-        KeyCode::Esc | KeyCode::Char('q') => app.screen = app::Screen::Main,
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
         KeyCode::Down => app.hermes_index = app.hermes_index.saturating_add(1),
         KeyCode::Up => app.hermes_index = app.hermes_index.saturating_sub(1),
         KeyCode::Char('r') => refresh_hermes(app),
@@ -67,7 +67,7 @@ pub(super) fn handle_hermes_profile_key(app: &mut app::App, code: KeyCode) -> Op
 
     match code {
         KeyCode::Esc | KeyCode::Char('q') => {
-            app.screen = app::Screen::Hermes;
+            app.go_back();
         }
         KeyCode::Down => {
             app.hermes_detail_field_index = app.hermes_detail_field_index.saturating_add(1)
@@ -193,7 +193,7 @@ pub(super) fn handle_hermes_provider_key(app: &mut app::App, code: KeyCode) -> O
 
     match code {
         KeyCode::Esc | KeyCode::Char('q') => {
-            app.screen = app::Screen::HermesProfile;
+            app.go_back();
         }
         KeyCode::Down => {
             app.hermes_provider_field_index = app.hermes_provider_field_index.saturating_add(1)

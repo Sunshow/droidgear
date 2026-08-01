@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn handle_channels_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
     match code {
-        KeyCode::Esc | KeyCode::Char('q') => app.screen = app::Screen::Main,
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
         KeyCode::Down => app.channels_index = app.channels_index.saturating_add(1),
         KeyCode::Up => app.channels_index = app.channels_index.saturating_sub(1),
         KeyCode::Char('r') => refresh_channels(app),
@@ -123,7 +123,7 @@ pub(super) fn handle_channels_edit_key(app: &mut app::App, code: KeyCode) -> Opt
             app.channels_edit_username.clear();
             app.channels_edit_password.clear();
             app.channels_edit_api_key.clear();
-            app.screen = app::Screen::Channels;
+            app.go_back();
         }
         KeyCode::Down => {
             app.channels_edit_field_index = app.channels_edit_field_index.saturating_add(1)

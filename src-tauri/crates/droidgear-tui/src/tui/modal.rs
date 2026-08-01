@@ -123,15 +123,54 @@ pub(super) fn handle_modal_key(app: &mut app::App, code: KeyCode, modal: app::Mo
             mut index,
             action,
         } => match code {
-            KeyCode::Esc => app.modal = None,
+            KeyCode::Esc => {
+                app.modal_filter.clear();
+                app.modal = None;
+            }
             KeyCode::Enter => {
                 let selected = options.get(index).cloned();
+                app.modal_filter.clear();
                 app.modal = None;
                 if let Err(e) = run_select_action(app, action, index, selected) {
                     app.set_toast(e.to_string(), true);
                 } else {
                     refresh_screen_data(app);
                 }
+            }
+            KeyCode::Char(c)
+                if matches!(&action, app::SelectAction::GoToNav) && !c.is_control() =>
+            {
+                // Type-to-filter for the module picker: rebuild the option
+                // list from the filter. GoToNav resolves by label, so the
+                // filtered index stays consistent.
+                app.modal_filter.push(c);
+                let filter = app.modal_filter.clone();
+                let filtered: Vec<String> = app::App::nav_targets()
+                    .iter()
+                    .map(|(label, _)| label.clone())
+                    .filter(|label| label.contains(&filter))
+                    .collect();
+                app.modal = Some(app::Modal::Select {
+                    title,
+                    options: filtered,
+                    index: 0,
+                    action,
+                });
+            }
+            KeyCode::Backspace if matches!(&action, app::SelectAction::GoToNav) => {
+                app.modal_filter.pop();
+                let filter = app.modal_filter.clone();
+                let filtered: Vec<String> = app::App::nav_targets()
+                    .iter()
+                    .map(|(label, _)| label.clone())
+                    .filter(|label| label.contains(&filter))
+                    .collect();
+                app.modal = Some(app::Modal::Select {
+                    title,
+                    options: filtered,
+                    index: 0,
+                    action,
+                });
             }
             KeyCode::Up => {
                 index = index.saturating_sub(1);
@@ -220,13 +259,18 @@ pub(super) fn handle_modal_key(app: &mut app::App, code: KeyCode, modal: app::Mo
 pub(super) fn run_select_action(
     app: &mut app::App,
     action: app::SelectAction,
-    index: usize,
+    _index: usize,
     selected: Option<String>,
 ) -> anyhow::Result<()> {
     match action {
         app::SelectAction::GoToNav => {
-            app.nav_index = index.min(app::App::nav_items().len().saturating_sub(1));
-            if let Some((_, screen)) = app::App::nav_items().get(app.nav_index) {
+            // Resolve by label: with the type-to-filter the selected index
+            // indexes the filtered list, but labels are globally unique.
+            let Some(label) = selected else {
+                return Ok(());
+            };
+            if let Some((_, screen)) = app::App::nav_targets().iter().find(|(l, _)| *l == label) {
+                app.nav_index = app::App::group_of_screen(*screen).unwrap_or(0);
                 app.screen = *screen;
                 app.clear_toast();
                 refresh_screen_data(app);

@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn handle_claude_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
     match code {
-        KeyCode::Esc | KeyCode::Char('q') => app.screen = app::Screen::Main,
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
         KeyCode::Down => app.claude_index = app.claude_index.saturating_add(1),
         KeyCode::Up => app.claude_index = app.claude_index.saturating_sub(1),
         KeyCode::Char('r') => refresh_claude(app),

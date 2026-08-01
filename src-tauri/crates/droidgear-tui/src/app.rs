@@ -22,6 +22,7 @@ use serde_json::Value as JsonValue;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Screen {
     Main,
+    FeatureList,
     Paths,
     DroidSettingsFiles,
     Factory,
@@ -622,6 +623,8 @@ pub struct App {
     pub should_quit: bool,
 
     pub nav_index: usize,
+    pub feature_index: usize,
+    pub modal_filter: String,
 
     pub toast: Option<Toast>,
     pub modal: Option<Modal>,
@@ -774,6 +777,18 @@ pub struct App {
     pub codex_auth_index: usize,
 }
 
+/// A navigation group shown in the left sidebar. Groups mirror the GUI's
+/// two-level navigation: each tool (Droid, Codex, OpenClaw, ...) is a group
+/// whose `items` are the features reachable from it. System groups (true)
+/// are global, not tied to a specific tool, and are rendered below a
+/// separator.
+#[derive(Debug, Clone, Copy)]
+pub struct NavGroup {
+    pub label: &'static str,
+    pub items: &'static [(&'static str, Screen)],
+    pub system: bool,
+}
+
 impl App {
     pub fn new(home_dir: PathBuf) -> Self {
         Self {
@@ -781,6 +796,8 @@ impl App {
             screen: Screen::Main,
             should_quit: false,
             nav_index: 0,
+            feature_index: 0,
+            modal_filter: String::new(),
             toast: None,
             modal: None,
             paths: None,
@@ -912,25 +929,162 @@ impl App {
         }
     }
 
-    pub fn nav_items() -> &'static [(&'static str, Screen)] {
+    /// Navigation groups, mirroring the GUI sidebar. A group with a single
+    /// item opens its screen directly; multi-item groups open a feature list.
+    /// System groups (Channels, Paths) are global and rendered below a
+    /// separator.
+    pub fn nav_groups() -> &'static [NavGroup] {
         &[
-            ("Paths", Screen::Paths),
-            ("Droid Settings", Screen::DroidSettingsFiles),
-            ("Factory", Screen::Factory),
-            ("MCP", Screen::Mcp),
-            ("Claude", Screen::ClaudeSettings),
-            ("Codex", Screen::Codex),
-            ("OpenCode", Screen::OpenCode),
-            ("OpenClaw", Screen::OpenClaw),
-            ("Pi", Screen::Pi),
-            ("Hermes", Screen::Hermes),
-            ("Sessions", Screen::Sessions),
-            ("Specs", Screen::Specs),
-            ("Channels", Screen::Channels),
-            ("Missions", Screen::Missions),
-            ("Factory Auth", Screen::FactoryAuth),
-            ("Codex Auth", Screen::CodexAuth),
+            NavGroup {
+                label: "Droid",
+                items: &[
+                    ("Models", Screen::Factory),
+                    ("Settings", Screen::DroidSettingsFiles),
+                    ("Auth Profiles", Screen::FactoryAuth),
+                    ("Specs", Screen::Specs),
+                    ("Missions", Screen::Missions),
+                    ("MCP", Screen::Mcp),
+                    ("Sessions", Screen::Sessions),
+                ],
+                system: false,
+            },
+            NavGroup {
+                label: "Codex",
+                items: &[
+                    ("Providers", Screen::Codex),
+                    ("Auth Profiles", Screen::CodexAuth),
+                ],
+                system: false,
+            },
+            NavGroup {
+                label: "OpenClaw",
+                items: &[
+                    ("Providers", Screen::OpenClaw),
+                    ("Subagents", Screen::OpenClawSubagents),
+                    ("Helpers", Screen::OpenClawHelpers),
+                ],
+                system: false,
+            },
+            NavGroup {
+                label: "OpenCode",
+                items: &[("Providers", Screen::OpenCode)],
+                system: false,
+            },
+            NavGroup {
+                label: "Claude",
+                items: &[("Settings", Screen::ClaudeSettings)],
+                system: false,
+            },
+            NavGroup {
+                label: "Hermes",
+                items: &[("Profiles", Screen::Hermes)],
+                system: false,
+            },
+            NavGroup {
+                label: "Pi",
+                items: &[("Providers", Screen::Pi)],
+                system: false,
+            },
+            NavGroup {
+                label: "Channels",
+                items: &[("Channels", Screen::Channels)],
+                system: true,
+            },
+            NavGroup {
+                label: "Paths",
+                items: &[("Paths", Screen::Paths)],
+                system: true,
+            },
         ]
+    }
+
+    /// Flat list of reachable screens for the module picker. Multi-item
+    /// groups are labelled "group: feature" (lowercase); single-item groups
+    /// use the bare group label. Labels are globally unique.
+    pub fn nav_targets() -> Vec<(String, Screen)> {
+        let mut targets = Vec::new();
+        for group in Self::nav_groups() {
+            if group.items.len() > 1 {
+                for (feature, screen) in group.items {
+                    targets.push((
+                        format!("{}: {}", group.label.to_lowercase(), feature.to_lowercase()),
+                        *screen,
+                    ));
+                }
+            } else {
+                targets.push((group.label.to_lowercase(), group.items[0].1));
+            }
+        }
+        targets
+    }
+
+    /// Index of the group containing `screen`, if it is a nav item.
+    pub fn group_of_screen(screen: Screen) -> Option<usize> {
+        Self::nav_groups()
+            .iter()
+            .position(|group| group.items.iter().any(|(_, s)| *s == screen))
+    }
+
+    /// Breadcrumb labels for screens in multi-item groups, e.g. Some(("Droid",
+    /// "Models")) for the Factory screen. Single-item groups return None so
+    /// their titles stay unchanged.
+    pub fn feature_crumb(screen: Screen) -> Option<(&'static str, &'static str)> {
+        let group = Self::group_of_screen(screen)?;
+        let g = &Self::nav_groups()[group];
+        if g.items.len() <= 1 {
+            return None;
+        }
+        let (feature, _) = g.items.iter().find(|(_, s)| *s == screen)?;
+        Some((g.label, feature))
+    }
+
+    /// Where Esc/q from the current screen should land: up one level of the
+    /// navigation tree. Main is a no-op (its q key opens the quit confirm).
+    pub fn go_back(&mut self) {
+        match self.screen {
+            Screen::Main => {}
+            Screen::FeatureList => self.screen = Screen::Main,
+            _ => {
+                if let Some(group) = Self::group_of_screen(self.screen) {
+                    self.nav_index = group;
+                    self.screen = if Self::nav_groups()[group].items.len() > 1 {
+                        Screen::FeatureList
+                    } else {
+                        Screen::Main
+                    };
+                } else {
+                    self.screen = Self::parent_screen(self.screen);
+                }
+            }
+        }
+    }
+
+    /// Explicit parent for screens that are not nav items (detail/editor
+    /// screens reached from a list screen).
+    fn parent_screen(screen: Screen) -> Screen {
+        match screen {
+            Screen::FactoryModel => Screen::Factory,
+            Screen::McpServer => Screen::Mcp,
+            Screen::McpArgs => Screen::McpServer,
+            Screen::McpKeyValues => Screen::McpServer,
+            Screen::ClaudeSettingsDetail => Screen::ClaudeSettings,
+            Screen::CodexProfile => Screen::Codex,
+            Screen::CodexProvider => Screen::CodexProfile,
+            Screen::OpenCodeProfile => Screen::OpenCode,
+            Screen::OpenCodeProvider => Screen::OpenCodeProfile,
+            Screen::OpenCodeModel => Screen::OpenCodeProvider,
+            Screen::OpenClawProfile => Screen::OpenClaw,
+            Screen::OpenClawProvider => Screen::OpenClawProfile,
+            Screen::OpenClawModel => Screen::OpenClawProvider,
+            Screen::OpenClawSubagentDetail => Screen::OpenClawSubagents,
+            Screen::PiProfile => Screen::Pi,
+            Screen::PiProvider => Screen::PiProfile,
+            Screen::PiModel => Screen::PiProvider,
+            Screen::HermesProfile => Screen::Hermes,
+            Screen::HermesProvider => Screen::HermesProfile,
+            Screen::ChannelsEdit => Screen::Channels,
+            _ => Screen::Main,
+        }
     }
 
     pub fn set_toast(&mut self, message: impl Into<String>, is_error: bool) {
@@ -989,8 +1143,14 @@ impl App {
     }
 
     pub fn clamp_indices(&mut self) {
-        if self.nav_index >= Self::nav_items().len() {
-            self.nav_index = Self::nav_items().len().saturating_sub(1);
+        if self.nav_index >= Self::nav_groups().len() {
+            self.nav_index = Self::nav_groups().len().saturating_sub(1);
+        }
+        if self.screen == Screen::FeatureList {
+            let count = Self::nav_groups()[self.nav_index].items.len();
+            if self.feature_index >= count {
+                self.feature_index = count.saturating_sub(1);
+            }
         }
 
         let paths_count = 7;

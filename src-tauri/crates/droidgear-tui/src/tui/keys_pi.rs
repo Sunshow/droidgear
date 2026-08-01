@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn handle_pi_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
     match code {
-        KeyCode::Esc | KeyCode::Char('q') => app.screen = app::Screen::Main,
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
         KeyCode::Down => app.pi_index = app.pi_index.saturating_add(1),
         KeyCode::Up => app.pi_index = app.pi_index.saturating_sub(1),
         KeyCode::Char('r') => refresh_pi(app),
@@ -73,7 +73,7 @@ pub(super) fn handle_pi_profile_key(app: &mut app::App, code: KeyCode) -> Option
 
     match code {
         KeyCode::Esc | KeyCode::Char('q') => {
-            app.screen = app::Screen::Pi;
+            app.go_back();
         }
         KeyCode::Down => {
             let total = fields_count + provider_count;
@@ -220,7 +220,7 @@ pub(super) fn handle_pi_provider_key(app: &mut app::App, code: KeyCode) -> Optio
     };
 
     match code {
-        KeyCode::Esc | KeyCode::Char('q') => app.screen = app::Screen::PiProfile,
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
         KeyCode::Down => {
             app.pi_provider_field_index = app.pi_provider_field_index.saturating_add(1)
         }
@@ -358,7 +358,7 @@ pub(super) fn handle_pi_model_key(app: &mut app::App, code: KeyCode) -> Option<A
     };
 
     match code {
-        KeyCode::Esc | KeyCode::Char('q') => app.screen = app::Screen::PiProvider,
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
         KeyCode::Down => app.pi_model_field_index = app.pi_model_field_index.saturating_add(1),
         KeyCode::Up => app.pi_model_field_index = app.pi_model_field_index.saturating_sub(1),
         KeyCode::Enter | KeyCode::Char('e') => match app.pi_model_field_index {
