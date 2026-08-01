@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.2.0
+
+**New Features / 新功能**
+
+- Group TUI navigation into a two-level structure mirroring the GUI sidebar: feature-list screens, breadcrumb titles, and module picker labels / TUI 导航分组为两级结构以对应 GUI 侧边栏：新增功能列表界面、面包屑标题与模块选择器标签
+- Align GUI and TUI Claude settings features and semantics: unify small-model mirroring; add duplicate / merge-to-global / load-from-live / preview on GUI, and set-active / skip-permissions run / dirty tracking / import-from-channel / copy-on-create on TUI / 对齐 GUI 与 TUI 的 Claude 设置功能与语义：统一小模型跟随主模型逻辑，GUI 新增复制 / 合并到全局 / 从实时配置加载 / 预览，TUI 新增设为活动 / 跳过权限运行 / 脏状态跟踪 / 从渠道导入 / 创建时复制
+- Apply Codex profile edits immediately when the profile is the active one, so provider switches take effect without an explicit apply / Codex 活动配置的编辑立即生效，切换 Provider 无需再手动应用
+- Sync the DeepSeek V4 model catalog (~/.codex/models.json) when applying DeepSeek V4 models for Codex / 应用 DeepSeek V4 模型时为 Codex 同步模型目录（~/.codex/models.json）
+
+**Bug Fixes / 问题修复**
+
+- Always write a non-empty Codex provider name, falling back to the provider id, so providers without a display name produce a loadable config / Codex Provider 名称始终写入非空值，缺省回退到 Provider id，避免无显示名称的 Provider 生成无法加载的配置
+
 ## v1.1.9
 
 **New Features / 新功能**

@@ -88,15 +88,19 @@ xattr -cr /Applications/DroidGear.app
 ### Claude 支持
 
 - **Claude 设置文件管理** - 多设置文件（Global + 自定义）切换与编辑，结构化 Provider / 模型 / Reasoning / Thinking / 通用设置 / 权限分段
-- **设置文件操作** - 新建、删除、复制、从实时配置加载，以及临时单次运行
+- **设置文件操作** - 新建、删除、复制、从实时配置加载、合并到全局、变更预览，以及临时单次运行
+- **设为活动与脏状态跟踪** - 可将设置文件设为活动，未保存的修改有脏状态提示（TUI）
 - **合并应用** - 将设置文件中的 env 与 permissions 浅合并到全局设置
 - **从渠道导入** - 一键从已配置渠道导入 Provider 配置（base URL、API Key、默认模型）
 - **运行时核心** - 启动时通过运行时覆盖层加载设置，从不修改实时配置文件
+- **GUI/TUI 功能对齐** - 桌面版与 TUI 版的设置功能与语义保持一致（小模型未设置时跟随主模型）
 
 ### Codex 支持
 
 - **Codex CLI 集成** - Codex 配置 Profile 管理
 - **认证配置** - 官方登录与 BYOK 认证配置文件的保存、切换及冲突检测
+- **即时应用** - 编辑当前活动的 Profile 时立即应用（含切换 Provider），无需手动应用
+- **模型目录同步** - 应用 DeepSeek V4 模型时自动同步 `~/.codex/models.json` 模型目录
 - **配置管理** - 认证与 `config.toml` 的加载和保存（`~/.codex`）
 - **管理入口** - 在 Codex 入口下提供 MCP 服务器 / 会话 / 终端 管理子页
 
@@ -151,12 +155,13 @@ droidgear-tui run codex <profile-id>
 
 TUI 版本支持以下配置管理功能：
 
+- **分组导航**：与 GUI 两级侧边栏对应的分组导航，支持功能列表界面、面包屑标题与模块选择器标签
 - **Factory 配置**：自定义模型管理、默认模型设置
 - **MCP 服务器**：增删改查、启用/禁用、导入导出
-- **Claude 设置文件**：多设置文件管理、结构化字段编辑、合并应用、临时单次运行
+- **Claude 设置文件**：多设置文件管理、结构化字段编辑、合并应用、设为活动、跳过权限运行、脏状态跟踪、临时单次运行
 - **Codex Profile**：配置文件管理、变更预览、一键应用
 - **OpenCode Profile**：Provider/Auth 配置管理
-- **OpenClaw Profile**：配置管理与应用
+- **OpenClaw Profile**：配置管理与应用（含 Subagents/Helpers 导航入口）
 - **Pi Profile**：Provider/Model 配置管理与应用
 - **Sessions**：会话浏览与管理
 - **Paths**：路径覆盖配置（适配服务器环境）
