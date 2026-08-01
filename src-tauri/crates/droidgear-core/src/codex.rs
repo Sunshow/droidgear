@@ -19,6 +19,15 @@ use crate::{json, paths, storage};
 
 pub(crate) const OPENAI_API_KEY_FIELD: &str = "OPENAI_API_KEY";
 
+/// DeepSeek V4 models that require the Codex model catalog file
+/// (`model_catalog_json` in config.toml). Content mirrors the official
+/// DeepSeek setup script (codex-deepseek-setup.sh).
+const DEEPSEEK_V4_MODELS: [&str; 2] = ["deepseek-v4-flash", "deepseek-v4-pro"];
+
+/// Model catalog content for the DeepSeek V4 models, extracted verbatim
+/// from the official setup script.
+const CODEX_MODELS_JSON: &str = include_str!("../res/codex-models.json");
+
 /// Codex Provider 配置（对应 config.toml 中的 [model_providers.<id>]）
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
@@ -166,6 +175,28 @@ fn now_rfc3339() -> String {
 // TOML helpers
 // ============================================================================
 
+/// Whether `model` is a DeepSeek V4 model that needs the Codex model
+/// catalog file.
+pub(crate) fn is_deepseek_v4_model(model: &str) -> bool {
+    DEEPSEEK_V4_MODELS.iter().any(|m| model.trim() == *m)
+}
+
+/// Write the DeepSeek model catalog (`~/.codex/models.json`) when the active
+/// model needs it, otherwise remove it. Codex only reads this file via the
+/// `model_catalog_json` config key, so an orphaned catalog would be dead
+/// weight — and a dangling reference would break startup.
+pub fn sync_models_json_for_home(home_dir: &Path, model: &str) -> Result<(), String> {
+    let models_path = codex_config_dir_for_home(home_dir)?.join("models.json");
+    if is_deepseek_v4_model(model) {
+        storage::atomic_write(&models_path, CODEX_MODELS_JSON.as_bytes())
+            .map_err(|e| format!("Failed to write codex models.json: {e}"))?;
+    } else if models_path.exists() {
+        std::fs::remove_file(&models_path)
+            .map_err(|e| format!("Failed to remove codex models.json: {e}"))?;
+    }
+    Ok(())
+}
+
 /// Convert CodexProviderConfig to toml::Value
 pub(crate) fn provider_config_to_toml(config: &CodexProviderConfig) -> Result<toml::Value, String> {
     let mut table = toml::map::Map::new();
@@ -284,7 +315,10 @@ pub(crate) fn apply_profile_to_config_map(
         "model_provider".to_string(),
         toml::Value::String(effective_provider_id),
     );
-    config.insert("model".to_string(), toml::Value::String(resolved_model));
+    config.insert(
+        "model".to_string(),
+        toml::Value::String(resolved_model.clone()),
+    );
 
     if let Some(ref effort) = resolved_effort {
         config.insert(
@@ -309,6 +343,17 @@ pub(crate) fn apply_profile_to_config_map(
             "model_providers".to_string(),
             toml::Value::Table(providers_table),
         );
+    }
+
+    // DeepSeek V4 models load their model catalog from models.json; other
+    // models must not reference it, or Codex looks for a missing file.
+    if is_deepseek_v4_model(&resolved_model) {
+        config.insert(
+            "model_catalog_json".to_string(),
+            toml::Value::String("~/.codex/models.json".to_string()),
+        );
+    } else {
+        config.remove("model_catalog_json");
     }
 
     Ok(())
@@ -703,6 +748,8 @@ pub(crate) fn apply_auth_for_profile(
 /// without overwriting the auth.json that was just restored.
 pub fn apply_codex_profile_config_only_for_home(home_dir: &Path, id: &str) -> Result<(), String> {
     let profile = load_profile_by_id(home_dir, id)?;
+    let (_, active_provider) = resolve_active_provider(&profile);
+    let resolved_model = resolved_model(&profile, active_provider);
 
     let config_path = codex_config_path_for_home(home_dir)?;
     let mut config = if config_path.exists() {
@@ -724,6 +771,8 @@ pub fn apply_codex_profile_config_only_for_home(home_dir: &Path, id: &str) -> Re
         .map_err(|e| format!("Failed to serialize config.toml: {e}"))?;
     storage::atomic_write(&config_path, toml_str.as_bytes())?;
 
+    sync_models_json_for_home(home_dir, &resolved_model)?;
+
     set_active_profile_id_for_home(home_dir, id)?;
     Ok(())
 }
@@ -736,6 +785,7 @@ pub fn apply_codex_profile_config_only_for_home(home_dir: &Path, id: &str) -> Re
 pub fn apply_codex_profile_for_home(home_dir: &Path, id: &str) -> Result<(), String> {
     let profile = load_profile_by_id(home_dir, id)?;
     let (_, active_provider) = resolve_active_provider(&profile);
+    let resolved_model = resolved_model(&profile, active_provider);
     let resolved_api_key = if uses_openai_subscription_auth(&profile) {
         None
     } else {
@@ -761,6 +811,8 @@ pub fn apply_codex_profile_for_home(home_dir: &Path, id: &str) -> Result<(), Str
     let toml_str = toml::to_string_pretty(&config)
         .map_err(|e| format!("Failed to serialize config.toml: {e}"))?;
     storage::atomic_write(&config_path, toml_str.as_bytes())?;
+
+    sync_models_json_for_home(home_dir, &resolved_model)?;
 
     if uses_openai_subscription_auth(&profile) {
         if let Some(auth_name) = profile
@@ -939,9 +991,9 @@ pub fn read_codex_current_config() -> Result<CodexCurrentConfig, String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_profile_to_config_map, resolve_active_provider,
-        resolve_codex_profile_selector_for_home, save_codex_profile_for_home, CodexProfile,
-        CodexProviderConfig,
+        apply_profile_to_config_map, is_deepseek_v4_model, resolve_active_provider,
+        resolve_codex_profile_selector_for_home, save_codex_profile_for_home,
+        sync_models_json_for_home, CodexProfile, CodexProviderConfig,
     };
     use std::collections::HashMap;
     use tempfile::TempDir;
@@ -1077,5 +1129,89 @@ mod tests {
             Some("gpt-5.4")
         );
         assert!(!config.contains_key("model_providers"));
+    }
+    #[test]
+    fn is_deepseek_v4_model_matches_flash_and_pro() {
+        assert!(is_deepseek_v4_model("deepseek-v4-flash"));
+        assert!(is_deepseek_v4_model("deepseek-v4-pro"));
+        assert!(is_deepseek_v4_model("  deepseek-v4-flash  "));
+        assert!(!is_deepseek_v4_model("gpt-5"));
+        assert!(!is_deepseek_v4_model("deepseek-chat"));
+        assert!(!is_deepseek_v4_model(""));
+    }
+
+    #[test]
+    fn sync_models_json_writes_for_deepseek_v4_and_removes_otherwise() {
+        let temp = TempDir::new().unwrap();
+        let home = temp.path();
+
+        sync_models_json_for_home(home, "deepseek-v4-flash").unwrap();
+        let models_path = home.join(".codex").join("models.json");
+        assert!(models_path.exists());
+        let content = std::fs::read_to_string(&models_path).unwrap();
+        assert!(content.contains("deepseek-v4-flash"));
+        assert!(content.contains("deepseek-v4-pro"));
+
+        sync_models_json_for_home(home, "gpt-5").unwrap();
+        assert!(!models_path.exists());
+
+        // Missing file is a no-op when the model does not need the catalog.
+        sync_models_json_for_home(home, "gpt-5").unwrap();
+        assert!(!models_path.exists());
+    }
+
+    fn sample_profile_with_model(model: &str) -> CodexProfile {
+        let mut providers = HashMap::new();
+        providers.insert(
+            "dsv4".to_string(),
+            CodexProviderConfig {
+                name: Some("dsv4".to_string()),
+                base_url: Some("https://api.deepseek.com/".to_string()),
+                wire_api: Some("responses".to_string()),
+                requires_openai_auth: None,
+                env_key: None,
+                env_key_instructions: None,
+                http_headers: None,
+                query_params: None,
+                model: Some(model.to_string()),
+                model_reasoning_effort: None,
+                api_key: None,
+            },
+        );
+        CodexProfile {
+            id: "p1".to_string(),
+            name: "P1".to_string(),
+            description: None,
+            created_at: String::new(),
+            updated_at: String::new(),
+            providers,
+            model_provider: "dsv4".to_string(),
+            model: "gpt-5".to_string(),
+            model_reasoning_effort: None,
+            api_key: None,
+            auth_profile_name: None,
+        }
+    }
+
+    #[test]
+    fn apply_profile_to_config_map_sets_catalog_for_deepseek_v4() {
+        let mut config = toml::map::Map::new();
+        apply_profile_to_config_map(&mut config, &sample_profile_with_model("deepseek-v4-flash"))
+            .unwrap();
+        assert_eq!(
+            config.get("model_catalog_json").and_then(|v| v.as_str()),
+            Some("~/.codex/models.json")
+        );
+
+        let mut config = toml::map::Map::new();
+        config.insert(
+            "model_catalog_json".to_string(),
+            toml::Value::String("~/.codex/models.json".to_string()),
+        );
+        apply_profile_to_config_map(&mut config, &sample_profile_with_model("gpt-5")).unwrap();
+        assert!(
+            !config.contains_key("model_catalog_json"),
+            "non-DeepSeek models must not reference the catalog"
+        );
     }
 }
