@@ -118,7 +118,7 @@ pub(super) fn codex_set_active_provider(
     let mut profile = droidgear_core::codex::get_codex_profile_for_home(&app.home_dir, profile_id)
         .map_err(anyhow::Error::msg)?;
     profile.model_provider = provider_id.to_string();
-    droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
+    droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(&app.home_dir, profile)
         .map_err(anyhow::Error::msg)?;
     Ok(())
 }

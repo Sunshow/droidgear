@@ -582,8 +582,11 @@ pub(super) fn run_select_action(
             if profile.model_provider != "openai" {
                 profile.auth_profile_name = None;
             }
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -603,8 +606,11 @@ pub(super) fn run_select_action(
             } else {
                 Some(selected)
             };
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -615,8 +621,11 @@ pub(super) fn run_select_action(
                 Some("(none)") | None => None,
                 Some(v) => Some(v.to_string()),
             };
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -635,8 +644,11 @@ pub(super) fn run_select_action(
             } else {
                 return Err(anyhow::Error::msg("Provider not found"));
             }
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -655,8 +667,11 @@ pub(super) fn run_select_action(
             } else {
                 return Err(anyhow::Error::msg("Provider not found"));
             }
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -1677,8 +1692,11 @@ pub(super) fn run_confirm_action(
                     .cloned()
                     .unwrap_or_else(|| "custom".to_string());
             }
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             Ok(())
         }
         app::ConfirmAction::OpenCodeApply { id } => {
@@ -2188,8 +2206,11 @@ pub(super) fn run_input_action(
                 auth_profile_name: None,
             };
 
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
 
             refresh_codex(app);
             if let Some((idx, p)) = app
@@ -2236,8 +2257,11 @@ pub(super) fn run_input_action(
             let mut profile = droidgear_core::codex::get_codex_profile_for_home(&app.home_dir, &id)
                 .map_err(anyhow::Error::msg)?;
             profile.name = trimmed.to_string();
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -2245,8 +2269,11 @@ pub(super) fn run_input_action(
             let mut profile = droidgear_core::codex::get_codex_profile_for_home(&app.home_dir, &id)
                 .map_err(anyhow::Error::msg)?;
             profile.description = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -2254,8 +2281,11 @@ pub(super) fn run_input_action(
             let mut profile = droidgear_core::codex::get_codex_profile_for_home(&app.home_dir, &id)
                 .map_err(anyhow::Error::msg)?;
             profile.model = trimmed.to_string();
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -2263,8 +2293,11 @@ pub(super) fn run_input_action(
             let mut profile = droidgear_core::codex::get_codex_profile_for_home(&app.home_dir, &id)
                 .map_err(anyhow::Error::msg)?;
             profile.api_key = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -2295,8 +2328,11 @@ pub(super) fn run_input_action(
                 },
             );
 
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
 
             app.codex_provider_id = Some(trimmed.to_string());
             app.codex_provider_field_index = 0;
@@ -2315,8 +2351,11 @@ pub(super) fn run_input_action(
                 return Err(anyhow::Error::msg("Provider not found"));
             };
             provider.name = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -2331,8 +2370,11 @@ pub(super) fn run_input_action(
                 return Err(anyhow::Error::msg("Provider not found"));
             };
             provider.base_url = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -2347,8 +2389,11 @@ pub(super) fn run_input_action(
                 return Err(anyhow::Error::msg("Provider not found"));
             };
             provider.api_key = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -2363,8 +2408,11 @@ pub(super) fn run_input_action(
                 return Err(anyhow::Error::msg("Provider not found"));
             };
             provider.model = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
