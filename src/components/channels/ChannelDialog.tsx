@@ -180,18 +180,18 @@ function ChannelForm({ channel, onSave, onCancel }: ChannelFormProps) {
 
     const newChannel: Channel = {
       id: channel?.id ?? crypto.randomUUID(),
-      name,
+      name: name.trim(),
       type: channelType,
-      baseUrl,
+      baseUrl: baseUrl.trim(),
       enabled,
       createdAt: channel?.createdAt ?? Date.now(),
     }
 
     // For CLI Proxy API and General, pass empty username and apiKey as password
     if (isApiKeyAuth) {
-      onSave(newChannel, '', apiKey)
+      onSave(newChannel, '', apiKey.trim())
     } else {
-      onSave(newChannel, username, password)
+      onSave(newChannel, username.trim(), password.trim())
     }
   }
 

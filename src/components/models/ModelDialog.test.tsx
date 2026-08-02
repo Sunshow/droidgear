@@ -153,4 +153,39 @@ describe('ModelDialog', () => {
     expect(saved.extraArgs).not.toHaveProperty('top_p')
     expect(saved.extraArgs).not.toHaveProperty('top_k')
   })
+
+  it('trims whitespace from baseUrl, apiKey and model id on save', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn()
+
+    render(
+      <ModelDialog
+        open
+        onOpenChange={() => undefined}
+        mode="add"
+        onSave={onSave}
+      />
+    )
+
+    const baseUrlInput = screen.getByLabelText(/api url/i)
+    await user.clear(baseUrlInput)
+    await user.type(baseUrlInput, '  https://api.example.com/v1  ')
+
+    const apiKeyInput = screen.getByLabelText(/api key/i)
+    await user.type(apiKeyInput, '  sk-abc123  ')
+
+    const modelInput = screen.getByRole('textbox', { name: /^model$/i })
+    await user.type(modelInput, '  claude-sonnet-4-5-20250929  ')
+
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: 'https://api.example.com/v1',
+        apiKey: 'sk-abc123',
+        model: 'claude-sonnet-4-5-20250929',
+      })
+    )
+  })
 })
