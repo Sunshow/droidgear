@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.2.1
+
+**New Features / 新功能**
+
+- Trim whitespace from user-entered API URLs, keys, and credential fields across GUI dialogs (channels, custom models, MCP servers, Hermes config, and codex/opencode/pi/openclaw providers) so stored configs match TUI behavior / 在所有 GUI 对话框中修剪用户输入的 API 地址、密钥及凭据字段的首尾空白（渠道、自定义模型、MCP 服务器、Hermes 配置及 Codex/OpenCode/Pi/OpenClaw Provider），使保存的配置与 TUI 行为一致
+- Align deepseek-v4-flash model registry efforts with thinking-mode docs: support none/low/high/max with per-protocol thinking encodings / 对齐 deepseek-v4-flash 模型注册表的推理强度与思考模式文档：支持 none/low/high/max 级别，并为各协议配置对应的思考编码
+
 ## v1.2.0
 
 **New Features / 新功能**
