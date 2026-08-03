@@ -551,16 +551,41 @@ pub fn read_settings_file(name: &str) -> Result<Value, String> {
     read_settings_file_for_home(&system_home_dir()?, name)
 }
 
+/// Removes stale top-level fields before persisting.
+///
+/// `env.ANTHROPIC_MODEL` takes precedence over the top-level `model` field
+/// (mirrors `build_current_config_from_settings` in `claude.rs`), so the
+/// top-level field is dropped when a non-empty env value is present. This
+/// keeps the saved document unambiguous regardless of which UI wrote it.
+fn clean_settings_document(value: &mut Value) {
+    let Some(obj) = value.as_object_mut() else {
+        return;
+    };
+    let env_model = obj
+        .get("env")
+        .and_then(|env| env.get(claude::CLAUDE_MODEL_ENV))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    if env_model.is_some() {
+        obj.remove("model");
+    }
+}
+
 /// Persists the given JSON object as the named settings file. The root value
 /// must be a JSON object; otherwise an error is returned.
+///
+/// Takes ownership so the document can be normalized (see
+/// `clean_settings_document`) before serialization.
 pub fn save_settings_file_for_home(
     home_dir: &Path,
     name: &str,
-    value: &Value,
+    mut value: Value,
 ) -> Result<(), String> {
     if !matches!(value, Value::Object(_)) {
         return Err("Settings file root must be a JSON object".to_string());
     }
+    clean_settings_document(&mut value);
 
     let path = if name.eq_ignore_ascii_case("global") {
         let path = global_settings_path_for_home(home_dir)?;
@@ -581,13 +606,135 @@ pub fn save_settings_file_for_home(
         dir.join(name).with_extension("json")
     };
 
-    let bytes = serde_json::to_vec_pretty(value)
+    let bytes = serde_json::to_vec_pretty(&value)
         .map_err(|e| format!("Failed to serialize settings file: {e}"))?;
     storage::atomic_write(&path, &bytes)
 }
 
-pub fn save_settings_file(name: &str, value: &Value) -> Result<(), String> {
+pub fn save_settings_file(name: &str, value: Value) -> Result<(), String> {
     save_settings_file_for_home(&system_home_dir()?, name, value)
+}
+
+// ============================================================================
+// Duplicate
+// ============================================================================
+
+/// Copies a settings file to a new name and activates it.
+pub fn duplicate_settings_file(
+    name: &str,
+    new_name: &str,
+) -> Result<ClaudeSettingsFileInfo, String> {
+    duplicate_settings_file_for_home(&system_home_dir()?, name, new_name)
+}
+
+pub fn duplicate_settings_file_for_home(
+    home_dir: &Path,
+    name: &str,
+    new_name: &str,
+) -> Result<ClaudeSettingsFileInfo, String> {
+    validate_custom_file_name(new_name)?;
+
+    let source_path = get_settings_path_by_name_for_home(home_dir, name)?;
+    if !source_path.exists() {
+        return Err(format!("Settings file '{name}' does not exist"));
+    }
+
+    let dir = claude_settings_dir_for_home(home_dir);
+    if !dir.exists() {
+        std::fs::create_dir_all(&dir)
+            .map_err(|e| format!("Failed to create claude-settings directory: {e}"))?;
+    }
+
+    let dest_path = dir.join(new_name).with_extension("json");
+    if dest_path.exists() {
+        return Err(format!("Settings file '{new_name}' already exists"));
+    }
+
+    std::fs::copy(&source_path, &dest_path)
+        .map_err(|e| format!("Failed to copy settings file: {e}"))?;
+
+    save_active_file_name_for_home(home_dir, Some(new_name))?;
+    get_active_settings_file_for_home(home_dir)
+}
+
+// ============================================================================
+// Merge to global
+// ============================================================================
+
+/// Merges the contents of a settings file into the global `~/.claude/settings.json`.
+///
+/// Merge rules:
+/// - `env` and `permissions` are shallow-merged (source keys override, live keys preserved).
+/// - All other top-level keys are directly overridden when present in the source.
+/// - Keys that exist only in the global file are never removed.
+///
+/// Note: the merged result is written directly (not via `save_settings_file_for_home`)
+/// because merge is a literal merge — the source file was already normalized by save,
+/// and a stale top-level `model` in the live global file is the user's own raw state
+/// that merge must not silently rewrite.
+pub fn merge_settings_file_to_global(name: &str) -> Result<(), String> {
+    merge_settings_file_to_global_for_home(&system_home_dir()?, name)
+}
+
+pub fn merge_settings_file_to_global_for_home(home_dir: &Path, name: &str) -> Result<(), String> {
+    let source = read_settings_file_for_home(home_dir, name)?;
+    let source_obj = source
+        .as_object()
+        .ok_or("Settings file root must be a JSON object")?;
+
+    let global_path = global_settings_path_for_home(home_dir)?;
+    let live = read_settings_file_for_home(home_dir, "Global")?;
+    let mut merged = match live {
+        Value::Object(map) => map,
+        _ => Map::new(),
+    };
+
+    for (key, value) in source_obj {
+        let should_shallow_merge = key == "env" || key == "permissions";
+        if should_shallow_merge {
+            if let (Value::Object(source_sub), Some(Value::Object(live_sub))) =
+                (value, merged.get(key))
+            {
+                let mut merged_sub = live_sub.clone();
+                for (sk, sv) in source_sub {
+                    merged_sub.insert(sk.clone(), sv.clone());
+                }
+                merged.insert(key.clone(), Value::Object(merged_sub));
+            } else {
+                merged.insert(key.clone(), value.clone());
+            }
+        } else {
+            merged.insert(key.clone(), value.clone());
+        }
+    }
+
+    let result = Value::Object(merged);
+    let bytes = serde_json::to_vec_pretty(&result)
+        .map_err(|e| format!("Failed to serialize merged settings: {e}"))?;
+
+    if let Some(parent) = global_path.parent() {
+        if !parent.exists() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create claude config dir: {e}"))?;
+        }
+    }
+    storage::atomic_write(&global_path, &bytes)
+}
+
+// ============================================================================
+// Load from live
+// ============================================================================
+
+/// Overwrites a settings file with the current contents of the global
+/// `~/.claude/settings.json`.
+pub fn load_settings_file_from_live(name: &str) -> Result<(), String> {
+    load_settings_file_from_live_for_home(&system_home_dir()?, name)
+}
+
+pub fn load_settings_file_from_live_for_home(home_dir: &Path, name: &str) -> Result<(), String> {
+    let live = read_settings_file_for_home(home_dir, "Global")?;
+    // Goes through save so the loaded document is normalized too.
+    save_settings_file_for_home(home_dir, name, live)
 }
 
 #[cfg(test)]
@@ -670,10 +817,68 @@ mod tests {
             "env": {"DISABLE_TELEMETRY": "0"},
             "permissions": {"defaultMode": "acceptEdits"}
         });
-        save_settings_file_for_home(home_dir, "round", &new_value).unwrap();
+        save_settings_file_for_home(home_dir, "round", new_value.clone()).unwrap();
 
         let loaded = read_settings_file_for_home(home_dir, "round").unwrap();
         assert_eq!(loaded, new_value);
+    }
+
+    #[test]
+    fn save_removes_top_level_model_when_env_model_present() {
+        let temp = TempDir::new().unwrap();
+        let home_dir = temp.path();
+        write_file(&home_dir.join(".claude/settings.json"), "{}");
+        create_settings_file_for_home(home_dir, "clean".to_string(), false).unwrap();
+
+        let value = serde_json::json!({
+            "model": "claude-sonnet-4-5",
+            "env": {"ANTHROPIC_MODEL": "claude-sonnet-4-5"}
+        });
+        save_settings_file_for_home(home_dir, "clean", value).unwrap();
+
+        let loaded = read_settings_file_for_home(home_dir, "clean").unwrap();
+        assert!(loaded.get("model").is_none());
+        assert_eq!(
+            loaded["env"]["ANTHROPIC_MODEL"],
+            Value::String("claude-sonnet-4-5".to_string())
+        );
+    }
+
+    #[test]
+    fn save_keeps_top_level_model_when_env_model_absent() {
+        let temp = TempDir::new().unwrap();
+        let home_dir = temp.path();
+        write_file(&home_dir.join(".claude/settings.json"), "{}");
+        create_settings_file_for_home(home_dir, "keep".to_string(), false).unwrap();
+
+        let value = serde_json::json!({"model": "claude-sonnet-4-5"});
+        save_settings_file_for_home(home_dir, "keep", value).unwrap();
+
+        let loaded = read_settings_file_for_home(home_dir, "keep").unwrap();
+        assert_eq!(
+            loaded["model"],
+            Value::String("claude-sonnet-4-5".to_string())
+        );
+    }
+
+    #[test]
+    fn load_from_live_cleans_top_level_model() {
+        let temp = TempDir::new().unwrap();
+        let home_dir = temp.path();
+        write_file(
+            &home_dir.join(".claude/settings.json"),
+            r#"{"model":"stale","env":{"ANTHROPIC_MODEL":"claude-sonnet-4-5"}}"#,
+        );
+        create_settings_file_for_home(home_dir, "load".to_string(), false).unwrap();
+
+        load_settings_file_from_live_for_home(home_dir, "load").unwrap();
+
+        let loaded = read_settings_file_for_home(home_dir, "load").unwrap();
+        assert!(loaded.get("model").is_none());
+        assert_eq!(
+            loaded["env"]["ANTHROPIC_MODEL"],
+            Value::String("claude-sonnet-4-5".to_string())
+        );
     }
 
     #[test]
@@ -683,7 +888,7 @@ mod tests {
         write_file(&home_dir.join(".claude/settings.json"), "{}");
         create_settings_file_for_home(home_dir, "rejects".to_string(), false).unwrap();
         let err =
-            save_settings_file_for_home(home_dir, "rejects", &serde_json::json!([])).unwrap_err();
+            save_settings_file_for_home(home_dir, "rejects", serde_json::json!([])).unwrap_err();
         assert!(err.contains("must be a JSON object"));
     }
 

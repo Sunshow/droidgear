@@ -21,6 +21,9 @@ pub struct LaunchSpec {
     pub support_dir: Option<PathBuf>,
     /// When set on Windows, the resolved title is applied at start and re-applied after the CLI exits.
     pub window_title: Option<String>,
+    /// When true, the terminal wrapper should NOT keep the window open after
+    /// the command exits (e.g. Claude Code launches its own window).
+    pub no_keep_open: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -834,6 +837,7 @@ fn windows_wt_ps_args(
     cwd: Option<&Path>,
     title: &str,
     suppress_application_title: bool,
+    no_keep_open: bool,
 ) -> Vec<String> {
     let mut args = Vec::new();
     if let Some(dir) = cwd {
@@ -848,7 +852,9 @@ fn windows_wt_ps_args(
         }
     }
     args.push(shell.to_string());
-    args.push("-NoExit".to_string());
+    if !no_keep_open {
+        args.push("-NoExit".to_string());
+    }
     args.push("-Command".to_string());
     args.push(command.to_string());
     args
@@ -856,13 +862,15 @@ fn windows_wt_ps_args(
 
 /// Build PowerShell launch args with optional `-WorkingDirectory`.
 #[cfg(target_os = "windows")]
-fn windows_powershell_args(command: &str, cwd: Option<&Path>) -> Vec<String> {
+fn windows_powershell_args(command: &str, cwd: Option<&Path>, no_keep_open: bool) -> Vec<String> {
     let mut args = Vec::new();
     if let Some(dir) = cwd {
         args.push("-WorkingDirectory".to_string());
         args.push(dir.to_string_lossy().into_owned());
     }
-    args.push("-NoExit".to_string());
+    if !no_keep_open {
+        args.push("-NoExit".to_string());
+    }
     args.push("-Command".to_string());
     args.push(command.to_string());
     args
@@ -1047,11 +1055,12 @@ fn launch_windows_powershell_payload(
     shell: &str,
     command: &str,
     cwd: Option<&Path>,
+    no_keep_open: bool,
 ) -> Result<(), String> {
     use std::os::windows::process::CommandExt;
 
     let mut process = std::process::Command::new(shell);
-    process.args(windows_powershell_args(command, cwd));
+    process.args(windows_powershell_args(command, cwd, no_keep_open));
     // Explicit new console when the parent is a GUI app.
     process.creation_flags(CREATE_NEW_CONSOLE);
     process
@@ -1068,6 +1077,7 @@ fn launch_windows_wt_or_ps_payload(
     cwd: Option<&Path>,
     title: &str,
     suppress_application_title: bool,
+    no_keep_open: bool,
 ) -> Result<(), String> {
     if std::process::Command::new("wt")
         .args(windows_wt_ps_args(
@@ -1076,6 +1086,7 @@ fn launch_windows_wt_or_ps_payload(
             cwd,
             title,
             suppress_application_title,
+            no_keep_open,
         ))
         .spawn()
         .is_ok()
@@ -1083,7 +1094,7 @@ fn launch_windows_wt_or_ps_payload(
         return Ok(());
     }
 
-    launch_windows_powershell_payload(shell, command, cwd)
+    launch_windows_powershell_payload(shell, command, cwd, no_keep_open)
 }
 
 /// Build the PowerShell -Command payload for non-cmd launches.
@@ -1136,7 +1147,7 @@ fn launch_windows(spec: &LaunchSpec, preferred: &str) -> Result<(), String> {
         }
         "powershell" => {
             let command = windows_ps_launch_command(&resolved)?;
-            launch_windows_powershell_payload(&shell, &command, cwd)
+            launch_windows_powershell_payload(&shell, &command, cwd, resolved.no_keep_open)
         }
         _ => {
             // Default: Windows Terminal + PowerShell/pwsh (never bare cmd).
@@ -1147,6 +1158,7 @@ fn launch_windows(spec: &LaunchSpec, preferred: &str) -> Result<(), String> {
                 cwd,
                 &title,
                 suppress_application_title,
+                resolved.no_keep_open,
             )
         }
     }
@@ -1173,6 +1185,7 @@ mod tests {
             cwd: Some(PathBuf::from("/work tree")),
             support_dir: None,
             window_title: None,
+            no_keep_open: false,
         }
     }
 
@@ -1332,6 +1345,7 @@ mod tests {
             Some(Path::new(r"D:\proj")),
             "proj",
             false,
+            false,
         );
         assert_eq!(
             wt_with_cwd,
@@ -1353,6 +1367,7 @@ mod tests {
             Some(Path::new(r"D:\proj")),
             "proj",
             true,
+            false,
         );
         assert_eq!(
             wt_pinned,
@@ -1369,7 +1384,14 @@ mod tests {
             ]
         );
 
-        let wt_plain = windows_wt_ps_args("powershell", "& 'C:\\temp\\run.ps1'", None, "", false);
+        let wt_plain = windows_wt_ps_args(
+            "powershell",
+            "& 'C:\\temp\\run.ps1'",
+            None,
+            "",
+            false,
+            false,
+        );
         assert_eq!(
             wt_plain,
             vec![
@@ -1380,7 +1402,8 @@ mod tests {
             ]
         );
 
-        let ps = windows_powershell_args(r"& 'C:\temp\run.ps1'", Some(Path::new(r"D:\work")));
+        let ps =
+            windows_powershell_args(r"& 'C:\temp\run.ps1'", Some(Path::new(r"D:\work")), false);
         assert_eq!(
             ps,
             vec![
@@ -1576,6 +1599,7 @@ mod tests {
             cwd: Some(PathBuf::from(r"D:\work tree")),
             support_dir: Some(support_dir.clone()),
             window_title: None,
+            no_keep_open: false,
         };
 
         let path = write_secure_ps_wrapper(&spec).unwrap();
@@ -1805,6 +1829,7 @@ mod tests {
             cwd: None,
             support_dir: None,
             window_title: None,
+            no_keep_open: false,
         };
 
         let posix = prepare_posix_command(&spec);
@@ -1825,6 +1850,7 @@ mod tests {
             cwd: None,
             support_dir: None,
             window_title: None,
+            no_keep_open: false,
         };
 
         let powershell = prepare_powershell_command(&spec);
@@ -1857,6 +1883,7 @@ mod tests {
             cwd: None,
             support_dir: None,
             window_title: None,
+            no_keep_open: false,
         };
 
         let prepared = prepare_posix_command(&spec);
@@ -1887,6 +1914,7 @@ mod tests {
             cwd: Some(PathBuf::from(r"C:\Users\%USERNAME%\A^B")),
             support_dir: None,
             window_title: None,
+            no_keep_open: false,
         };
 
         let prepared = prepare_cmd_command(&spec);
@@ -1927,6 +1955,7 @@ mod tests {
             cwd: Some(PathBuf::from("/workspace")),
             support_dir: Some(PathBuf::from("/tmp/runtime-codex")),
             window_title: None,
+            no_keep_open: false,
         };
 
         let child_command = render_posix_child_command(&spec);

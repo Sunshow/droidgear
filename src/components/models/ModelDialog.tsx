@@ -397,7 +397,11 @@ function ModelForm({
     setIsFetching(true)
     setFetchError(null)
 
-    const result = await commands.fetchModels(provider, baseUrl, apiKey)
+    const result = await commands.fetchModels(
+      provider,
+      baseUrl.trim(),
+      apiKey.trim()
+    )
 
     setIsFetching(false)
 
@@ -445,7 +449,9 @@ function ModelForm({
       m =>
         !existingModels.some(
           em =>
-            em.model === m.id && em.baseUrl === baseUrl && em.apiKey === apiKey
+            em.model === m.id &&
+            em.baseUrl === baseUrl.trim() &&
+            em.apiKey === apiKey.trim()
         )
     )
     selectableModels.forEach(m => {
@@ -579,9 +585,9 @@ function ModelForm({
     if (!extraArgsValid || !extraHeadersValid) return
 
     const newModel: CustomModel = {
-      model: modelId,
-      baseUrl: baseUrl,
-      apiKey: apiKey,
+      model: modelId.trim(),
+      baseUrl: baseUrl.trim(),
+      apiKey: apiKey.trim(),
       provider,
       displayName: displayName || undefined,
       maxOutputTokens: maxTokens ? parseInt(maxTokens) : undefined,
@@ -618,8 +624,8 @@ function ModelForm({
 
     const models = buildModelsFromBatch(
       selectedModels,
-      baseUrl,
-      apiKey,
+      baseUrl.trim(),
+      apiKey.trim(),
       prefix,
       suffix,
       batchMaxTokens,

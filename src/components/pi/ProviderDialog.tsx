@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { usePiStore } from '@/store/pi-store'
+import { trimToNull } from '@/lib/utils'
 import type {
   PiProfile,
   PiProviderConfig,
@@ -323,9 +324,9 @@ function ProviderForm({
     const validModels = models.filter(m => m.id.trim())
 
     const config: PiProviderConfig = {
-      baseUrl: baseUrl.trim() || null,
+      baseUrl: trimToNull(baseUrl),
       api: api || null,
-      apiKey: apiKey.trim() || null,
+      apiKey: trimToNull(apiKey),
       headers: headers as PiProviderConfig['headers'],
       authHeader: authHeader || null,
       models: validModels,

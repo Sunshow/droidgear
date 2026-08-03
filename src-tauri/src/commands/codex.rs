@@ -169,6 +169,7 @@ fn build_codex_launch_spec(plan: &CodexTemporaryLaunchPlan) -> LaunchSpec {
         cwd: None,
         support_dir: Some(plan.runtime_home_path.clone()),
         window_title: None,
+        no_keep_open: false,
     }
 }
 

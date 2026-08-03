@@ -6,6 +6,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Trim leading/trailing whitespace. Empty or whitespace-only input becomes
+ * null, so callers can store the result directly in optional fields.
+ */
+export function trimToNull(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? ''
+  return trimmed || null
+}
+
 export function containsRegexSpecialChars(value: string): boolean {
   return /[[\](){}^$*+?|\\]/.test(value)
 }

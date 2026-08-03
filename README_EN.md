@@ -87,14 +87,20 @@ Run the installer directly.
 
 ### Claude Support
 
-- **Claude Settings File Management** - Switch and edit multiple settings files (Global + custom) with structured Provider / Model / Reasoning / Thinking sections
+- **Claude Settings File Management** - Switch and edit multiple settings files (Global + custom) with structured Provider / Model / Reasoning / Thinking / General / Permissions sections
+- **Settings File Actions** - Create, delete, duplicate, load from live config, merge to global, preview changes, and run once temporarily
+- **Set Active & Dirty Tracking** - Set a settings file as the active one, with unsaved-change dirty tracking (TUI)
+- **Merge Apply** - Shallow-merge env and permissions from a settings file into the global settings
 - **Import from Channel** - One-click import of provider configuration (base URL, API key, default model) from configured channels
 - **Runtime Core** - Settings loaded via a runtime overlay at launch so the live configuration is never mutated
+- **GUI/TUI Parity** - Desktop and TUI versions share the same Claude settings features and semantics (unset small model follows the main model)
 
 ### Codex Support
 
 - **Codex CLI Integration** - Manage Codex configuration profiles
 - **Auth Profiles** - Save and switch between official login and BYOK auth profiles with conflict detection
+- **Instant Apply** - Edits to the currently active profile (including provider switches) apply immediately, no explicit apply needed
+- **Model Catalog Sync** - Applying DeepSeek V4 models automatically syncs the `~/.codex/models.json` model catalog
 - **Configuration Management** - Load and save auth/config.toml (`~/.codex`)
 - **Management Pages** - MCP servers / sessions / terminal subpages under Codex
 
@@ -150,11 +156,13 @@ droidgear-tui run codex <profile-id>
 
 The TUI version supports the following configuration management features:
 
+- **Grouped Navigation**: Two-level navigation mirroring the GUI sidebar, with feature-list screens, breadcrumb titles, and module picker labels
 - **Factory Configuration**: Custom model management, default model settings
 - **MCP Servers**: CRUD operations, enable/disable, import/export
+- **Claude Settings Files**: Multi-settings-file management, structured field editing, merge apply, set active, skip-permissions run, dirty tracking, one-off temporary run
 - **Codex Profiles**: Configuration file management, change preview, one-click apply
 - **OpenCode Profiles**: Provider/Auth configuration management
-- **OpenClaw Profiles**: Configuration management and apply
+- **OpenClaw Profiles**: Configuration management and apply (with Subagents/Helpers nav entries)
 - **Pi Profiles**: Provider/Model configuration management and apply
 - **Sessions**: Session browsing and management
 - **Paths**: Path override configuration (for server environments)

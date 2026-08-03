@@ -36,6 +36,7 @@ import {
   protocolToOpenCodeNpm,
   normalizeBaseUrlForOpenCode,
 } from '@/lib/model-protocol'
+import { trimToNull } from '@/lib/utils'
 import { ModelItem } from './ModelItem'
 import { ModelEditDialog } from './ModelEditDialog'
 
@@ -179,8 +180,8 @@ export function ProviderDialog({
     try {
       const result = await commands.testOpencodeProviderConnection(
         providerId,
-        baseURL,
-        apiKey
+        baseURL.trim(),
+        apiKey.trim()
       )
       if (result.status === 'ok' && result.data) {
         setTestResult('success')
@@ -197,11 +198,12 @@ export function ProviderDialog({
   const handleSave = () => {
     if (!providerId.trim()) return
 
+    const trimmedApiKey = trimToNull(apiKey)
     const config: OpenCodeProviderConfig = {
-      npm: npm.trim() || null,
-      name: name.trim() || null,
+      npm: trimToNull(npm),
+      name: trimToNull(name),
       options: {
-        baseURL: baseURL.trim() || null,
+        baseURL: trimToNull(baseURL),
         apiKey: null,
         timeout: timeout ? parseInt(timeout, 10) : null,
         headers: null,
@@ -209,7 +211,7 @@ export function ProviderDialog({
       models: Object.keys(models).length > 0 ? models : null,
     }
 
-    const auth = apiKey.trim() ? { type: 'api', key: apiKey.trim() } : undefined
+    const auth = trimmedApiKey ? { type: 'api', key: trimmedApiKey } : undefined
 
     if (isEditing) {
       updateProvider(providerId, config, auth)

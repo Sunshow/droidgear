@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn handle_sessions_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
     match code {
-        KeyCode::Esc | KeyCode::Char('q') => app.screen = app::Screen::Main,
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
         KeyCode::Down => app.sessions_index = app.sessions_index.saturating_add(1),
         KeyCode::Up => app.sessions_index = app.sessions_index.saturating_sub(1),
         KeyCode::Char('r') => refresh_sessions(app),

@@ -123,15 +123,54 @@ pub(super) fn handle_modal_key(app: &mut app::App, code: KeyCode, modal: app::Mo
             mut index,
             action,
         } => match code {
-            KeyCode::Esc => app.modal = None,
+            KeyCode::Esc => {
+                app.modal_filter.clear();
+                app.modal = None;
+            }
             KeyCode::Enter => {
                 let selected = options.get(index).cloned();
+                app.modal_filter.clear();
                 app.modal = None;
                 if let Err(e) = run_select_action(app, action, index, selected) {
                     app.set_toast(e.to_string(), true);
                 } else {
                     refresh_screen_data(app);
                 }
+            }
+            KeyCode::Char(c)
+                if matches!(&action, app::SelectAction::GoToNav) && !c.is_control() =>
+            {
+                // Type-to-filter for the module picker: rebuild the option
+                // list from the filter. GoToNav resolves by label, so the
+                // filtered index stays consistent.
+                app.modal_filter.push(c);
+                let filter = app.modal_filter.clone();
+                let filtered: Vec<String> = app::App::nav_targets()
+                    .iter()
+                    .map(|(label, _)| label.clone())
+                    .filter(|label| label.contains(&filter))
+                    .collect();
+                app.modal = Some(app::Modal::Select {
+                    title,
+                    options: filtered,
+                    index: 0,
+                    action,
+                });
+            }
+            KeyCode::Backspace if matches!(&action, app::SelectAction::GoToNav) => {
+                app.modal_filter.pop();
+                let filter = app.modal_filter.clone();
+                let filtered: Vec<String> = app::App::nav_targets()
+                    .iter()
+                    .map(|(label, _)| label.clone())
+                    .filter(|label| label.contains(&filter))
+                    .collect();
+                app.modal = Some(app::Modal::Select {
+                    title,
+                    options: filtered,
+                    index: 0,
+                    action,
+                });
             }
             KeyCode::Up => {
                 index = index.saturating_sub(1);
@@ -220,49 +259,306 @@ pub(super) fn handle_modal_key(app: &mut app::App, code: KeyCode, modal: app::Mo
 pub(super) fn run_select_action(
     app: &mut app::App,
     action: app::SelectAction,
-    index: usize,
+    _index: usize,
     selected: Option<String>,
 ) -> anyhow::Result<()> {
     match action {
         app::SelectAction::GoToNav => {
-            app.nav_index = index.min(app::App::nav_items().len().saturating_sub(1));
-            if let Some((_, screen)) = app::App::nav_items().get(app.nav_index) {
+            // Resolve by label: with the type-to-filter the selected index
+            // indexes the filtered list, but labels are globally unique.
+            let Some(label) = selected else {
+                return Ok(());
+            };
+            if let Some((_, screen)) = app::App::nav_targets().iter().find(|(l, _)| *l == label) {
+                app.nav_index = app::App::group_of_screen(*screen).unwrap_or(0);
                 app.screen = *screen;
                 app.clear_toast();
                 refresh_screen_data(app);
             }
             Ok(())
         }
-        app::SelectAction::ClaudeSetProfileReasoningEffort { id } => {
-            let mut profile =
-                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
-                    .map_err(anyhow::Error::msg)?;
-            profile.reasoning_effort = match selected.as_deref() {
-                Some("(inherit)") | None => None,
-                Some("low") => Some(droidgear_core::claude::ClaudeReasoningEffort::Low),
-                Some("medium") => Some(droidgear_core::claude::ClaudeReasoningEffort::Medium),
-                Some("high") => Some(droidgear_core::claude::ClaudeReasoningEffort::High),
-                Some("max") => Some(droidgear_core::claude::ClaudeReasoningEffort::Max),
-                Some(_) => return Err(anyhow::Error::msg("Invalid reasoning effort")),
+        app::SelectAction::ClaudeSettingsSetReasoningEffort => {
+            let Some(ref mut json) = app.claude_detail_json else {
+                return Ok(());
             };
-            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
-            app.set_toast("Saved", false);
+            let obj = json.as_object_mut().unwrap();
+            let env = obj
+                .entry("env".to_string())
+                .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
+            if let Some(env_obj) = env.as_object_mut() {
+                match selected.as_deref() {
+                    Some("inherit") | None => {
+                        env_obj.remove("CLAUDE_CODE_EFFORT_LEVEL");
+                        env_obj.remove("CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING");
+                    }
+                    Some("low") => {
+                        env_obj.insert(
+                            "CLAUDE_CODE_EFFORT_LEVEL".to_string(),
+                            serde_json::Value::String("low".to_string()),
+                        );
+                        env_obj.remove("CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING");
+                    }
+                    Some("medium") => {
+                        env_obj.insert(
+                            "CLAUDE_CODE_EFFORT_LEVEL".to_string(),
+                            serde_json::Value::String("medium".to_string()),
+                        );
+                        env_obj.remove("CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING");
+                    }
+                    Some("high") => {
+                        env_obj.insert(
+                            "CLAUDE_CODE_EFFORT_LEVEL".to_string(),
+                            serde_json::Value::String("high".to_string()),
+                        );
+                        env_obj.insert(
+                            "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING".to_string(),
+                            serde_json::Value::String("1".to_string()),
+                        );
+                    }
+                    Some("max") => {
+                        env_obj.insert(
+                            "CLAUDE_CODE_EFFORT_LEVEL".to_string(),
+                            serde_json::Value::String("max".to_string()),
+                        );
+                        env_obj.insert(
+                            "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING".to_string(),
+                            serde_json::Value::String("1".to_string()),
+                        );
+                    }
+                    _ => {}
+                }
+            }
+            app.claude_detail_dirty = true;
             Ok(())
         }
-        app::SelectAction::ClaudeSetProfileThinkingMode { id } => {
-            let mut profile =
-                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
-                    .map_err(anyhow::Error::msg)?;
-            profile.thinking_mode = match selected.as_deref() {
-                Some("inherit") | None => droidgear_core::claude::ClaudeThinkingMode::Inherit,
-                Some("on") => droidgear_core::claude::ClaudeThinkingMode::On,
-                Some("off") => droidgear_core::claude::ClaudeThinkingMode::Off,
-                Some(_) => return Err(anyhow::Error::msg("Invalid thinking mode")),
+        app::SelectAction::ClaudeSettingsSetThinkingMode => {
+            let Some(ref mut json) = app.claude_detail_json else {
+                return Ok(());
             };
-            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
+            let obj = json.as_object_mut().unwrap();
+            match selected.as_deref() {
+                Some("inherit") | None => {
+                    obj.remove("alwaysThinkingEnabled");
+                    let env = obj
+                        .entry("env".to_string())
+                        .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
+                    if let Some(env_obj) = env.as_object_mut() {
+                        env_obj.remove("CLAUDE_CODE_DISABLE_THINKING");
+                    }
+                }
+                Some("on") => {
+                    obj.insert(
+                        "alwaysThinkingEnabled".to_string(),
+                        serde_json::Value::Bool(true),
+                    );
+                    let env = obj
+                        .entry("env".to_string())
+                        .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
+                    if let Some(env_obj) = env.as_object_mut() {
+                        env_obj.remove("CLAUDE_CODE_DISABLE_THINKING");
+                    }
+                }
+                Some("off") => {
+                    obj.insert(
+                        "alwaysThinkingEnabled".to_string(),
+                        serde_json::Value::Bool(false),
+                    );
+                    let env = obj
+                        .entry("env".to_string())
+                        .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
+                    if let Some(env_obj) = env.as_object_mut() {
+                        env_obj.insert(
+                            "CLAUDE_CODE_DISABLE_THINKING".to_string(),
+                            serde_json::Value::String("1".to_string()),
+                        );
+                    }
+                }
+                _ => {}
+            }
+            app.claude_detail_dirty = true;
+            Ok(())
+        }
+        app::SelectAction::ClaudeSettingsSetPermissionsDefaultMode => {
+            let Some(ref mut json) = app.claude_detail_json else {
+                return Ok(());
+            };
+            let obj = json.as_object_mut().unwrap();
+            let permissions = obj
+                .entry("permissions".to_string())
+                .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
+            if let Some(perm_obj) = permissions.as_object_mut() {
+                match selected.as_deref() {
+                    Some("(unset)") | None => {
+                        perm_obj.remove("defaultMode");
+                    }
+                    Some(value) => {
+                        perm_obj.insert(
+                            "defaultMode".to_string(),
+                            serde_json::Value::String(value.to_string()),
+                        );
+                    }
+                }
+            }
+            app.claude_detail_dirty = true;
+            Ok(())
+        }
+        app::SelectAction::ClaudeSettingsSetDisableBypass => {
+            let Some(ref mut json) = app.claude_detail_json else {
+                return Ok(());
+            };
+            let obj = json.as_object_mut().unwrap();
+            match selected.as_deref() {
+                Some("(unset)") | None => {
+                    obj.remove("disableBypassPermissionsMode");
+                }
+                Some("disable") => {
+                    obj.insert(
+                        "disableBypassPermissionsMode".to_string(),
+                        serde_json::Value::String("disable".to_string()),
+                    );
+                }
+                _ => {}
+            }
+            app.claude_detail_dirty = true;
+            Ok(())
+        }
+        app::SelectAction::ClaudeSettingsImportChannel => {
+            let Some(selected) = selected else {
+                return Ok(());
+            };
+            let channel = app
+                .channels
+                .iter()
+                .find(|c| format!("{} ({})", c.name, c.base_url) == selected)
+                .cloned();
+            let Some(channel) = channel else {
+                app.set_toast("Channel not found", true);
+                return Ok(());
+            };
+            if super::keys_channels::channel_type_uses_api_key(&channel.channel_type) {
+                let api_key = droidgear_core::channel::get_channel_api_key_for_home(
+                    &app.home_dir,
+                    &channel.id,
+                )
                 .map_err(anyhow::Error::msg)?;
-            app.set_toast("Saved", false);
+                match api_key {
+                    Some(key) if !key.trim().is_empty() => {
+                        claude_import_fetch_models(app, &channel, key.trim());
+                    }
+                    _ => {
+                        app.modal = Some(app::Modal::Input {
+                            title: format!("API key for '{}'", channel.name),
+                            value: String::new(),
+                            cursor: usize::MAX,
+                            is_secret: true,
+                            action: app::InputAction::ClaudeSettingsImportApiKey {
+                                channel_id: channel.id.clone(),
+                            },
+                        });
+                    }
+                }
+            } else {
+                let credentials = droidgear_core::channel::get_channel_credentials_for_home(
+                    &app.home_dir,
+                    &channel.id,
+                )
+                .map_err(anyhow::Error::msg)?;
+                let Some((username, password)) = credentials else {
+                    app.set_toast(
+                        format!("No credentials configured for '{}'", channel.name),
+                        true,
+                    );
+                    return Ok(());
+                };
+                let tokens = droidgear_core::channel::fetch_channel_tokens_blocking(
+                    channel.channel_type.clone(),
+                    &channel.base_url,
+                    &username,
+                    &password,
+                )
+                .map_err(anyhow::Error::msg)?;
+                if tokens.is_empty() {
+                    app.set_toast(format!("No tokens available on '{}'", channel.name), true);
+                    return Ok(());
+                }
+                app.modal = Some(app::Modal::Select {
+                    title: format!("Select Token ({})", channel.name),
+                    options: tokens
+                        .iter()
+                        .map(|t| format!("{} ({})", t.name, t.key))
+                        .collect(),
+                    index: 0,
+                    action: app::SelectAction::ClaudeSettingsImportToken,
+                });
+            }
+            Ok(())
+        }
+        app::SelectAction::ClaudeSettingsImportToken => {
+            let Some(selected) = selected else {
+                return Ok(());
+            };
+            let Some(channel) = app
+                .channels
+                .iter()
+                .find(|c| c.enabled && selected.starts_with(&format!("{} (", c.name)))
+                .cloned()
+            else {
+                app.set_toast("Channel not found", true);
+                return Ok(());
+            };
+            // Token lines are "name (key)"; extract the key.
+            let api_key = selected
+                .rsplit_once('(')
+                .and_then(|(_, rest)| rest.strip_suffix(')'))
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            if api_key.is_empty() {
+                app.set_toast("Invalid token selection", true);
+                return Ok(());
+            }
+            claude_import_fetch_models(app, &channel, &api_key);
+            Ok(())
+        }
+        app::SelectAction::ClaudeSettingsImportModel => {
+            let Some(selected) = selected else {
+                return Ok(());
+            };
+            let base_url = app
+                .claude_import_pending_base_url
+                .take()
+                .unwrap_or_default();
+            let api_key = app.claude_import_pending_api_key.take().unwrap_or_default();
+            app.claude_import_pending_platform = None;
+            if base_url.is_empty() || api_key.is_empty() {
+                app.set_toast("Import state missing", true);
+                return Ok(());
+            }
+            let Some(ref mut json) = app.claude_detail_json else {
+                return Ok(());
+            };
+            let obj = json.as_object_mut().unwrap();
+            let env = obj
+                .entry("env".to_string())
+                .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
+            if let Some(env_obj) = env.as_object_mut() {
+                env_obj.insert(
+                    "ANTHROPIC_BASE_URL".to_string(),
+                    serde_json::Value::String(base_url),
+                );
+                env_obj.insert(
+                    "ANTHROPIC_AUTH_TOKEN".to_string(),
+                    serde_json::Value::String(api_key),
+                );
+                if !selected.is_empty() && selected != "(skip model)" {
+                    env_obj.insert(
+                        "ANTHROPIC_MODEL".to_string(),
+                        serde_json::Value::String(selected.to_string()),
+                    );
+                }
+            }
+            app.claude_detail_dirty = true;
+            app.set_toast("Imported into editor — press s to save", false);
             Ok(())
         }
         app::SelectAction::CodexSetProfileModelProvider { id } => {
@@ -286,8 +582,11 @@ pub(super) fn run_select_action(
             if profile.model_provider != "openai" {
                 profile.auth_profile_name = None;
             }
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -307,8 +606,11 @@ pub(super) fn run_select_action(
             } else {
                 Some(selected)
             };
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -319,8 +621,11 @@ pub(super) fn run_select_action(
                 Some("(none)") | None => None,
                 Some(v) => Some(v.to_string()),
             };
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -339,8 +644,11 @@ pub(super) fn run_select_action(
             } else {
                 return Err(anyhow::Error::msg("Provider not found"));
             }
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -359,8 +667,11 @@ pub(super) fn run_select_action(
             } else {
                 return Err(anyhow::Error::msg("Provider not found"));
             }
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -1209,6 +1520,37 @@ pub(super) fn run_select_action(
     }
 }
 
+/// Fetches the model list for a channel and opens the model Select for a
+/// Claude settings import. Mirrors the GUI ImportFromChannelDialog flow
+/// (channel → key/token → model → write into the editor).
+fn claude_import_fetch_models(
+    app: &mut app::App,
+    channel: &droidgear_core::channel::Channel,
+    api_key: &str,
+) {
+    match droidgear_core::channel::fetch_models_by_api_key_blocking(
+        &channel.base_url,
+        api_key,
+        None,
+    ) {
+        Ok(models) => {
+            app.claude_import_pending_base_url = Some(channel.base_url.clone());
+            app.claude_import_pending_api_key = Some(api_key.to_string());
+            let mut options = vec!["(skip model)".to_string()];
+            options.extend(models.iter().map(|m| m.id.clone()));
+            app.modal = Some(app::Modal::Select {
+                title: format!("Select Model ({})", channel.name),
+                options,
+                index: 0,
+                action: app::SelectAction::ClaudeSettingsImportModel,
+            });
+        }
+        Err(e) => {
+            app.set_toast(format!("Failed to fetch models: {e}"), true);
+        }
+    }
+}
+
 /// Try to resolve an API key from a channel's stored authentication.
 /// First checks for a stored API key (CliProxyApi/Ollama/General),
 /// then tries credentials to fetch a live token (NewApi/Sub2Api).
@@ -1285,15 +1627,25 @@ pub(super) fn run_confirm_action(
                 .map_err(anyhow::Error::msg)?;
             Ok(())
         }
-        app::ConfirmAction::ClaudeApply { id } => {
-            droidgear_core::claude::apply_claude_profile_for_home(&app.home_dir, &id)
-                .map_err(anyhow::Error::msg)?;
-            app.set_toast("Applied", false);
+        app::ConfirmAction::ClaudeSettingsApply { name } => {
+            droidgear_core::claude_settings_files::merge_settings_file_to_global_for_home(
+                &app.home_dir,
+                &name,
+            )
+            .map_err(anyhow::Error::msg)?;
+            app.set_toast("Merged into global", false);
             Ok(())
         }
-        app::ConfirmAction::ClaudeDelete { id } => {
-            droidgear_core::claude::delete_claude_profile_for_home(&app.home_dir, &id)
-                .map_err(anyhow::Error::msg)?;
+        app::ConfirmAction::ClaudeSettingsDelete { name } => {
+            droidgear_core::claude_settings_files::delete_settings_file_for_home(
+                &app.home_dir,
+                name,
+            )
+            .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
+        app::ConfirmAction::ClaudeSettingsDiscardDetail => {
+            super::keys_claude::exit_claude_detail(app);
             Ok(())
         }
         app::ConfirmAction::CodexApply { id } => {
@@ -1340,8 +1692,11 @@ pub(super) fn run_confirm_action(
                     .cloned()
                     .unwrap_or_else(|| "custom".to_string());
             }
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             Ok(())
         }
         app::ConfirmAction::OpenCodeApply { id } => {
@@ -1679,133 +2034,132 @@ pub(super) fn run_input_action(
                 .map_err(anyhow::Error::msg)?;
             Ok(())
         }
-        app::InputAction::ClaudeCreateProfile => {
+        app::InputAction::ClaudeSettingsCreateFile => {
             if trimmed.is_empty() {
-                return Err(anyhow::Error::msg("Profile name is required"));
+                return Err(anyhow::Error::msg("File name is required"));
             }
-
-            let before = droidgear_core::claude::list_claude_profiles_for_home(&app.home_dir)
-                .map_err(anyhow::Error::msg)?;
-            let before_ids = before
-                .iter()
-                .map(|profile| profile.id.clone())
-                .collect::<std::collections::HashSet<String>>();
-
-            let profile = droidgear_core::claude::ClaudeCodeProfile {
-                id: String::new(),
-                name: trimmed.to_string(),
-                description: None,
-                base_url: None,
-                bearer_token: None,
-                model: None,
-                small_model_uses_main_model: false,
-                small_model: None,
-                reasoning_effort: None,
-                thinking_mode: droidgear_core::claude::ClaudeThinkingMode::Inherit,
-                created_at: String::new(),
-                updated_at: String::new(),
-            };
-
-            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
-
+            // Copy the active file by default, matching the GUI's
+            // copyFromActive default (true).
+            droidgear_core::claude_settings_files::create_settings_file_for_home(
+                &app.home_dir,
+                trimmed.to_string(),
+                true,
+            )
+            .map_err(anyhow::Error::msg)?;
             refresh_claude(app);
-            if let Some((idx, profile)) = app
-                .claude_profiles
-                .iter()
-                .enumerate()
-                .find(|(_, profile)| !before_ids.contains(&profile.id))
-            {
+            // Find the new file and activate it
+            if let Some(idx) = app.claude_files.iter().position(|f| f.name == trimmed) {
                 app.claude_index = idx;
-                app.claude_detail_id = Some(profile.id.clone());
+                app.claude_detail_name = Some(trimmed.to_string());
                 app.claude_detail_field_index = 0;
-                app.screen = app::Screen::ClaudeProfile;
+                app.claude_detail_dirty = false;
+                app.screen = app::Screen::ClaudeSettingsDetail;
                 refresh_claude_detail(app);
             }
-
             Ok(())
         }
-        app::InputAction::ClaudeDuplicate { id } => {
+        app::InputAction::ClaudeSettingsDuplicate { name } => {
             if trimmed.is_empty() {
-                return Err(anyhow::Error::msg("Profile name is required"));
+                return Err(anyhow::Error::msg("File name is required"));
             }
-            let new_profile = droidgear_core::claude::duplicate_claude_profile_for_home(
+            droidgear_core::claude_settings_files::duplicate_settings_file_for_home(
                 &app.home_dir,
-                &id,
+                &name,
                 trimmed,
             )
             .map_err(anyhow::Error::msg)?;
             refresh_claude(app);
-            if let Some(idx) = app
-                .claude_profiles
-                .iter()
-                .position(|profile| profile.id == new_profile.id)
-            {
+            if let Some(idx) = app.claude_files.iter().position(|f| f.name == trimmed) {
                 app.claude_index = idx;
             }
             Ok(())
         }
-        app::InputAction::ClaudeSetProfileName { id } => {
-            if trimmed.is_empty() {
-                return Err(anyhow::Error::msg("Profile name is required"));
+        app::InputAction::ClaudeSettingsEditField { field_index } => {
+            let Some(ref mut json) = app.claude_detail_json else {
+                return Ok(());
+            };
+            let obj = json.as_object_mut().unwrap();
+
+            match field_index {
+                0 | 1 | 2 | 4 => {
+                    let env = obj
+                        .entry("env".to_string())
+                        .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
+                    let env_obj = env.as_object_mut().unwrap();
+                    match field_index {
+                        0 => {
+                            if trimmed.is_empty() {
+                                env_obj.remove("ANTHROPIC_BASE_URL");
+                            } else {
+                                env_obj.insert(
+                                    "ANTHROPIC_BASE_URL".to_string(),
+                                    serde_json::Value::String(trimmed.to_string()),
+                                );
+                            }
+                        }
+                        1 => {
+                            if trimmed.is_empty() {
+                                env_obj.remove("ANTHROPIC_AUTH_TOKEN");
+                            } else {
+                                env_obj.insert(
+                                    "ANTHROPIC_AUTH_TOKEN".to_string(),
+                                    serde_json::Value::String(trimmed.to_string()),
+                                );
+                            }
+                        }
+                        2 => {
+                            if trimmed.is_empty() {
+                                env_obj.remove("ANTHROPIC_MODEL");
+                            } else {
+                                env_obj.insert(
+                                    "ANTHROPIC_MODEL".to_string(),
+                                    serde_json::Value::String(trimmed.to_string()),
+                                );
+                            }
+                        }
+                        4 => {
+                            if trimmed.is_empty() {
+                                env_obj.remove("ANTHROPIC_DEFAULT_HAIKU_MODEL");
+                            } else {
+                                env_obj.insert(
+                                    "ANTHROPIC_DEFAULT_HAIKU_MODEL".to_string(),
+                                    serde_json::Value::String(trimmed.to_string()),
+                                );
+                            }
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+                10 => {
+                    if let Ok(days) = trimmed.parse::<u64>() {
+                        obj.insert(
+                            "cleanupPeriodDays".to_string(),
+                            serde_json::Value::Number(serde_json::Number::from(days)),
+                        );
+                    } else {
+                        obj.remove("cleanupPeriodDays");
+                    }
+                }
+                _ => {}
             }
-            let mut profile =
-                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
-                    .map_err(anyhow::Error::msg)?;
-            profile.name = trimmed.to_string();
-            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
-            app.set_toast("Saved", false);
+            app.claude_detail_dirty = true;
             Ok(())
         }
-        app::InputAction::ClaudeSetProfileDescription { id } => {
-            let mut profile =
-                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
-                    .map_err(anyhow::Error::msg)?;
-            profile.description = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
-            app.set_toast("Saved", false);
-            Ok(())
-        }
-        app::InputAction::ClaudeSetProfileBaseUrl { id } => {
-            let mut profile =
-                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
-                    .map_err(anyhow::Error::msg)?;
-            profile.base_url = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
-            app.set_toast("Saved", false);
-            Ok(())
-        }
-        app::InputAction::ClaudeSetProfileBearerToken { id } => {
-            let mut profile =
-                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
-                    .map_err(anyhow::Error::msg)?;
-            profile.bearer_token = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
-            app.set_toast("Saved", false);
-            Ok(())
-        }
-        app::InputAction::ClaudeSetProfileModel { id } => {
-            let mut profile =
-                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
-                    .map_err(anyhow::Error::msg)?;
-            profile.model = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
-            app.set_toast("Saved", false);
-            Ok(())
-        }
-        app::InputAction::ClaudeSetProfileSmallModel { id } => {
-            let mut profile =
-                droidgear_core::claude::get_claude_profile_for_home(&app.home_dir, &id)
-                    .map_err(anyhow::Error::msg)?;
-            profile.small_model = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::claude::save_claude_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
-            app.set_toast("Saved", false);
+        app::InputAction::ClaudeSettingsImportApiKey { channel_id } => {
+            if trimmed.is_empty() {
+                return Err(anyhow::Error::msg("API key is required"));
+            }
+            let Some(channel) = app.channels.iter().find(|c| c.id == channel_id).cloned() else {
+                app.set_toast("Channel not found", true);
+                return Ok(());
+            };
+            droidgear_core::channel::save_channel_api_key_for_home(
+                &app.home_dir,
+                &channel.id,
+                trimmed,
+            )
+            .map_err(anyhow::Error::msg)?;
+            claude_import_fetch_models(app, &channel, trimmed);
             Ok(())
         }
         app::InputAction::CodexCreateProfile => {
@@ -1852,8 +2206,11 @@ pub(super) fn run_input_action(
                 auth_profile_name: None,
             };
 
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
 
             refresh_codex(app);
             if let Some((idx, p)) = app
@@ -1900,8 +2257,11 @@ pub(super) fn run_input_action(
             let mut profile = droidgear_core::codex::get_codex_profile_for_home(&app.home_dir, &id)
                 .map_err(anyhow::Error::msg)?;
             profile.name = trimmed.to_string();
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -1909,8 +2269,11 @@ pub(super) fn run_input_action(
             let mut profile = droidgear_core::codex::get_codex_profile_for_home(&app.home_dir, &id)
                 .map_err(anyhow::Error::msg)?;
             profile.description = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -1918,8 +2281,11 @@ pub(super) fn run_input_action(
             let mut profile = droidgear_core::codex::get_codex_profile_for_home(&app.home_dir, &id)
                 .map_err(anyhow::Error::msg)?;
             profile.model = trimmed.to_string();
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -1927,8 +2293,11 @@ pub(super) fn run_input_action(
             let mut profile = droidgear_core::codex::get_codex_profile_for_home(&app.home_dir, &id)
                 .map_err(anyhow::Error::msg)?;
             profile.api_key = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -1959,8 +2328,11 @@ pub(super) fn run_input_action(
                 },
             );
 
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
 
             app.codex_provider_id = Some(trimmed.to_string());
             app.codex_provider_field_index = 0;
@@ -1979,8 +2351,11 @@ pub(super) fn run_input_action(
                 return Err(anyhow::Error::msg("Provider not found"));
             };
             provider.name = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -1995,8 +2370,11 @@ pub(super) fn run_input_action(
                 return Err(anyhow::Error::msg("Provider not found"));
             };
             provider.base_url = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -2011,8 +2389,11 @@ pub(super) fn run_input_action(
                 return Err(anyhow::Error::msg("Provider not found"));
             };
             provider.api_key = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -2027,8 +2408,11 @@ pub(super) fn run_input_action(
                 return Err(anyhow::Error::msg("Provider not found"));
             };
             provider.model = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
-                .map_err(anyhow::Error::msg)?;
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }

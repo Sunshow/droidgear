@@ -344,8 +344,8 @@ pub fn draw(frame: &mut Frame, app: &app::App) {
     draw_nav(frame, app, chunks[0]);
     draw_main(frame, app, chunks[1]);
 
-    if let Some(modal) = app.modal.as_ref() {
-        draw_modal(frame, modal);
+    if app.modal.is_some() {
+        draw_modal(frame, app);
     } else if let Some(toast) = app.toast.as_ref() {
         draw_toast(frame, toast);
     }
@@ -353,12 +353,31 @@ pub fn draw(frame: &mut Frame, app: &app::App) {
 
 fn draw_nav(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
-    let items: Vec<ListItem> = app::App::nav_items()
-        .iter()
-        .map(|(label, _)| ListItem::new(Line::from(*label)))
-        .collect();
+    let groups = app::App::nav_groups();
+    let mut items: Vec<ListItem> = Vec::new();
+    // Rendered list row for each group: separators shift rows, but the
+    // selection (nav_index) indexes groups, so map group -> rendered row.
+    let mut rendered: Vec<usize> = Vec::with_capacity(groups.len());
+    for (i, group) in groups.iter().enumerate() {
+        // Separator before the first system group (global features such as
+        // Channels and Paths, set apart from the tool groups).
+        if group.system && i > 0 && !groups[i - 1].system {
+            items.push(ListItem::new(Line::from(Span::styled(
+                "─".repeat(area.width.saturating_sub(2) as usize),
+                t.dim_style(),
+            ))));
+        }
+        rendered.push(items.len());
+        let label = if group.items.len() > 1 {
+            format!("{} ({})", group.label, group.items.len())
+        } else {
+            group.label.to_string()
+        };
+        items.push(ListItem::new(Line::from(label)));
+    }
 
-    let selected = (app.screen == app::Screen::Main).then_some(app.nav_index);
+    let on_nav = app.screen == app::Screen::Main || app.screen == app::Screen::FeatureList;
+    let selected = on_nav.then(|| rendered.get(app.nav_index).copied().unwrap_or(0));
     let list = List::new(items)
         .block(block("DroidGear"))
         .highlight_style(t.selected_row_style());
@@ -368,6 +387,7 @@ fn draw_nav(frame: &mut Frame, app: &app::App, area: Rect) {
 fn draw_main(frame: &mut Frame, app: &app::App, area: Rect) {
     match app.screen {
         app::Screen::Main => draw_home(frame, area),
+        app::Screen::FeatureList => draw_feature_list(frame, app, area),
         app::Screen::Paths => draw_paths(frame, app, area),
         app::Screen::DroidSettingsFiles => draw_droid_settings_files(frame, app, area),
         app::Screen::Factory => draw_factory(frame, app, area),
@@ -376,8 +396,8 @@ fn draw_main(frame: &mut Frame, app: &app::App, area: Rect) {
         app::Screen::McpServer => draw_mcp_server(frame, app, area),
         app::Screen::McpArgs => draw_mcp_args(frame, app, area),
         app::Screen::McpKeyValues => draw_mcp_key_values(frame, app, area),
-        app::Screen::Claude => draw_claude_profiles(frame, app, area),
-        app::Screen::ClaudeProfile => draw_claude_profile(frame, app, area),
+        app::Screen::ClaudeSettings => draw_claude_settings_files(frame, app, area),
+        app::Screen::ClaudeSettingsDetail => draw_claude_settings_detail(frame, app, area),
         app::Screen::Codex => draw_codex_profiles(frame, app, area),
         app::Screen::CodexProfile => draw_codex_profile(frame, app, area),
         app::Screen::CodexProvider => draw_codex_provider(frame, app, area),
@@ -411,7 +431,7 @@ fn draw_main(frame: &mut Frame, app: &app::App, area: Rect) {
 
 fn draw_home(frame: &mut Frame, area: Rect) {
     let text = vec![
-        help_line("Enter: open module"),
+        help_line("Enter: open group"),
         help_line("s: module picker"),
         help_line("Up/Down: navigate"),
         help_line("q: quit"),
@@ -420,6 +440,49 @@ fn draw_home(frame: &mut Frame, area: Rect) {
         .block(block("Home"))
         .wrap(Wrap { trim: true });
     frame.render_widget(p, area);
+}
+
+fn draw_feature_list(frame: &mut Frame, app: &app::App, area: Rect) {
+    let t = theme();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
+
+    let Some(group) = app::App::nav_groups().get(app.nav_index) else {
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "No group selected",
+            t.warning_style(),
+        ))])
+        .block(block("Features"))
+        .wrap(Wrap { trim: true });
+        frame.render_widget(p, chunks[0]);
+        frame.render_widget(help_paragraph("q/Esc: back"), chunks[1]);
+        return;
+    };
+
+    let mut items: Vec<ListItem> = Vec::new();
+    for (i, (feature, _)) in group.items.iter().enumerate() {
+        let marker = if i == app.feature_index { "▸ " } else { "  " };
+        items.push(ListItem::new(Line::from(format!("{marker}{feature}"))));
+    }
+
+    let list = List::new(items)
+        .block(block(group.label))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, list, chunks[0], Some(app.feature_index));
+
+    let help = help_paragraph("Up/Down: select  Enter: open  s: picker  q/Esc: back");
+    frame.render_widget(help, chunks[1]);
+}
+
+/// Block title for a screen in a multi-item nav group, e.g. "Droid ▸ Models".
+/// Screens without a crumb keep their original title.
+fn crumb_title(app: &app::App, original: &str) -> String {
+    match app::App::feature_crumb(app.screen) {
+        Some((group, feature)) => format!("{group} ▸ {feature}"),
+        None => original.to_string(),
+    }
 }
 
 fn draw_paths(frame: &mut Frame, app: &app::App, area: Rect) {
@@ -533,7 +596,7 @@ fn draw_droid_settings_files(frame: &mut Frame, app: &app::App, area: Rect) {
     }
 
     let p = Paragraph::new(lines)
-        .block(block("Droid Settings Files"))
+        .block(block(crumb_title(app, "Droid Settings Files")))
         .wrap(Wrap { trim: false });
     frame.render_widget(p, chunks[0]);
 
@@ -588,9 +651,12 @@ fn draw_factory(frame: &mut Frame, app: &app::App, area: Rect) {
         ))));
     }
 
+    let crumb = app::App::feature_crumb(app.screen)
+        .map(|(group, feature)| format!("{group} ▸ {feature}"))
+        .unwrap_or_else(|| "Factory".to_string());
     let title = match app.factory_default_model_id.as_deref() {
-        Some(id) => format!("Factory (default model: {id})"),
-        None => "Factory (default model: -)".to_string(),
+        Some(id) => format!("{crumb} (default model: {id})"),
+        None => format!("{crumb} (default model: -)"),
     };
 
     let selected = (!app.custom_models.is_empty()).then_some(app.factory_models_index);
@@ -783,7 +849,7 @@ fn draw_mcp(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let selected = (!app.mcp_servers.is_empty()).then_some(app.mcp_index);
     let list = List::new(items)
-        .block(block("MCP"))
+        .block(block(crumb_title(app, "MCP")))
         .highlight_style(t.selected_row_style());
     render_list(frame, list, chunks[0], selected);
 
@@ -975,7 +1041,7 @@ fn draw_codex_profiles(frame: &mut Frame, app: &app::App, area: Rect) {
     draw_profile_list(
         frame,
         area,
-        "Codex Profiles",
+        &crumb_title(app, "Codex Profiles"),
         app.codex_profiles
             .iter()
             .map(|p| (p.name.as_str(), p.id.as_str())),
@@ -985,83 +1051,111 @@ fn draw_codex_profiles(frame: &mut Frame, app: &app::App, area: Rect) {
     );
 }
 
-fn draw_claude_profiles(frame: &mut Frame, app: &app::App, area: Rect) {
-    let active = app.claude_active_id.as_deref();
+fn draw_claude_settings_files(frame: &mut Frame, app: &app::App, area: Rect) {
     let selected_index = app.claude_index;
+    let active_name = app
+        .claude_files
+        .iter()
+        .find(|f| f.is_active)
+        .map(|f| f.name.as_str());
     draw_profile_list(
         frame,
         area,
-        "Claude Profiles",
-        app.claude_profiles
+        "Claude Settings Files",
+        app.claude_files
             .iter()
-            .map(|profile| (profile.name.as_str(), profile.id.as_str())),
-        active,
+            .map(|f| (f.name.as_str(), f.path.as_str())),
+        active_name,
         selected_index,
-        "Up/Down: select  Enter/e: open  t: run preview  x: run+exit  a: apply  n: new  c: copy  d: delete  r: refresh  q/Esc: back",
+        "Up/Down: select  Enter/e: open  s: set active  t: temp run  T: temp run (skip)  p: preview  a: merge to global  l: load live  n: new  c: copy  d: delete  r: refresh  q/Esc: back",
     );
 }
 
-fn draw_claude_profile(frame: &mut Frame, app: &app::App, area: Rect) {
+fn draw_claude_settings_detail(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
-    let Some(profile) = app.claude_detail.as_ref() else {
+    let Some(json) = app.claude_detail_json.as_ref() else {
         let p = Paragraph::new(vec![Line::from(Span::styled(
-            "Failed to load profile",
+            "Failed to load settings",
             t.error_style(),
         ))])
-        .block(block("Claude Profile"))
+        .block(block("Claude Settings"))
         .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
         return;
     };
+
+    let name = app.claude_detail_name.as_deref().unwrap_or("unknown");
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
         .split(area);
 
-    let small_model_value = if profile.small_model_uses_main_model {
-        "(uses main model)".to_string()
-    } else {
-        profile
-            .small_model
-            .clone()
+    // Helper to read env string
+    let env_str = |key: &str| -> String {
+        json.get("env")
+            .and_then(|e| e.get(key))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
             .unwrap_or_else(|| "(not set)".to_string())
     };
-    let reasoning_value = profile
-        .reasoning_effort
-        .map(|value| match value {
-            droidgear_core::claude::ClaudeReasoningEffort::Low => "low".to_string(),
-            droidgear_core::claude::ClaudeReasoningEffort::Medium => "medium".to_string(),
-            droidgear_core::claude::ClaudeReasoningEffort::High => "high".to_string(),
-            droidgear_core::claude::ClaudeReasoningEffort::Max => "max".to_string(),
-        })
-        .unwrap_or_else(|| "(inherit)".to_string());
-    let thinking_value = match profile.thinking_mode {
-        droidgear_core::claude::ClaudeThinkingMode::Inherit => "inherit",
-        droidgear_core::claude::ClaudeThinkingMode::On => "on",
-        droidgear_core::claude::ClaudeThinkingMode::Off => "off",
+
+    let base_url = env_str("ANTHROPIC_BASE_URL");
+    let bearer_token = env_str("ANTHROPIC_AUTH_TOKEN");
+    let token_set = !bearer_token.is_empty() && bearer_token != "(not set)";
+    let model = env_str("ANTHROPIC_MODEL");
+    let small_model = env_str("ANTHROPIC_DEFAULT_HAIKU_MODEL");
+    let mirror = small_model.is_empty() || small_model == "(not set)";
+
+    let context_1m = model.ends_with("[1m]");
+
+    let reasoning = env_str("CLAUDE_CODE_EFFORT_LEVEL");
+    let reasoning_display = if reasoning == "(not set)" {
+        "(inherit)".to_string()
+    } else {
+        reasoning
     };
-    let token_set = profile
-        .bearer_token
-        .as_deref()
-        .is_some_and(|value| !value.trim().is_empty());
+
+    let disable_thinking = env_str("CLAUDE_CODE_DISABLE_THINKING");
+    let always_thinking = json.get("alwaysThinkingEnabled").and_then(|v| v.as_bool());
+    let thinking_display = match (disable_thinking.as_str(), always_thinking) {
+        ("1", _) => "off".to_string(),
+        (_, Some(true)) => "on".to_string(),
+        _ => "inherit".to_string(),
+    };
+
+    let auto_update = json
+        .get("autoUpdate")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let include_coauthored = json
+        .get("includeCoAuthoredBy")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let cleanup_days = json
+        .get("cleanupPeriodDays")
+        .and_then(|v| v.as_u64())
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| "30".to_string());
+
+    let permissions_default_mode = json
+        .get("permissions")
+        .and_then(|p| p.get("defaultMode"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("(unset)")
+        .to_string();
+    let disable_bypass = json
+        .get("disableBypassPermissionsMode")
+        .and_then(|v| v.as_str())
+        .unwrap_or("(unset)")
+        .to_string();
+    let skip_dangerous = json
+        .get("skipDangerousModePermissionPrompt")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
 
     let fields: Vec<(&str, String)> = vec![
-        ("Name", profile.name.clone()),
-        (
-            "Description",
-            profile
-                .description
-                .clone()
-                .unwrap_or_else(|| "".to_string()),
-        ),
-        (
-            "Base URL",
-            profile
-                .base_url
-                .clone()
-                .unwrap_or_else(|| "(not set)".to_string()),
-        ),
+        ("Base URL", base_url),
         (
             "Bearer Token",
             if token_set {
@@ -1070,48 +1164,96 @@ fn draw_claude_profile(frame: &mut Frame, app: &app::App, area: Rect) {
                 "(not set)".to_string()
             },
         ),
+        ("Model", model),
         (
-            "Main Model",
-            profile
-                .model
-                .clone()
-                .unwrap_or_else(|| "(not set)".to_string()),
-        ),
-        (
-            "Use Main Small",
-            if profile.small_model_uses_main_model {
+            "Use main for small",
+            if mirror {
                 "yes".to_string()
             } else {
                 "no".to_string()
             },
         ),
-        ("Small Model", small_model_value),
-        ("Reasoning", reasoning_value),
-        ("Thinking", thinking_value.to_string()),
+        (
+            "Small Model",
+            if mirror {
+                "(none - uses main)".to_string()
+            } else {
+                small_model
+            },
+        ),
+        (
+            "1M Context",
+            if context_1m {
+                "yes".to_string()
+            } else {
+                "no".to_string()
+            },
+        ),
+        ("Reasoning", reasoning_display),
+        ("Thinking", thinking_display.to_string()),
+        (
+            "autoUpdate",
+            if auto_update {
+                "yes".to_string()
+            } else {
+                "no".to_string()
+            },
+        ),
+        (
+            "includeCoAuthoredBy",
+            if include_coauthored {
+                "yes".to_string()
+            } else {
+                "no".to_string()
+            },
+        ),
+        ("cleanupPeriodDays", cleanup_days),
+        ("Permissions defaultMode", permissions_default_mode),
+        ("disableBypass", disable_bypass),
+        (
+            "skipDangerousPrompt",
+            if skip_dangerous {
+                "yes".to_string()
+            } else {
+                "no".to_string()
+            },
+        ),
     ];
 
     let mut items: Vec<ListItem> = Vec::new();
     for (index, (label, value)) in fields.into_iter().enumerate() {
         let selected = index == app.claude_detail_field_index;
         let line = if selected {
-            Line::from(format!("{label:>16}: {value}"))
+            Line::from(format!("{label:>24}: {value}"))
         } else {
             let custom_style = match label {
                 "Bearer Token" if value == "********" => Some(t.success_fg_style()),
                 _ => None,
             };
-            field_line_custom(label, &value, 16, custom_style)
+            field_line_custom(label, &value, 24, custom_style)
         };
         items.push(ListItem::new(line));
     }
 
+    // Mirrors the GUI warning for project-style files: the skip-dangerous
+    // prompt field is not honoured outside the global file. The name is
+    // "Global" only for the real global file (`validate_custom_file_name`
+    // rejects "global" as a custom name, case-insensitively).
+    if skip_dangerous && !name.eq_ignore_ascii_case("global") {
+        items.push(ListItem::new(Line::from(Span::styled(
+            "Note: skipDangerousModePermissionPrompt is only honoured in the global settings file",
+            t.warning_style(),
+        ))));
+    }
+
+    let dirty_marker = if app.claude_detail_dirty { " *" } else { "" };
     let list = List::new(items)
-        .block(block(format!("Claude Profile: {}", profile.name)))
+        .block(block(format!("Claude Settings: {name}{dirty_marker}")))
         .highlight_style(t.selected_row_style());
     render_list(frame, list, chunks[0], Some(app.claude_detail_field_index));
 
     let help = help_paragraph(
-        "Up/Down: move  Enter/e: edit/toggle  l: load live  t: run preview  x: run+exit  a: apply  q/Esc: back",
+        "Up/Down: move  Enter: edit/toggle  s: save  i: import from channel  t: temp run  T: temp run (skip)  p: preview  l: load live  a: merge to global  q/Esc: back",
     );
     frame.render_widget(help, chunks[1]);
 }
@@ -1138,7 +1280,7 @@ fn draw_openclaw_profiles(frame: &mut Frame, app: &app::App, area: Rect) {
     draw_profile_list(
         frame,
         area,
-        "OpenClaw Profiles",
+        &crumb_title(app, "OpenClaw Profiles"),
         app.openclaw_profiles
             .iter()
             .map(|p| (p.name.as_str(), p.id.as_str())),
@@ -1483,7 +1625,7 @@ fn draw_openclaw_helpers(frame: &mut Frame, app: &app::App, area: Rect) {
             "Failed to load profile",
             t.error_style(),
         ))])
-        .block(block("OpenClaw Helpers"))
+        .block(block(crumb_title(app, "OpenClaw Helpers")))
         .wrap(Wrap { trim: true });
         frame.render_widget(p, area);
         return;
@@ -1547,7 +1689,7 @@ fn draw_openclaw_helpers(frame: &mut Frame, app: &app::App, area: Rect) {
         .split(area);
 
     let list = List::new(items)
-        .block(block("OpenClaw Helpers"))
+        .block(block(crumb_title(app, "OpenClaw Helpers")))
         .highlight_style(t.selected_row_style());
     render_list(
         frame,
@@ -1629,7 +1771,7 @@ fn draw_openclaw_subagents(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let selected = (!non_main.is_empty()).then_some(app.openclaw_subagents_index);
     let list = List::new(items)
-        .block(block("OpenClaw Subagents"))
+        .block(block(crumb_title(app, "OpenClaw Subagents")))
         .highlight_style(t.selected_row_style());
     render_list(frame, list, chunks[0], selected);
 
@@ -2319,7 +2461,7 @@ fn draw_sessions(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let selected = (!app.sessions.is_empty()).then_some(app.sessions_index);
     let list = List::new(items)
-        .block(block("Sessions"))
+        .block(block(crumb_title(app, "Sessions")))
         .highlight_style(t.selected_row_style());
     render_list(frame, list, chunks[0], selected);
 
@@ -2347,7 +2489,7 @@ fn draw_specs(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let selected = (!app.specs.is_empty()).then_some(app.specs_index);
     let list = List::new(items)
-        .block(block("Specs"))
+        .block(block(crumb_title(app, "Specs")))
         .highlight_style(t.selected_row_style());
     render_list(frame, list, chunks[0], selected);
 
@@ -2557,10 +2699,13 @@ fn draw_profile_list<'a>(
     frame.render_widget(help, chunks[1]);
 }
 
-fn draw_modal(frame: &mut Frame, modal: &app::Modal) {
+fn draw_modal(frame: &mut Frame, app: &app::App) {
     let t = theme();
     let area = centered_rect(70, 30, frame.area());
     frame.render_widget(Clear, area);
+    let Some(modal) = app.modal.as_ref() else {
+        return;
+    };
     match modal {
         app::Modal::Confirm { message, .. } => {
             let text = vec![
@@ -2662,7 +2807,7 @@ fn draw_modal(frame: &mut Frame, modal: &app::Modal) {
             title,
             options,
             index,
-            ..
+            action,
         } => {
             let mut lines: Vec<Line> = Vec::new();
             if options.is_empty() {
@@ -2677,7 +2822,19 @@ fn draw_modal(frame: &mut Frame, modal: &app::Modal) {
                 }
             }
             lines.push(Line::from(""));
-            lines.push(hint_line("Up/Down: select  Enter: confirm  Esc: cancel"));
+            let hint = if matches!(action, app::SelectAction::GoToNav) {
+                format!(
+                    "Up/Down: select  type: filter ({})  Enter: confirm  Esc: cancel",
+                    if app.modal_filter.is_empty() {
+                        "none".to_string()
+                    } else {
+                        app.modal_filter.clone()
+                    }
+                )
+            } else {
+                "Up/Down: select  Enter: confirm  Esc: cancel".to_string()
+            };
+            lines.push(hint_line(&hint));
             let block = block(title.as_str()).border_style(t.focused_border_style());
             let p = Paragraph::new(lines)
                 .block(block)
@@ -2819,7 +2976,7 @@ fn draw_missions(frame: &mut Frame, app: &app::App, area: Rect) {
     }
 
     let list = List::new(items)
-        .block(block("Missions"))
+        .block(block(crumb_title(app, "Missions")))
         .highlight_style(t.selected_row_style());
     render_list(frame, list, chunks[0], Some(app.mission_field_index));
 
@@ -3391,7 +3548,7 @@ fn draw_factory_auth(frame: &mut Frame, app: &app::App, area: Rect) {
     let list = Paragraph::new(lines).block(
         Block::default()
             .borders(Borders::ALL)
-            .title(" Factory Auth Profiles "),
+            .title(crumb_title(app, " Factory Auth Profiles ")),
     );
     frame.render_widget(list, chunks[0]);
 
@@ -3449,10 +3606,11 @@ fn draw_codex_auth(frame: &mut Frame, app: &app::App, area: Rect) {
         )));
     }
 
+    let crumb = crumb_title(app, "Codex Auth Profiles");
     let title = if app.codex_auth_is_current_official {
-        " Codex Auth Profiles (current: official) "
+        format!(" {crumb} (current: official) ")
     } else {
-        " Codex Auth Profiles (current: BYOK) "
+        format!(" {crumb} (current: BYOK) ")
     };
     let list = Paragraph::new(lines).block(Block::default().borders(Borders::ALL).title(title));
     frame.render_widget(list, chunks[0]);

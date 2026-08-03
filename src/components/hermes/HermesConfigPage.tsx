@@ -41,6 +41,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useHermesStore } from '@/store/hermes-store'
+import { trimToNull } from '@/lib/utils'
 import { ConfigStatus } from './ConfigStatus'
 import { ImportFromChannelDialog } from './ImportFromChannelDialog'
 
@@ -200,10 +201,10 @@ export function HermesConfigPage() {
     const updated = {
       ...currentProfile,
       model: {
-        default: editingDefaultModel || null,
-        provider: editingProvider || null,
-        baseUrl: editingBaseUrl || null,
-        apiKey: editingApiKey || null,
+        default: trimToNull(editingDefaultModel),
+        provider: trimToNull(editingProvider),
+        baseUrl: trimToNull(editingBaseUrl),
+        apiKey: trimToNull(editingApiKey),
       },
       updatedAt: new Date().toISOString(),
     }

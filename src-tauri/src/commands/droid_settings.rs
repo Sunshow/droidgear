@@ -116,6 +116,7 @@ fn build_droid_launch_spec(plan: &droid_runtime::DroidTemporaryRunPlan) -> Launc
         cwd: None,
         support_dir: None,
         window_title: None,
+        no_keep_open: false,
     }
 }
 

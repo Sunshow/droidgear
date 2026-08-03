@@ -2150,7 +2150,7 @@ mod tests {
         // Create a temp directory and write an existing openclaw.json
         let temp = tempfile::TempDir::new().unwrap();
         let home = temp.path().join("home");
-        std::fs::create_dir_all(&home.join(".openclaw")).unwrap();
+        std::fs::create_dir_all(home.join(".openclaw")).unwrap();
 
         let existing_config = r#"
         {

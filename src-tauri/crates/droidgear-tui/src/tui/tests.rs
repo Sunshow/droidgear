@@ -5,7 +5,7 @@ use crate::tui::utils::{
 };
 use crossterm::event::KeyCode;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 
 fn write_file(path: &Path, contents: &str) {
@@ -15,21 +15,286 @@ fn write_file(path: &Path, contents: &str) {
     std::fs::write(path, contents).unwrap();
 }
 
-fn make_claude_profile(id: &str, name: &str) -> droidgear_core::claude::ClaudeCodeProfile {
-    droidgear_core::claude::ClaudeCodeProfile {
-        id: id.to_string(),
-        name: name.to_string(),
-        description: None,
-        base_url: None,
-        bearer_token: None,
-        model: None,
-        small_model_uses_main_model: false,
-        small_model: None,
-        reasoning_effort: None,
-        thinking_mode: droidgear_core::claude::ClaudeThinkingMode::Inherit,
-        created_at: "2026-01-01T00:00:00Z".to_string(),
-        updated_at: "2026-01-01T00:00:00Z".to_string(),
+#[test]
+fn claude_screen_is_in_claude_nav_group() {
+    let group = app::App::group_of_screen(app::Screen::ClaudeSettings)
+        .expect("ClaudeSettings should be a nav item");
+    assert_eq!(app::App::nav_groups()[group].label, "Claude");
+    assert!(app::App::nav_targets()
+        .iter()
+        .any(|(label, screen)| label == "claude" && *screen == app::Screen::ClaudeSettings));
+}
+
+#[test]
+fn claude_app_state_initializes_correctly() {
+    use std::path::PathBuf;
+    let app = app::App::new(PathBuf::from("/tmp/test-home"));
+    assert!(app.claude_files.is_empty());
+    assert_eq!(app.claude_index, 0);
+    assert!(app.claude_detail_name.is_none());
+    assert!(app.claude_detail_json.is_none());
+    assert_eq!(app.claude_detail_field_index, 0);
+}
+
+#[test]
+fn claude_clamp_indices_does_not_panic_on_empty_files() {
+    use std::path::PathBuf;
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.clamp_indices();
+    assert_eq!(app.claude_index, 0);
+}
+
+#[test]
+fn claude_screen_variants_exist() {
+    let _claude = app::Screen::ClaudeSettings;
+    let _claude_detail = app::Screen::ClaudeSettingsDetail;
+}
+
+#[test]
+fn claude_confirm_action_variants_exist() {
+    let _apply = app::ConfirmAction::ClaudeSettingsApply {
+        name: "test".to_string(),
+    };
+    let _delete = app::ConfirmAction::ClaudeSettingsDelete {
+        name: "test".to_string(),
+    };
+}
+
+#[test]
+fn claude_input_action_variants_exist() {
+    let _create = app::InputAction::ClaudeSettingsCreateFile;
+    let _dup = app::InputAction::ClaudeSettingsDuplicate {
+        name: "x".to_string(),
+    };
+    let _edit = app::InputAction::ClaudeSettingsEditField { field_index: 0 };
+    let _reasoning = app::SelectAction::ClaudeSettingsSetReasoningEffort;
+    let _thinking = app::SelectAction::ClaudeSettingsSetThinkingMode;
+    let _perm = app::SelectAction::ClaudeSettingsSetPermissionsDefaultMode;
+    let _bypass = app::SelectAction::ClaudeSettingsSetDisableBypass;
+}
+
+#[test]
+fn claude_run_action_variant_exists() {
+    let action = super::Action::RunClaudeRun {
+        name: "my-settings".to_string(),
+        skip_dangerous: false,
+    };
+
+    match action {
+        super::Action::RunClaudeRun {
+            name,
+            skip_dangerous,
+        } => {
+            assert_eq!(name, "my-settings");
+            assert!(!skip_dangerous);
+        }
+        _ => panic!("expected RunClaudeRun action"),
     }
+}
+
+fn claude_file(name: &str) -> droidgear_core::claude_settings_files::ClaudeSettingsFileInfo {
+    use droidgear_core::claude_settings_files::ClaudeSettingsFileInfo;
+    ClaudeSettingsFileInfo {
+        name: name.to_string(),
+        path: format!("/tmp/{name}.json"),
+        is_global: false,
+        is_active: true,
+        exists: true,
+    }
+}
+
+#[test]
+fn claude_list_t_key_routes_through_run_action() {
+    use std::path::PathBuf;
+
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.claude_files = vec![claude_file("my-settings")];
+
+    let action = super::keys_claude::handle_claude_key(&mut app, KeyCode::Char('t'));
+
+    match action {
+        Some(super::Action::RunClaudeRun {
+            name,
+            skip_dangerous,
+        }) => {
+            assert_eq!(name, "my-settings");
+            assert!(!skip_dangerous, "t should run without skip permissions");
+        }
+        other => panic!("expected RunClaudeRun action, got {other:?}"),
+    }
+}
+
+#[test]
+fn claude_list_uppercase_t_key_routes_through_skip_run() {
+    use std::path::PathBuf;
+
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.claude_files = vec![claude_file("my-settings")];
+
+    let action = super::keys_claude::handle_claude_key(&mut app, KeyCode::Char('T'));
+
+    match action {
+        Some(super::Action::RunClaudeRun {
+            name,
+            skip_dangerous,
+        }) => {
+            assert_eq!(name, "my-settings");
+            assert!(skip_dangerous, "T should run with skip permissions");
+        }
+        other => panic!("expected RunClaudeRun action, got {other:?}"),
+    }
+}
+
+#[test]
+fn claude_list_t_key_is_blocked_when_file_disables_skip_permissions() {
+    let home = TempDir::new().unwrap();
+    let mut app = app::App::new(home.path().to_path_buf());
+    app.claude_files = vec![claude_file("no-skip")];
+    // The guard reads the file from disk; write one that disables bypass.
+    write_file(
+        &home.path().join(".droidgear/claude-settings/no-skip.json"),
+        r#"{"disableBypassPermissionsMode":"disable"}"#,
+    );
+
+    let action = super::keys_claude::handle_claude_key(&mut app, KeyCode::Char('T'));
+    assert!(action.is_none(), "T should be blocked by the disable flag");
+    assert!(
+        app.toast_message().contains("disabled"),
+        "expected a toast explaining the block, got {:?}",
+        app.toast_message()
+    );
+}
+
+#[test]
+fn claude_list_s_key_sets_active_custom_file() {
+    use std::path::PathBuf;
+
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.claude_files = vec![claude_file("work"), claude_file("personal")];
+
+    let action = super::keys_claude::handle_claude_key(&mut app, KeyCode::Char('s'));
+
+    match action {
+        Some(super::Action::SetActiveClaudeSettingsFile { name }) => {
+            assert_eq!(name.as_deref(), Some("work"));
+        }
+        other => panic!("expected SetActiveClaudeSettingsFile action, got {other:?}"),
+    }
+}
+
+#[test]
+fn claude_detail_escape_with_dirty_edits_asks_for_confirmation() {
+    use std::path::PathBuf;
+
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.claude_detail_name = Some("work".to_string());
+    app.claude_detail_json = Some(serde_json::json!({"env": {}}));
+    app.claude_detail_dirty = true;
+    app.screen = app::Screen::ClaudeSettingsDetail;
+
+    super::keys_claude::handle_claude_settings_detail_key(&mut app, KeyCode::Esc);
+
+    match app.modal {
+        Some(app::Modal::Confirm {
+            action: app::ConfirmAction::ClaudeSettingsDiscardDetail,
+            ..
+        }) => {}
+        other => panic!("expected discard-confirm modal, got {other:?}"),
+    }
+    // Still on the detail screen until the user confirms.
+    assert_eq!(app.screen, app::Screen::ClaudeSettingsDetail);
+}
+
+#[test]
+fn claude_detail_escape_without_dirty_edits_exits() {
+    use std::path::PathBuf;
+
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.claude_detail_name = Some("work".to_string());
+    app.claude_detail_json = Some(serde_json::json!({"env": {}}));
+    app.claude_detail_dirty = false;
+    app.screen = app::Screen::ClaudeSettingsDetail;
+
+    super::keys_claude::handle_claude_settings_detail_key(&mut app, KeyCode::Esc);
+
+    assert_eq!(app.screen, app::Screen::ClaudeSettings);
+    assert!(app.claude_detail_name.is_none());
+}
+
+#[test]
+fn claude_detail_i_key_opens_channel_import_select() {
+    let home = TempDir::new().unwrap();
+    // The `i` key refreshes channels from disk, so write a real channels.json.
+    write_file(
+        &home.path().join(".droidgear/channels.json"),
+        r#"[{"id":"c1","name":"My Proxy","type":"general","baseUrl":"https://proxy.example.com","enabled":true,"createdAt":0}]"#,
+    );
+    let mut app = app::App::new(home.path().to_path_buf());
+    app.claude_detail_name = Some("work".to_string());
+    app.claude_detail_json = Some(serde_json::json!({"env": {}}));
+
+    super::keys_claude::handle_claude_settings_detail_key(&mut app, KeyCode::Char('i'));
+
+    match app.modal {
+        Some(app::Modal::Select {
+            action: app::SelectAction::ClaudeSettingsImportChannel,
+            options,
+            ..
+        }) => {
+            assert!(options.iter().any(|o| o.contains("My Proxy")));
+        }
+        other => panic!("expected channel-import select modal, got {other:?}"),
+    }
+}
+
+#[test]
+fn claude_detail_i_key_with_no_channels_shows_toast() {
+    use std::path::PathBuf;
+
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.claude_detail_name = Some("work".to_string());
+    app.claude_detail_json = Some(serde_json::json!({"env": {}}));
+
+    super::keys_claude::handle_claude_settings_detail_key(&mut app, KeyCode::Char('i'));
+
+    assert!(app.modal.is_none(), "no channels should not open a modal");
+    assert!(
+        app.toast_message().contains("No enabled channels"),
+        "expected a toast, got {:?}",
+        app.toast_message()
+    );
+}
+
+#[test]
+fn claude_detail_t_key_auto_saves_dirty_edits() {
+    let home = TempDir::new().unwrap();
+    write_file(&home.path().join(".claude/settings.json"), "{}");
+    write_file(
+        &home.path().join(".droidgear/claude-settings/work.json"),
+        r#"{"env":{"ANTHROPIC_MODEL":"claude-sonnet-4-5"}}"#,
+    );
+    let mut app = app::App::new(home.path().to_path_buf());
+    app.claude_detail_name = Some("work".to_string());
+    app.claude_detail_json = Some(serde_json::json!({
+        "env": {"ANTHROPIC_MODEL": "claude-sonnet-4-5", "ANTHROPIC_BASE_URL": "https://x"}
+    }));
+    app.claude_detail_dirty = true;
+
+    let action =
+        super::keys_claude::handle_claude_settings_detail_key(&mut app, KeyCode::Char('t'));
+
+    match action {
+        Some(super::Action::RunClaudeRun { name, .. }) => assert_eq!(name, "work"),
+        other => panic!("expected RunClaudeRun action, got {other:?}"),
+    }
+    assert!(!app.claude_detail_dirty, "auto-save should clear dirty");
+    let saved =
+        droidgear_core::claude_settings_files::read_settings_file_for_home(home.path(), "work")
+            .unwrap();
+    assert_eq!(
+        saved["env"]["ANTHROPIC_BASE_URL"],
+        serde_json::Value::String("https://x".to_string())
+    );
 }
 
 #[test]
@@ -72,12 +337,10 @@ fn normalize_factory_models_sets_index_and_id() {
 }
 
 #[test]
-fn hermes_screens_are_included_in_nav_items() {
-    let nav = app::App::nav_items();
-    let has_hermes = nav
-        .iter()
-        .any(|(label, screen)| *label == "Hermes" && *screen == app::Screen::Hermes);
-    assert!(has_hermes, "nav_items() should include Hermes entry");
+fn hermes_screen_is_in_hermes_nav_group() {
+    let group =
+        app::App::group_of_screen(app::Screen::Hermes).expect("Hermes should be a nav item");
+    assert_eq!(app::App::nav_groups()[group].label, "Hermes");
 }
 
 #[test]
@@ -155,126 +418,6 @@ fn hermes_input_action_variants_exist() {
 }
 
 #[test]
-fn claude_screens_are_included_in_nav_items() {
-    let nav = app::App::nav_items();
-    let has_claude = nav
-        .iter()
-        .any(|(label, screen)| *label == "Claude" && *screen == app::Screen::Claude);
-    assert!(has_claude, "nav_items() should include Claude entry");
-}
-
-#[test]
-fn claude_app_state_initializes_correctly() {
-    use std::path::PathBuf;
-    let app = app::App::new(PathBuf::from("/tmp/test-home"));
-    assert!(app.claude_profiles.is_empty());
-    assert!(app.claude_active_id.is_none());
-    assert_eq!(app.claude_index, 0);
-    assert!(app.claude_detail_id.is_none());
-    assert!(app.claude_detail.is_none());
-    assert_eq!(app.claude_detail_field_index, 0);
-}
-
-#[test]
-fn claude_clamp_indices_does_not_panic_on_empty_profiles() {
-    use std::path::PathBuf;
-    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
-    app.clamp_indices();
-    assert_eq!(app.claude_index, 0);
-}
-
-#[test]
-fn claude_screen_variants_exist() {
-    let _claude = app::Screen::Claude;
-    let _claude_profile = app::Screen::ClaudeProfile;
-}
-
-#[test]
-fn claude_confirm_action_variants_exist() {
-    let _apply = app::ConfirmAction::ClaudeApply {
-        id: "test".to_string(),
-    };
-    let _delete = app::ConfirmAction::ClaudeDelete {
-        id: "test".to_string(),
-    };
-}
-
-#[test]
-fn claude_input_action_variants_exist() {
-    let _create = app::InputAction::ClaudeCreateProfile;
-    let _dup = app::InputAction::ClaudeDuplicate {
-        id: "x".to_string(),
-    };
-    let _name = app::InputAction::ClaudeSetProfileName {
-        id: "x".to_string(),
-    };
-    let _desc = app::InputAction::ClaudeSetProfileDescription {
-        id: "x".to_string(),
-    };
-    let _base = app::InputAction::ClaudeSetProfileBaseUrl {
-        id: "x".to_string(),
-    };
-    let _token = app::InputAction::ClaudeSetProfileBearerToken {
-        id: "x".to_string(),
-    };
-    let _model = app::InputAction::ClaudeSetProfileModel {
-        id: "x".to_string(),
-    };
-    let _small = app::InputAction::ClaudeSetProfileSmallModel {
-        id: "x".to_string(),
-    };
-    let _reasoning = app::SelectAction::ClaudeSetProfileReasoningEffort {
-        id: "x".to_string(),
-    };
-    let _thinking = app::SelectAction::ClaudeSetProfileThinkingMode {
-        id: "x".to_string(),
-    };
-}
-
-#[test]
-fn claude_run_action_variant_exists() {
-    let action = super::Action::RunClaudeRun {
-        id: "profile-a".to_string(),
-    };
-
-    match action {
-        super::Action::RunClaudeRun { id } => assert_eq!(id, "profile-a"),
-        _ => panic!("expected RunClaudeRun action"),
-    }
-}
-
-#[test]
-fn claude_list_x_key_routes_through_run_action() {
-    use std::path::PathBuf;
-
-    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
-    app.claude_profiles = vec![make_claude_profile("profile-a", "Alpha")];
-
-    let action = super::keys_claude::handle_claude_key(&mut app, KeyCode::Char('x'));
-
-    match action {
-        Some(super::Action::RunClaudeRun { id }) => assert_eq!(id, "profile-a"),
-        other => panic!("expected RunClaudeRun action, got {other:?}"),
-    }
-}
-
-#[test]
-fn claude_detail_x_key_routes_through_run_action() {
-    use std::path::PathBuf;
-
-    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
-    app.claude_detail_id = Some("profile-a".to_string());
-    app.claude_detail = Some(make_claude_profile("profile-a", "Alpha"));
-
-    let action = super::keys_claude::handle_claude_profile_key(&mut app, KeyCode::Char('x'));
-
-    match action {
-        Some(super::Action::RunClaudeRun { id }) => assert_eq!(id, "profile-a"),
-        other => panic!("expected RunClaudeRun action, got {other:?}"),
-    }
-}
-
-#[test]
 fn sanitize_terminal_for_direct_exec_is_callable() {
     super::utils::sanitize_terminal_for_direct_exec().unwrap();
 }
@@ -288,12 +431,9 @@ fn pi_screen_variants_exist() {
 }
 
 #[test]
-fn pi_is_in_nav_items() {
-    let nav = app::App::nav_items();
-    let has_pi = nav
-        .iter()
-        .any(|(label, screen)| *label == "Pi" && *screen == app::Screen::Pi);
-    assert!(has_pi, "nav_items() should include Pi entry");
+fn pi_is_in_pi_nav_group() {
+    let group = app::App::group_of_screen(app::Screen::Pi).expect("Pi should be a nav item");
+    assert_eq!(app::App::nav_groups()[group].label, "Pi");
 }
 
 #[test]
@@ -542,52 +682,30 @@ fn preview_codex_temporary_run_lists_secret_keys_without_secret_values() {
 #[test]
 fn list_claude_temporary_run_targets_lists_index_name_and_id() {
     let temp = TempDir::new().unwrap();
-    droidgear_core::claude::save_claude_profile_for_home(
+    let settings_dir = temp.path().join(".droidgear").join("claude-settings");
+    std::fs::create_dir_all(&settings_dir).unwrap();
+
+    // Create two settings files
+    let alpha_path = settings_dir.join("Alpha.json");
+    std::fs::write(&alpha_path, "{}").unwrap();
+    let beta_path = settings_dir.join("Beta.json");
+    std::fs::write(&beta_path, "{}").unwrap();
+
+    // Set Beta as active
+    droidgear_core::claude_settings_files::set_active_settings_file_for_home(
         temp.path(),
-        droidgear_core::claude::ClaudeCodeProfile {
-            id: "profile-a".to_string(),
-            name: "Alpha".to_string(),
-            description: None,
-            base_url: Some("https://proxy.example.com".to_string()),
-            bearer_token: Some("token-a".to_string()),
-            model: Some("claude-sonnet-4-5".to_string()),
-            small_model_uses_main_model: false,
-            small_model: None,
-            reasoning_effort: None,
-            thinking_mode: droidgear_core::claude::ClaudeThinkingMode::Inherit,
-            created_at: "2026-01-01T00:00:00Z".to_string(),
-            updated_at: "2026-01-01T00:00:00Z".to_string(),
-        },
+        Some("Beta".to_string()),
     )
     .unwrap();
-    droidgear_core::claude::save_claude_profile_for_home(
-        temp.path(),
-        droidgear_core::claude::ClaudeCodeProfile {
-            id: "profile-b".to_string(),
-            name: "Beta".to_string(),
-            description: None,
-            base_url: Some("https://proxy.example.com".to_string()),
-            bearer_token: Some("token-b".to_string()),
-            model: Some("claude-sonnet-4-5".to_string()),
-            small_model_uses_main_model: false,
-            small_model: None,
-            reasoning_effort: None,
-            thinking_mode: droidgear_core::claude::ClaudeThinkingMode::Inherit,
-            created_at: "2026-01-01T00:00:00Z".to_string(),
-            updated_at: "2026-01-01T00:00:00Z".to_string(),
-        },
-    )
-    .unwrap();
-    droidgear_core::claude::set_active_claude_profile_id_for_home(temp.path(), "profile-b")
-        .unwrap();
 
     let output = list_claude_temporary_run_targets(temp.path()).unwrap();
 
-    assert!(output.contains("Available Claude run targets:"));
-    assert!(output.contains("1. Alpha [id: profile-a]"));
-    assert!(output.contains("* 2. Beta [id: profile-b]"));
-    assert!(output.contains("run claude <index|name|id>"));
-    assert!(output.contains("run claude --preview <index|name|id>"));
+    assert!(output.contains("Available Claude settings files:"));
+    assert!(output.contains("Alpha"));
+    assert!(output.contains("Beta"));
+    assert!(output.contains("(global)"));
+    assert!(output.contains("run claude -n <name>"));
+    assert!(output.contains("run claude --preview -n <name>"));
 }
 
 #[test]
@@ -670,4 +788,183 @@ fn format_claude_temporary_run_preview_includes_overlay_and_sensitive_notice() {
     assert!(output.contains("ANTHROPIC_AUTH_TOKEN"));
     assert!(output.contains("token-a"));
     assert!(output.contains("example warning"));
+}
+
+// --- Navigation grouping ---
+
+#[test]
+fn nav_groups_cover_all_screens_exactly_once() {
+    let screens = [
+        app::Screen::Paths,
+        app::Screen::DroidSettingsFiles,
+        app::Screen::Factory,
+        app::Screen::Mcp,
+        app::Screen::ClaudeSettings,
+        app::Screen::Codex,
+        app::Screen::OpenCode,
+        app::Screen::OpenClaw,
+        app::Screen::Pi,
+        app::Screen::Hermes,
+        app::Screen::Sessions,
+        app::Screen::Specs,
+        app::Screen::Channels,
+        app::Screen::Missions,
+        app::Screen::FactoryAuth,
+        app::Screen::CodexAuth,
+        app::Screen::OpenClawSubagents,
+        app::Screen::OpenClawHelpers,
+    ];
+    for screen in screens {
+        let group = app::App::group_of_screen(screen)
+            .unwrap_or_else(|| panic!("{screen:?} should be a nav item"));
+        let occurrences = app::App::nav_groups()[group]
+            .items
+            .iter()
+            .filter(|(_, s)| *s == screen)
+            .count();
+        assert_eq!(occurrences, 1, "{screen:?} should appear exactly once");
+    }
+}
+
+#[test]
+fn go_back_from_multi_item_group_feature_returns_to_feature_list() {
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.screen = app::Screen::Factory;
+    app.go_back();
+    assert_eq!(app.screen, app::Screen::FeatureList);
+    assert_eq!(
+        app.nav_index,
+        app::App::group_of_screen(app::Screen::Factory).unwrap()
+    );
+}
+
+#[test]
+fn go_back_from_feature_list_returns_to_main() {
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.screen = app::Screen::FeatureList;
+    app.go_back();
+    assert_eq!(app.screen, app::Screen::Main);
+}
+
+#[test]
+fn go_back_from_single_item_group_returns_to_main() {
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.screen = app::Screen::Channels;
+    app.go_back();
+    assert_eq!(app.screen, app::Screen::Main);
+}
+
+#[test]
+fn go_back_from_sub_screen_returns_to_parent() {
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.screen = app::Screen::McpServer;
+    app.go_back();
+    assert_eq!(app.screen, app::Screen::Mcp);
+    app.go_back();
+    assert_eq!(app.screen, app::Screen::FeatureList);
+    app.go_back();
+    assert_eq!(app.screen, app::Screen::Main);
+}
+
+#[test]
+fn go_back_from_openclaw_helpers_returns_to_openclaw_feature_list() {
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.screen = app::Screen::OpenClawHelpers;
+    app.go_back();
+    assert_eq!(app.screen, app::Screen::FeatureList);
+    assert_eq!(
+        app.nav_index,
+        app::App::group_of_screen(app::Screen::OpenClawHelpers).unwrap()
+    );
+}
+
+#[test]
+fn main_enter_on_multi_item_group_opens_feature_list() {
+    let home = TempDir::new().unwrap();
+    let mut app = app::App::new(home.path().to_path_buf());
+    app.nav_index = app::App::group_of_screen(app::Screen::Factory).unwrap();
+    super::keys_main::handle_main_key(&mut app, KeyCode::Enter);
+    assert_eq!(app.screen, app::Screen::FeatureList);
+    assert_eq!(app.feature_index, 0);
+}
+
+#[test]
+fn main_enter_on_single_item_group_opens_screen_directly() {
+    let home = TempDir::new().unwrap();
+    let mut app = app::App::new(home.path().to_path_buf());
+    app.nav_index = app::App::group_of_screen(app::Screen::Channels).unwrap();
+    super::keys_main::handle_main_key(&mut app, KeyCode::Enter);
+    assert_eq!(app.screen, app::Screen::Channels);
+}
+
+#[test]
+fn feature_list_enter_opens_selected_feature() {
+    let home = TempDir::new().unwrap();
+    let mut app = app::App::new(home.path().to_path_buf());
+    app.screen = app::Screen::FeatureList;
+    app.nav_index = app::App::group_of_screen(app::Screen::Factory).unwrap();
+    app.feature_index = 2; // Auth Profiles
+    super::keys_main::handle_feature_list_key(&mut app, KeyCode::Enter);
+    assert_eq!(app.screen, app::Screen::FactoryAuth);
+}
+
+#[test]
+fn feature_list_escape_returns_to_main() {
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.screen = app::Screen::FeatureList;
+    super::keys_main::handle_feature_list_key(&mut app, KeyCode::Esc);
+    assert_eq!(app.screen, app::Screen::Main);
+}
+
+#[test]
+fn nav_targets_use_group_prefixed_labels() {
+    let targets = app::App::nav_targets();
+    assert!(targets
+        .iter()
+        .any(|(label, screen)| label == "droid: models" && *screen == app::Screen::Factory));
+    assert!(targets.iter().any(|(label, screen)| {
+        label == "codex: auth profiles" && *screen == app::Screen::CodexAuth
+    }));
+    assert!(targets
+        .iter()
+        .any(|(label, screen)| label == "channels" && *screen == app::Screen::Channels));
+    // Labels must be unique so the picker can resolve by label.
+    let mut labels: Vec<&String> = targets.iter().map(|(label, _)| label).collect();
+    labels.sort();
+    labels.dedup();
+    assert_eq!(labels.len(), targets.len());
+}
+
+#[test]
+fn nav_picker_filter_narrows_options_and_enter_resolves_by_label() {
+    let home = TempDir::new().unwrap();
+    let mut app = app::App::new(home.path().to_path_buf());
+    super::keys_main::handle_main_key(&mut app, KeyCode::Char('s'));
+    let Some(app::Modal::Select {
+        options,
+        index,
+        action: app::SelectAction::GoToNav,
+        ..
+    }) = app.modal.clone()
+    else {
+        panic!("expected GoToNav select modal");
+    };
+    assert_eq!(options.len(), app::App::nav_targets().len());
+    assert_eq!(index, 0);
+
+    // Type "dro" to filter down to the Droid group's features.
+    for c in ['d', 'r', 'o'] {
+        super::keys_main::handle_key(&mut app, KeyCode::Char(c));
+    }
+    let Some(app::Modal::Select { options, .. }) = app.modal.clone() else {
+        panic!("select modal should still be open");
+    };
+    assert_eq!(options.len(), 7);
+    assert!(options.iter().all(|o| o.starts_with("droid:")));
+
+    // Enter picks the first filtered option ("droid: models" -> Factory).
+    super::keys_main::handle_key(&mut app, KeyCode::Enter);
+    assert_eq!(app.screen, app::Screen::Factory);
+    assert!(app.modal.is_none());
+    assert!(app.modal_filter.is_empty());
 }

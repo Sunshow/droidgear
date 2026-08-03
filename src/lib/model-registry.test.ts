@@ -60,6 +60,12 @@ describe('getSupportedEfforts', () => {
       'high',
       'max',
     ])
+    expect(getSupportedEfforts('deepseek-v4-flash', 'openai')).toEqual([
+      'none',
+      'low',
+      'high',
+      'max',
+    ])
   })
 
   it('returns null for unknown model ids', () => {
@@ -81,6 +87,14 @@ describe('clampEffortToSupported', () => {
     expect(clampEffortToSupported('xhigh', ['none', 'high', 'max'])).toBe(
       'high'
     )
+  })
+
+  it('clamps deepseek-v4-flash efforts to its whitelist', () => {
+    const flashEfforts = ['none', 'low', 'high', 'max']
+    expect(clampEffortToSupported('xhigh', flashEfforts)).toBe('high')
+    expect(clampEffortToSupported('medium', flashEfforts)).toBe('low')
+    expect(clampEffortToSupported('max', flashEfforts)).toBe('max')
+    expect(clampEffortToSupported('high', flashEfforts)).toBe('high')
   })
 
   it('falls back to preferred default when present', () => {
@@ -128,6 +142,30 @@ describe('getEffortEncoding profiles', () => {
       thinking: { type: 'enabled' },
       output_config: { effort: 'max' },
     })
+  })
+
+  it('encodes deepseek-v4-flash per its supported effort set', () => {
+    expect(getEffortEncoding('deepseek-v4-flash', 'openai', 'none')).toEqual({
+      thinking: { type: 'disabled' },
+    })
+    expect(getEffortEncoding('deepseek-v4-flash', 'openai', 'low')).toEqual({
+      thinking: { type: 'enabled' },
+      reasoning_effort: 'low',
+    })
+    expect(getEffortEncoding('deepseek-v4-flash', 'openai', 'high')).toEqual({
+      thinking: { type: 'enabled' },
+      reasoning_effort: 'high',
+    })
+    expect(getEffortEncoding('deepseek-v4-flash', 'openai', 'max')).toEqual({
+      thinking: { type: 'enabled' },
+      reasoning_effort: 'max',
+    })
+    expect(getEffortEncoding('deepseek-v4-flash', 'anthropic', 'high')).toEqual(
+      {
+        thinking: { type: 'enabled' },
+        output_config: { effort: 'high' },
+      }
+    )
   })
 
   it('returns null for unknown model ids', () => {

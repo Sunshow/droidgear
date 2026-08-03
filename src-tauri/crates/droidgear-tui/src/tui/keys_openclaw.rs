@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn handle_openclaw_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
     match code {
-        KeyCode::Esc | KeyCode::Char('q') => app.screen = app::Screen::Main,
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
         KeyCode::Down => app.openclaw_index = app.openclaw_index.saturating_add(1),
         KeyCode::Up => app.openclaw_index = app.openclaw_index.saturating_sub(1),
         KeyCode::Char('r') => refresh_openclaw(app),
@@ -118,7 +118,7 @@ pub(super) fn handle_openclaw_profile_key(app: &mut app::App, code: KeyCode) -> 
 
     match code {
         KeyCode::Esc | KeyCode::Char('q') => {
-            app.screen = app::Screen::OpenClaw;
+            app.go_back();
             app.openclaw_provider_id = None;
         }
         KeyCode::Tab => {
@@ -324,7 +324,7 @@ pub(super) fn handle_openclaw_provider_key(app: &mut app::App, code: KeyCode) ->
     };
 
     match code {
-        KeyCode::Esc | KeyCode::Char('q') => app.screen = app::Screen::OpenClawProfile,
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
         KeyCode::Tab => {
             app.openclaw_provider_focus = match app.openclaw_provider_focus {
                 app::CodexDetailFocus::Fields => app::CodexDetailFocus::Providers,
@@ -460,7 +460,7 @@ pub(super) fn handle_openclaw_model_key(app: &mut app::App, code: KeyCode) -> Op
     };
 
     match code {
-        KeyCode::Esc | KeyCode::Char('q') => app.screen = app::Screen::OpenClawProvider,
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
         KeyCode::Down => {
             app.openclaw_model_field_index = app.openclaw_model_field_index.saturating_add(1)
         }
@@ -621,7 +621,7 @@ pub(super) fn handle_openclaw_helpers_key(app: &mut app::App, code: KeyCode) -> 
     };
 
     match code {
-        KeyCode::Esc | KeyCode::Char('q') => app.screen = app::Screen::OpenClawProfile,
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
         KeyCode::Down => {
             app.openclaw_helpers_field_index = app.openclaw_helpers_field_index.saturating_add(1)
         }
@@ -829,7 +829,7 @@ pub(super) fn handle_openclaw_subagents_key(app: &mut app::App, code: KeyCode) -
     let allowed = openclaw_subagent_allowed_ids(&app.openclaw_subagents);
 
     match code {
-        KeyCode::Esc | KeyCode::Char('q') => app.screen = app::Screen::OpenClawProfile,
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
         KeyCode::Down => {
             app.openclaw_subagents_index = app.openclaw_subagents_index.saturating_add(1)
         }
@@ -896,7 +896,7 @@ pub(super) fn handle_openclaw_subagent_detail_key(
     match code {
         KeyCode::Esc | KeyCode::Char('q') => {
             app.openclaw_subagent_detail = None;
-            app.screen = app::Screen::OpenClawSubagents;
+            app.go_back();
         }
         KeyCode::Down => {
             app.openclaw_subagent_field_index = app.openclaw_subagent_field_index.saturating_add(1)

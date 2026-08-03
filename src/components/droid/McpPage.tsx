@@ -38,6 +38,7 @@ import {
   type McpServerConfig,
   type McpServerType,
 } from '@/lib/bindings'
+import { trimToNull } from '@/lib/utils'
 
 // MCP Server Presets for Quick Add
 interface McpPresetApiKeyConfig {
@@ -252,25 +253,33 @@ export function McpPage() {
       return
     }
 
+    const cleanArgs = args.map(a => a.trim()).filter(a => a.length > 0)
+    const cleanEnv = envVars
+      .map(e => ({ key: e.key.trim(), value: e.value.trim() }))
+      .filter(e => e.key.length > 0)
+    const cleanHeaders = headers
+      .map(h => ({ key: h.key.trim(), value: h.value.trim() }))
+      .filter(h => h.key.length > 0)
+
     const config: McpServerConfig =
       serverType === 'stdio'
         ? {
             type: 'stdio',
             disabled: editingServer?.config.disabled ?? false,
-            command: command || null,
-            args: args.length > 0 ? args : null,
+            command: trimToNull(command),
+            args: cleanArgs.length > 0 ? cleanArgs : null,
             env:
-              envVars.length > 0
-                ? Object.fromEntries(envVars.map(e => [e.key, e.value]))
+              cleanEnv.length > 0
+                ? Object.fromEntries(cleanEnv.map(e => [e.key, e.value]))
                 : null,
           }
         : {
             type: 'http',
             disabled: editingServer?.config.disabled ?? false,
-            url: url || null,
+            url: trimToNull(url),
             headers:
-              headers.length > 0
-                ? Object.fromEntries(headers.map(h => [h.key, h.value]))
+              cleanHeaders.length > 0
+                ? Object.fromEntries(cleanHeaders.map(h => [h.key, h.value]))
                 : null,
           }
 

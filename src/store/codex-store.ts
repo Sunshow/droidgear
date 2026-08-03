@@ -166,12 +166,27 @@ export const useCodexStore = create<CodexState>()(
       },
 
       saveProfile: async () => {
-        const { currentProfile } = get()
+        const { currentProfile, activeProfileId } = get()
         if (!currentProfile) return
         const result = await commands.saveCodexProfile(currentProfile)
         if (result.status !== 'ok') {
           set({ error: result.error }, undefined, 'codex/saveProfile/error')
           return
+        }
+        // Editing the applied profile takes effect immediately; other
+        // profiles are only saved until explicitly applied.
+        if (activeProfileId === currentProfile.id) {
+          const applyResult = await commands.applyCodexProfile(
+            currentProfile.id
+          )
+          if (applyResult.status !== 'ok') {
+            set(
+              { error: applyResult.error },
+              undefined,
+              'codex/saveProfile/applyError'
+            )
+            return
+          }
         }
         await get().loadProfiles()
         get().selectProfile(currentProfile.id)

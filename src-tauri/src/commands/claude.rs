@@ -142,6 +142,7 @@ fn build_claude_launch_spec(plan: &ClaudeTemporaryLaunchPlan) -> LaunchSpec {
         cwd: None,
         support_dir: Some(plan.runtime_dir_path.clone()),
         window_title: None,
+        no_keep_open: false,
     }
 }
 

@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn handle_factory_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
     match code {
-        KeyCode::Esc | KeyCode::Char('q') => app.screen = app::Screen::Main,
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
         KeyCode::Down => app.factory_models_index = app.factory_models_index.saturating_add(1),
         KeyCode::Up => app.factory_models_index = app.factory_models_index.saturating_sub(1),
         KeyCode::Char('r') => refresh_factory(app),
@@ -92,7 +92,7 @@ pub(super) fn handle_factory_model_key(app: &mut app::App, code: KeyCode) -> Opt
         KeyCode::Esc | KeyCode::Char('q') => {
             app.factory_draft = None;
             app.factory_edit_index = None;
-            app.screen = app::Screen::Factory;
+            app.go_back();
         }
         KeyCode::Down => {
             app.factory_model_field_index = app.factory_model_field_index.saturating_add(1)

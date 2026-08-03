@@ -5,9 +5,7 @@ import {
   CloudDownload,
   Feather,
   Loader2,
-  Plus,
   RefreshCw,
-  Trash2,
   Undo2,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -24,12 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
 import type { JsonValue } from '@/lib/bindings'
 import {
@@ -39,7 +31,6 @@ import {
   CLAUDE_SMALL_MODEL_ENV,
   type ClaudeReasoningEffort,
   type ClaudeThinkingMode,
-  cleanupDocument,
   getEnvString,
   getReasoningEffort,
   getThinkingMode,
@@ -58,16 +49,6 @@ import {
 } from '@/store/claude-settings-store'
 import { ImportFromChannelDialog } from './ImportFromChannelDialog'
 
-const PRESET_ENV_VARS: { key: string; defaultValue: string }[] = [
-  { key: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC', defaultValue: '1' },
-  { key: 'DISABLE_AUTOUPDATER', defaultValue: '0' },
-  { key: 'DISABLE_BUG_COMMAND', defaultValue: '0' },
-  { key: 'DISABLE_COST_WARNINGS', defaultValue: '0' },
-  { key: 'DISABLE_ERROR_REPORTING', defaultValue: '0' },
-  { key: 'DISABLE_NON_ESSENTIAL_MODEL_CALLS', defaultValue: '0' },
-  { key: 'DISABLE_TELEMETRY', defaultValue: '0' },
-]
-
 const DEFAULT_MODE_VALUES = [
   'default',
   'acceptEdits',
@@ -79,37 +60,6 @@ const DEFAULT_MODE_VALUES = [
 
 const DEFAULT_MODE_UNSET = '__unset__'
 const DISABLE_BYPASS_UNSET = '__unset__'
-
-interface EnvEntry {
-  key: string
-  value: string
-}
-
-function getEnvEntries(doc: ClaudeSettingsDoc | null): EnvEntry[] {
-  if (!doc) return []
-  const env = doc.env
-  if (!env || typeof env !== 'object' || Array.isArray(env)) return []
-  return Object.entries(env as Record<string, JsonValue>).map(([k, v]) => ({
-    key: k,
-    value:
-      typeof v === 'string'
-        ? v
-        : v == null
-          ? ''
-          : typeof v === 'number' || typeof v === 'boolean'
-            ? String(v)
-            : JSON.stringify(v),
-  }))
-}
-
-function envEntriesToObject(entries: EnvEntry[]): Record<string, JsonValue> {
-  const env: Record<string, JsonValue> = {}
-  for (const { key, value } of entries) {
-    if (!key.trim()) continue
-    env[key] = value
-  }
-  return env
-}
 
 function asString(value: JsonValue | undefined): string | null {
   return typeof value === 'string' ? value : null
@@ -173,8 +123,6 @@ export function ClaudeSettingsPage() {
   }
 
   const handleSave = async () => {
-    // Clean up stale top-level fields before persisting.
-    patchJson(cleanupDocument)
     await saveFile()
     const latestError = useClaudeSettingsStore.getState().error
     if (latestError) {
@@ -248,11 +196,6 @@ export function ClaudeSettingsPage() {
         <PermissionsSection
           json={currentJson}
           activeFileIsGlobal={activeFile.isGlobal}
-          patchJson={patchJson}
-        />
-        <EnvSection
-          key={activeFile.name}
-          json={currentJson}
           patchJson={patchJson}
         />
       </div>
@@ -499,127 +442,6 @@ function PermissionsSection({
   )
 }
 
-function EnvSection({ json, patchJson }: SectionProps) {
-  const { t } = useTranslation()
-  const [entries, setEntries] = useState<EnvEntry[]>(() => getEnvEntries(json))
-
-  const commit = (next: EnvEntry[]) => {
-    setEntries(next)
-    patchJson(draft => {
-      const updated = envEntriesToObject(next)
-      if (Object.keys(updated).length === 0) {
-        Reflect.deleteProperty(draft, 'env')
-      } else {
-        draft.env = updated
-      }
-    })
-  }
-
-  const handleAdd = () => {
-    commit([...entries, { key: '', value: '' }])
-  }
-
-  const handleInsertPreset = (key: string, defaultValue: string) => {
-    if (entries.some(entry => entry.key === key)) {
-      toast.warning(t('claude.settings.envEditor.alreadyPresent', { key }))
-      return
-    }
-    commit([...entries, { key, value: defaultValue }])
-  }
-
-  return (
-    <section className="space-y-4 pt-4 border-t">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-base font-medium">
-            {t('claude.settings.envEditor.title')}
-          </h2>
-          <p className="text-xs text-muted-foreground mt-1">
-            {t('claude.settings.envEditor.hint')}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                {t('claude.settings.envEditor.insertPreset')}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[260px]">
-              {PRESET_ENV_VARS.map(preset => (
-                <DropdownMenuItem
-                  key={preset.key}
-                  onClick={() =>
-                    handleInsertPreset(preset.key, preset.defaultValue)
-                  }
-                >
-                  <span className="font-mono text-xs">{preset.key}</span>
-                  <span className="ml-auto text-[10px] text-muted-foreground">
-                    {`= "${preset.defaultValue}"`}
-                  </span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button variant="outline" size="sm" onClick={handleAdd}>
-            <Plus className="h-4 w-4 mr-1" />
-            {t('claude.settings.envEditor.add')}
-          </Button>
-        </div>
-      </div>
-
-      {entries.length === 0 && (
-        <p className="text-xs text-muted-foreground italic">
-          {t('claude.settings.envEditor.empty')}
-        </p>
-      )}
-
-      <div className="space-y-2">
-        {entries.map((entry, index) => (
-          <div
-            key={index}
-            className="flex items-center gap-2 p-2 bg-muted/40 rounded-md"
-          >
-            <Input
-              className="flex-1 font-mono text-xs"
-              placeholder={t('claude.settings.envEditor.keyPlaceholder')}
-              value={entry.key}
-              onChange={e => {
-                const next = entries.map((row, i) =>
-                  i === index ? { ...row, key: e.target.value } : row
-                )
-                commit(next)
-              }}
-            />
-            <Input
-              className="flex-1 font-mono text-xs"
-              placeholder={t('claude.settings.envEditor.valuePlaceholder')}
-              value={entry.value}
-              onChange={e => {
-                const next = entries.map((row, i) =>
-                  i === index ? { ...row, value: e.target.value } : row
-                )
-                commit(next)
-              }}
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="shrink-0 text-destructive hover:text-destructive"
-              onClick={() => {
-                commit(entries.filter((_, i) => i !== index))
-              }}
-              title={t('common.delete')}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
-
 function ProviderSection({ json, patchJson }: SectionProps) {
   const { t } = useTranslation()
   const baseUrl = getEnvString(json, CLAUDE_BASE_URL_ENV) ?? ''
@@ -791,6 +613,10 @@ function ModelSection({ json, patchJson }: SectionProps) {
         <Checkbox
           id="claude-small-model-mirror"
           checked={mirror}
+          disabled={!model}
+          title={
+            !model ? t('claude.model.smallModelUsesMainModelNoMain') : undefined
+          }
           onCheckedChange={checked => {
             const next = checked === true
             patchJson(draft => {

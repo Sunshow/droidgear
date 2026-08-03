@@ -30,6 +30,7 @@ import type {
 import { ChannelModelPickerDialog } from '@/components/channels/ChannelModelPickerDialog'
 import type { ChannelProviderContext } from '@/components/channels'
 import { inferModelProtocol } from '@/lib/model-protocol'
+import { trimToNull } from '@/lib/utils'
 import {
   clampEffortToSupported,
   getSupportedEfforts,
@@ -176,17 +177,17 @@ function ProviderForm({
     if (!providerId.trim()) return
 
     const config: CodexProviderConfig = {
-      name: name.trim() || null,
-      baseUrl: baseUrl.trim() || null,
+      name: trimToNull(name),
+      baseUrl: trimToNull(baseUrl),
       wireApi: wireApi || null,
       requiresOpenaiAuth: null,
       envKey: null,
       envKeyInstructions: null,
       httpHeaders: null,
       queryParams: null,
-      model: model.trim() || null,
+      model: trimToNull(model),
       modelReasoningEffort: resolvedEffort || null,
-      apiKey: apiKey.trim() || null,
+      apiKey: trimToNull(apiKey),
     }
 
     if (isEditing) {

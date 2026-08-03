@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn handle_droid_settings_files_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
     match code {
-        KeyCode::Esc | KeyCode::Char('q') => app.screen = app::Screen::Main,
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
         KeyCode::Down => {
             app.droid_settings_files_index = app.droid_settings_files_index.saturating_add(1)
         }

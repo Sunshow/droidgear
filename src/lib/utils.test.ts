@@ -11,6 +11,7 @@ import {
   isStrictSamplingModel,
   supportsMaxEffort,
   supportsXhighEffort,
+  trimToNull,
 } from './utils'
 
 describe('isOpus47', () => {
@@ -208,5 +209,30 @@ describe('effortToBudgetTokens', () => {
   it('falls back to a safe minimum for unknown values', () => {
     expect(effortToBudgetTokens('none')).toBe(4096)
     expect(effortToBudgetTokens('')).toBe(4096)
+  })
+})
+
+describe('trimToNull', () => {
+  it('trims leading and trailing whitespace', () => {
+    expect(trimToNull('  https://api.example.com  ')).toBe(
+      'https://api.example.com'
+    )
+    expect(trimToNull('\tsk-abc123\t')).toBe('sk-abc123')
+    expect(trimToNull('\nsk-abc123\r\n')).toBe('sk-abc123')
+  })
+
+  it('returns null for empty or whitespace-only input', () => {
+    expect(trimToNull('')).toBeNull()
+    expect(trimToNull('   ')).toBeNull()
+    expect(trimToNull('\t\n ')).toBeNull()
+  })
+
+  it('returns null for null and undefined', () => {
+    expect(trimToNull(null)).toBeNull()
+    expect(trimToNull(undefined)).toBeNull()
+  })
+
+  it('keeps non-whitespace content intact', () => {
+    expect(trimToNull('sk-abc123')).toBe('sk-abc123')
   })
 })

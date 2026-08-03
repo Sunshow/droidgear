@@ -981,12 +981,67 @@ async saveClaudeSettingsFile(name: string, contents: JsonValue) : Promise<Result
 }
 },
 /**
+ * Duplicates a settings file to a new name and activates it.
+ */
+async duplicateClaudeSettingsFile(name: string, newName: string) : Promise<Result<ClaudeSettingsFileInfo, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("duplicate_claude_settings_file", { name, newName }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Merges the contents of a settings file into the global settings.json.
+ */
+async mergeClaudeSettingsToGlobal(name: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("merge_claude_settings_to_global", { name }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Loads the current global settings.json content into a settings file.
+ */
+async loadClaudeSettingsFromLive(name: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("load_claude_settings_from_live", { name }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Returns a shell command string preview for launching Claude with the
  * active settings file. Useful for the "copy command" fallback.
  */
 async getClaudeSettingsLaunchCommand(skipDangerous: boolean) : Promise<Result<[string, string], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_claude_settings_launch_command", { skipDangerous }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Plan a temporary run using a named settings file (instead of a profile).
+ */
+async planClaudeTemporaryRunFromFile(name: string) : Promise<Result<ClaudeTemporaryRunPlan, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("plan_claude_temporary_run_from_file", { name }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Debug-preview a temporary run from a named settings file.
+ */
+async previewClaudeTemporaryRunFromFile(name: string) : Promise<Result<ClaudeTemporaryRunDebugPreview, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("preview_claude_temporary_run_from_file", { name }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -2305,6 +2360,7 @@ isActive: boolean;
  * Whether the file exists on disk.
  */
 exists: boolean }
+export type ClaudeTemporaryRunDebugPreview = { profileId: string; profileName: string; program: string; args: string[]; childProgram: string; childArgs: string[]; liveConfigDir: string; inheritedEnvFileSource?: string | null; env: ([string, string])[]; unsetEnv: string[]; secretEnvKeys: string[]; warnings: string[]; settingsOverlayJson: string }
 export type ClaudeTemporaryRunPlan = { program: string; args: string[]; env: ([string, string])[]; unsetEnv: string[]; secretEnvKeys: string[]; warnings: string[] }
 export type ClaudeThinkingMode = "inherit" | "on" | "off"
 export type CodexAuthConflictInfo = { hasConflict: boolean; currentIsOfficial: boolean; targetIsOfficial: boolean }

@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn handle_opencode_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
     match code {
-        KeyCode::Esc | KeyCode::Char('q') => app.screen = app::Screen::Main,
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
         KeyCode::Down => app.opencode_index = app.opencode_index.saturating_add(1),
         KeyCode::Up => app.opencode_index = app.opencode_index.saturating_sub(1),
         KeyCode::Char('r') => refresh_opencode(app),
@@ -84,7 +84,7 @@ pub(super) fn handle_opencode_profile_key(app: &mut app::App, code: KeyCode) -> 
 
     match code {
         KeyCode::Esc | KeyCode::Char('q') => {
-            app.screen = app::Screen::OpenCode;
+            app.go_back();
             app.opencode_provider_id = None;
             app.opencode_model_id = None;
         }
@@ -217,7 +217,7 @@ pub(super) fn handle_opencode_provider_key(app: &mut app::App, code: KeyCode) ->
 
     match code {
         KeyCode::Esc | KeyCode::Char('q') => {
-            app.screen = app::Screen::OpenCodeProfile;
+            app.go_back();
             app.opencode_model_id = None;
         }
         KeyCode::Tab => {
@@ -400,7 +400,7 @@ pub(super) fn handle_opencode_model_key(app: &mut app::App, code: KeyCode) -> Op
     };
 
     match code {
-        KeyCode::Esc | KeyCode::Char('q') => app.screen = app::Screen::OpenCodeProvider,
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
         KeyCode::Down => {
             app.opencode_model_field_index = app.opencode_model_field_index.saturating_add(1)
         }

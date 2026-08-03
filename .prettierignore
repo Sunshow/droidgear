@@ -22,3 +22,5 @@ src/lib/bindings.ts
 
 # Logs
 *.log
+# Vendor data — keep byte-identical to the official DeepSeek setup script
+src-tauri/crates/droidgear-core/res/

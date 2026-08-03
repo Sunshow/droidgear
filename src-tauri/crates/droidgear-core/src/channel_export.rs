@@ -808,7 +808,7 @@ mod tests {
             Some(&serde_json::Value::String("sk-test".to_string()))
         );
         // Unselected fields should NOT be present
-        assert!(record.get("token.name").is_none());
-        assert!(record.get("channel.baseUrl").is_none());
+        assert!(!record.contains_key("token.name"));
+        assert!(!record.contains_key("channel.baseUrl"));
     }
 }

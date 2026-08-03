@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { useChannelStore } from '@/store/channel-store'
 import { useUIStore } from '@/store/ui-store'
 import { commands, type Channel, type ChannelType } from '@/lib/bindings'
+import { trimToNull } from '@/lib/utils'
 import { isApiKeyAuthChannel } from '@/lib/channel-utils'
 import { ChannelExportDialog } from './ChannelExportDialog'
 import {
@@ -194,43 +195,57 @@ export function ChannelList({ onAddChannel }: ChannelListProps) {
       )?.id
 
     for (const entry of selectedEntries) {
-      const dupId = findDuplicateId(entry)
+      // Normalize imported values: strip surrounding whitespace so imported
+      // channels/credentials match what the dialog forms would produce.
+      const normalized: ChannelExportEntry = {
+        ...entry,
+        name: entry.name.trim(),
+        baseUrl: entry.baseUrl.trim(),
+        credentials: entry.credentials
+          ? {
+              username: entry.credentials.username.trim(),
+              password: entry.credentials.password.trim(),
+            }
+          : undefined,
+        apiKey: trimToNull(entry.apiKey) ?? undefined,
+      }
+      const dupId = findDuplicateId(normalized)
 
       if (!dupId) {
         const newChannel: Channel = {
           id: crypto.randomUUID(),
-          name: entry.name,
-          type: entry.type as ChannelType,
-          baseUrl: entry.baseUrl,
-          enabled: entry.enabled,
-          createdAt: entry.createdAt ?? Date.now(),
+          name: normalized.name,
+          type: normalized.type as ChannelType,
+          baseUrl: normalized.baseUrl,
+          enabled: normalized.enabled,
+          createdAt: normalized.createdAt ?? Date.now(),
         }
         addChannel(newChannel)
-        await saveCredentialsForEntry(newChannel.id, entry)
+        await saveCredentialsForEntry(newChannel.id, normalized)
       } else {
         switch (strategy) {
           case 'skip':
             break
           case 'replace':
             updateChannel(dupId, {
-              name: entry.name,
-              type: entry.type as ChannelType,
-              baseUrl: entry.baseUrl,
-              enabled: entry.enabled,
+              name: normalized.name,
+              type: normalized.type as ChannelType,
+              baseUrl: normalized.baseUrl,
+              enabled: normalized.enabled,
             })
-            await saveCredentialsForEntry(dupId, entry)
+            await saveCredentialsForEntry(dupId, normalized)
             break
           case 'keep-both': {
             const newChannel: Channel = {
               id: crypto.randomUUID(),
-              name: entry.name,
-              type: entry.type as ChannelType,
-              baseUrl: entry.baseUrl,
-              enabled: entry.enabled,
-              createdAt: entry.createdAt ?? Date.now(),
+              name: normalized.name,
+              type: normalized.type as ChannelType,
+              baseUrl: normalized.baseUrl,
+              enabled: normalized.enabled,
+              createdAt: normalized.createdAt ?? Date.now(),
             }
             addChannel(newChannel)
-            await saveCredentialsForEntry(newChannel.id, entry)
+            await saveCredentialsForEntry(newChannel.id, normalized)
             break
           }
         }

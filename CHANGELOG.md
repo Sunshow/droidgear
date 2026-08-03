@@ -1,5 +1,50 @@
 # Changelog
 
+## v1.2.1
+
+**New Features / 新功能**
+
+- Trim whitespace from user-entered API URLs, keys, and credential fields across GUI dialogs (channels, custom models, MCP servers, Hermes config, and codex/opencode/pi/openclaw providers) so stored configs match TUI behavior / 在所有 GUI 对话框中修剪用户输入的 API 地址、密钥及凭据字段的首尾空白（渠道、自定义模型、MCP 服务器、Hermes 配置及 Codex/OpenCode/Pi/OpenClaw Provider），使保存的配置与 TUI 行为一致
+- Align deepseek-v4-flash model registry efforts with thinking-mode docs: support none/low/high/max with per-protocol thinking encodings / 对齐 deepseek-v4-flash 模型注册表的推理强度与思考模式文档：支持 none/low/high/max 级别，并为各协议配置对应的思考编码
+
+## v1.2.0
+
+**New Features / 新功能**
+
+- Group TUI navigation into a two-level structure mirroring the GUI sidebar: feature-list screens, breadcrumb titles, and module picker labels / TUI 导航分组为两级结构以对应 GUI 侧边栏：新增功能列表界面、面包屑标题与模块选择器标签
+- Align GUI and TUI Claude settings features and semantics: unify small-model mirroring; add duplicate / merge-to-global / load-from-live / preview on GUI, and set-active / skip-permissions run / dirty tracking / import-from-channel / copy-on-create on TUI / 对齐 GUI 与 TUI 的 Claude 设置功能与语义：统一小模型跟随主模型逻辑，GUI 新增复制 / 合并到全局 / 从实时配置加载 / 预览，TUI 新增设为活动 / 跳过权限运行 / 脏状态跟踪 / 从渠道导入 / 创建时复制
+- Apply Codex profile edits immediately when the profile is the active one, so provider switches take effect without an explicit apply / Codex 活动配置的编辑立即生效，切换 Provider 无需再手动应用
+- Sync the DeepSeek V4 model catalog (~/.codex/models.json) when applying DeepSeek V4 models for Codex / 应用 DeepSeek V4 模型时为 Codex 同步模型目录（~/.codex/models.json）
+
+**Bug Fixes / 问题修复**
+
+- Always write a non-empty Codex provider name, falling back to the provider id, so providers without a display name produce a loadable config / Codex Provider 名称始终写入非空值，缺省回退到 Provider id，避免无显示名称的 Provider 生成无法加载的配置
+
+## v1.1.9
+
+**New Features / 新功能**
+
+- Unify Claude settings management: TUI migrates from profiles to settings files, with create / delete / duplicate / merge-apply / load-from-live and one-off temporary run / 统一 Claude 设置管理：TUI 从 Profile 模型迁移到设置文件模型，支持新建 / 删除 / 复制 / 合并应用 / 从实时配置加载及临时单次运行
+- Expand Claude settings fields from 9 to 14 structured items, adding 1M context, general settings, and permissions (defaultMode, disableBypass, skipDangerous) / Claude 设置结构化字段从 9 项扩展到 14 项，新增 1M 上下文、通用设置与权限项（defaultMode、disableBypass、skipDangerous）
+- Add merge-apply that shallow-merges env and permissions from a settings file into the global settings / 新增合并应用能力，将设置文件中的 env 与 permissions 浅合并到全局设置
+- Expose the new settings-file APIs as Tauri commands for the GUI / 将新的设置文件 API 暴露为 Tauri 命令供 GUI 使用
+
+**Bug Fixes / 问题修复**
+
+- Fix Windows launch chain: use spawn+wait instead of orphaned spawn so the shell and session no longer compete for the console / 修复 Windows 启动链：改用 spawn+wait 代替孤立 spawn，避免 shell 与会话争抢控制台
+- Fix TUI edit persistence: screen data refresh no longer overwrites unsaved in-memory JSON edits on modal confirmation / 修复 TUI 编辑持久化：确认弹窗时刷新屏幕数据不再覆盖内存中未保存的 JSON 编辑
+- Fix TUI exiting cleanly after a temporary run without leaving a competing shell session / 修复 TUI 在临时运行后可干净退出，不再残留争抢的 shell 会话
+- Add no_keep_open flag to LaunchSpec to avoid orphaned PowerShell windows when the launcher spawns Claude / 为 LaunchSpec 新增 no_keep_open 标记，避免启动 Claude 时残留孤立的 PowerShell 窗口
+- Remove the raw Env Editor from the Claude settings page where it conflicted with the structured fields / 移除 Claude 设置页中与结构化字段冲突的原始 Env 编辑器
+
+## v1.1.8
+
+**Bug Fixes / 问题修复**
+
+- Reduce Windows CLI terminal launch flash: hide PATH-probe helper consoles, skip temp wrappers for non-secret launches, and start PowerShell with cleaner flags / 减少 Windows CLI 终端启动闪烁：隐藏 PATH 探测辅助控制台，非密钥启动跳过临时包装脚本，并以更干净的参数启动 PowerShell
+- Keep preferred_terminal=cmd launches detached and hidden with CREATE_NO_WINDOW so the shell survives GUI process cleanup / preferred_terminal=cmd 时保持隐藏的 detached cmd /c start 启动，确保 shell 在 GUI 进程清理后仍存活
+- Harden CLI launch after flash regressions: restore clear-screen and env/cwd wrappers, resolve pwsh via WindowsApps, and prefer PATHEXT launchers over npm extensionless shims / 闪烁修复后加固 CLI 启动：恢复清屏与 env/cwd 包装，通过 WindowsApps 解析 pwsh，优先使用 PATHEXT 启动器而非 npm 无扩展名 shim
+
 ## v1.1.7
 
 **Bug Fixes / 问题修复**
