@@ -54,6 +54,7 @@ interface UIState {
   channelsSubView: ChannelsSubView
   lastSpecExportPath: string | null
   pendingUpdate: PendingUpdate | null
+  isUpdateInstalling: boolean
   droidSettingsScrollTarget: string | null
   droidRefreshKey: number
   closeConfirmOpen: boolean
@@ -75,6 +76,7 @@ interface UIState {
   setLastSpecExportPath: (path: string) => void
   setPendingUpdate: (update: PendingUpdate | null) => void
   clearPendingUpdate: () => void
+  setUpdateInstalling: (installing: boolean) => void
   setDroidSettingsScrollTarget: (target: string | null) => void
   incrementDroidRefreshKey: () => void
   setCloseConfirmOpen: (open: boolean) => void
@@ -97,6 +99,7 @@ export const useUIStore = create<UIState>()(
         channelsSubView: 'detail',
         lastSpecExportPath: null,
         pendingUpdate: null,
+        isUpdateInstalling: false,
         droidSettingsScrollTarget: null,
         droidRefreshKey: 0,
         closeConfirmOpen: false,
@@ -195,6 +198,13 @@ export const useUIStore = create<UIState>()(
 
         clearPendingUpdate: () =>
           set({ pendingUpdate: null }, undefined, 'clearPendingUpdate'),
+
+        setUpdateInstalling: installing =>
+          set(
+            { isUpdateInstalling: installing },
+            undefined,
+            'setUpdateInstalling'
+          ),
 
         setDroidSettingsScrollTarget: target =>
           set(

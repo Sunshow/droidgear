@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button'
+import { useUIStore } from '@/store/ui-store'
 
 interface UpdateNotificationContentProps {
   message: string
@@ -21,6 +22,8 @@ export function UpdateNotificationContent({
   onInstallNow,
   onLater,
 }: UpdateNotificationContentProps) {
+  const isUpdateInstalling = useUIStore(state => state.isUpdateInstalling)
+
   return (
     <div className="pointer-events-auto flex w-full max-w-[min(100vw-2rem,420px)] flex-col gap-3 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-lg">
       <p className="text-sm leading-snug">{message}</p>
@@ -52,6 +55,7 @@ export function UpdateNotificationContent({
           type="button"
           size="sm"
           className="cursor-pointer"
+          disabled={isUpdateInstalling}
           onClick={event => {
             event.stopPropagation()
             onInstallNow()
