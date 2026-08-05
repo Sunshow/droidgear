@@ -352,9 +352,7 @@ function ModelForm({
       rewriteExtraArgsWithEffort(extraArgs, provider, newModelId, clampedEffort)
     )
     if (newModelId && (!maxTokens || autoFilledMaxTokens)) {
-      setMaxTokens(
-        getDefaultMaxOutputTokens(newModelId, clampedEffort).toString()
-      )
+      setMaxTokens(getDefaultMaxOutputTokens(newModelId).toString())
       setAutoFilledMaxTokens(true)
     }
   }
@@ -370,7 +368,7 @@ function ModelForm({
       rewriteExtraArgsWithEffort(extraArgs, provider, modelId, value)
     )
     if (modelId && autoFilledMaxTokens) {
-      setMaxTokens(getDefaultMaxOutputTokens(modelId, value).toString())
+      setMaxTokens(getDefaultMaxOutputTokens(modelId).toString())
     }
   }
 

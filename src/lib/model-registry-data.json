@@ -114,6 +114,7 @@
     "platform": "anthropic-messages",
     "contextWindow": 1000000,
     "maxOutputTokens": 128000,
+    "strictSampling": true,
     "reasoningConfig": {
       "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
       "profiles": {
@@ -130,6 +131,7 @@
     "platform": "anthropic-messages",
     "contextWindow": 1000000,
     "maxOutputTokens": 128000,
+    "strictSampling": true,
     "reasoningConfig": {
       "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
       "profiles": {
@@ -210,6 +212,7 @@
     "platform": "anthropic-messages",
     "contextWindow": 1000000,
     "maxOutputTokens": 128000,
+    "strictSampling": true,
     "reasoningConfig": {
       "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
       "profiles": {
@@ -226,6 +229,24 @@
     "platform": "anthropic-messages",
     "contextWindow": 1000000,
     "maxOutputTokens": 128000,
+    "strictSampling": true,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-adaptive",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
+    "id": "claude-opus-5",
+    "name": "Claude Opus 5",
+    "aliases": ["claude-opus.5"],
+    "platform": "anthropic-messages",
+    "contextWindow": 1000000,
+    "maxOutputTokens": 128000,
+    "strictSampling": true,
     "reasoningConfig": {
       "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
       "profiles": {

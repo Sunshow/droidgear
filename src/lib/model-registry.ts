@@ -54,6 +54,8 @@ export interface ModelRegistryEntry {
   contextWindow: number
   /** Maximum output tokens */
   maxOutputTokens?: number
+  /** Rejects sampling parameters (temperature, top_p, top_k) */
+  strictSampling?: boolean
   /** 推理配置（白名单，未设置则走旧逻辑） */
   reasoningConfig?: ModelReasoningConfig
 }

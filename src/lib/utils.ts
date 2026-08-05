@@ -31,59 +31,16 @@ function normalizeModelId(modelId: string): string {
   return modelId.toLowerCase().replace(/[-_]/g, '.')
 }
 
-export function isOpus47(modelId: string): boolean {
-  const n = normalizeModelId(modelId)
-  return n.includes('opus.4.7')
-}
-
-export function isOpus48(modelId: string): boolean {
-  const n = normalizeModelId(modelId)
-  return n.includes('opus.4.8')
-}
-
-export function isClaudeJupiterV1P(modelId: string): boolean {
-  const n = normalizeModelId(modelId)
-  return n.includes('jupiter.v1.p')
-}
-
 // Models that reject sampling parameters (temperature, top_p, top_k).
-// Mirrors Opus 4.7 strictness; new variants should be added here.
-export function isClaudeFable5(modelId: string): boolean {
-  const n = normalizeModelId(modelId)
-  return n.includes('fable.5')
-}
-
-// Models that reject sampling parameters (temperature, top_p, top_k).
-// Mirrors Opus 4.7 strictness; new variants should be added here.
+// Registry-driven: entries flagged strictSampling opt out of sampling params.
 export function isStrictSamplingModel(modelId: string): boolean {
-  return (
-    isOpus47(modelId) ||
-    isOpus48(modelId) ||
-    isClaudeJupiterV1P(modelId) ||
-    isClaudeFable5(modelId)
-  )
-}
-
-export function isOpus46(modelId: string): boolean {
-  const n = normalizeModelId(modelId)
-  return n.includes('opus.4.6')
-}
-
-export function isSonnet46(modelId: string): boolean {
-  const n = normalizeModelId(modelId)
-  return n.includes('sonnet.4.6')
+  return findModelByIdOrAlias(modelId)?.strictSampling ?? false
 }
 
 export function isAnthropicAdaptiveThinkingModel(modelId: string): boolean {
-  const n = normalizeModelId(modelId)
   return (
-    n.includes('opus.4.8') ||
-    n.includes('opus.4.7') ||
-    n.includes('opus.4.6') ||
-    n.includes('sonnet.4.6') ||
-    n.includes('jupiter.v1.p') ||
-    n.includes('fable.5') ||
-    n.includes('mythos')
+    findModelByIdOrAlias(modelId)?.reasoningConfig?.profiles?.anthropic ===
+    'anthropic-adaptive'
   )
 }
 
@@ -117,10 +74,6 @@ export function supportsXhighEffort(modelId: string): boolean {
   if (!modelId) return true
   const config = getModelReasoningConfig(modelId)
   if (config) return config.efforts.includes('xhigh')
-  if (isOpus47(modelId)) return true
-  if (isOpus48(modelId)) return true
-  if (isClaudeJupiterV1P(modelId)) return true
-  if (isClaudeFable5(modelId)) return true
   const n = normalizeModelId(modelId)
   return (
     n.startsWith('gpt.5') ||
@@ -130,20 +83,13 @@ export function supportsXhighEffort(modelId: string): boolean {
   )
 }
 
-export function getDefaultMaxOutputTokens(
-  modelId: string,
-  effort?: ReasoningEffort | string | null
-): number {
+export function getDefaultMaxOutputTokens(modelId: string): number {
   // Prefer registry values
   const entry = findModelByIdOrAlias(modelId)
   if (entry?.maxOutputTokens) {
     return entry.maxOutputTokens
   }
-  // Fallback for unknown models
-  if (isOpus47(modelId) || isOpus48(modelId) || isClaudeJupiterV1P(modelId)) {
-    if (effort === 'xhigh' || effort === 'max') return 64000
-    return 32000
-  }
+  // Generic fallback for unknown models
   return modelId.startsWith('claude-') ? 64000 : 16384
 }
 
@@ -178,6 +124,7 @@ export const DROID_OFFICIAL_MODEL_NAMES = [
   'Opus 4.6 Fast Mode',
   'Opus 4.7',
   'Opus 4.8',
+  'Opus 5',
   'Haiku 4.5',
   'Gemini 3 Pro',
   'Gemini 3 Flash',
