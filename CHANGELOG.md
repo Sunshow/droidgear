@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.2.2
+
+**New Features / 新功能**
+
+- Sync the model registry with models.dev: refresh specs for 25 models from official vendor data, align strictSampling with temperature:false models (GPT-5/o-series, Kimi), add Claude Sonnet 5 and Kimi K3, remove 14 deprecated models, and document the full sync workflow in the register-model skill / 从 models.dev 同步模型注册表：按官方厂商数据刷新 25 个模型的规格，对齐 temperature:false 模型的 strictSampling（GPT-5/o 系列、Kimi），新增 Claude Sonnet 5 与 Kimi K3，移除 14 个已下架模型，并在 register-model skill 中沉淀完整同步流程
+- Register claude-opus-5 and drive model behavior from the registry, including strict sampling, adaptive thinking, and max effort support / 注册 claude-opus-5 并通过注册表驱动模型行为，包括严格采样、自适应思考与最大推理强度支持
+
+**Bug Fixes / 问题修复**
+
+- Prevent duplicate update installs when the updater is triggered concurrently / 防止更新器被并发触发时重复安装更新
+
 ## v1.2.1
 
 **New Features / 新功能**
