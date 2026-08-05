@@ -11,6 +11,69 @@ truth for model behavior. All behavioral lookups (`isStrictSamplingModel`,
 `getDefaultMaxOutputTokens`) read from it. Registering a model is a data-only
 change in the common case — do NOT touch `src/lib/utils.ts`.
 
+## Sync with models.dev
+
+For a full registry refresh ("sync the registry with models.dev"), do NOT
+follow the single-model workflow below. Instead:
+
+### A. Fetch the full dataset
+
+```bash
+curl -sSL --max-time 60 "https://models.dev/api.json" -o /tmp/models-dev-api.json
+```
+
+### B. Compare with the registry using OFFICIAL-lab priority
+
+models.dev contains 180+ labs; third-party mirrors (snowflake-cortex,
+nano-gpt, qiniu-ai, llmgateway, helicone, vivgrid, opencode, opencode-go,
+greenpt, alibaba-cn, etc.) often report **different** context/output/temperature
+values than the vendor. Always compare against the vendor's own lab first:
+
+`anthropic`, `openai`, `google`, `deepseek`, `xai`, `mistral`, `moonshotai`,
+`alibaba`, `zhipuai`, `minimax`, `xiaomi`, `kimi-for-coding`
+
+Only fall back to a third-party lab when the vendor lab no longer lists the
+model (e.g. deprecated models like `claude-opus-4`, `gpt-5-codex`, `o1-mini`).
+
+Note: labs are case-sensitive — the MiniMax vendor lab uses `MiniMax-M2` while
+the registry uses lowercase `minimax-m2`. Normalize IDs when matching.
+
+### C. Apply updates
+
+1. **Spec updates**: set `contextWindow` / `maxOutputTokens` from the vendor
+   lab's `limit.context` / `limit.output`. Ignore third-party differences.
+   When a vendor drops a model, use the best available source or leave it.
+   Ambiguity: the registry may alias a newer model under an older id (e.g.
+   `qwen-max` has alias `qwen3-max`) — align to the spec the alias points to.
+2. **strictSampling**: set `"strictSampling": true` for EVERY entry whose main
+   provider shows `temperature: false` — this includes GPT-5.x (except
+   `gpt-5.3-chat-latest`, which is `temperature: true`), the o1/o3/o4 series,
+   Kimi K2.5/K2.7/K3, and new-gen Claude (Sonnet 5, Opus 5, Fable 5).
+3. **New models**: confirm scope with the user first (add all new chat/code
+   models vs. only flagship models). Apply the single-model workflow below per
+   model (official-lab spec, standard reasoning profile, alphabetical insert).
+4. **Removals**: entries no longer present in models.dev at all (not even via
+   alias) are deprecated — confirm with the user before removing, since user
+   configs may still reference them. Removing requires cleaning up test
+   assertions that reference those ids (e.g. `claude-jupiter-v1-p`).
+5. **Efforts**: `reasoning_options` may be a dict OR a list of
+   `{type: toggle|effort|budget_tokens}` objects. `toggle` means reasoning is
+   optional → include `none`. Use the `effort` values when present (e.g.
+   `kimi-k3` → `["none", "low", "high", "max"]`).
+
+### D. Update tests + verify
+
+- Add/remove model ids in `src/lib/utils.test.ts` describe blocks
+  (`isStrictSamplingModel`, `isAnthropicAdaptiveThinkingModel`,
+  `supportsMaxEffort`, `supportsXhighEffort`, `getDefaultMaxOutputTokens`) —
+  flip assertions like `isStrictSamplingModel('gpt-5.2')` when strictSampling
+  changes. Watch for spec-value assertions (e.g. gemini output 64000 → 65536).
+- `src/lib/model-registry.test.ts`: add non-standard effort coverage (e.g.
+  `kimi-k3`).
+- `src/components/models/ModelDialog.test.tsx`: the strict-sampling
+  extraArgs test uses a strict model id — repoint it if that model is removed.
+- Run `npm run check:all` and fix any failures.
+
 ## Workflow
 
 ### 1. Fetch the model spec from models.dev
@@ -146,3 +209,6 @@ Fix any lint or type errors before declaring the task complete.
 - `strictSampling` set only when models.dev shows `temperature: false`
 - `utils.ts` untouched except `DROID_OFFICIAL_MODEL_NAMES` (if applicable)
 - No unexpected changes to protocol inference or Rust code
+- For full syncs: verify the diff contains ONLY intended entries (removed /
+  added / spec-updated), with no reformatting of untouched entries; confirm
+  removed ids are also gone from test assertions

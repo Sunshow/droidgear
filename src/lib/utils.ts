@@ -119,6 +119,7 @@ export const DROID_OFFICIAL_MODEL_NAMES = [
   'GPT-5.5',
   'Sonnet 4.5',
   'Sonnet 4.6',
+  'Sonnet 5',
   'Opus 4.5',
   'Opus 4.6',
   'Opus 4.6 Fast Mode',
@@ -135,6 +136,7 @@ export const DROID_OFFICIAL_MODEL_NAMES = [
   'GLM-5.2',
   'Kimi K2.6',
   'Kimi K2.7 Code',
+  'Kimi K3',
   'DeepSeek V4 Pro',
   'MiniMax M2.7',
 ]

@@ -113,7 +113,7 @@ describe('ModelDialog', () => {
     )
   })
 
-  it('emits Opus 4.7 style extraArgs and strips sampling params for claude-jupiter-v1-p', async () => {
+  it('emits Opus 4.7 style extraArgs and strips sampling params for claude-sonnet-5', async () => {
     const user = userEvent.setup()
     const onSave = vi.fn()
 
@@ -124,10 +124,10 @@ describe('ModelDialog', () => {
         mode="edit"
         model={{
           provider: 'anthropic',
-          model: 'claude-jupiter-v1-p',
+          model: 'claude-sonnet-5',
           baseUrl: 'https://api.anthropic.com',
           apiKey: 'test-key',
-          displayName: 'claude-jupiter-v1-p',
+          displayName: 'claude-sonnet-5',
           extraArgs: {
             thinking: { type: 'adaptive' },
             output_config: { effort: 'xhigh' },
@@ -144,7 +144,7 @@ describe('ModelDialog', () => {
 
     expect(onSave).toHaveBeenCalledTimes(1)
     const saved = onSave.mock.calls[0]?.[0]
-    expect(saved.model).toBe('claude-jupiter-v1-p')
+    expect(saved.model).toBe('claude-sonnet-5')
     expect(saved.extraArgs).toEqual({
       thinking: { type: 'adaptive' },
       output_config: { effort: 'xhigh' },

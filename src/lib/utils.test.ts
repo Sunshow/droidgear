@@ -12,24 +12,33 @@ import {
 } from './utils'
 
 describe('isStrictSamplingModel', () => {
-  it('covers Opus 4.7, 4.8, 5 and Jupiter v1 P', () => {
+  it('covers Opus 4.7, 4.8, 5 and Fable 5', () => {
     expect(isStrictSamplingModel('claude-opus-4.7')).toBe(true)
     expect(isStrictSamplingModel('claude-opus-4.8')).toBe(true)
     expect(isStrictSamplingModel('claude-opus-5')).toBe(true)
-    expect(isStrictSamplingModel('claude-jupiter-v1-p')).toBe(true)
     expect(isStrictSamplingModel('claude-fable-5')).toBe(true)
+  })
+
+  it('flags GPT-5/o-series and Kimi models that reject sampling params', () => {
+    expect(isStrictSamplingModel('gpt-5.2')).toBe(true)
+    expect(isStrictSamplingModel('gpt-5')).toBe(true)
+    expect(isStrictSamplingModel('o3-mini')).toBe(true)
+    expect(isStrictSamplingModel('kimi-k2.5')).toBe(true)
+    expect(isStrictSamplingModel('kimi-k2.7-code')).toBe(true)
+    expect(isStrictSamplingModel('claude-sonnet-5')).toBe(true)
+    expect(isStrictSamplingModel('kimi-k3')).toBe(true)
   })
 
   it('does not flag other models', () => {
     expect(isStrictSamplingModel('claude-opus-4.6')).toBe(false)
     expect(isStrictSamplingModel('claude-sonnet-4.6')).toBe(false)
-    expect(isStrictSamplingModel('gpt-5.2')).toBe(false)
+    expect(isStrictSamplingModel('gpt-5.3-chat-latest')).toBe(false)
     expect(isStrictSamplingModel('claude-opus-4.7-custom-deploy')).toBe(false)
   })
 })
 
 describe('isAnthropicAdaptiveThinkingModel', () => {
-  it('matches Opus 4.6 / 4.7 / 4.8 / 5, Sonnet 4.6, Jupiter v1 P and Fable 5', () => {
+  it('matches Opus 4.6 / 4.7 / 4.8 / 5, Sonnet 4.6 / 5, and Fable 5', () => {
     expect(isAnthropicAdaptiveThinkingModel('claude-opus-4.7')).toBe(true)
     expect(isAnthropicAdaptiveThinkingModel('claude-opus-4-7')).toBe(true)
     expect(isAnthropicAdaptiveThinkingModel('claude-opus-4.8')).toBe(true)
@@ -37,7 +46,7 @@ describe('isAnthropicAdaptiveThinkingModel', () => {
     expect(isAnthropicAdaptiveThinkingModel('claude-opus-5')).toBe(true)
     expect(isAnthropicAdaptiveThinkingModel('claude-opus-4.6')).toBe(true)
     expect(isAnthropicAdaptiveThinkingModel('claude-sonnet-4.6')).toBe(true)
-    expect(isAnthropicAdaptiveThinkingModel('claude-jupiter-v1-p')).toBe(true)
+    expect(isAnthropicAdaptiveThinkingModel('claude-sonnet-5')).toBe(true)
     expect(isAnthropicAdaptiveThinkingModel('claude-fable-5')).toBe(true)
   })
 
@@ -62,13 +71,14 @@ describe('supportsMaxEffort', () => {
     expect(supportsMaxEffort('claude-opus-4.5')).toBe(true)
     expect(supportsMaxEffort('claude-sonnet-4.5')).toBe(true)
     expect(supportsMaxEffort('claude-haiku-4.5')).toBe(true)
-    expect(supportsMaxEffort('claude-jupiter-v1-p')).toBe(true)
+    expect(supportsMaxEffort('claude-sonnet-5')).toBe(true)
   })
 
   it('applies to registry whitelist models with max effort', () => {
     expect(supportsMaxEffort('deepseek-v4-pro')).toBe(true)
     expect(supportsMaxEffort('gpt-5.6')).toBe(true)
     expect(supportsMaxEffort('gpt-5.6-luna')).toBe(true)
+    expect(supportsMaxEffort('kimi-k3')).toBe(true)
   })
 
   it('does not apply to older openai models without max', () => {
@@ -84,12 +94,13 @@ describe('supportsXhighEffort', () => {
     expect(supportsXhighEffort('claude-opus-4-7')).toBe(true)
     expect(supportsXhighEffort('claude-opus-4.8')).toBe(true)
     expect(supportsXhighEffort('claude-opus-4-8')).toBe(true)
-    expect(supportsXhighEffort('claude-jupiter-v1-p')).toBe(true)
+    expect(supportsXhighEffort('claude-sonnet-5')).toBe(true)
     expect(supportsXhighEffort('claude-opus-4.6')).toBe(true)
     expect(supportsXhighEffort('claude-sonnet-4.6')).toBe(true)
     expect(supportsXhighEffort('claude-opus-4.5')).toBe(true)
     expect(supportsXhighEffort('claude-sonnet-4.5')).toBe(true)
     expect(supportsXhighEffort('claude-haiku-4.5')).toBe(true)
+    expect(supportsXhighEffort('claude-sonnet-5')).toBe(true)
     expect(supportsXhighEffort('gpt-5.2')).toBe(true)
     expect(supportsXhighEffort('o3-mini')).toBe(true)
   })
@@ -97,6 +108,8 @@ describe('supportsXhighEffort', () => {
   it('respects registry whitelist for xhigh', () => {
     // deepseek-v4-pro has whitelist: ["none", "high", "max"] — no xhigh
     expect(supportsXhighEffort('deepseek-v4-pro')).toBe(false)
+    // kimi-k3 whitelist: ["none", "low", "high", "max"] — no xhigh
+    expect(supportsXhighEffort('kimi-k3')).toBe(false)
   })
 
   it('rejects xhigh on non-reasoning registry models', () => {
@@ -142,12 +155,13 @@ describe('getDefaultMaxOutputTokens', () => {
   it('uses registry values for other claude models', () => {
     expect(getDefaultMaxOutputTokens('claude-opus-4.6')).toBe(128000)
     expect(getDefaultMaxOutputTokens('claude-sonnet-4.5')).toBe(64000)
-    expect(getDefaultMaxOutputTokens('claude-jupiter-v1-p')).toBe(128000)
+    expect(getDefaultMaxOutputTokens('claude-sonnet-5')).toBe(128000)
   })
 
   it('uses registry values for non-claude models', () => {
     expect(getDefaultMaxOutputTokens('gpt-5.2')).toBe(128000)
-    expect(getDefaultMaxOutputTokens('gemini-2.5-pro')).toBe(64000)
+    expect(getDefaultMaxOutputTokens('gemini-2.5-pro')).toBe(65536)
+    expect(getDefaultMaxOutputTokens('kimi-k3')).toBe(131072)
   })
 
   it('falls back to generic rules for unregistered IDs', () => {

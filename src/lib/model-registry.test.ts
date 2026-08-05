@@ -68,6 +68,15 @@ describe('getSupportedEfforts', () => {
     ])
   })
 
+  it('returns kimi-k3 efforts with max but no medium', () => {
+    expect(getSupportedEfforts('kimi-k3', 'openai')).toEqual([
+      'none',
+      'low',
+      'high',
+      'max',
+    ])
+  })
+
   it('returns null for unknown model ids', () => {
     expect(getSupportedEfforts('totally-unknown-model', 'openai')).toBeNull()
   })
