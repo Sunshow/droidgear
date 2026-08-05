@@ -24,6 +24,7 @@ import {
   checkForUpdate,
   clearCachedUpdate,
   clearUpdateNotificationSnooze,
+  downloadAndInstallUpdate,
   dismissUpdateNotification,
   isUpdateNotificationSnoozed,
   showUpdateNotification,
@@ -36,7 +37,10 @@ describe('updater service', () => {
     vi.clearAllMocks()
     clearCachedUpdate()
     clearUpdateNotificationSnooze()
-    useUIStore.setState({ pendingUpdate: null })
+    useUIStore.setState({
+      pendingUpdate: null,
+      isUpdateInstalling: false,
+    })
 
     vi.mocked(commands.getUpdateChannel).mockResolvedValue({
       status: 'ok',
@@ -101,6 +105,38 @@ describe('updater service', () => {
       channel: 'portable',
       releaseUrl: buildReleaseUrl('0.5.4'),
     })
+  })
+
+  it('ignores duplicate install requests while an update is installing', async () => {
+    let finishInstall: () => void = () => undefined
+    const installPromise = new Promise<void>(resolve => {
+      finishInstall = resolve
+    })
+    const downloadAndInstall = vi.fn().mockReturnValue(installPromise)
+
+    vi.mocked(check).mockResolvedValue({
+      version: '0.5.4',
+      body: 'Managed release notes',
+      downloadAndInstall,
+    } as never)
+
+    const update = await checkForUpdate()
+    if (!update) {
+      throw new Error('Expected an update to be available')
+    }
+    useUIStore.getState().setPendingUpdate(update)
+
+    const firstInstall = downloadAndInstallUpdate()
+    const duplicateInstall = downloadAndInstallUpdate()
+
+    expect(useUIStore.getState().isUpdateInstalling).toBe(true)
+    expect(downloadAndInstall).toHaveBeenCalledTimes(1)
+
+    finishInstall()
+    await Promise.all([firstInstall, duplicateInstall])
+
+    expect(useUIStore.getState().isUpdateInstalling).toBe(false)
+    expect(downloadAndInstall).toHaveBeenCalledTimes(1)
   })
 
   it('shows update notifications via toast.custom and can force repeat', () => {

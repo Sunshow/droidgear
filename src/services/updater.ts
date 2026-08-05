@@ -201,12 +201,29 @@ async function openReleasePage(releaseUrl: string): Promise<void> {
  * Download and install the update with progress tracking
  */
 export async function downloadAndInstallUpdate(): Promise<void> {
-  const pendingUpdate = useUIStore.getState().pendingUpdate
+  const { pendingUpdate, isUpdateInstalling, setUpdateInstalling } =
+    useUIStore.getState()
   if (!pendingUpdate) {
     logger.error('No update available to install')
     return
   }
 
+  if (isUpdateInstalling) {
+    logger.debug('Update installation already in progress')
+    return
+  }
+
+  setUpdateInstalling(true)
+  try {
+    await performDownloadAndInstallUpdate(pendingUpdate)
+  } finally {
+    useUIStore.getState().setUpdateInstalling(false)
+  }
+}
+
+async function performDownloadAndInstallUpdate(
+  pendingUpdate: PendingUpdate
+): Promise<void> {
   const t = i18n.t.bind(i18n)
 
   if (pendingUpdate.channel === 'portable') {

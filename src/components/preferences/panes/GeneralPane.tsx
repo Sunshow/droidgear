@@ -38,6 +38,7 @@ export function GeneralPane() {
 
   // Read pending update from global store (set by auto-updater in App.tsx)
   const pendingUpdate = useUIStore(state => state.pendingUpdate)
+  const isUpdateInstalling = useUIStore(state => state.isUpdateInstalling)
 
   // Track if we've already triggered auto-check for pending update
   const hasAutoChecked = useRef(false)
@@ -180,6 +181,7 @@ export function GeneralPane() {
                   variant="default"
                   size="sm"
                   onClick={handleDownloadAndInstall}
+                  disabled={isUpdateInstalling}
                 >
                   {t('preferences.general.downloadAndInstall')}
                 </Button>

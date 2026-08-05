@@ -9,6 +9,7 @@ describe('UIStore', () => {
       rightSidebarVisible: true,
       commandPaletteOpen: false,
       preferencesOpen: false,
+      isUpdateInstalling: false,
     })
   })
 
@@ -58,5 +59,15 @@ describe('UIStore', () => {
 
     toggleCommandPalette()
     expect(useUIStore.getState().commandPaletteOpen).toBe(false)
+  })
+
+  it('tracks update installation state', () => {
+    const { setUpdateInstalling } = useUIStore.getState()
+
+    setUpdateInstalling(true)
+    expect(useUIStore.getState().isUpdateInstalling).toBe(true)
+
+    setUpdateInstalling(false)
+    expect(useUIStore.getState().isUpdateInstalling).toBe(false)
   })
 })
