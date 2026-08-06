@@ -46,6 +46,11 @@
     "platform": "anthropic-messages",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh",
+      "max": "max"
+    },
     "contextWindow": 1000000,
     "maxOutputTokens": 128000,
     "strictSampling": true,
@@ -65,6 +70,9 @@
     "platform": "anthropic-messages",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 200000,
     "maxOutputTokens": 64000,
     "reasoningConfig": {
@@ -83,6 +91,9 @@
     "platform": "anthropic-messages",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 200000,
     "maxOutputTokens": 32000,
     "reasoningConfig": {
@@ -101,6 +112,9 @@
     "platform": "anthropic-messages",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 200000,
     "maxOutputTokens": 32000,
     "reasoningConfig": {
@@ -119,6 +133,9 @@
     "platform": "anthropic-messages",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 200000,
     "maxOutputTokens": 64000,
     "reasoningConfig": {
@@ -137,6 +154,10 @@
     "platform": "anthropic-messages",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "max": "max"
+    },
     "contextWindow": 1000000,
     "maxOutputTokens": 128000,
     "reasoningConfig": {
@@ -155,6 +176,11 @@
     "platform": "anthropic-messages",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh",
+      "max": "max"
+    },
     "contextWindow": 1000000,
     "maxOutputTokens": 128000,
     "strictSampling": true,
@@ -174,6 +200,11 @@
     "platform": "anthropic-messages",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh",
+      "max": "max"
+    },
     "contextWindow": 1000000,
     "maxOutputTokens": 128000,
     "strictSampling": true,
@@ -193,6 +224,11 @@
     "platform": "anthropic-messages",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh",
+      "max": "max"
+    },
     "contextWindow": 1000000,
     "maxOutputTokens": 128000,
     "strictSampling": true,
@@ -212,6 +248,9 @@
     "platform": "anthropic-messages",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 1000000,
     "maxOutputTokens": 64000,
     "reasoningConfig": {
@@ -230,6 +269,9 @@
     "platform": "anthropic-messages",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 1000000,
     "maxOutputTokens": 64000,
     "reasoningConfig": {
@@ -248,6 +290,10 @@
     "platform": "anthropic-messages",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "max": "max"
+    },
     "contextWindow": 1000000,
     "maxOutputTokens": 128000,
     "reasoningConfig": {
@@ -266,6 +312,11 @@
     "platform": "anthropic-messages",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh",
+      "max": "max"
+    },
     "contextWindow": 1000000,
     "maxOutputTokens": 128000,
     "strictSampling": true,
@@ -321,6 +372,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 163840,
     "maxOutputTokens": 64000,
     "reasoningConfig": {
@@ -339,6 +393,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 1000000,
     "maxOutputTokens": 384000,
     "reasoningConfig": {
@@ -357,6 +414,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 128000,
     "maxOutputTokens": 64000,
     "reasoningConfig": {
@@ -375,6 +435,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 163840,
     "maxOutputTokens": 64000,
     "reasoningConfig": {
@@ -393,6 +456,11 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "medium": null,
+      "max": "max"
+    },
     "contextWindow": 1000000,
     "maxOutputTokens": 384000,
     "reasoningConfig": {
@@ -480,6 +548,12 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "low": null,
+      "medium": null,
+      "max": "max"
+    },
     "contextWindow": 1000000,
     "maxOutputTokens": 384000,
     "reasoningConfig": {
@@ -549,6 +623,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 256000,
     "maxOutputTokens": 64000,
     "reasoningConfig": {
@@ -567,6 +644,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 256000,
     "maxOutputTokens": 64000,
     "reasoningConfig": {
@@ -585,6 +665,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 256000,
     "maxOutputTokens": 64000,
     "reasoningConfig": {
@@ -603,6 +686,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 128000,
     "maxOutputTokens": 64000,
     "reasoningConfig": {
@@ -657,6 +743,9 @@
     "platform": "gemini",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 1048576,
     "maxOutputTokens": 65536,
     "reasoningConfig": {
@@ -675,6 +764,9 @@
     "platform": "gemini",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 1048576,
     "maxOutputTokens": 65536,
     "reasoningConfig": {
@@ -693,6 +785,9 @@
     "platform": "gemini",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 1048576,
     "maxOutputTokens": 65536,
     "reasoningConfig": {
@@ -711,6 +806,9 @@
     "platform": "gemini",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 1048576,
     "maxOutputTokens": 65536,
     "reasoningConfig": {
@@ -729,6 +827,9 @@
     "platform": "gemini",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 1048576,
     "maxOutputTokens": 65536,
     "reasoningConfig": {
@@ -747,6 +848,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 131072,
     "maxOutputTokens": 98304,
     "reasoningConfig": {
@@ -765,6 +869,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 131072,
     "maxOutputTokens": 98304,
     "reasoningConfig": {
@@ -783,6 +890,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 131072,
     "maxOutputTokens": 98304,
     "reasoningConfig": {
@@ -801,6 +911,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 204800,
     "maxOutputTokens": 131072,
     "reasoningConfig": {
@@ -819,6 +932,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 204800,
     "maxOutputTokens": 131072,
     "reasoningConfig": {
@@ -837,6 +953,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 200000,
     "maxOutputTokens": 131072,
     "reasoningConfig": {
@@ -855,6 +974,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 204800,
     "maxOutputTokens": 131072,
     "reasoningConfig": {
@@ -873,6 +995,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 200000,
     "maxOutputTokens": 131072,
     "reasoningConfig": {
@@ -891,6 +1016,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 200000,
     "maxOutputTokens": 131072,
     "reasoningConfig": {
@@ -909,6 +1037,13 @@
     "platform": "anthropic-messages",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "off": null,
+      "minimal": null,
+      "low": null,
+      "medium": null,
+      "max": "max"
+    },
     "contextWindow": 1000000,
     "maxOutputTokens": 131072,
     "reasoningConfig": {
@@ -1059,6 +1194,9 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 400000,
     "maxOutputTokens": 64000,
     "reasoningConfig": {
@@ -1116,6 +1254,9 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 400000,
     "maxOutputTokens": 128000,
     "reasoningConfig": {
@@ -1135,6 +1276,9 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 400000,
     "maxOutputTokens": 64000,
     "reasoningConfig": {
@@ -1154,6 +1298,9 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 400000,
     "maxOutputTokens": 64000,
     "reasoningConfig": {
@@ -1173,6 +1320,10 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh"
+    },
     "contextWindow": 400000,
     "maxOutputTokens": 128000,
     "reasoningConfig": {
@@ -1192,6 +1343,10 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh"
+    },
     "contextWindow": 400000,
     "maxOutputTokens": 64000,
     "reasoningConfig": {
@@ -1229,6 +1384,10 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh"
+    },
     "contextWindow": 400000,
     "maxOutputTokens": 128000,
     "reasoningConfig": {
@@ -1248,6 +1407,10 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh"
+    },
     "contextWindow": 128000,
     "maxOutputTokens": 32000,
     "reasoningConfig": {
@@ -1267,6 +1430,10 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh"
+    },
     "contextWindow": 1050000,
     "maxOutputTokens": 128000,
     "reasoningConfig": {
@@ -1286,6 +1453,10 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh"
+    },
     "contextWindow": 400000,
     "maxOutputTokens": 128000,
     "reasoningConfig": {
@@ -1305,6 +1476,10 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh"
+    },
     "contextWindow": 400000,
     "maxOutputTokens": 128000,
     "reasoningConfig": {
@@ -1324,6 +1499,10 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh"
+    },
     "contextWindow": 1050000,
     "maxOutputTokens": 128000,
     "reasoningConfig": {
@@ -1343,6 +1522,10 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh"
+    },
     "contextWindow": 1050000,
     "maxOutputTokens": 128000,
     "reasoningConfig": {
@@ -1362,6 +1545,11 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh",
+      "max": "max"
+    },
     "contextWindow": 1050000,
     "maxOutputTokens": 128000,
     "reasoningConfig": {
@@ -1381,6 +1569,11 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh",
+      "max": "max"
+    },
     "contextWindow": 1050000,
     "maxOutputTokens": 128000,
     "reasoningConfig": {
@@ -1400,6 +1593,11 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh",
+      "max": "max"
+    },
     "contextWindow": 1050000,
     "maxOutputTokens": 128000,
     "reasoningConfig": {
@@ -1419,6 +1617,11 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh",
+      "max": "max"
+    },
     "contextWindow": 1050000,
     "maxOutputTokens": 128000,
     "reasoningConfig": {
@@ -1438,6 +1641,9 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 131072,
     "maxOutputTokens": 32768,
     "reasoningConfig": {
@@ -1456,6 +1662,9 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 131072,
     "maxOutputTokens": 65536,
     "reasoningConfig": {
@@ -1492,6 +1701,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 500000,
     "maxOutputTokens": 500000,
     "reasoningConfig": {
@@ -1546,6 +1758,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 262144,
     "maxOutputTokens": 262144,
     "reasoningConfig": {
@@ -1564,6 +1779,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 262144,
     "maxOutputTokens": 262144,
     "reasoningConfig": {
@@ -1583,6 +1801,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 262144,
     "maxOutputTokens": 262144,
     "reasoningConfig": {
@@ -1602,6 +1823,11 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "medium": null,
+      "max": "max"
+    },
     "contextWindow": 1048576,
     "maxOutputTokens": 131072,
     "strictSampling": true,
@@ -1621,6 +1847,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 262144,
     "maxOutputTokens": 65536,
     "reasoningConfig": {
@@ -1639,6 +1868,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 262144,
     "maxOutputTokens": 131072,
     "reasoningConfig": {
@@ -1657,6 +1889,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 1048576,
     "maxOutputTokens": 131072,
     "reasoningConfig": {
@@ -1675,6 +1910,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 1048576,
     "maxOutputTokens": 131072,
     "reasoningConfig": {
@@ -1693,6 +1931,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 1048576,
     "maxOutputTokens": 131072,
     "reasoningConfig": {
@@ -1711,6 +1952,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 196608,
     "maxOutputTokens": 128000,
     "reasoningConfig": {
@@ -1729,6 +1973,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 204800,
     "maxOutputTokens": 131072,
     "reasoningConfig": {
@@ -1747,6 +1994,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 204800,
     "maxOutputTokens": 131072,
     "reasoningConfig": {
@@ -1765,6 +2015,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 204800,
     "maxOutputTokens": 131072,
     "reasoningConfig": {
@@ -1801,6 +2054,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 256000,
     "maxOutputTokens": 256000,
     "reasoningConfig": {
@@ -1819,6 +2075,9 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 200000,
     "maxOutputTokens": 100000,
     "reasoningConfig": {
@@ -1838,6 +2097,10 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh"
+    },
     "contextWindow": 128000,
     "maxOutputTokens": 65536,
     "reasoningConfig": {
@@ -1857,6 +2120,9 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 200000,
     "maxOutputTokens": 100000,
     "reasoningConfig": {
@@ -1876,6 +2142,9 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 200000,
     "maxOutputTokens": 100000,
     "reasoningConfig": {
@@ -1895,6 +2164,9 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 200000,
     "maxOutputTokens": 100000,
     "reasoningConfig": {
@@ -1914,6 +2186,9 @@
     "platform": "openai-responses",
     "reasoning": true,
     "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 200000,
     "maxOutputTokens": 100000,
     "reasoningConfig": {
@@ -1951,6 +2226,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 1000000,
     "maxOutputTokens": 32768,
     "reasoningConfig": {
@@ -1969,6 +2247,9 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
     "contextWindow": 1000000,
     "maxOutputTokens": 16384,
     "reasoningConfig": {

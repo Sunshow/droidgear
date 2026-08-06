@@ -21,6 +21,7 @@ describe('pi model metadata', () => {
       api: null,
       reasoning: registryModel.reasoning,
       input: registryModel.input,
+      thinkingLevelMap: registryModel.thinkingLevelMap,
       contextWindow: registryModel.contextWindow,
       maxTokens: registryModel.maxOutputTokens,
     })
@@ -45,6 +46,7 @@ describe('pi model metadata', () => {
     expect(model.api).toBe('openai-completions')
     expect(model.reasoning).toBe(registryModel.reasoning)
     expect(model.input).toEqual(registryModel.input)
+    expect(model.thinkingLevelMap).toEqual(registryModel.thinkingLevelMap)
     expect(model.compat).toEqual({ supportsDeveloperRole: false })
   })
 

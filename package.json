@@ -49,6 +49,7 @@
     "task:rename-done": "node scripts/complete-task.js --rename-existing",
     "knip": "knip",
     "jscpd": "jscpd",
+    "models:sync-pi-thinking": "node scripts/sync-pi-thinking-level-maps.js",
     "ast:lint": "ast-grep scan",
     "ast:fix": "ast-grep scan --fix",
     "prepare": "husky"

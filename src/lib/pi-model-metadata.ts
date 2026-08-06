@@ -11,6 +11,9 @@ export function createPiModelFromRegistry(entry: ModelRegistryEntry): PiModel {
     api: null,
     reasoning: entry.reasoning,
     input: entry.input,
+    thinkingLevelMap: entry.thinkingLevelMap
+      ? { ...entry.thinkingLevelMap }
+      : null,
     contextWindow: entry.contextWindow,
     maxTokens: entry.maxOutputTokens,
     cost: null,
@@ -27,6 +30,9 @@ export function enrichPiModelFromRegistry(model: PiModel): PiModel {
     name: entry.name,
     reasoning: entry.reasoning,
     input: entry.input,
+    thinkingLevelMap: entry.thinkingLevelMap
+      ? { ...entry.thinkingLevelMap }
+      : null,
     contextWindow: entry.contextWindow,
     maxTokens: entry.maxOutputTokens ?? model.maxTokens,
   }

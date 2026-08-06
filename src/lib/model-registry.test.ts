@@ -22,6 +22,22 @@ describe('model-registry capability coverage', () => {
       expect(
         model.input.every(input => ['text', 'image'].includes(input))
       ).toBe(true)
+      if (model.thinkingLevelMap) {
+        expect(
+          model.reasoning,
+          `${model.id} maps thinking while disabled`
+        ).toBe(true)
+        for (const [level, value] of Object.entries(model.thinkingLevelMap)) {
+          expect(
+            ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+            `${model.id} has invalid Pi thinking level ${level}`
+          ).toContain(level)
+          expect(
+            value === null || typeof value === 'string',
+            `${model.id} has invalid mapping for ${level}`
+          ).toBe(true)
+        }
+      }
       expect(
         model.reasoningConfig,
         `${model.id} missing reasoningConfig`
@@ -39,6 +55,23 @@ describe('model-registry capability coverage', () => {
       reasoning: true,
       input: ['text'],
     })
+  })
+
+  it('stores provider-neutral Pi thinking maps', () => {
+    expect(findModelByIdOrAlias('gpt-5.6-sol')?.thinkingLevelMap).toEqual({
+      minimal: null,
+      xhigh: 'xhigh',
+      max: 'max',
+    })
+    expect(findModelByIdOrAlias('deepseek-v4-pro')?.thinkingLevelMap).toEqual({
+      minimal: null,
+      low: null,
+      medium: null,
+      max: 'max',
+    })
+    expect(
+      findModelByIdOrAlias('gpt-4o-mini')?.thinkingLevelMap
+    ).toBeUndefined()
   })
 })
 

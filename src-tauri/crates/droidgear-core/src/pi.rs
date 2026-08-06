@@ -255,6 +255,8 @@ struct RegistryModel {
     aliases: Vec<String>,
     reasoning: bool,
     input: Vec<String>,
+    #[serde(default)]
+    thinking_level_map: Option<HashMap<String, Option<String>>>,
     context_window: u32,
     max_output_tokens: Option<u32>,
 }
@@ -275,6 +277,7 @@ pub fn enrich_pi_model_from_registry(model: &mut PiModel) -> bool {
     model.name = Some(metadata.name.clone());
     model.reasoning = metadata.reasoning;
     model.input = metadata.input.clone();
+    model.thinking_level_map = metadata.thinking_level_map.clone();
     model.context_window = metadata.context_window;
     if let Some(max_tokens) = metadata.max_output_tokens {
         model.max_tokens = max_tokens;
@@ -716,6 +719,13 @@ mod tests {
         assert_eq!(model.name.as_deref(), Some("GPT-5.2"));
         assert!(model.reasoning);
         assert_eq!(model.input, ["text", "image"]);
+        assert_eq!(
+            model.thinking_level_map,
+            Some(HashMap::from([
+                ("minimal".to_string(), None),
+                ("xhigh".to_string(), Some("xhigh".to_string())),
+            ]))
+        );
         assert_eq!(model.context_window, 400000);
         assert_eq!(model.max_tokens, 128000);
         assert_eq!(model.api.as_deref(), Some("openai-completions"));
