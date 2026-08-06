@@ -1304,16 +1304,23 @@ pub(super) fn run_select_action(
                 .into_iter()
                 .enumerate()
                 .filter(|(i, _)| i < &selected.len() && selected[*i])
-                .map(|(_, m)| droidgear_core::pi::PiModel {
-                    id: m.id,
-                    name: m.name,
-                    api: None,
-                    reasoning: false,
-                    input: vec!["text".to_string()],
-                    context_window: 128000,
-                    max_tokens: 16384,
-                    cost: None,
-                    compat: None,
+                .map(|(_, m)| {
+                    let mut model = droidgear_core::pi::PiModel {
+                        id: m.id,
+                        name: m.name,
+                        api: None,
+                        reasoning: false,
+                        thinking_level_map: None,
+                        input: vec!["text".to_string()],
+                        context_window: 128000,
+                        max_tokens: 16384,
+                        cost: None,
+                        headers: None,
+                        compat: None,
+                        extra: Default::default(),
+                    };
+                    droidgear_core::pi::enrich_pi_model_from_registry(&mut model);
+                    model
                 })
                 .collect();
 
@@ -3881,17 +3888,22 @@ pub(super) fn run_input_action(
                 return Err(anyhow::Error::msg("Provider not found"));
             };
             let new_index = provider.models.len();
-            provider.models.push(droidgear_core::pi::PiModel {
+            let mut model = droidgear_core::pi::PiModel {
                 id: trimmed.to_string(),
                 name: None,
                 api: None,
                 reasoning: false,
+                thinking_level_map: None,
                 input: vec!["text".to_string()],
                 context_window: 128000,
                 max_tokens: 16384,
                 cost: None,
+                headers: None,
                 compat: None,
-            });
+                extra: Default::default(),
+            };
+            droidgear_core::pi::enrich_pi_model_from_registry(&mut model);
+            provider.models.push(model);
             droidgear_core::pi::save_pi_profile_for_home(&app.home_dir, profile)
                 .map_err(anyhow::Error::msg)?;
             app.pi_model_index = new_index;
@@ -3918,6 +3930,7 @@ pub(super) fn run_input_action(
                 return Err(anyhow::Error::msg("Model not found"));
             };
             model.id = trimmed.to_string();
+            droidgear_core::pi::enrich_pi_model_from_registry(model);
             droidgear_core::pi::save_pi_profile_for_home(&app.home_dir, profile)
                 .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
@@ -4027,6 +4040,8 @@ pub(super) fn run_input_action(
                 output,
                 cache_read,
                 cache_write,
+                tiers: None,
+                extra: Default::default(),
             });
             droidgear_core::pi::save_pi_profile_for_home(&app.home_dir, profile)
                 .map_err(anyhow::Error::msg)?;

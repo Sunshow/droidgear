@@ -16,8 +16,19 @@ use crate::{paths, storage};
 // Types
 // ============================================================================
 
-/// Pi model cost configuration
+/// Pi model cost tier. Rates are in dollars per million tokens.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct PiModelCostTier {
+    pub input_tokens_above: u32,
+    pub input: f64,
+    pub output: f64,
+    pub cache_read: f64,
+    pub cache_write: f64,
+}
+
+/// Pi model cost configuration
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct PiModelCost {
     #[serde(default)]
@@ -28,9 +39,14 @@ pub struct PiModelCost {
     pub cache_read: f64,
     #[serde(default)]
     pub cache_write: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tiers: Option<Vec<PiModelCostTier>>,
+    #[serde(flatten)]
+    #[specta(skip)]
+    pub extra: HashMap<String, serde_json::Value>,
 }
 
-/// Pi compatibility configuration
+/// Pi compatibility configuration. Unknown fields are retained for newer pi versions.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct PiCompatConfig {
@@ -68,6 +84,9 @@ pub struct PiCompatConfig {
     pub open_router_routing: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub vercel_gateway_routing: Option<serde_json::Value>,
+    #[serde(flatten)]
+    #[specta(skip)]
+    pub extra: HashMap<String, serde_json::Value>,
 }
 
 /// Pi model definition
@@ -81,6 +100,8 @@ pub struct PiModel {
     pub api: Option<String>,
     #[serde(default)]
     pub reasoning: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking_level_map: Option<HashMap<String, Option<String>>>,
     #[serde(default = "default_input")]
     pub input: Vec<String>,
     #[serde(default = "default_context_window")]
@@ -90,7 +111,31 @@ pub struct PiModel {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cost: Option<PiModelCost>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub headers: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub compat: Option<PiCompatConfig>,
+    #[serde(flatten)]
+    #[specta(skip)]
+    pub extra: HashMap<String, serde_json::Value>,
+}
+
+impl Default for PiModel {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            name: None,
+            api: None,
+            reasoning: false,
+            thinking_level_map: None,
+            input: default_input(),
+            context_window: default_context_window(),
+            max_tokens: default_max_tokens(),
+            cost: None,
+            headers: None,
+            compat: None,
+            extra: HashMap::new(),
+        }
+    }
 }
 
 /// Pi model override (subset of PiModel fields for overriding built-in models)
@@ -104,6 +149,8 @@ pub struct PiModelOverride {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking_level_map: Option<HashMap<String, Option<String>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub input: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context_window: Option<u32>,
@@ -112,7 +159,12 @@ pub struct PiModelOverride {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cost: Option<PiModelCost>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub headers: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub compat: Option<PiCompatConfig>,
+    #[serde(flatten)]
+    #[specta(skip)]
+    pub extra: HashMap<String, serde_json::Value>,
 }
 
 /// Pi provider configuration
@@ -126,6 +178,8 @@ pub struct PiProviderConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub oauth: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub headers: Option<HashMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auth_header: Option<bool>,
@@ -135,6 +189,9 @@ pub struct PiProviderConfig {
     pub model_overrides: Option<HashMap<String, PiModelOverride>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compat: Option<PiCompatConfig>,
+    #[serde(flatten)]
+    #[specta(skip)]
+    pub extra: HashMap<String, serde_json::Value>,
 }
 
 /// Pi profile (stored in DroidGear)
@@ -181,6 +238,48 @@ fn default_context_window() -> u32 {
 
 fn default_max_tokens() -> u32 {
     16384
+}
+
+// ============================================================================
+// DroidGear Model Registry
+// ============================================================================
+
+const MODEL_REGISTRY_JSON: &str = include_str!("../../../../src/lib/model-registry-data.json");
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RegistryModel {
+    id: String,
+    name: String,
+    #[serde(default)]
+    aliases: Vec<String>,
+    reasoning: bool,
+    input: Vec<String>,
+    context_window: u32,
+    max_output_tokens: Option<u32>,
+}
+
+fn registry_models() -> &'static [RegistryModel] {
+    static MODELS: std::sync::OnceLock<Vec<RegistryModel>> = std::sync::OnceLock::new();
+    MODELS.get_or_init(|| serde_json::from_str(MODEL_REGISTRY_JSON).unwrap_or_default())
+}
+
+pub fn enrich_pi_model_from_registry(model: &mut PiModel) -> bool {
+    let Some(metadata) = registry_models()
+        .iter()
+        .find(|entry| entry.id == model.id || entry.aliases.iter().any(|alias| alias == &model.id))
+    else {
+        return false;
+    };
+
+    model.name = Some(metadata.name.clone());
+    model.reasoning = metadata.reasoning;
+    model.input = metadata.input.clone();
+    model.context_window = metadata.context_window;
+    if let Some(max_tokens) = metadata.max_output_tokens {
+        model.max_tokens = max_tokens;
+    }
+    true
 }
 
 // ============================================================================
@@ -561,9 +660,11 @@ mod tests {
                     max_tokens: 16384,
                     cost: None,
                     compat: None,
+                    ..Default::default()
                 }],
                 model_overrides: None,
                 compat: None,
+                ..Default::default()
             },
         );
         PiProfile {
@@ -591,14 +692,86 @@ mod tests {
                 output: 0.0,
                 cache_read: 0.0,
                 cache_write: 0.0,
+                ..Default::default()
             }),
             compat: None,
+            ..Default::default()
         };
 
         let json = serde_json::to_string_pretty(&model).unwrap();
         assert!(json.contains("\"id\": \"llama3.1:8b\""));
         assert!(json.contains("\"contextWindow\": 128000"));
         assert!(json.contains("\"maxTokens\": 16384"));
+    }
+
+    #[test]
+    fn test_registry_enriches_known_model_metadata() {
+        let mut model = PiModel {
+            id: "gpt-5.2".to_string(),
+            api: Some("openai-completions".to_string()),
+            ..Default::default()
+        };
+
+        assert!(enrich_pi_model_from_registry(&mut model));
+        assert_eq!(model.name.as_deref(), Some("GPT-5.2"));
+        assert!(model.reasoning);
+        assert_eq!(model.input, ["text", "image"]);
+        assert_eq!(model.context_window, 400000);
+        assert_eq!(model.max_tokens, 128000);
+        assert_eq!(model.api.as_deref(), Some("openai-completions"));
+    }
+
+    #[test]
+    fn test_current_schema_and_unknown_fields_roundtrip() {
+        let source = serde_json::json!({
+            "providers": {
+                "proxy": {
+                    "baseUrl": "https://proxy.example.com/v1",
+                    "api": "openai-completions",
+                    "oauth": "radius",
+                    "futureProviderField": { "enabled": true },
+                    "models": [{
+                        "id": "gpt-5.2",
+                        "thinkingLevelMap": { "off": "none", "max": null },
+                        "headers": { "x-model-route": "fast" },
+                        "cost": {
+                            "input": 1,
+                            "output": 2,
+                            "cacheRead": 0.1,
+                            "cacheWrite": 0,
+                            "tiers": [{
+                                "inputTokensAbove": 272000,
+                                "input": 2,
+                                "output": 3,
+                                "cacheRead": 0.2,
+                                "cacheWrite": 0
+                            }]
+                        },
+                        "compat": { "supportsToolSearch": true },
+                        "futureModelField": "preserved"
+                    }]
+                }
+            }
+        });
+
+        let config: PiCurrentConfig = serde_json::from_value(source).unwrap();
+        let output = serde_json::to_value(config).unwrap();
+        assert_eq!(
+            output.pointer("/providers/proxy/futureProviderField/enabled"),
+            Some(&serde_json::Value::Bool(true))
+        );
+        assert_eq!(
+            output.pointer("/providers/proxy/models/0/futureModelField"),
+            Some(&serde_json::Value::String("preserved".to_string()))
+        );
+        assert_eq!(
+            output.pointer("/providers/proxy/models/0/compat/supportsToolSearch"),
+            Some(&serde_json::Value::Bool(true))
+        );
+        assert_eq!(
+            output.pointer("/providers/proxy/models/0/cost/tiers/0/inputTokensAbove"),
+            Some(&serde_json::Value::Number(272000.into()))
+        );
     }
 
     #[test]
@@ -612,6 +785,7 @@ mod tests {
             models: vec![],
             model_overrides: None,
             compat: None,
+            ..Default::default()
         };
 
         let json = serde_json::to_string_pretty(&provider).unwrap();
@@ -956,6 +1130,7 @@ mod tests {
                 models: vec![],
                 model_overrides: None,
                 compat: None,
+                ..Default::default()
             },
         );
         save_pi_profile_for_home(home, updated).unwrap();
@@ -1084,9 +1259,11 @@ mod tests {
                     max_tokens: 16384,
                     cost: None,
                     compat: None,
+                    ..Default::default()
                 }],
                 model_overrides: None,
                 compat: None,
+                ..Default::default()
             },
         );
         providers.insert(
@@ -1100,6 +1277,7 @@ mod tests {
                 models: vec![],
                 model_overrides: None,
                 compat: None,
+                ..Default::default()
             },
         );
 

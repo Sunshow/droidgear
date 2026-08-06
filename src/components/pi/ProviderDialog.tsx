@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, Trash2, CloudDownload } from 'lucide-react'
+import { Plus, Trash2, CloudDownload, Database } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/select'
 import { usePiStore } from '@/store/pi-store'
 import { trimToNull } from '@/lib/utils'
+import { enrichPiModelFromRegistry } from '@/lib/pi-model-metadata'
 import type {
   PiProfile,
   PiProviderConfig,
@@ -35,6 +36,7 @@ import {
   PiImportFromChannelDialog,
   type PiImportResult,
 } from './PiImportFromChannelDialog'
+import { PiModelRegistryDialog } from './PiModelRegistryDialog'
 
 const API_TYPES = [
   { value: 'openai-completions', label: 'OpenAI Completions' },
@@ -152,6 +154,7 @@ function ProviderForm({
   >({})
 
   const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [registryDialogOpen, setRegistryDialogOpen] = useState(false)
 
   const modelsContainerRef = useRef<HTMLDivElement>(null)
 
@@ -176,6 +179,23 @@ function ProviderForm({
   const handleImportFromChannel = useCallback((result: PiImportResult) => {
     setModels(prev => [...prev, ...result.models])
   }, [])
+
+  const handleAddFromRegistry = (model: PiModel) => {
+    setModels(prev => [...prev, model])
+  }
+
+  const handleFillFromRegistry = (index: number) => {
+    const model = models[index]
+    if (!model) return
+    const enriched = enrichPiModelFromRegistry(model)
+    if (enriched === model) {
+      toast.warning(t('pi.provider.registry.notFound'))
+      return
+    }
+    const updated = [...models]
+    updated[index] = enriched
+    setModels(updated)
+  }
 
   const handleAddModel = () => {
     const newModel: PiModel = {
@@ -263,6 +283,7 @@ function ProviderForm({
       output: 0,
       cacheRead: 0,
       cacheWrite: 0,
+      tiers: [],
     }
     const numValue = value === '' ? undefined : parseFloat(value)
     const newCost: PiModelCost = {
@@ -324,6 +345,7 @@ function ProviderForm({
     const validModels = models.filter(m => m.id.trim())
 
     const config: PiProviderConfig = {
+      ...existingConfig,
       baseUrl: trimToNull(baseUrl),
       api: api || null,
       apiKey: trimToNull(apiKey),
@@ -453,7 +475,16 @@ function ProviderForm({
             <Label className="text-base font-medium">
               {t('pi.provider.models')}
             </Label>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setRegistryDialogOpen(true)}
+              >
+                <Database className="h-4 w-4 mr-1" />
+                {t('pi.provider.addFromRegistry')}
+              </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -504,14 +535,26 @@ function ProviderForm({
                       <Label className="text-xs">
                         {t('pi.provider.modelId')} *
                       </Label>
-                      <Input
-                        value={model.id}
-                        onChange={e =>
-                          handleModelChange(index, 'id', e.target.value)
-                        }
-                        placeholder="llama3.1:8b"
-                        className="h-8"
-                      />
+                      <div className="flex items-center gap-1">
+                        <Input
+                          value={model.id}
+                          onChange={e =>
+                            handleModelChange(index, 'id', e.target.value)
+                          }
+                          placeholder="llama3.1:8b"
+                          className="h-8"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-8 shrink-0"
+                          onClick={() => handleFillFromRegistry(index)}
+                          title={t('pi.provider.fillFromRegistry')}
+                        >
+                          <Database className="size-4" />
+                        </Button>
+                      </div>
                     </div>
                     {/* Model Name */}
                     <div>
@@ -753,6 +796,13 @@ function ProviderForm({
         </Button>
       </div>
 
+      <PiModelRegistryDialog
+        open={registryDialogOpen}
+        onOpenChange={setRegistryDialogOpen}
+        existingModelIds={models.map(model => model.id)}
+        onSelect={handleAddFromRegistry}
+      />
+
       <PiImportFromChannelDialog
         open={importDialogOpen}
         onOpenChange={setImportDialogOpen}
@@ -775,7 +825,10 @@ export function ProviderDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+      <DialogContent
+        className="max-w-2xl max-h-[85vh] flex flex-col"
+        onCloseAutoFocus={event => event.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>
             {isEditing ? t('pi.provider.edit') : t('pi.provider.add')}

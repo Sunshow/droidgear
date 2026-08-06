@@ -50,6 +50,10 @@ export interface ModelRegistryEntry {
   aliases: string[]
   /** Default API platform type */
   platform: ModelPlatform
+  /** Whether the model supports extended thinking */
+  reasoning: boolean
+  /** Input modalities supported by Pi model configuration */
+  input: ('text' | 'image')[]
   /** Context window size in tokens */
   contextWindow: number
   /** Maximum output tokens */

@@ -8,17 +8,37 @@ import {
   getSupportedEfforts,
 } from './model-registry'
 
-describe('model-registry reasoningConfig coverage', () => {
-  it('has reasoningConfig for every registered model', () => {
+describe('model-registry capability coverage', () => {
+  it('has capability metadata for every registered model', () => {
     const models = getAllRegistryModels()
     expect(models.length).toBeGreaterThan(0)
     for (const model of models) {
+      expect(typeof model.reasoning, `${model.id} missing reasoning`).toBe(
+        'boolean'
+      )
+      expect(model.input, `${model.id} missing input modalities`).toContain(
+        'text'
+      )
+      expect(
+        model.input.every(input => ['text', 'image'].includes(input))
+      ).toBe(true)
       expect(
         model.reasoningConfig,
         `${model.id} missing reasoningConfig`
       ).toBeTruthy()
       expect(model.reasoningConfig?.efforts.length).toBeGreaterThan(0)
     }
+  })
+
+  it('distinguishes reasoning and image capabilities', () => {
+    expect(findModelByIdOrAlias('gpt-4o-mini')).toMatchObject({
+      reasoning: false,
+      input: ['text', 'image'],
+    })
+    expect(findModelByIdOrAlias('o3-mini')).toMatchObject({
+      reasoning: true,
+      input: ['text'],
+    })
   })
 })
 
