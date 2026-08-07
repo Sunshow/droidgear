@@ -100,7 +100,7 @@ Run the installer directly.
 - **Codex CLI Integration** - Manage Codex configuration profiles
 - **Auth Profiles** - Save and switch between official login and BYOK auth profiles with conflict detection
 - **Instant Apply** - Edits to the currently active profile (including provider switches) apply immediately, no explicit apply needed
-- **Model Catalog Sync** - Applying DeepSeek V4 models automatically syncs the `~/.codex/models.json` model catalog
+- **Model Catalog Sync** - Applying DeepSeek V4 / MiMo models automatically syncs per-family catalogs under `~/.codex/model-catalogs/` (with `model_catalog_json` switched per family)
 - **Configuration Management** - Load and save auth/config.toml (`~/.codex`)
 - **Management Pages** - MCP servers / sessions / terminal subpages under Codex
 
