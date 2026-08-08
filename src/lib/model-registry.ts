@@ -41,6 +41,17 @@ export interface ModelReasoningConfig {
   encoding?: Record<string, Record<string, EffortEncoding>>
 }
 
+export type PiThinkingLevel =
+  | 'off'
+  | 'minimal'
+  | 'low'
+  | 'medium'
+  | 'high'
+  | 'xhigh'
+  | 'max'
+
+export type PiThinkingLevelMap = Partial<Record<PiThinkingLevel, string | null>>
+
 export interface ModelRegistryEntry {
   /** Primary model ID (e.g. "claude-sonnet-4-20250514") */
   id: string
@@ -50,6 +61,12 @@ export interface ModelRegistryEntry {
   aliases: string[]
   /** Default API platform type */
   platform: ModelPlatform
+  /** Whether the model supports extended thinking */
+  reasoning: boolean
+  /** Input modalities supported by Pi model configuration */
+  input: ('text' | 'image')[]
+  /** Provider-neutral Pi thinking capabilities for custom providers */
+  thinkingLevelMap?: PiThinkingLevelMap
   /** Context window size in tokens */
   contextWindow: number
   /** Maximum output tokens */

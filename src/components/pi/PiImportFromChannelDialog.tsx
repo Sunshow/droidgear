@@ -32,6 +32,7 @@ import {
 import { useChannelStore } from '@/store/channel-store'
 import { isApiKeyAuthChannel } from '@/lib/channel-utils'
 import { normalizeBaseUrl } from '@/lib/sub2api-platform'
+import { enrichPiModelFromRegistry } from '@/lib/pi-model-metadata'
 import {
   commands,
   type Channel,
@@ -279,17 +280,19 @@ export function PiImportFromChannelDialog({
     const firstModelId =
       selectedModelIds.size > 0 ? Array.from(selectedModelIds)[0] : undefined
     const api = inferPiApiType(resolvedPlatform, firstModelId)
-    const piModels: PiModel[] = Array.from(selectedModelIds).map(id => ({
-      id,
-      name: null,
-      api: null,
-      reasoning: false,
-      input: ['text'],
-      contextWindow: 128000,
-      maxTokens: 16384,
-      cost: null,
-      compat: null,
-    }))
+    const piModels: PiModel[] = Array.from(selectedModelIds).map(id =>
+      enrichPiModelFromRegistry({
+        id,
+        name: null,
+        api: null,
+        reasoning: false,
+        input: ['text'],
+        contextWindow: 128000,
+        maxTokens: 16384,
+        cost: null,
+        compat: null,
+      })
+    )
     onImported({
       providerId: providerId.trim(),
       baseUrl: resolvedBaseUrl,

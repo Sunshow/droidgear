@@ -2708,7 +2708,7 @@ export type OutputStructure = "flat" |
  */
 "nested"
 /**
- * Pi compatibility configuration
+ * Pi compatibility configuration. Unknown fields are retained for newer pi versions.
  */
 export type PiCompatConfig = { supportsStore?: boolean | null; supportsDeveloperRole?: boolean | null; supportsReasoningEffort?: boolean | null; reasoningEffortMap?: Partial<{ [key in string]: JsonValue }> | null; supportsUsageInStreaming?: boolean | null; maxTokensField?: string | null; requiresToolResultName?: boolean | null; requiresAssistantAfterToolResult?: boolean | null; requiresThinkingAsText?: boolean | null; requiresReasoningContentOnAssistantMessages?: boolean | null; thinkingFormat?: string | null; cacheControlFormat?: string | null; supportsStrictMode?: boolean | null; supportsLongCacheRetention?: boolean | null; supportsEagerToolInputStreaming?: boolean | null; openRouterRouting?: JsonValue | null; vercelGatewayRouting?: JsonValue | null }
 /**
@@ -2722,15 +2722,19 @@ export type PiCurrentConfig = { providers?: Partial<{ [key in string]: PiProvide
 /**
  * Pi model definition
  */
-export type PiModel = { id: string; name?: string | null; api?: string | null; reasoning?: boolean; input?: string[]; contextWindow?: number; maxTokens?: number; cost?: PiModelCost | null; compat?: PiCompatConfig | null }
+export type PiModel = { id: string; name?: string | null; api?: string | null; reasoning?: boolean; thinkingLevelMap?: Partial<{ [key in string]: string | null }> | null; input?: string[]; contextWindow?: number; maxTokens?: number; cost?: PiModelCost | null; headers?: Partial<{ [key in string]: string }> | null; compat?: PiCompatConfig | null }
 /**
  * Pi model cost configuration
  */
-export type PiModelCost = { input?: number; output?: number; cacheRead?: number; cacheWrite?: number }
+export type PiModelCost = { input?: number; output?: number; cacheRead?: number; cacheWrite?: number; tiers?: PiModelCostTier[] | null }
+/**
+ * Pi model cost tier. Rates are in dollars per million tokens.
+ */
+export type PiModelCostTier = { inputTokensAbove: number; input: number; output: number; cacheRead: number; cacheWrite: number }
 /**
  * Pi model override (subset of PiModel fields for overriding built-in models)
  */
-export type PiModelOverride = { name?: string | null; api?: string | null; reasoning?: boolean | null; input?: string[] | null; contextWindow?: number | null; maxTokens?: number | null; cost?: PiModelCost | null; compat?: PiCompatConfig | null }
+export type PiModelOverride = { name?: string | null; api?: string | null; reasoning?: boolean | null; thinkingLevelMap?: Partial<{ [key in string]: string | null }> | null; input?: string[] | null; contextWindow?: number | null; maxTokens?: number | null; cost?: PiModelCost | null; headers?: Partial<{ [key in string]: string }> | null; compat?: PiCompatConfig | null }
 /**
  * Pi profile (stored in DroidGear)
  */
@@ -2738,7 +2742,7 @@ export type PiProfile = { id: string; name: string; description?: string | null;
 /**
  * Pi provider configuration
  */
-export type PiProviderConfig = { baseUrl?: string | null; api?: string | null; apiKey?: string | null; headers?: Partial<{ [key in string]: string }> | null; authHeader?: boolean | null; models: PiModel[]; modelOverrides?: Partial<{ [key in string]: PiModelOverride }> | null; compat?: PiCompatConfig | null }
+export type PiProviderConfig = { baseUrl?: string | null; api?: string | null; apiKey?: string | null; oauth?: string | null; headers?: Partial<{ [key in string]: string }> | null; authHeader?: boolean | null; models: PiModel[]; modelOverrides?: Partial<{ [key in string]: PiModelOverride }> | null; compat?: PiCompatConfig | null }
 export type PortableUpdateInfo = { version: string; body: string | null; pubDate: string | null; url: string; signature: string; sha256: string; releaseUrl: string }
 /**
  * Provider types supported by Factory BYOK
