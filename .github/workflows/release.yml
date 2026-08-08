@@ -102,24 +102,12 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      # Updater signing keys are only configured on the upstream repository;
-      # forks do not inherit secrets. Export them into the environment only
-      # when present so tauri-action skips signing instead of failing on an
-      # empty key.
-      - name: Export updater signing key (when configured)
-        shell: bash
-        run: |
-          if [ -n "${{ secrets.TAURI_PRIVATE_KEY }}" ]; then
-            echo "TAURI_SIGNING_PRIVATE_KEY=${{ secrets.TAURI_PRIVATE_KEY }}" >> "$GITHUB_ENV"
-            echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}" >> "$GITHUB_ENV"
-            echo "TAURI_PRIVATE_KEY=${{ secrets.TAURI_PRIVATE_KEY }}" >> "$GITHUB_ENV"
-            echo "TAURI_PRIVATE_KEY_PASSWORD=${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}" >> "$GITHUB_ENV"
-          fi
-
       - name: Build and upload
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           includeUpdaterJson: false
@@ -127,11 +115,12 @@ jobs:
           args: ${{ matrix.args }}
 
       - name: Package portable updater assets
-        # Skipped on forks, which have no signing key exported above.
-        if: runner.os == 'Windows' && env.TAURI_PRIVATE_KEY != ''
+        if: runner.os == 'Windows'
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           $bin = "src-tauri/target/${{ matrix.target }}/release/droidgear.exe"
           if (-not (Test-Path $bin)) {

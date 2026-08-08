@@ -32,6 +32,12 @@ describe('inferProtocolFromModelId', () => {
     expect(inferProtocolFromModelId('deepseek-chat')).toBe('openai')
   })
 
+  it('identifies MiMo models as openai', () => {
+    expect(inferProtocolFromModelId('mimo-v2.5')).toBe('openai')
+    expect(inferProtocolFromModelId('mimo-v2.5-pro')).toBe('openai')
+    expect(inferProtocolFromModelId('mimo-v2-flash')).toBe('openai')
+  })
+
   it('returns openai-compatible for unknown models', () => {
     expect(inferProtocolFromModelId('llama-3')).toBe('openai-compatible')
     expect(inferProtocolFromModelId('unknown-model')).toBe('openai-compatible')

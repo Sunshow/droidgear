@@ -5,6 +5,7 @@ export const inferProviderForNewApi = (modelId: string): Provider => {
   const modelLower = modelId.toLowerCase()
   if (modelLower.startsWith('claude-')) return 'anthropic'
   if (modelLower.startsWith('deepseek-')) return 'openai'
+  if (modelLower.startsWith('mimo-')) return 'openai'
   if (modelLower.startsWith('gpt-') || /^o[134](-|$)/.test(modelLower))
     return 'openai'
   return 'generic-chat-completion-api'

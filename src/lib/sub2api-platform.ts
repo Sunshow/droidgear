@@ -33,6 +33,7 @@ export const inferProviderFromPlatformAndModel = (
   if (modelLower.startsWith('claude-')) return 'anthropic'
   if (modelLower.startsWith('gpt-') || /^o[134](-|$)/.test(modelLower))
     return 'openai'
+  if (modelLower.startsWith('mimo-')) return 'openai'
 
   // 3. Default to generic
   return 'generic-chat-completion-api'

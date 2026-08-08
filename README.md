@@ -100,7 +100,8 @@ xattr -cr /Applications/DroidGear.app
 - **Codex CLI 集成** - Codex 配置 Profile 管理
 - **认证配置** - 官方登录与 BYOK 认证配置文件的保存、切换及冲突检测
 - **即时应用** - 编辑当前活动的 Profile 时立即应用（含切换 Provider），无需手动应用
-- **模型目录同步** - 应用 DeepSeek V4 模型时自动同步 `~/.codex/models.json` 模型目录
+- **模型目录同步** - 应用 DeepSeek V4 / MiMo 模型时自动同步 `~/.codex/model-catalogs/` 下的分族模型目录（`model_catalog_json` 随模型族切换）
+
 - **配置管理** - 认证与 `config.toml` 的加载和保存（`~/.codex`）
 - **管理入口** - 在 Codex 入口下提供 MCP 服务器 / 会话 / 终端 管理子页
 

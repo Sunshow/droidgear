@@ -91,6 +91,10 @@ describe('inferProviderFromPlatformAndModel', () => {
     expect(inferProviderFromPlatformAndModel(null, 'gpt-3.5-turbo')).toBe(
       'openai'
     )
+    expect(inferProviderFromPlatformAndModel(null, 'mimo-v2.5')).toBe('openai')
+    expect(inferProviderFromPlatformAndModel(null, 'mimo-v2.5-pro')).toBe(
+      'openai'
+    )
   })
 
   it('handles case-insensitive model name matching', () => {
