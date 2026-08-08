@@ -1,0 +1,76 @@
+{
+  "models": [
+    {
+      "slug": "mimo-v2.5-pro",
+      "display_name": "mimo-v2.5-pro",
+      "description": "MiMo-v2.5-Pro: Trillion-parameter Flagship Agent Foundation",
+      "default_reasoning_level": "high",
+      "supported_reasoning_levels": [
+        {
+          "effort": "none",
+          "description": "Disable Thinking"
+        },
+        {
+          "effort": "high",
+          "description": "Enabled Thinking"
+        }
+      ],
+      "shell_type": "shell_command",
+      "visibility": "list",
+      "supported_in_api": true,
+      "priority": 0,
+      "base_instructions": "You are MiMo, an AI assistant developed by Xiaomi. Today's date: {date} {week}. Your knowledge cutoff date is December 2024.",
+      "supports_reasoning_summaries": true,
+      "default_reasoning_summary": "none",
+      "support_verbosity": false,
+      "truncation_policy": {
+        "mode": "bytes",
+        "limit": 10000
+      },
+      "supports_parallel_tool_calls": false,
+      "supports_image_detail_original": false,
+      "context_window": 1048576,
+      "max_context_window": 1048576,
+      "effective_context_window_percent": 95,
+      "experimental_supported_tools": [],
+      "input_modalities": ["text"],
+      "supports_search_tool": false
+    },
+    {
+      "slug": "mimo-v2.5",
+      "display_name": "mimo-v2.5",
+      "description": "MiMo-V2.5: Native Omni-modal Perception Model",
+      "default_reasoning_level": "high",
+      "supported_reasoning_levels": [
+        {
+          "effort": "none",
+          "description": "Disable Thinking"
+        },
+        {
+          "effort": "high",
+          "description": "Enabled Thinking"
+        }
+      ],
+      "shell_type": "shell_command",
+      "visibility": "list",
+      "supported_in_api": true,
+      "priority": 1,
+      "base_instructions": "You are MiMo, an AI assistant developed by Xiaomi. Today's date: {date} {week}. Your knowledge cutoff date is December 2024.",
+      "supports_reasoning_summaries": true,
+      "default_reasoning_summary": "none",
+      "support_verbosity": false,
+      "truncation_policy": {
+        "mode": "bytes",
+        "limit": 10000
+      },
+      "supports_parallel_tool_calls": false,
+      "supports_image_detail_original": true,
+      "context_window": 1048576,
+      "max_context_window": 1048576,
+      "effective_context_window_percent": 95,
+      "experimental_supported_tools": [],
+      "input_modalities": ["text", "image"],
+      "supports_search_tool": false
+    }
+  ]
+}

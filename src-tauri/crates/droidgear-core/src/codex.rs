@@ -24,9 +24,10 @@ pub(crate) const OPENAI_API_KEY_FIELD: &str = "OPENAI_API_KEY";
 /// DeepSeek setup script (codex-deepseek-setup.sh).
 const DEEPSEEK_V4_MODELS: [&str; 2] = ["deepseek-v4-flash", "deepseek-v4-pro"];
 
-/// Model catalog content for the DeepSeek V4 models, extracted verbatim
-/// from the official setup script.
-const CODEX_MODELS_JSON: &str = include_str!("../res/codex-models.json");
+/// Model catalog content for the MiMo models, extracted verbatim from the
+/// official MiMo Codex docs.
+const MIMO_MODELS_JSON: &str = include_str!("../res/codex-mimo-models.json");
+
 
 /// Codex Provider 配置（对应 config.toml 中的 [model_providers.<id>]）
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -175,24 +176,83 @@ fn now_rfc3339() -> String {
 // TOML helpers
 // ============================================================================
 
-/// Whether `model` is a DeepSeek V4 model that needs the Codex model
-/// catalog file.
-pub(crate) fn is_deepseek_v4_model(model: &str) -> bool {
-    DEEPSEEK_V4_MODELS.iter().any(|m| model.trim() == *m)
+/// Model family that needs a Codex model catalog file
+/// (`model_catalog_json` in config.toml). Each family keeps its own catalog
+/// under `~/.codex/model-catalogs/` so Codex only lists models that the
+/// configured endpoint actually serves.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ModelCatalog {
+    DeepSeek,
+    Mimo,
 }
 
-/// Write the DeepSeek model catalog (`~/.codex/models.json`) when the active
-/// model needs it, otherwise remove it. Codex only reads this file via the
-/// `model_catalog_json` config key, so an orphaned catalog would be dead
-/// weight — and a dangling reference would break startup.
+impl ModelCatalog {
+    /// Catalog file name under `~/.codex/model-catalogs/`.
+    fn file_name(self) -> &'static str {
+        match self {
+            ModelCatalog::DeepSeek => "deepseek.json",
+            ModelCatalog::Mimo => "mimo.json",
+        }
+    }
+
+    /// Catalog content for this family.
+    fn content(self) -> &'static str {
+        match self {
+            ModelCatalog::DeepSeek => CODEX_MODELS_JSON,
+            ModelCatalog::Mimo => MIMO_MODELS_JSON,
+        }
+    }
+}
+
+/// Whether `model` belongs to a family that needs the Codex model catalog,
+/// and which one.
+pub(crate) fn catalog_for_model(model: &str) -> Option<ModelCatalog> {
+    let model = model.trim();
+    if DEEPSEEK_V4_MODELS.contains(&model) {
+        Some(ModelCatalog::DeepSeek)
+    } else if MIMO_MODELS.contains(&model) {
+        Some(ModelCatalog::Mimo)
+    } else {
+        None
+    }
+}
+
+/// Value for `model_catalog_json` in config.toml: `~/.codex/model-catalogs/<family>.json`
+/// when the codex home is the default `~/.codex`, otherwise the absolute
+/// path so a custom codex home does not dangle.
+fn model_catalog_json_value_for_home(
+    home_dir: &Path,
+    catalog: ModelCatalog,
+) -> Result<String, String> {
+    let config_paths = paths::load_config_paths_for_home(home_dir);
+    let codex_home = paths::get_codex_home_for_home(home_dir, &config_paths)?;
+    let rel = format!("model-catalogs/{}", catalog.file_name());
+    if codex_home == home_dir.join(".codex") {
+        Ok(format!("~/.codex/{rel}"))
+    } else {
+        Ok(codex_home.join(rel).to_string_lossy().into_owned())
+    }
+}
+
+/// Write the model catalog for the active model's family under
+/// `~/.codex/model-catalogs/`, and remove the legacy single-file catalog
+/// (`~/.codex/models.json`) written by older releases. Codex only reads a
+/// catalog via the `model_catalog_json` config key, so an orphaned catalog
+/// would be dead weight — and a dangling reference would break startup.
 pub fn sync_models_json_for_home(home_dir: &Path, model: &str) -> Result<(), String> {
-    let models_path = codex_config_dir_for_home(home_dir)?.join("models.json");
-    if is_deepseek_v4_model(model) {
-        storage::atomic_write(&models_path, CODEX_MODELS_JSON.as_bytes())
-            .map_err(|e| format!("Failed to write codex models.json: {e}"))?;
-    } else if models_path.exists() {
-        std::fs::remove_file(&models_path)
-            .map_err(|e| format!("Failed to remove codex models.json: {e}"))?;
+    let codex_dir = codex_config_dir_for_home(home_dir)?;
+
+    let legacy_models_path = codex_dir.join("models.json");
+    if legacy_models_path.exists() {
+        std::fs::remove_file(&legacy_models_path)
+            .map_err(|e| format!("Failed to remove legacy codex models.json: {e}"))?;
+    }
+
+    if let Some(catalog) = catalog_for_model(model) {
+        let catalog_path = codex_dir.join("model-catalogs").join(catalog.file_name());
+        storage::atomic_write(&catalog_path, catalog.content().as_bytes())
+            .map_err(|e| format!("Failed to write codex model catalog: {e}"))?;
+
     }
     Ok(())
 }
@@ -314,6 +374,7 @@ pub(crate) fn resolved_api_key(
 pub(crate) fn apply_profile_to_config_map(
     config: &mut toml::map::Map<String, toml::Value>,
     profile: &CodexProfile,
+    home_dir: &Path,
 ) -> Result<(), String> {
     let (effective_provider_id, active_provider) = resolve_active_provider(profile);
     let resolved_model = resolved_model(profile, active_provider);
@@ -354,15 +415,31 @@ pub(crate) fn apply_profile_to_config_map(
         );
     }
 
-    // DeepSeek V4 models load their model catalog from models.json; other
-    // models must not reference it, or Codex looks for a missing file.
-    if is_deepseek_v4_model(&resolved_model) {
+    // Model families that ship a catalog (DeepSeek V4, MiMo) point
+    // model_catalog_json at their per-family catalog under model-catalogs/;
+    // other models must not reference it, or Codex looks for a missing file.
+    match catalog_for_model(&resolved_model) {
+        Some(catalog) => {
+            config.insert(
+                "model_catalog_json".to_string(),
+                toml::Value::String(model_catalog_json_value_for_home(home_dir, catalog)?),
+            );
+        }
+        None => {
+            config.remove("model_catalog_json");
+        }
+    }
+
+    // MiMo 当前不支持 web search，写入 config.toml 关闭。
+    // 等 MiMo 网关支持后删除这段兼容。
+    if matches!(catalog_for_model(&resolved_model), Some(ModelCatalog::Mimo)) {
         config.insert(
-            "model_catalog_json".to_string(),
-            toml::Value::String("~/.codex/models.json".to_string()),
+            "web_search".to_string(),
+            toml::Value::String("disabled".to_string()),
         );
     } else {
-        config.remove("model_catalog_json");
+        config.remove("web_search");
+
     }
 
     Ok(())
@@ -790,7 +867,7 @@ pub fn apply_codex_profile_config_only_for_home(home_dir: &Path, id: &str) -> Re
         toml::map::Map::new()
     };
 
-    apply_profile_to_config_map(&mut config, &profile)?;
+    apply_profile_to_config_map(&mut config, &profile, home_dir)?;
 
     let toml_str = toml::to_string_pretty(&config)
         .map_err(|e| format!("Failed to serialize config.toml: {e}"))?;
@@ -831,7 +908,7 @@ pub fn apply_codex_profile_for_home(home_dir: &Path, id: &str) -> Result<(), Str
         toml::map::Map::new()
     };
 
-    apply_profile_to_config_map(&mut config, &profile)?;
+    apply_profile_to_config_map(&mut config, &profile, home_dir)?;
 
     let toml_str = toml::to_string_pretty(&config)
         .map_err(|e| format!("Failed to serialize config.toml: {e}"))?;
@@ -1016,10 +1093,11 @@ pub fn read_codex_current_config() -> Result<CodexCurrentConfig, String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_codex_profile_for_home, apply_profile_to_config_map, is_deepseek_v4_model,
+        apply_codex_profile_for_home, apply_profile_to_config_map, catalog_for_model,
         provider_config_to_toml, resolve_active_provider, resolve_codex_profile_selector_for_home,
         save_codex_profile_for_home, save_codex_profile_for_home_and_apply_if_active,
-        sync_models_json_for_home, CodexProfile, CodexProviderConfig,
+        sync_models_json_for_home, CodexProfile, CodexProviderConfig, ModelCatalog,
+
     };
     use std::collections::HashMap;
     use tempfile::TempDir;
@@ -1139,12 +1217,13 @@ mod tests {
             auth_profile_name: None,
         };
 
+        let temp = TempDir::new().unwrap();
         let mut config = toml::map::Map::new();
         config.insert(
             "model_providers".to_string(),
             toml::Value::Table(toml::map::Map::new()),
         );
-        apply_profile_to_config_map(&mut config, &profile).unwrap();
+        apply_profile_to_config_map(&mut config, &profile, temp.path()).unwrap();
 
         assert_eq!(
             config.get("model_provider").and_then(|v| v.as_str()),
@@ -1207,33 +1286,84 @@ mod tests {
     }
 
     #[test]
-    fn is_deepseek_v4_model_matches_flash_and_pro() {
-        assert!(is_deepseek_v4_model("deepseek-v4-flash"));
-        assert!(is_deepseek_v4_model("deepseek-v4-pro"));
-        assert!(is_deepseek_v4_model("  deepseek-v4-flash  "));
-        assert!(!is_deepseek_v4_model("gpt-5"));
-        assert!(!is_deepseek_v4_model("deepseek-chat"));
-        assert!(!is_deepseek_v4_model(""));
+    fn catalog_for_model_matches_deepseek_and_mimo_families() {
+        assert_eq!(
+            catalog_for_model("deepseek-v4-flash"),
+            Some(ModelCatalog::DeepSeek)
+        );
+        assert_eq!(
+            catalog_for_model("deepseek-v4-pro"),
+            Some(ModelCatalog::DeepSeek)
+        );
+        assert_eq!(
+            catalog_for_model("  deepseek-v4-flash  "),
+            Some(ModelCatalog::DeepSeek)
+        );
+        assert_eq!(catalog_for_model("mimo-v2.5-pro"), Some(ModelCatalog::Mimo));
+        assert_eq!(catalog_for_model("mimo-v2.5"), Some(ModelCatalog::Mimo));
+        assert_eq!(catalog_for_model("  mimo-v2.5  "), Some(ModelCatalog::Mimo));
+        assert_eq!(catalog_for_model("gpt-5"), None);
+        assert_eq!(catalog_for_model("deepseek-chat"), None);
+        assert_eq!(catalog_for_model(""), None);
     }
 
     #[test]
-    fn sync_models_json_writes_for_deepseek_v4_and_removes_otherwise() {
+    fn sync_models_json_writes_per_family_catalog_and_cleans_legacy() {
         let temp = TempDir::new().unwrap();
         let home = temp.path();
 
+        // DeepSeek V4 writes the deepseek family catalog under model-catalogs/.
         sync_models_json_for_home(home, "deepseek-v4-flash").unwrap();
-        let models_path = home.join(".codex").join("models.json");
-        assert!(models_path.exists());
-        let content = std::fs::read_to_string(&models_path).unwrap();
+        let deepseek_path = home
+            .join(".codex")
+            .join("model-catalogs")
+            .join("deepseek.json");
+        assert!(deepseek_path.exists());
+        let content = std::fs::read_to_string(&deepseek_path).unwrap();
         assert!(content.contains("deepseek-v4-flash"));
         assert!(content.contains("deepseek-v4-pro"));
+        assert!(!home
+            .join(".codex")
+            .join("model-catalogs")
+            .join("mimo.json")
+            .exists());
 
-        sync_models_json_for_home(home, "gpt-5").unwrap();
-        assert!(!models_path.exists());
+        // MiMo writes its own family catalog; the deepseek one stays put.
+        sync_models_json_for_home(home, "mimo-v2.5-pro").unwrap();
+        let mimo_path = home.join(".codex").join("model-catalogs").join("mimo.json");
+        assert!(mimo_path.exists());
+        let mimo_content = std::fs::read_to_string(&mimo_path).unwrap();
+        assert!(mimo_content.contains("mimo-v2.5-pro"));
+        assert!(mimo_content.contains("mimo-v2.5"));
+        assert!(deepseek_path.exists(), "other family catalogs are kept");
 
-        // Missing file is a no-op when the model does not need the catalog.
+        // Non-catalog models do not touch family catalogs.
         sync_models_json_for_home(home, "gpt-5").unwrap();
-        assert!(!models_path.exists());
+        assert!(deepseek_path.exists());
+        assert!(mimo_path.exists());
+    }
+
+    #[test]
+    fn sync_models_json_removes_legacy_single_file_catalog() {
+        let temp = TempDir::new().unwrap();
+        let home = temp.path();
+
+        // Simulate a catalog written by an older release at ~/.codex/models.json.
+        let legacy_path = home.join(".codex").join("models.json");
+        std::fs::create_dir_all(legacy_path.parent().unwrap()).unwrap();
+        std::fs::write(&legacy_path, b"{\"models\":[]}").unwrap();
+
+        sync_models_json_for_home(home, "deepseek-v4-flash").unwrap();
+        assert!(
+            !legacy_path.exists(),
+            "legacy models.json must be cleaned up"
+        );
+        assert!(home
+            .join(".codex")
+            .join("model-catalogs")
+            .join("deepseek.json")
+            .exists());
+
     }
 
     fn sample_profile_with_model(model: &str) -> CodexProfile {
@@ -1270,24 +1400,79 @@ mod tests {
     }
 
     #[test]
-    fn apply_profile_to_config_map_sets_catalog_for_deepseek_v4() {
+    fn apply_profile_to_config_map_sets_catalog_per_family() {
+        let temp = TempDir::new().unwrap();
+        let home = temp.path();
+
         let mut config = toml::map::Map::new();
-        apply_profile_to_config_map(&mut config, &sample_profile_with_model("deepseek-v4-flash"))
+        apply_profile_to_config_map(
+            &mut config,
+            &sample_profile_with_model("deepseek-v4-flash"),
+            home,
+        )
+        .unwrap();
+        assert_eq!(
+            config.get("model_catalog_json").and_then(|v| v.as_str()),
+            Some("~/.codex/model-catalogs/deepseek.json")
+        );
+
+        let mut config = toml::map::Map::new();
+        apply_profile_to_config_map(&mut config, &sample_profile_with_model("mimo-v2.5"), home)
             .unwrap();
         assert_eq!(
             config.get("model_catalog_json").and_then(|v| v.as_str()),
-            Some("~/.codex/models.json")
+            Some("~/.codex/model-catalogs/mimo.json")
+
         );
 
         let mut config = toml::map::Map::new();
         config.insert(
             "model_catalog_json".to_string(),
-            toml::Value::String("~/.codex/models.json".to_string()),
+            toml::Value::String("~/.codex/model-catalogs/deepseek.json".to_string()),
         );
-        apply_profile_to_config_map(&mut config, &sample_profile_with_model("gpt-5")).unwrap();
+        apply_profile_to_config_map(&mut config, &sample_profile_with_model("gpt-5"), home)
+            .unwrap();
         assert!(
             !config.contains_key("model_catalog_json"),
-            "non-DeepSeek models must not reference the catalog"
+            "models without a catalog must not reference one"
+        );
+    }
+    #[test]
+    fn apply_profile_to_config_map_disables_web_search_for_mimo() {
+        let temp = TempDir::new().unwrap();
+        let home = temp.path();
+
+        // MiMo models should have web_search disabled
+        let mut config = toml::map::Map::new();
+        apply_profile_to_config_map(&mut config, &sample_profile_with_model("mimo-v2.5"), home)
+            .unwrap();
+        assert_eq!(
+            config.get("web_search").and_then(|v| v.as_str()),
+            Some("disabled"),
+            "MiMo models must have web_search disabled"
+        );
+
+        // DeepSeek models should not have web_search
+        let mut config = toml::map::Map::new();
+        apply_profile_to_config_map(
+            &mut config,
+            &sample_profile_with_model("deepseek-v4-flash"),
+            home,
+        )
+        .unwrap();
+        assert!(
+            !config.contains_key("web_search"),
+            "DeepSeek models must not have web_search setting"
+        );
+
+        // Non-catalog models should not have web_search
+        let mut config = toml::map::Map::new();
+        apply_profile_to_config_map(&mut config, &sample_profile_with_model("gpt-5"), home)
+            .unwrap();
+        assert!(
+            !config.contains_key("web_search"),
+            "Non-catalog models must not have web_search setting"
+
         );
     }
 

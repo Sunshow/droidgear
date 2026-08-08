@@ -21,6 +21,9 @@ export function inferProtocolFromModelId(modelId: string): ModelProtocol {
   // DeepSeek 系列 (OpenAI)
   if (lowerModelId.startsWith('deepseek-')) return 'openai'
 
+  // MiMo 系列 (Xiaomi, OpenAI 兼容)
+  if (lowerModelId.startsWith('mimo-')) return 'openai'
+
   // 默认使用 OpenAI 兼容协议
   return 'openai-compatible'
 }

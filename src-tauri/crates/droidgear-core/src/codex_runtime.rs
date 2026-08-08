@@ -410,7 +410,7 @@ fn build_runtime_home_snapshot(
     validate_provider_id(&provider_id)?;
 
     let mut config = read_config_template(&live_codex_home.join("config.toml"))?;
-    codex::apply_profile_to_config_map(&mut config, profile)?;
+    codex::apply_profile_to_config_map(&mut config, profile, home_dir)?;
     write_config_snapshot(&runtime_home_path, &config)?;
 
     let live_auth = read_auth_template(&live_codex_home.join("auth.json"));

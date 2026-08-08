@@ -23,6 +23,7 @@ export class GeneralInferrer implements ChannelInferrer {
     // 使用简单的模型名称推断
     if (modelId.startsWith('claude-')) return 'anthropic'
     if (modelId.startsWith('gpt-')) return 'openai'
+    if (modelId.toLowerCase().startsWith('mimo-')) return 'openai'
 
     // 其他返回 null，使用全局推断
     return null
