@@ -24,10 +24,17 @@ pub(crate) const OPENAI_API_KEY_FIELD: &str = "OPENAI_API_KEY";
 /// DeepSeek setup script (codex-deepseek-setup.sh).
 const DEEPSEEK_V4_MODELS: [&str; 2] = ["deepseek-v4-flash", "deepseek-v4-pro"];
 
+/// MiMo models that require the Codex model catalog file
+/// (`model_catalog_json` in config.toml).
+const MIMO_MODELS: [&str; 2] = ["mimo-v2.5", "mimo-v2.5-pro"];
+
+/// Model catalog content for the DeepSeek V4 models, extracted verbatim
+/// from the official setup script.
+const DEEPSEEK_MODELS_JSON: &str = include_str!("../res/codex-models.json");
+
 /// Model catalog content for the MiMo models, extracted verbatim from the
 /// official MiMo Codex docs.
 const MIMO_MODELS_JSON: &str = include_str!("../res/codex-mimo-models.json");
-
 
 /// Codex Provider 配置（对应 config.toml 中的 [model_providers.<id>]）
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -198,7 +205,7 @@ impl ModelCatalog {
     /// Catalog content for this family.
     fn content(self) -> &'static str {
         match self {
-            ModelCatalog::DeepSeek => CODEX_MODELS_JSON,
+            ModelCatalog::DeepSeek => DEEPSEEK_MODELS_JSON,
             ModelCatalog::Mimo => MIMO_MODELS_JSON,
         }
     }
@@ -252,7 +259,6 @@ pub fn sync_models_json_for_home(home_dir: &Path, model: &str) -> Result<(), Str
         let catalog_path = codex_dir.join("model-catalogs").join(catalog.file_name());
         storage::atomic_write(&catalog_path, catalog.content().as_bytes())
             .map_err(|e| format!("Failed to write codex model catalog: {e}"))?;
-
     }
     Ok(())
 }
@@ -439,7 +445,6 @@ pub(crate) fn apply_profile_to_config_map(
         );
     } else {
         config.remove("web_search");
-
     }
 
     Ok(())
@@ -1097,7 +1102,6 @@ mod tests {
         provider_config_to_toml, resolve_active_provider, resolve_codex_profile_selector_for_home,
         save_codex_profile_for_home, save_codex_profile_for_home_and_apply_if_active,
         sync_models_json_for_home, CodexProfile, CodexProviderConfig, ModelCatalog,
-
     };
     use std::collections::HashMap;
     use tempfile::TempDir;
@@ -1363,7 +1367,6 @@ mod tests {
             .join("model-catalogs")
             .join("deepseek.json")
             .exists());
-
     }
 
     fn sample_profile_with_model(model: &str) -> CodexProfile {
@@ -1422,7 +1425,6 @@ mod tests {
         assert_eq!(
             config.get("model_catalog_json").and_then(|v| v.as_str()),
             Some("~/.codex/model-catalogs/mimo.json")
-
         );
 
         let mut config = toml::map::Map::new();
@@ -1472,7 +1474,6 @@ mod tests {
         assert!(
             !config.contains_key("web_search"),
             "Non-catalog models must not have web_search setting"
-
         );
     }
 
