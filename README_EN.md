@@ -116,6 +116,7 @@ Run the installer directly.
 - **Provider/Model Management** - Support configuring multiple providers and their models (baseUrl, api, apiKey, headers, compat, etc.)
 - **Profile Management** - Multi-profile support with one-click apply to `~/.pi/agent/models.json`
 - **Live Config Reading** - Load existing configuration from Pi's live config
+- **Registry-Driven Models** - Enrich Pi provider models from the built-in model registry, with provider-neutral thinking level mapping
 
 ### Other Features
 

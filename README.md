@@ -116,6 +116,7 @@ xattr -cr /Applications/DroidGear.app
 - **Provider/Model 管理** - 支持配置多个 Provider 及其模型（baseUrl, api, apiKey, headers, compat 等）
 - **Profile 管理** - 多 Profile 支持，一键应用到 `~/.pi/agent/models.json`
 - **实时配置读取** - 支持从 Pi 的 live config 加载现有配置
+- **模型注册表驱动** - 从内置模型注册表丰富 Pi Provider 模型，支持与 Provider 无关的思考级别映射
 
 ### 其他功能
 

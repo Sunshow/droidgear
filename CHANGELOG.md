@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.2.3
+
+**New Features / 新功能**
+
+- Support the MiMo model catalog for Codex, with web_search disabled / 为 Codex 支持 MiMo 模型目录，并为 MiMo 模型禁用 web_search
+- Add provider-neutral Pi thinking maps / 新增与 Provider 无关的 Pi 思考映射
+- Enrich Pi provider models from the model registry / 从模型注册表丰富 Pi Provider 模型
+
 ## v1.2.2
 
 **New Features / 新功能**
