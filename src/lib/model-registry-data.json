@@ -842,6 +842,48 @@
     }
   },
   {
+    "id": "gemini-3.6-flash",
+    "name": "Gemini 3.6 Flash",
+    "aliases": [],
+    "platform": "gemini",
+    "reasoning": true,
+    "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
+    "contextWindow": 1048576,
+    "maxOutputTokens": 65536,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
+    "id": "gemini-3.7-flash",
+    "name": "Gemini 3.7 Flash",
+    "aliases": [],
+    "platform": "gemini",
+    "reasoning": true,
+    "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
+    "contextWindow": 1048576,
+    "maxOutputTokens": 65536,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
     "id": "glm-4.5",
     "name": "GLM 4.5",
     "aliases": [],
@@ -1708,6 +1750,28 @@
     "maxOutputTokens": 500000,
     "reasoningConfig": {
       "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
+    "id": "grok-4.6",
+    "name": "Grok 4.6",
+    "aliases": ["grok-4-6"],
+    "platform": "openai-completions",
+    "reasoning": true,
+    "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh"
+    },
+    "contextWindow": 500000,
+    "maxOutputTokens": 500000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
       "profiles": {
         "anthropic": "anthropic-output-config",
         "openai": "openai-reasoning",

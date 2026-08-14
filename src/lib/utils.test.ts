@@ -34,6 +34,9 @@ describe('isStrictSamplingModel', () => {
     expect(isStrictSamplingModel('claude-sonnet-4.6')).toBe(false)
     expect(isStrictSamplingModel('gpt-5.3-chat-latest')).toBe(false)
     expect(isStrictSamplingModel('claude-opus-4.7-custom-deploy')).toBe(false)
+    expect(isStrictSamplingModel('grok-4.6')).toBe(false)
+    expect(isStrictSamplingModel('gemini-3.6-flash')).toBe(false)
+    expect(isStrictSamplingModel('gemini-3.7-flash')).toBe(false)
   })
 })
 
@@ -103,6 +106,7 @@ describe('supportsXhighEffort', () => {
     expect(supportsXhighEffort('claude-sonnet-5')).toBe(true)
     expect(supportsXhighEffort('gpt-5.2')).toBe(true)
     expect(supportsXhighEffort('o3-mini')).toBe(true)
+    expect(supportsXhighEffort('grok-4.6')).toBe(true)
   })
 
   it('respects registry whitelist for xhigh', () => {
@@ -162,6 +166,9 @@ describe('getDefaultMaxOutputTokens', () => {
     expect(getDefaultMaxOutputTokens('gpt-5.2')).toBe(128000)
     expect(getDefaultMaxOutputTokens('gemini-2.5-pro')).toBe(65536)
     expect(getDefaultMaxOutputTokens('kimi-k3')).toBe(131072)
+    expect(getDefaultMaxOutputTokens('grok-4.6')).toBe(500000)
+    expect(getDefaultMaxOutputTokens('gemini-3.6-flash')).toBe(65536)
+    expect(getDefaultMaxOutputTokens('gemini-3.7-flash')).toBe(65536)
   })
 
   it('falls back to generic rules for unregistered IDs', () => {

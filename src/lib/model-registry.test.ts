@@ -107,6 +107,16 @@ describe('getSupportedEfforts', () => {
     ])
   })
 
+  it('returns grok-4.6 efforts including xhigh', () => {
+    expect(getSupportedEfforts('grok-4.6', 'openai')).toEqual([
+      'none',
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+    ])
+  })
+
   it('returns deepseek whitelist', () => {
     expect(getSupportedEfforts('deepseek-v4-pro', 'openai')).toEqual([
       'none',
