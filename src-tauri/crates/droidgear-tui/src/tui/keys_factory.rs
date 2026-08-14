@@ -229,22 +229,18 @@ pub(super) fn handle_factory_model_key(app: &mut app::App, code: KeyCode) -> Opt
                 }
             }
             7 => {
-                let current = app
-                    .factory_draft
-                    .as_ref()
-                    .and_then(|d| d.extra_args.as_ref())
-                    .and_then(|m| m.get("reasoning"))
-                    .and_then(|v| v.as_object())
-                    .and_then(|obj| obj.get("effort"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("none")
-                    .to_string();
+                let current = factory_reasoning_effort(
+                    app.factory_draft
+                        .as_ref()
+                        .and_then(|d| d.extra_args.as_ref()),
+                );
                 let options = vec![
                     "none".to_string(),
                     "low".to_string(),
                     "medium".to_string(),
                     "high".to_string(),
                     "xhigh".to_string(),
+                    "max".to_string(),
                 ];
                 let index = options.iter().position(|o| o == &current).unwrap_or(0);
                 app.modal = Some(app::Modal::Select {
@@ -255,6 +251,21 @@ pub(super) fn handle_factory_model_key(app: &mut app::App, code: KeyCode) -> Opt
                 });
             }
             8 => {
+                let thinking_format = factory_reasoning_format(
+                    app.factory_draft
+                        .as_ref()
+                        .and_then(|d| d.extra_args.as_ref()),
+                );
+                let options = vec!["reasoning".to_string(), "thinking".to_string()];
+                let index = usize::from(thinking_format);
+                app.modal = Some(app::Modal::Select {
+                    title: "Reasoning Format".to_string(),
+                    options,
+                    index,
+                    action: app::SelectAction::FactoryDraftSetReasoningFormat,
+                });
+            }
+            9 => {
                 let current = app
                     .factory_draft
                     .as_ref()
@@ -269,7 +280,7 @@ pub(super) fn handle_factory_model_key(app: &mut app::App, code: KeyCode) -> Opt
                     action: app::InputAction::FactoryDraftSetExtraArgs,
                 });
             }
-            9 => {
+            10 => {
                 let current = app
                     .factory_draft
                     .as_ref()

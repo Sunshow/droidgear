@@ -188,4 +188,110 @@ describe('ModelDialog', () => {
       })
     )
   })
+
+  it('preserves a manual thinking extra arg when reasoning effort is none', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn()
+
+    render(
+      <ModelDialog
+        open
+        onOpenChange={() => undefined}
+        mode="edit"
+        model={{
+          provider: 'generic-chat-completion-api',
+          model: 'custom-thinking-model',
+          baseUrl: 'https://example.com',
+          apiKey: 'test-key',
+          displayName: 'Custom',
+          extraArgs: { thinking: { type: 'enabled' } },
+        }}
+        onSave={onSave}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        extraArgs: { thinking: { type: 'enabled' } },
+      })
+    )
+  })
+
+  it('round-trips thinking-format extraArgs (thinking + reasoning_effort)', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn()
+
+    render(
+      <ModelDialog
+        open
+        onOpenChange={() => undefined}
+        mode="edit"
+        model={{
+          provider: 'generic-chat-completion-api',
+          model: 'custom-thinking-model',
+          baseUrl: 'https://example.com',
+          apiKey: 'test-key',
+          displayName: 'Custom',
+          extraArgs: {
+            thinking: { type: 'enabled' },
+            reasoning_effort: 'high',
+          },
+        }}
+        onSave={onSave}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        extraArgs: {
+          thinking: { type: 'enabled' },
+          reasoning_effort: 'high',
+        },
+      })
+    )
+  })
+
+  it('emits thinking.type=disabled when selecting thinking format with none effort', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn()
+
+    render(
+      <ModelDialog
+        open
+        onOpenChange={() => undefined}
+        mode="edit"
+        model={{
+          provider: 'generic-chat-completion-api',
+          model: 'custom-thinking-model',
+          baseUrl: 'https://example.com',
+          apiKey: 'test-key',
+          displayName: 'Custom',
+        }}
+        onSave={onSave}
+      />
+    )
+
+    // The reasoning format select is the 3rd combobox (provider, effort, format).
+    const comboboxes = screen.getAllByRole('combobox')
+    const formatSelect = comboboxes[2]
+    if (!formatSelect) throw new Error('Reasoning format combobox not found')
+    await user.click(formatSelect)
+    const thinkingOption = screen.getByText(/reasoning_effort/i)
+    await user.click(thinkingOption)
+
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        extraArgs: { thinking: { type: 'disabled' } },
+      })
+    )
+  })
 })

@@ -15,9 +15,18 @@ export type EffortProvider =
 /** Named encoding profiles expanded at runtime into extraArgs fragments. */
 export type EffortEncodingProfile =
   | 'openai-reasoning'
+  | 'openai-thinking'
   | 'anthropic-adaptive'
   | 'anthropic-budget'
   | 'anthropic-output-config'
+
+/**
+ * Reasoning parameter format for OpenAI-compatible providers.
+ * - `reasoning`: `{ reasoning: { effort } }`
+ * - `thinking`: `{ thinking: { type: "enabled" }, reasoning_effort }` (and
+ *   `{ thinking: { type: "disabled" } }` for the `none` level)
+ */
+export type EffortFormat = 'reasoning' | 'thinking'
 
 /** 单个 effort 级别的编码规则 */
 export interface EffortEncoding {
@@ -92,6 +101,10 @@ function expandProfile(
   switch (profile) {
     case 'openai-reasoning':
       return { reasoning: { effort } }
+    case 'openai-thinking':
+      return effort === 'none'
+        ? { thinking: { type: 'disabled' } }
+        : { thinking: { type: 'enabled' }, reasoning_effort: effort }
     case 'anthropic-adaptive':
       return {
         thinking: { type: 'adaptive' },
@@ -202,6 +215,48 @@ export function clampEffortToSupported(
   return supported[0] ?? fallback
 }
 
+const OPENAI_LIKE_PROVIDERS: ReadonlySet<string> = new Set([
+  'openai',
+  'generic-chat-completion-api',
+])
+
+/** Whether the provider speaks an OpenAI-compatible chat-completions API. */
+export function isOpenAiLikeProvider(provider: string): boolean {
+  return OPENAI_LIKE_PROVIDERS.has(provider)
+}
+
+/**
+ * Expand an OpenAI-compatible effort encoding for the given format, with no
+ * model lookup. Used both to override the `openai-reasoning` profile and as the
+ * fallback for unregistered OpenAI-compatible models.
+ *
+ * Returns null when there is nothing to inject (`reasoning` format + `none`).
+ */
+export function expandOpenAiEffortEncoding(
+  effort: string,
+  format: EffortFormat
+): Record<string, unknown> | null {
+  if (format === 'reasoning' && effort === 'none') return null
+  return expandProfile(
+    format === 'thinking' ? 'openai-thinking' : 'openai-reasoning',
+    effort
+  )
+}
+
+/**
+ * Whether the model carries a registry-defined custom encoding for this
+ * provider (e.g. deepseek). When true the registry encoding is authoritative
+ * and the reasoning parameter format cannot be overridden from the UI.
+ */
+export function hasCustomEffortEncoding(
+  modelId: string,
+  provider: string
+): boolean {
+  const config = getModelReasoningConfig(modelId)
+  if (!config) return false
+  return config.encoding?.[provider] != null
+}
+
 /**
  * 获取模型+provider+effort 的编码片段。
  * 白名单有配置 → 返回 extraArgsFragment；
@@ -209,13 +264,14 @@ export function clampEffortToSupported(
  *
  * Resolution order:
  * 1. custom encoding[provider][effort]
- * 2. expand profiles[provider]
+ * 2. expand profiles[provider] (with an optional OpenAI format override)
  * 3. null
  */
 export function getEffortEncoding(
   modelId: string,
   provider: string,
-  effort: string
+  effort: string,
+  format?: EffortFormat
 ): Record<string, unknown> | null {
   const config = getModelReasoningConfig(modelId)
   if (!config) return null
@@ -225,5 +281,20 @@ export function getEffortEncoding(
 
   const profile = config.profiles?.[provider as EffortProvider]
   if (!profile) return null
+
+  // Let the UI override the OpenAI reasoning parameter format for
+  // OpenAI-compatible providers (reasoning.effort vs thinking + reasoning_effort).
+  if (
+    format &&
+    isOpenAiLikeProvider(provider) &&
+    profile === 'openai-reasoning'
+  ) {
+    return expandOpenAiEffortEncoding(effort, format)
+  }
+
+  // Profiles don't define a `none` form — only explicit custom encodings
+  // (handled above) do.
+  if (effort === 'none') return null
+
   return expandProfile(profile, effort)
 }

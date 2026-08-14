@@ -734,17 +734,41 @@ fn draw_factory_model(frame: &mut Frame, app: &app::App, area: Rect) {
                 "no".to_string()
             },
         ),
-        (
-            "Reasoning Effort",
-            draft
-                .extra_args
-                .as_ref()
+        ("Reasoning Effort", {
+            let args = draft.extra_args.as_ref();
+            let reasoning = args
                 .and_then(|m| m.get("reasoning"))
                 .and_then(|v| v.as_object())
-                .and_then(|obj| obj.get("effort"))
+                .and_then(|o| o.get("effort"))
+                .and_then(|v| v.as_str());
+            let reasoning_effort = args
+                .and_then(|m| m.get("reasoning_effort"))
+                .and_then(|v| v.as_str());
+            let thinking_disabled = args
+                .and_then(|m| m.get("thinking"))
+                .and_then(|v| v.as_object())
+                .and_then(|o| o.get("type"))
                 .and_then(|v| v.as_str())
-                .map(|s| s.to_string())
-                .unwrap_or_else(|| "(none)".to_string()),
+                == Some("disabled");
+            match (reasoning, reasoning_effort, thinking_disabled) {
+                (Some(e), _, _) => e.to_string(),
+                (_, Some(e), _) => e.to_string(),
+                (_, _, true) => "none".to_string(),
+                _ => "(none)".to_string(),
+            }
+        }),
+        (
+            "Reasoning Format",
+            if draft
+                .extra_args
+                .as_ref()
+                .map(|m| m.contains_key("reasoning_effort") || m.contains_key("thinking"))
+                .unwrap_or(false)
+            {
+                "thinking".to_string()
+            } else {
+                "reasoning".to_string()
+            },
         ),
         (
             "Extra Args",
