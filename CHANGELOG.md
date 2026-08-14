@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.2.4
+
+**New Features / 新功能**
+
+- Support a thinking parameter format for OpenAI-compatible models (`reasoning: { effort }` vs `thinking: { type }` + `reasoning_effort`), and preserve extra args at the `none` effort level / 为 OpenAI 兼容模型支持 thinking 参数格式（`reasoning: { effort }` 与 `thinking: { type }` + `reasoning_effort` 两种编码），并保留 `none` 推理级别的额外参数
+- Register grok-4.6 and gemini 3.6/3.7 flash models / 注册 grok-4.6 与 gemini 3.6/3.7 flash 模型
+
 ## v1.2.3
 
 **New Features / 新功能**
