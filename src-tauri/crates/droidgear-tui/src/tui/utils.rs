@@ -762,3 +762,99 @@ pub(super) fn factory_model_id(
         .unwrap_or_else(|| model.model.clone());
     Some(format!("custom:{display}-{index}"))
 }
+
+/// Extract the reasoning effort currently encoded in a factory model's
+/// extra_args. Understands `reasoning.effort` (openai/generic "reasoning"
+/// format), `reasoning_effort` (openai "thinking" format), and
+/// `thinking.type == "disabled"` (which maps to none).
+pub(super) fn factory_reasoning_effort(
+    extra_args: Option<&std::collections::HashMap<String, serde_json::Value>>,
+) -> String {
+    let Some(args) = extra_args else {
+        return "none".to_string();
+    };
+    if let Some(effort) = args
+        .get("reasoning")
+        .and_then(|v| v.as_object())
+        .and_then(|o| o.get("effort"))
+        .and_then(|v| v.as_str())
+    {
+        return effort.to_string();
+    }
+    if let Some(effort) = args.get("reasoning_effort").and_then(|v| v.as_str()) {
+        return effort.to_string();
+    }
+    if let Some(t) = args
+        .get("thinking")
+        .and_then(|v| v.as_object())
+        .and_then(|o| o.get("type"))
+        .and_then(|v| v.as_str())
+    {
+        if t == "disabled" {
+            return "none".to_string();
+        }
+    }
+    "none".to_string()
+}
+
+/// Whether the factory model uses the OpenAI "thinking" reasoning format
+/// (`thinking.type` + `reasoning_effort`) rather than "reasoning"
+/// (`reasoning.effort`). Mirrors the GUI's format detection.
+pub(super) fn factory_reasoning_format(
+    extra_args: Option<&std::collections::HashMap<String, serde_json::Value>>,
+) -> bool {
+    let Some(args) = extra_args else {
+        return false;
+    };
+    if args.contains_key("reasoning_effort") {
+        return true;
+    }
+    matches!(
+        args.get("thinking")
+            .and_then(|v| v.as_object())
+            .and_then(|o| o.get("type"))
+            .and_then(|v| v.as_str()),
+        Some("disabled")
+    )
+}
+
+/// Rewrite a factory model draft's reasoning/thinking extra_args keys to match
+/// the given effort level and format, mirroring the GUI's encoding logic.
+pub(super) fn apply_factory_reasoning(
+    extra_args: &mut Option<std::collections::HashMap<String, serde_json::Value>>,
+    effort: &str,
+    thinking_format: bool,
+) {
+    if let Some(args) = extra_args.as_mut() {
+        args.remove("reasoning");
+        args.remove("reasoning_effort");
+        args.remove("thinking");
+        args.remove("output_config");
+    }
+
+    if effort != "none" || thinking_format {
+        let args = extra_args.get_or_insert_with(std::collections::HashMap::new);
+        if effort == "none" {
+            // thinking_format && none → disable thinking.
+            args.insert(
+                "thinking".to_string(),
+                serde_json::json!({ "type": "disabled" }),
+            );
+        } else if thinking_format {
+            args.insert(
+                "thinking".to_string(),
+                serde_json::json!({ "type": "enabled" }),
+            );
+            args.insert("reasoning_effort".to_string(), serde_json::json!(effort));
+        } else {
+            args.insert(
+                "reasoning".to_string(),
+                serde_json::json!({ "effort": effort }),
+            );
+        }
+    }
+
+    if extra_args.as_ref().map(|m| m.is_empty()).unwrap_or(false) {
+        *extra_args = None;
+    }
+}

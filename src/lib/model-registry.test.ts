@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   clampEffortToSupported,
+  expandOpenAiEffortEncoding,
   findModelByIdOrAlias,
   getAllRegistryModels,
   getEffortEncoding,
   getModelReasoningConfig,
   getSupportedEfforts,
+  hasCustomEffortEncoding,
+  isOpenAiLikeProvider,
 } from './model-registry'
 
 describe('model-registry capability coverage', () => {
@@ -258,5 +261,72 @@ describe('aliases resolve reasoning config', () => {
     const entry = findModelByIdOrAlias('gpt-5.6-luna-pro')
     expect(entry?.id).toBe('gpt-5.6-luna')
     expect(getSupportedEfforts('gpt-5.6-luna-pro', 'openai')).toContain('xhigh')
+  })
+})
+
+describe('openai-thinking format', () => {
+  it('expands openai-thinking encoding for a level', () => {
+    expect(expandOpenAiEffortEncoding('max', 'thinking')).toEqual({
+      thinking: { type: 'enabled' },
+      reasoning_effort: 'max',
+    })
+  })
+
+  it('expands openai-thinking encoding for none as disabled', () => {
+    expect(expandOpenAiEffortEncoding('none', 'thinking')).toEqual({
+      thinking: { type: 'disabled' },
+    })
+  })
+
+  it('expands openai-reasoning encoding for none as null', () => {
+    expect(expandOpenAiEffortEncoding('none', 'reasoning')).toBeNull()
+  })
+
+  it('overrides the openai-reasoning profile with thinking format', () => {
+    expect(getEffortEncoding('gpt-5.6', 'openai', 'high', 'thinking')).toEqual({
+      thinking: { type: 'enabled' },
+      reasoning_effort: 'high',
+    })
+    expect(getEffortEncoding('gpt-5.6', 'openai', 'high', 'reasoning')).toEqual(
+      { reasoning: { effort: 'high' } }
+    )
+  })
+
+  it('keeps custom deepseek encoding regardless of format override', () => {
+    expect(
+      getEffortEncoding('deepseek-v4-pro', 'openai', 'high', 'thinking')
+    ).toEqual({
+      thinking: { type: 'enabled' },
+      reasoning_effort: 'high',
+    })
+    expect(
+      getEffortEncoding('deepseek-v4-pro', 'openai', 'high', 'reasoning')
+    ).toEqual({
+      thinking: { type: 'enabled' },
+      reasoning_effort: 'high',
+    })
+  })
+
+  it('does not override anthropic profiles', () => {
+    expect(
+      getEffortEncoding('claude-opus-4-8', 'anthropic', 'xhigh', 'thinking')
+    ).toEqual({
+      thinking: { type: 'adaptive' },
+      output_config: { effort: 'xhigh' },
+    })
+  })
+
+  it('detects OpenAI-like providers', () => {
+    expect(isOpenAiLikeProvider('openai')).toBe(true)
+    expect(isOpenAiLikeProvider('generic-chat-completion-api')).toBe(true)
+    expect(isOpenAiLikeProvider('anthropic')).toBe(false)
+  })
+
+  it('detects custom effort encoding', () => {
+    expect(hasCustomEffortEncoding('deepseek-v4-pro', 'openai')).toBe(true)
+    expect(hasCustomEffortEncoding('gpt-5.6', 'openai')).toBe(false)
+    expect(hasCustomEffortEncoding('totally-unknown-model', 'openai')).toBe(
+      false
+    )
   })
 })

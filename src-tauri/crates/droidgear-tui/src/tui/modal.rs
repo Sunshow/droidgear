@@ -870,23 +870,21 @@ pub(super) fn run_select_action(
                 return Ok(());
             };
 
-            if selected == "none" {
-                // Remove reasoning from extra_args
-                if let Some(args) = draft.extra_args.as_mut() {
-                    args.remove("reasoning");
-                    if args.is_empty() {
-                        draft.extra_args = None;
-                    }
-                }
-            } else {
-                let args = draft
-                    .extra_args
-                    .get_or_insert_with(std::collections::HashMap::new);
-                args.insert(
-                    "reasoning".to_string(),
-                    serde_json::json!({ "effort": selected }),
-                );
-            }
+            let thinking_format = factory_reasoning_format(draft.extra_args.as_ref());
+            apply_factory_reasoning(&mut draft.extra_args, &selected, thinking_format);
+            Ok(())
+        }
+        app::SelectAction::FactoryDraftSetReasoningFormat => {
+            let Some(selected) = selected else {
+                return Ok(());
+            };
+            let Some(draft) = app.factory_draft.as_mut() else {
+                return Ok(());
+            };
+
+            let effort = factory_reasoning_effort(draft.extra_args.as_ref());
+            let thinking_format = selected == "thinking";
+            apply_factory_reasoning(&mut draft.extra_args, &effort, thinking_format);
             Ok(())
         }
         app::SelectAction::McpDraftSetType => {

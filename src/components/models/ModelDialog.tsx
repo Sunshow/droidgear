@@ -44,6 +44,10 @@ import {
   getSupportedEfforts,
   getEffortEncoding,
   getModelReasoningConfig,
+  isOpenAiLikeProvider,
+  expandOpenAiEffortEncoding,
+  hasCustomEffortEncoding,
+  type EffortFormat,
 } from '@/lib/model-registry'
 import { useModelStore } from '@/store/model-store'
 import { BatchModelSelector } from './BatchModelSelector'
@@ -184,6 +188,24 @@ function ModelForm({
     return 'none'
   }
 
+  // Detect the OpenAI-compatible reasoning parameter format from existing
+  // extraArgs. The "thinking" format is the only one that emits a top-level
+  // `reasoning_effort` (or a bare `thinking:{type:'disabled'}`); a bare
+  // `thinking:{type:'enabled'}` without a level stays in the manual "reasoning"
+  // format so requirement #1 (hand-written extra args) round-trips unchanged.
+  const detectEffortFormat = (
+    args?: Partial<Record<string, JsonValue>> | null
+  ): EffortFormat => {
+    if (!args) return 'reasoning'
+    if ('reasoning_effort' in args) return 'thinking'
+    const thinking = args.thinking
+    if (thinking && typeof thinking === 'object' && !Array.isArray(thinking)) {
+      const type = (thinking as Record<string, JsonValue>).type
+      if (type === 'disabled') return 'thinking'
+    }
+    return 'reasoning'
+  }
+
   // If the currently selected effort isn't supported by a model, snap it down
   // to the highest supported level. xhigh -> high, max -> xhigh -> high.
   // Registry efforts are authoritative when present; pattern fallback is only
@@ -239,6 +261,9 @@ function ModelForm({
     const modelIdForClamp = model?.model ?? ''
     return clampEffortToModel(extracted, modelIdForClamp, provider)
   })
+  const [effortFormat, setEffortFormat] = useState<EffortFormat>(() =>
+    detectEffortFormat(model?.extraArgs)
+  )
   // Track whether maxTokens was auto-filled vs user-edited, so effort changes
   // can re-fill only when the user hasn't manually overridden the value.
   const [autoFilledMaxTokens, setAutoFilledMaxTokens] = useState(
@@ -274,63 +299,80 @@ function ModelForm({
   // Channel picker state
   const [channelPickerOpen, setChannelPickerOpen] = useState(false)
 
+  // Resolve the effort-encoding fragment for a (model, provider, effort, format)
+  // tuple. Returns null when nothing should be injected, in which case callers
+  // decide whether to preserve or clear the managed keys.
+  const resolveEncoding = (
+    modelIdForLookup: string,
+    providerForLookup: Provider,
+    effort: string,
+    format: EffortFormat
+  ): Record<string, unknown> | null => {
+    const registryEncoding = getEffortEncoding(
+      modelIdForLookup,
+      providerForLookup,
+      effort,
+      format
+    )
+    if (registryEncoding) return registryEncoding
+
+    if (effort === 'none') {
+      // Only the OpenAI "thinking" format encodes "none" as an explicit
+      // disable; everything else leaves the managed keys untouched.
+      if (isOpenAiLikeProvider(providerForLookup) && format === 'thinking') {
+        return { thinking: { type: 'disabled' } }
+      }
+      return null
+    }
+
+    // Unregistered model IDs only: pattern-based encoding fallback.
+    if (providerForLookup === 'anthropic') {
+      if (isAnthropicAdaptiveThinkingModel(modelIdForLookup)) {
+        return { thinking: { type: 'adaptive' }, output_config: { effort } }
+      }
+      if (modelIdForLookup.startsWith('claude-')) {
+        return {
+          thinking: {
+            type: 'enabled',
+            budget_tokens: effortToBudgetTokens(effort),
+          },
+        }
+      }
+      return { thinking: { type: 'enabled' }, output_config: { effort } }
+    }
+
+    return expandOpenAiEffortEncoding(effort, format)
+  }
+
   // Rewrite the effort-encoding keys in an extraArgs JSON string to match the
-  // (provider, model, effort) triple, preserving unrelated fields. Also strips
-  // sampling params that strict-sampling models (Opus 4.7, Jupiter v1 P) reject.
-  // Returns the JSON unchanged when the user has typed invalid JSON so we
-  // don't destroy in-progress edits.
+  // (provider, model, effort, format) tuple, preserving unrelated fields. Also
+  // strips sampling params that strict-sampling models (Opus 4.7, Jupiter v1 P)
+  // reject. Returns the JSON unchanged when the user has typed invalid JSON so
+  // we don't destroy in-progress edits.
   const rewriteExtraArgsWithEffort = (
     currentJson: string,
     nextProvider: Provider,
     nextModelId: string,
-    nextEffort: string
+    nextEffort: string,
+    nextFormat: EffortFormat = effortFormat
   ): string => {
     if (currentJson.trim() && !isJsonValid(currentJson)) return currentJson
     const parsed = parseJsonSafe(currentJson) ?? {}
+
+    // Always clear every managed key first so we never ship two forms, then
+    // inject the resolved encoding when there is one.
     delete parsed.reasoning
     delete parsed.reasoning_effort
     delete parsed.thinking
     delete parsed.output_config
+    const encoding = resolveEncoding(
+      nextModelId,
+      nextProvider,
+      nextEffort,
+      nextFormat
+    )
+    if (encoding) Object.assign(parsed, encoding)
 
-    // When reasoning effort is 'none', don't inject any encoding.
-    // This respects the user's explicit choice to clear extraArgs.
-    if (nextEffort !== 'none') {
-      // Registry (profiles or custom encoding) is authoritative when present.
-      const encoding = getEffortEncoding(nextModelId, nextProvider, nextEffort)
-      if (encoding) {
-        Object.assign(parsed, encoding)
-        if (isStrictSamplingModel(nextModelId)) {
-          delete parsed.temperature
-          delete parsed.top_p
-          delete parsed.top_k
-        }
-        return Object.keys(parsed).length > 0
-          ? JSON.stringify(parsed, null, 2)
-          : ''
-      }
-
-      // Unregistered model IDs only: pattern-based encoding fallback
-      if (
-        nextProvider === 'anthropic' &&
-        isAnthropicAdaptiveThinkingModel(nextModelId)
-      ) {
-        parsed.thinking = { type: 'adaptive' }
-        parsed.output_config = { effort: nextEffort }
-      } else if (
-        nextProvider === 'anthropic' &&
-        nextModelId.startsWith('claude-')
-      ) {
-        parsed.thinking = {
-          type: 'enabled',
-          budget_tokens: effortToBudgetTokens(nextEffort),
-        }
-      } else if (nextProvider === 'anthropic') {
-        parsed.thinking = { type: 'enabled' }
-        parsed.output_config = { effort: nextEffort }
-      } else {
-        parsed.reasoning = { effort: nextEffort }
-      }
-    }
     if (isStrictSamplingModel(nextModelId)) {
       delete parsed.temperature
       delete parsed.top_p
@@ -370,6 +412,21 @@ function ModelForm({
     if (modelId && autoFilledMaxTokens) {
       setMaxTokens(getDefaultMaxOutputTokens(modelId).toString())
     }
+  }
+
+  const handleReasoningFormatChange = (value: string) => {
+    const nextFormat: EffortFormat =
+      value === 'thinking' ? 'thinking' : 'reasoning'
+    setEffortFormat(nextFormat)
+    setExtraArgs(
+      rewriteExtraArgsWithEffort(
+        extraArgs,
+        provider,
+        modelId,
+        reasoningEffort,
+        nextFormat
+      )
+    )
   }
 
   const handleProviderChange = (value: Provider) => {
@@ -526,46 +583,24 @@ function ModelForm({
   const buildExtraArgs = (): Partial<Record<string, JsonValue>> | undefined => {
     const parsed = parseJsonSafe(extraArgs) ?? {}
 
-    // Always clear every known effort-encoding key so we never ship two forms.
-    delete parsed.reasoning
-    delete parsed.reasoning_effort
-    delete parsed.thinking
-    delete parsed.output_config
-
-    // When reasoning effort is 'none', don't inject any encoding.
-    // This respects the user's explicit choice to clear extraArgs.
-    if (reasoningEffort !== 'none') {
-      // Registry (profiles or custom encoding) is authoritative when present.
-      const encoding = getEffortEncoding(modelId, provider, reasoningEffort)
-      if (encoding) {
-        Object.assign(parsed, encoding)
-        if (isStrictSamplingModel(modelId)) {
-          delete parsed.temperature
-          delete parsed.top_p
-          delete parsed.top_k
-        }
-        return Object.keys(parsed).length > 0 ? parsed : undefined
-      }
-
-      // Unregistered model IDs only: pattern-based encoding fallback
-      if (
-        provider === 'anthropic' &&
-        isAnthropicAdaptiveThinkingModel(modelId)
-      ) {
-        parsed.thinking = { type: 'adaptive' }
-        parsed.output_config = { effort: reasoningEffort }
-      } else if (provider === 'anthropic' && modelId.startsWith('claude-')) {
-        parsed.thinking = {
-          type: 'enabled',
-          budget_tokens: effortToBudgetTokens(reasoningEffort),
-        }
-      } else if (provider === 'anthropic') {
-        parsed.thinking = { type: 'enabled' }
-        parsed.output_config = { effort: reasoningEffort }
-      } else {
-        parsed.reasoning = { effort: reasoningEffort }
-      }
+    const encoding = resolveEncoding(
+      modelId,
+      provider,
+      reasoningEffort,
+      effortFormat
+    )
+    if (encoding) {
+      // Clear every managed key so we never ship two forms, then apply the
+      // encoding.
+      delete parsed.reasoning
+      delete parsed.reasoning_effort
+      delete parsed.thinking
+      delete parsed.output_config
+      Object.assign(parsed, encoding)
     }
+    // else: no managed encoding for this selection — preserve the user's
+    // manually-typed managed keys (e.g. a hand-written
+    // {"thinking":{"type":"enabled"}} when reasoning effort is "none").
 
     // Strict-sampling models (Opus 4.7, Jupiter v1 P) reject sampling
     // parameters — strip them rather than 400 at runtime.
@@ -888,6 +923,36 @@ function ModelForm({
                   {t('models.reasoningEffortHint')}
                 </p>
               </div>
+
+              {/* Reasoning parameter format (OpenAI-compatible providers only).
+                  Hidden when the registry pins a custom encoding (e.g. deepseek). */}
+              {isOpenAiLikeProvider(provider) &&
+                !hasCustomEffortEncoding(modelId, provider) && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="reasoningFormat">
+                      {t('models.reasoningFormat')}
+                    </Label>
+                    <Select
+                      value={effortFormat}
+                      onValueChange={handleReasoningFormatChange}
+                    >
+                      <SelectTrigger id="reasoningFormat">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="reasoning">
+                          {t('models.reasoningFormat.reasoning')}
+                        </SelectItem>
+                        <SelectItem value="thinking">
+                          {t('models.reasoningFormat.thinking')}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {t('models.reasoningFormatHint')}
+                    </p>
+                  </div>
+                )}
 
               {provider === 'anthropic' && (
                 <div className="flex items-center gap-2">
