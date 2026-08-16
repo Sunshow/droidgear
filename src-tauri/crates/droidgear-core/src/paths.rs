@@ -285,7 +285,7 @@ pub fn get_effective_paths() -> Result<EffectivePaths, String> {
     let mut paths = get_effective_paths_for_home(&home)?;
     // On Windows, use WSL-aware default for Hermes when no custom path is set
     if paths.hermes.is_default {
-        paths.hermes.path = default_hermes_home_with_wsl(&home)?
+        paths.hermes.path = default_hermes_home_with_priority(&home)?
             .to_string_lossy()
             .to_string();
     }
@@ -295,8 +295,8 @@ pub fn get_effective_paths() -> Result<EffectivePaths, String> {
 pub fn get_default_paths() -> Result<EffectivePaths, String> {
     let home = get_home_dir()?;
     let mut paths = get_default_paths_for_home(&home)?;
-    // On Windows, show WSL path as the default for Hermes
-    paths.hermes.path = default_hermes_home_with_wsl(&home)?
+    // On Windows, resolve hermes path with priority
+    paths.hermes.path = default_hermes_home_with_priority(&home)?
         .to_string_lossy()
         .to_string();
     Ok(paths)
@@ -408,16 +408,26 @@ fn default_hermes_home_for_home(home_dir: &Path) -> Result<PathBuf, String> {
     Ok(home_dir.join(".hermes"))
 }
 
-/// Pi home defaults to `~/.pi/agent`
-fn default_pi_home_for_home(home_dir: &Path) -> Result<PathBuf, String> {
-    Ok(home_dir.join(".pi").join("agent"))
-}
-
-/// On Windows, try to resolve Hermes default path via WSL since Hermes
-/// doesn't support native Windows. Falls back to the local home directory.
-fn default_hermes_home_with_wsl(home_dir: &Path) -> Result<PathBuf, String> {
+/// On Windows, resolve hermes home with priority:
+/// 1. User config at AppData/Local/hermes (if exists)
+/// 2. Main config at home_dir/.hermes
+/// 3. WSL path
+fn default_hermes_home_with_priority(home_dir: &Path) -> Result<PathBuf, String> {
     #[cfg(target_os = "windows")]
     {
+        // 1. User config at AppData/Local/hermes
+        if let Some(local_app_data) = std::env::var_os("LOCALAPPDATA") {
+            let user_path = PathBuf::from(local_app_data).join("hermes");
+            if user_path.join("config.yaml").exists() {
+                return Ok(user_path);
+            }
+        }
+        // 2. Main config at home_dir/.hermes
+        let main_path = home_dir.join(".hermes");
+        if main_path.join("config.yaml").exists() {
+            return Ok(main_path);
+        }
+        // 3. WSL path
         if let Ok(wsl_info) = get_wsl_info() {
             if let Some(distro) = wsl_info.distros.iter().find(|d| d.is_default) {
                 if let Ok(username) = get_wsl_username(&distro.name) {
@@ -427,8 +437,16 @@ fn default_hermes_home_with_wsl(home_dir: &Path) -> Result<PathBuf, String> {
                 }
             }
         }
+        // 4. Default to main config location
+        Ok(main_path)
     }
+    #[cfg(not(target_os = "windows"))]
     default_hermes_home_for_home(home_dir)
+}
+
+/// Pi home defaults to `~/.pi/agent`
+fn default_pi_home_for_home(home_dir: &Path) -> Result<PathBuf, String> {
+    Ok(home_dir.join(".pi").join("agent"))
 }
 
 // ============================================================================
@@ -527,7 +545,7 @@ pub fn get_hermes_home() -> Result<PathBuf, String> {
     let config = load_config_paths_for_home(&home);
     match &config.hermes {
         Some(custom) => Ok(PathBuf::from(custom)),
-        None => default_hermes_home_with_wsl(&home),
+        None => default_hermes_home_with_priority(&home),
     }
 }
 

@@ -2564,7 +2564,7 @@ export type HermesConfigStatus = { configExists: boolean; configPath: string }
 /**
  * 当前 Hermes Live 配置（从 `~/.hermes/config.yaml` 读取）
  */
-export type HermesCurrentConfig = { model: HermesModelConfig }
+export type HermesCurrentConfig = { model: HermesModelConfig; reasoningEffort?: string | null }
 /**
  * Hermes model 配置（对应 config.yaml 中的 model 节）
  */
@@ -2572,7 +2572,7 @@ export type HermesModelConfig = { default?: string | null; provider?: string | n
 /**
  * Hermes Profile（用于在 DroidGear 内部保存并切换）
  */
-export type HermesProfile = { id: string; name: string; description?: string | null; createdAt: string; updatedAt: string; model: HermesModelConfig }
+export type HermesProfile = { id: string; name: string; description?: string | null; createdAt: string; updatedAt: string; model: HermesModelConfig; reasoningEffort?: string | null }
 export type JsonValue = null | boolean | number | string | JsonValue[] | Partial<{ [key in string]: JsonValue }>
 /**
  * MCP server entry with name
