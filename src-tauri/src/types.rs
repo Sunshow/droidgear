@@ -56,7 +56,7 @@ pub struct AppPreferences {
 impl Default for AppPreferences {
     fn default() -> Self {
         Self {
-            theme: "system".to_string(),
+            theme: "dark".to_string(),
             language: None,               // None means use system locale
             terminal_font_family: None,   // None means use default fonts
             terminal_shell_command: None, // None means use default shell

@@ -23,7 +23,7 @@ export function usePreferences() {
           error: result.error,
         })
         return {
-          theme: 'system',
+          theme: 'dark',
           language: null,
           terminal_font_family: null,
           terminal_shell_command: null,
