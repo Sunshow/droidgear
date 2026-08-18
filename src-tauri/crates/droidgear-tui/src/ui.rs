@@ -3227,7 +3227,7 @@ fn draw_pi_provider(frame: &mut Frame, app: &app::App, area: Rect) {
     render_list(frame, models_list, chunks[1], models_selected);
 
     let help = help_paragraph(
-        "Up/Down: move  Enter/e: edit field  m: open model  n: add model  d: del model  i: import from channel  q/Esc: back",
+        "Up/Down: move  Enter/e: edit field  t: test  m: open model  n: add model  d: del model  i: import from channel  q/Esc: back",
     );
     frame.render_widget(help, chunks[2]);
 }

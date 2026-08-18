@@ -461,6 +461,41 @@ fn pi_clamp_indices_does_not_panic_on_empty_profiles() {
 }
 
 #[test]
+fn pi_provider_t_key_routes_through_test_action() {
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    let provider = droidgear_core::pi::PiProviderConfig {
+        api_key: Some("sk-test".to_string()),
+        models: vec![droidgear_core::pi::PiModel {
+            id: "test-model".to_string(),
+            ..Default::default()
+        }],
+        ..Default::default()
+    };
+    app.pi_detail_id = Some("profile".to_string());
+    app.pi_detail = Some(droidgear_core::pi::PiProfile {
+        id: "profile".to_string(),
+        name: "Profile".to_string(),
+        description: None,
+        created_at: "2026-01-01T00:00:00Z".to_string(),
+        updated_at: "2026-01-01T00:00:00Z".to_string(),
+        providers: HashMap::from([("test-provider".to_string(), provider)]),
+    });
+
+    let action = super::keys_pi::handle_pi_provider_key(&mut app, KeyCode::Char('t'));
+
+    match action {
+        Some(super::Action::TestPiProvider {
+            provider_id,
+            config,
+        }) => {
+            assert_eq!(provider_id, "test-provider");
+            assert_eq!(config.models[0].id, "test-model");
+        }
+        other => panic!("expected TestPiProvider action, got {other:?}"),
+    }
+}
+
+#[test]
 fn pi_confirm_action_variants_exist() {
     let _apply = app::ConfirmAction::PiApply {
         id: "test".to_string(),

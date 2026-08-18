@@ -1,8 +1,26 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pencil, Trash2, Key, KeyRound } from 'lucide-react'
+import {
+  Key,
+  KeyRound,
+  LoaderCircle,
+  Pencil,
+  Trash2,
+  Wifi,
+  WifiOff,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import type { PiProviderConfig } from '@/lib/bindings'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
+  commands,
+  type PiProviderConfig,
+  type PiProviderTestResult,
+} from '@/lib/bindings'
 
 interface ProviderCardProps {
   providerId: string
@@ -18,8 +36,57 @@ export function ProviderCard({
   onDelete,
 }: ProviderCardProps) {
   const { t } = useTranslation()
+  const [isTesting, setIsTesting] = useState(false)
+  const [testResult, setTestResult] = useState<PiProviderTestResult | null>(
+    null
+  )
+  const [testError, setTestError] = useState<string | null>(null)
 
   const hasApiKey = config?.apiKey && config.apiKey.length > 0
+  const canTest = Boolean(
+    config?.models.some(model => model.id.trim().length > 0)
+  )
+
+  const handleTestConnection = async () => {
+    if (!config || !canTest || isTesting) return
+
+    setIsTesting(true)
+    setTestResult(null)
+    setTestError(null)
+    try {
+      const result = await commands.testPiProviderConnection(providerId, config)
+      if (result.status === 'ok') {
+        setTestResult(result.data)
+        if (!result.data.success) {
+          setTestError(result.data.error ?? t('connectivity.unknownError'))
+        }
+      } else {
+        setTestError(result.error)
+      }
+    } catch (error) {
+      setTestError(String(error))
+    } finally {
+      setIsTesting(false)
+    }
+  }
+
+  const renderTestIcon = () => {
+    if (isTesting) {
+      return <LoaderCircle data-icon="inline-start" className="animate-spin" />
+    }
+    if (testResult?.success) {
+      return (
+        <Wifi
+          data-icon="inline-start"
+          className="text-green-600 dark:text-green-400"
+        />
+      )
+    }
+    if (testError) {
+      return <WifiOff data-icon="inline-start" className="text-destructive" />
+    }
+    return <Wifi data-icon="inline-start" />
+  }
 
   return (
     <div className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
@@ -57,6 +124,54 @@ export function ProviderCard({
         </div>
       </div>
       <div className="flex items-center gap-1 ml-2">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleTestConnection}
+              disabled={!canTest || isTesting}
+              aria-label={
+                isTesting
+                  ? t('connectivity.testing')
+                  : t('connectivity.testConnection')
+              }
+            >
+              {renderTestIcon()}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">
+            {isTesting ? (
+              <p>{t('connectivity.testing')}</p>
+            ) : testResult?.success ? (
+              <div className="flex flex-col gap-1">
+                <p>{t('connectivity.connected')}</p>
+                <p className="opacity-80">
+                  {t('pi.provider.modelId')}: {testResult.modelId}
+                </p>
+                <p className="opacity-80">
+                  {t('connectivity.latency')}: {testResult.latencyMs}ms
+                </p>
+                {testResult.responseText ? (
+                  <p className="break-words opacity-80">
+                    {t('connectivity.responseText')}: {testResult.responseText}
+                  </p>
+                ) : null}
+              </div>
+            ) : testError ? (
+              <div className="flex flex-col gap-1">
+                <p>{t('connectivity.disconnected')}</p>
+                <p className="break-words opacity-80">{testError}</p>
+              </div>
+            ) : (
+              <p>
+                {canTest
+                  ? t('connectivity.testConnection')
+                  : t('pi.provider.noModels')}
+              </p>
+            )}
+          </TooltipContent>
+        </Tooltip>
         <Button
           variant="ghost"
           size="icon"

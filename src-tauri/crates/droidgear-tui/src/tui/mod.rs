@@ -108,24 +108,63 @@ impl Drop for TerminalGuard {
 #[derive(Debug, Clone)]
 enum Action {
     EditFactoryModels,
-    EditCodexProfile { id: String },
-    EditOpenCodeProfile { id: String },
-    EditOpenClawProfile { id: String },
-    PreviewDroidRun { settings_path: String },
-    RunDroidRun { settings_path: String },
-    PreviewClaudeRun { name: String },
-    RunClaudeRun { name: String, skip_dangerous: bool },
-    PreviewCodexApply { id: String },
-    PreviewCodexRun { id: String },
-    RunCodexRun { id: String },
-    PreviewOpenCodeApply { id: String },
-    PreviewOpenClawApply { id: String },
-    ViewSession { path: String },
-    EditSpec { path: String },
+    EditCodexProfile {
+        id: String,
+    },
+    EditOpenCodeProfile {
+        id: String,
+    },
+    EditOpenClawProfile {
+        id: String,
+    },
+    PreviewDroidRun {
+        settings_path: String,
+    },
+    RunDroidRun {
+        settings_path: String,
+    },
+    PreviewClaudeRun {
+        name: String,
+    },
+    RunClaudeRun {
+        name: String,
+        skip_dangerous: bool,
+    },
+    PreviewCodexApply {
+        id: String,
+    },
+    PreviewCodexRun {
+        id: String,
+    },
+    RunCodexRun {
+        id: String,
+    },
+    PreviewOpenCodeApply {
+        id: String,
+    },
+    PreviewOpenClawApply {
+        id: String,
+    },
+    TestPiProvider {
+        provider_id: String,
+        config: Box<droidgear_core::pi::PiProviderConfig>,
+    },
+    ViewSession {
+        path: String,
+    },
+    EditSpec {
+        path: String,
+    },
     EditChannels,
-    EditChannelAuth { id: String },
-    SetActiveSettingsFile { name: Option<String> },
-    SetActiveClaudeSettingsFile { name: Option<String> },
+    EditChannelAuth {
+        id: String,
+    },
+    SetActiveSettingsFile {
+        name: Option<String>,
+    },
+    SetActiveClaudeSettingsFile {
+        name: Option<String>,
+    },
 }
 
 pub fn run(app: &mut app::App) -> anyhow::Result<()> {

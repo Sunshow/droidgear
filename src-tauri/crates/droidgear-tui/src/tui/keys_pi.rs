@@ -230,6 +230,12 @@ pub(super) fn handle_pi_provider_key(app: &mut app::App, code: KeyCode) -> Optio
             app.pi_model_field_index = 0;
             app.screen = app::Screen::PiModel;
         }
+        KeyCode::Char('t') => {
+            return Some(Action::TestPiProvider {
+                provider_id,
+                config: Box::new(config.clone()),
+            });
+        }
         KeyCode::Enter | KeyCode::Char('e') => match app.pi_provider_field_index {
             0 => {
                 app.modal = Some(app::Modal::Input {

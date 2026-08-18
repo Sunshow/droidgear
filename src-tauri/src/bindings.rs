@@ -138,6 +138,7 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         pi::apply_pi_profile,
         pi::get_pi_config_status,
         pi::read_pi_current_config,
+        pi::test_pi_provider_connection,
         opencode::list_opencode_profiles,
         opencode::get_opencode_profile,
         opencode::save_opencode_profile,

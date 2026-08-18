@@ -80,6 +80,30 @@ pub(super) fn run_action(app: &mut app::App, action: Action) -> anyhow::Result<(
             open_text_in_pager(&diff)?;
             Ok(())
         }
+        Action::TestPiProvider {
+            provider_id,
+            config,
+        } => {
+            let result = droidgear_core::pi::test_pi_provider_connection(&provider_id, *config)
+                .map_err(anyhow::Error::msg)?;
+            if result.success {
+                app.set_toast(
+                    format!(
+                        "Pi provider connected: {} / {} ({}ms)",
+                        result.provider_id, result.model_id, result.latency_ms
+                    ),
+                    false,
+                );
+            } else {
+                app.set_toast(
+                    result
+                        .error
+                        .unwrap_or_else(|| "Pi provider test failed".to_string()),
+                    true,
+                );
+            }
+            Ok(())
+        }
         Action::ViewSession { path } => {
             let detail =
                 droidgear_core::sessions::get_session_detail_for_home(&app.home_dir, &path)
