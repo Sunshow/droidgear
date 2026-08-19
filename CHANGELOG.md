@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.2.5
+
+**New Features / 新功能**
+
+- Manage Droid trusted folders in GUI and TUI / 在 GUI 与 TUI 中管理 Droid 信任文件夹
+- Add Droid model favorites, with a manager that limits built-in models and preserves dialog order / 新增 Droid 模型收藏，收藏管理器限制内置模型并保持对话框顺序
+- Add a connection test for Pi providers / 为 Pi Provider 新增连接测试
+- Add reasoning effort support to Hermes profiles (none/minimal/low/medium/high/xhigh/max/ultra) in GUI and TUI / 为 Hermes Profile 新增推理强度配置（none/minimal/low/medium/high/xhigh/max/ultra），GUI 与 TUI 均可设置
+
 ## v1.2.4
 
 **New Features / 新功能**
