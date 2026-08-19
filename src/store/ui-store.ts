@@ -21,6 +21,7 @@ type ToolView =
 export type DroidSubView =
   | 'models'
   | 'settings'
+  | 'trusted-folders'
   | 'auth-profiles'
   | 'specs'
   | 'mcp'

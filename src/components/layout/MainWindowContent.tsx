@@ -16,6 +16,11 @@ const DroidSettingsPage = lazy(() =>
     default: m.DroidSettingsPage,
   }))
 )
+const TrustedFoldersPage = lazy(() =>
+  import('@/components/droid/TrustedFoldersPage').then(m => ({
+    default: m.TrustedFoldersPage,
+  }))
+)
 const LegacyVersionsPage = lazy(() =>
   import('@/components/droid/LegacyVersionsPage').then(m => ({
     default: m.LegacyVersionsPage,
@@ -176,6 +181,7 @@ export function MainWindowContent({
           {droidSubView === 'mcp' && <McpPage />}
           {droidSubView === 'sessions' && <SessionsPage />}
           {droidSubView === 'settings' && <DroidSettingsPage />}
+          {droidSubView === 'trusted-folders' && <TrustedFoldersPage />}
           {droidSubView === 'auth-profiles' && <FactoryAuthPage />}
           {droidSubView === 'missions' && <MissionsPage />}
           {droidSubView === 'legacy-versions' && <LegacyVersionsPage />}

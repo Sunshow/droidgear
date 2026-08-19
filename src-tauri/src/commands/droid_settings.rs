@@ -3,6 +3,7 @@
 //! Core logic lives in `droidgear_core::droid_settings_files`.
 
 pub use droidgear_core::droid_settings_files::SettingsFileInfo;
+pub use droidgear_core::trusted_folders::TrustedFolder;
 
 use droidgear_core::{droid_runtime, droid_settings_files};
 
@@ -78,6 +79,34 @@ pub async fn launch_droid(app: tauri::AppHandle, cwd: Option<String>) -> Result<
     spec.cwd = cwd.map(std::path::PathBuf::from);
 
     launch_in_terminal(&spec, &preferred)
+}
+
+/// Lists trusted folders from the global Factory settings file.
+#[tauri::command]
+#[specta::specta]
+pub async fn list_droid_trusted_folders() -> Result<Vec<TrustedFolder>, String> {
+    droidgear_core::trusted_folders::list_trusted_folders()
+}
+
+/// Adds a directory to Droid's global trusted-folder list.
+#[tauri::command]
+#[specta::specta]
+pub async fn add_droid_trusted_folder(path: String) -> Result<TrustedFolder, String> {
+    droidgear_core::trusted_folders::add_trusted_folder(&path)
+}
+
+/// Removes a directory from Droid's global trusted-folder list.
+#[tauri::command]
+#[specta::specta]
+pub async fn remove_droid_trusted_folder(path: String) -> Result<(), String> {
+    droidgear_core::trusted_folders::remove_trusted_folder(&path)
+}
+
+/// Removes multiple directories from Droid's global trusted-folder list.
+#[tauri::command]
+#[specta::specta]
+pub async fn remove_droid_trusted_folders(paths: Vec<String>) -> Result<(), String> {
+    droidgear_core::trusted_folders::remove_trusted_folders(paths)
 }
 
 fn build_droid_launch_spec(plan: &droid_runtime::DroidTemporaryRunPlan) -> LaunchSpec {

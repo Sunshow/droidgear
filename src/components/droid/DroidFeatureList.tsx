@@ -10,6 +10,7 @@ import {
   History,
   Rocket,
   FileJson,
+  FolderCheck,
   Plus,
   Trash2,
   Play,
@@ -65,6 +66,11 @@ interface FeatureItem {
 const features: FeatureItem[] = [
   { id: 'models', labelKey: 'droid.features.models', icon: Cpu },
   { id: 'settings', labelKey: 'droid.features.settings', icon: Settings },
+  {
+    id: 'trusted-folders',
+    labelKey: 'droid.features.trustedFolders',
+    icon: FolderCheck,
+  },
   {
     id: 'auth-profiles',
     labelKey: 'droid.features.authProfiles',

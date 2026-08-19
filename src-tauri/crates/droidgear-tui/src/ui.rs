@@ -390,6 +390,7 @@ fn draw_main(frame: &mut Frame, app: &app::App, area: Rect) {
         app::Screen::FeatureList => draw_feature_list(frame, app, area),
         app::Screen::Paths => draw_paths(frame, app, area),
         app::Screen::DroidSettingsFiles => draw_droid_settings_files(frame, app, area),
+        app::Screen::TrustedFolders => draw_trusted_folders(frame, app, area),
         app::Screen::Factory => draw_factory(frame, app, area),
         app::Screen::FactoryModel => draw_factory_model(frame, app, area),
         app::Screen::Mcp => draw_mcp(frame, app, area),
@@ -601,6 +602,52 @@ fn draw_droid_settings_files(frame: &mut Frame, app: &app::App, area: Rect) {
     frame.render_widget(p, chunks[0]);
 
     let help = help_paragraph("Enter: set active  r: refresh  q/Esc: back");
+    frame.render_widget(help, chunks[1]);
+}
+
+fn draw_trusted_folders(frame: &mut Frame, app: &app::App, area: Rect) {
+    let t = theme();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
+
+    let mut lines: Vec<Line> = Vec::new();
+    if app.trusted_folders.is_empty() {
+        lines.push(Line::from(Span::styled(
+            "No trusted folders",
+            t.dim_style(),
+        )));
+    } else {
+        for (index, folder) in app.trusted_folders.iter().enumerate() {
+            let selected = index == app.trusted_folders_index;
+            let marked = app.trusted_folders_selected.contains(&folder.path);
+            let style = if selected {
+                t.selected_style()
+            } else {
+                Style::default()
+            };
+            lines.push(Line::from(vec![
+                Span::styled(if selected { "▸ " } else { "  " }, style),
+                Span::styled(if marked { "[x] " } else { "[ ] " }, style),
+                Span::styled(folder.path.clone(), style),
+                Span::styled(
+                    format!("  [{}]", folder.trusted_at),
+                    if selected { style } else { t.dim_style() },
+                ),
+            ]));
+        }
+    }
+
+    let paragraph = Paragraph::new(lines)
+        .block(block(crumb_title(app, "Trusted Folders")))
+        .wrap(Wrap { trim: false });
+    frame.render_widget(paragraph, chunks[0]);
+
+    let selected_count = app.trusted_folders_selected.len();
+    let help = help_paragraph(&format!(
+        "a: add  Space: mark  A: select/clear all  d/x: remove ({selected_count})  r: refresh  q/Esc: back"
+    ));
     frame.render_widget(help, chunks[1]);
 }
 

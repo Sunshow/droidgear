@@ -21,6 +21,7 @@ pub mod pi;
 pub mod sessions;
 pub mod specs;
 pub mod storage;
+pub mod trusted_folders;
 
 pub fn core_version() -> &'static str {
     env!("CARGO_PKG_VERSION")

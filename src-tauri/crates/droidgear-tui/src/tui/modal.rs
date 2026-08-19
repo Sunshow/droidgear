@@ -1686,6 +1686,16 @@ pub(super) fn run_confirm_action(
                 .map_err(anyhow::Error::msg)?;
             Ok(())
         }
+        app::ConfirmAction::TrustedFolderDelete { path } => {
+            droidgear_core::trusted_folders::remove_trusted_folder_for_home(&app.home_dir, &path)
+                .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
+        app::ConfirmAction::TrustedFoldersDelete { paths } => {
+            droidgear_core::trusted_folders::remove_trusted_folders_for_home(&app.home_dir, &paths)
+                .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
         app::ConfirmAction::ClaudeSettingsApply { name } => {
             droidgear_core::claude_settings_files::merge_settings_file_to_global_for_home(
                 &app.home_dir,
@@ -2090,6 +2100,11 @@ pub(super) fn run_input_action(
     match action {
         app::InputAction::PathsSetKey { key } => {
             droidgear_core::paths::save_config_path_for_home(&app.home_dir, &key, trimmed)
+                .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
+        app::InputAction::TrustedFolderAdd => {
+            droidgear_core::trusted_folders::add_trusted_folder_for_home(&app.home_dir, trimmed)
                 .map_err(anyhow::Error::msg)?;
             Ok(())
         }

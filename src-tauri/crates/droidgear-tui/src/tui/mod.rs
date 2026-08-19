@@ -34,6 +34,7 @@ mod keys_paths;
 mod keys_pi;
 mod keys_sessions;
 mod keys_specs;
+mod keys_trusted_folders;
 mod modal;
 mod refresh;
 mod utils;
@@ -74,6 +75,7 @@ use keys_paths::handle_paths_key;
 use keys_pi::{handle_pi_key, handle_pi_model_key, handle_pi_profile_key, handle_pi_provider_key};
 use keys_sessions::handle_sessions_key;
 use keys_specs::handle_specs_key;
+use keys_trusted_folders::handle_trusted_folders_key;
 use modal::handle_modal_key;
 use refresh::*;
 use utils::{
@@ -290,6 +292,7 @@ fn refresh_screen_data(app: &mut app::App) {
         app::Screen::ChannelsEdit => {}
         app::Screen::Missions => refresh_missions(app),
         app::Screen::DroidSettingsFiles => refresh_droid_settings_files(app),
+        app::Screen::TrustedFolders => refresh_trusted_folders(app),
         app::Screen::FactoryAuth => keys_factory_auth::refresh_factory_auth(app),
         app::Screen::CodexAuth => keys_codex_auth::refresh_codex_auth(app),
     }

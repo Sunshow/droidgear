@@ -19,6 +19,25 @@ pub(super) fn refresh_droid_settings_files(app: &mut app::App) {
     }
 }
 
+pub(super) fn refresh_trusted_folders(app: &mut app::App) {
+    match droidgear_core::trusted_folders::list_trusted_folders_for_home(&app.home_dir) {
+        Ok(folders) => {
+            app.trusted_folders = folders;
+            let folder_paths: Vec<String> = app
+                .trusted_folders
+                .iter()
+                .map(|folder| folder.path.clone())
+                .collect();
+            app.trusted_folders_selected
+                .retain(|path| folder_paths.iter().any(|folder_path| folder_path == path));
+            if app.trusted_folders_index >= app.trusted_folders.len() {
+                app.trusted_folders_index = app.trusted_folders.len().saturating_sub(1);
+            }
+        }
+        Err(e) => app.set_toast(e, true),
+    }
+}
+
 pub(super) fn refresh_factory(app: &mut app::App) {
     match droidgear_core::factory_settings::load_custom_models_for_home(&app.home_dir) {
         Ok(models) => app.custom_models = models,

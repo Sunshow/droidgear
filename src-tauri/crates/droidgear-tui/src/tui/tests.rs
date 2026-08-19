@@ -832,6 +832,7 @@ fn nav_groups_cover_all_screens_exactly_once() {
     let screens = [
         app::Screen::Paths,
         app::Screen::DroidSettingsFiles,
+        app::Screen::TrustedFolders,
         app::Screen::Factory,
         app::Screen::Mcp,
         app::Screen::ClaudeSettings,
@@ -859,6 +860,59 @@ fn nav_groups_cover_all_screens_exactly_once() {
             .count();
         assert_eq!(occurrences, 1, "{screen:?} should appear exactly once");
     }
+}
+
+#[test]
+fn trusted_folders_state_initializes_and_is_navigable() {
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    assert!(app.trusted_folders.is_empty());
+    assert_eq!(app.trusted_folders_index, 0);
+
+    let group = app::App::group_of_screen(app::Screen::TrustedFolders)
+        .expect("TrustedFolders should be a nav item");
+    assert_eq!(app::App::nav_groups()[group].label, "Droid");
+
+    app.screen = app::Screen::TrustedFolders;
+    super::keys_trusted_folders::handle_trusted_folders_key(&mut app, KeyCode::Char('a'));
+    assert!(matches!(
+        app.modal.as_ref(),
+        Some(app::Modal::Input {
+            action: app::InputAction::TrustedFolderAdd,
+            ..
+        })
+    ));
+}
+
+#[test]
+fn trusted_folders_support_marking_and_select_all_for_batch_delete() {
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.screen = app::Screen::TrustedFolders;
+    app.trusted_folders = vec![
+        droidgear_core::trusted_folders::TrustedFolder {
+            path: "/tmp/a".to_string(),
+            trusted_at: "a".to_string(),
+        },
+        droidgear_core::trusted_folders::TrustedFolder {
+            path: "/tmp/b".to_string(),
+            trusted_at: "b".to_string(),
+        },
+    ];
+
+    super::keys_trusted_folders::handle_trusted_folders_key(&mut app, KeyCode::Char('A'));
+    assert_eq!(app.trusted_folders_selected.len(), 2);
+    super::keys_trusted_folders::handle_trusted_folders_key(&mut app, KeyCode::Char('d'));
+
+    assert!(matches!(
+        app.modal.as_ref(),
+        Some(app::Modal::Confirm {
+            action: app::ConfirmAction::TrustedFoldersDelete { paths },
+            ..
+        }) if paths == &vec!["/tmp/a".to_string(), "/tmp/b".to_string()]
+    ));
+
+    app.modal = None;
+    super::keys_trusted_folders::handle_trusted_folders_key(&mut app, KeyCode::Char('A'));
+    assert!(app.trusted_folders_selected.is_empty());
 }
 
 #[test]
@@ -938,7 +992,7 @@ fn feature_list_enter_opens_selected_feature() {
     let mut app = app::App::new(home.path().to_path_buf());
     app.screen = app::Screen::FeatureList;
     app.nav_index = app::App::group_of_screen(app::Screen::Factory).unwrap();
-    app.feature_index = 2; // Auth Profiles
+    app.feature_index = 3; // Auth Profiles
     super::keys_main::handle_feature_list_key(&mut app, KeyCode::Enter);
     assert_eq!(app.screen, app::Screen::FactoryAuth);
 }
@@ -994,7 +1048,7 @@ fn nav_picker_filter_narrows_options_and_enter_resolves_by_label() {
     let Some(app::Modal::Select { options, .. }) = app.modal.clone() else {
         panic!("select modal should still be open");
     };
-    assert_eq!(options.len(), 7);
+    assert_eq!(options.len(), 8);
     assert!(options.iter().all(|o| o.starts_with("droid:")));
 
     // Enter picks the first filtered option ("droid: models" -> Factory).

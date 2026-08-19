@@ -1,6 +1,47 @@
 import '@testing-library/jest-dom'
 import { vi } from 'vitest'
 
+// Node 22 can expose an incomplete global localStorage when Vitest workers
+// start without a valid --localstorage-file. Keep tests independent of that
+// runtime detail while preserving jsdom's implementation when it is usable.
+const storage = globalThis.localStorage
+if (
+  typeof storage?.getItem !== 'function' ||
+  typeof storage?.setItem !== 'function' ||
+  typeof storage?.clear !== 'function'
+) {
+  const values = new Map<string, string>()
+  const fallback: Storage = {
+    get length() {
+      return values.size
+    },
+    clear() {
+      values.clear()
+    },
+    getItem(key) {
+      return values.get(String(key)) ?? null
+    },
+    key(index) {
+      return Array.from(values.keys())[index] ?? null
+    },
+    removeItem(key) {
+      values.delete(String(key))
+    },
+    setItem(key, value) {
+      values.set(String(key), String(value))
+    },
+  }
+
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: fallback,
+  })
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: fallback,
+  })
+}
+
 // Mock matchMedia for tests
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
@@ -169,6 +210,22 @@ vi.mock('@/lib/tauri-bindings', () => ({
       .fn()
       .mockResolvedValue({ status: 'ok', data: null }),
     launchDroid: vi.fn().mockResolvedValue({ status: 'ok', data: null }),
+    listDroidTrustedFolders: vi
+      .fn()
+      .mockResolvedValue({ status: 'ok', data: [] }),
+    addDroidTrustedFolder: vi.fn().mockResolvedValue({
+      status: 'ok',
+      data: {
+        path: '/home/user/projects',
+        trustedAt: '2026-01-01T00:00:00.000Z',
+      },
+    }),
+    removeDroidTrustedFolder: vi
+      .fn()
+      .mockResolvedValue({ status: 'ok', data: null }),
+    removeDroidTrustedFolders: vi
+      .fn()
+      .mockResolvedValue({ status: 'ok', data: null }),
   },
   unwrapResult: vi.fn((result: { status: string; data?: unknown }) => {
     if (result.status === 'ok') return result.data

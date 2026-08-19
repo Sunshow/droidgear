@@ -28,6 +28,7 @@ export type {
   PortableUpdateInfo,
   RecoveryError,
   SettingsFileInfo,
+  TrustedFolder,
   UpdateChannel,
 } from './bindings'
 

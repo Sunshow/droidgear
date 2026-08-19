@@ -11,6 +11,7 @@ pub(super) fn handle_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
         app::Screen::FeatureList => handle_feature_list_key(app, code),
         app::Screen::Paths => handle_paths_key(app, code),
         app::Screen::DroidSettingsFiles => handle_droid_settings_files_key(app, code),
+        app::Screen::TrustedFolders => handle_trusted_folders_key(app, code),
         app::Screen::Factory => handle_factory_key(app, code),
         app::Screen::FactoryModel => handle_factory_model_key(app, code),
         app::Screen::Mcp => handle_mcp_key(app, code),
