@@ -96,11 +96,27 @@ export function ModelFavoritesDialog({
       .filter(favorite => !registryIds.has(favorite) && !byokIds.has(favorite))
       .map(id => ({ id, name: id, isByok: false }))
 
-    return uniqueOptions([
+    const allOptions = uniqueOptions([
       ...settingsOnlyOptions,
       ...registryOptions,
       ...customOptions,
     ])
+
+    const optionsById = new Map(
+      allOptions.map(option => [option.id, option] as const)
+    )
+    const favoriteOptions = visibleFavorites.flatMap(favorite => {
+      const option = optionsById.get(favorite)
+      return option ? [option] : []
+    })
+    const displayedFavoriteIds = new Set(
+      favoriteOptions.map(option => option.id)
+    )
+
+    return [
+      ...favoriteOptions,
+      ...allOptions.filter(option => !displayedFavoriteIds.has(option.id)),
+    ]
   }, [byokIds, byokModels, favoriteIds, visibleFavorites])
 
   useEffect(() => {
