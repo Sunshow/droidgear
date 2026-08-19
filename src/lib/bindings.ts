@@ -1451,6 +1451,17 @@ async readPiCurrentConfig() : Promise<Result<PiCurrentConfig, string>> {
 }
 },
 /**
+ * Test a Pi provider using an isolated temporary models.json and Pi CLI run.
+ */
+async testPiProviderConnection(providerId: string, config: PiProviderConfig) : Promise<Result<PiProviderTestResult, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("test_pi_provider_connection", { providerId, config }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * List all OpenCode profiles
  */
 async listOpencodeProfiles() : Promise<Result<OpenCodeProfile[], string>> {
@@ -2743,6 +2754,10 @@ export type PiProfile = { id: string; name: string; description?: string | null;
  * Pi provider configuration
  */
 export type PiProviderConfig = { baseUrl?: string | null; api?: string | null; apiKey?: string | null; oauth?: string | null; headers?: Partial<{ [key in string]: string }> | null; authHeader?: boolean | null; models: PiModel[]; modelOverrides?: Partial<{ [key in string]: PiModelOverride }> | null; compat?: PiCompatConfig | null }
+/**
+ * Result of validating a provider through Pi's own CLI runtime.
+ */
+export type PiProviderTestResult = { success: boolean; providerId: string; modelId: string; latencyMs: number; responseText?: string | null; error?: string | null }
 export type PortableUpdateInfo = { version: string; body: string | null; pubDate: string | null; url: string; signature: string; sha256: string; releaseUrl: string }
 /**
  * Provider types supported by Factory BYOK

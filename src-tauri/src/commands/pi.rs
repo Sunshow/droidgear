@@ -2,7 +2,9 @@
 //!
 //! Core logic lives in `droidgear-core`.
 
-pub use droidgear_core::pi::{PiConfigStatus, PiCurrentConfig, PiProfile};
+pub use droidgear_core::pi::{
+    PiConfigStatus, PiCurrentConfig, PiProfile, PiProviderConfig, PiProviderTestResult,
+};
 
 /// List all Pi profiles
 #[tauri::command]
@@ -79,4 +81,18 @@ pub async fn get_pi_config_status() -> Result<PiConfigStatus, String> {
 #[specta::specta]
 pub async fn read_pi_current_config() -> Result<PiCurrentConfig, String> {
     droidgear_core::pi::read_pi_current_config()
+}
+
+/// Test a Pi provider using an isolated temporary models.json and Pi CLI run.
+#[tauri::command]
+#[specta::specta]
+pub async fn test_pi_provider_connection(
+    provider_id: String,
+    config: PiProviderConfig,
+) -> Result<PiProviderTestResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        droidgear_core::pi::test_pi_provider_connection(&provider_id, config)
+    })
+    .await
+    .map_err(|e| format!("Pi connection test task failed: {e}"))?
 }

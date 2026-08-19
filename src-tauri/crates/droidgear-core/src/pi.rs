@@ -7,7 +7,10 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::collections::HashMap;
+use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
 use uuid::Uuid;
 
 use crate::{paths, storage};
@@ -216,12 +219,299 @@ pub struct PiConfigStatus {
     pub config_path: String,
 }
 
+/// Result of validating a provider through Pi's own CLI runtime.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct PiProviderTestResult {
+    pub success: bool,
+    pub provider_id: String,
+    pub model_id: String,
+    pub latency_ms: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
 /// Current Pi configuration (from `~/.pi/agent/models.json`)
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct PiCurrentConfig {
     #[serde(default)]
     pub providers: HashMap<String, PiProviderConfig>,
+}
+
+const PI_TEST_TIMEOUT: Duration = Duration::from_secs(60);
+const PI_TEST_OUTPUT_LIMIT: usize = 2000;
+const PI_TEST_PROMPT: &str = "Reply only with OK.";
+
+fn pi_test_args(provider_id: &str, model_id: &str) -> Vec<String> {
+    vec![
+        "--provider".to_string(),
+        provider_id.to_string(),
+        "--model".to_string(),
+        model_id.to_string(),
+        "--thinking".to_string(),
+        "off".to_string(),
+        "--system-prompt".to_string(),
+        PI_TEST_PROMPT.to_string(),
+        "--no-session".to_string(),
+        "--no-tools".to_string(),
+        "--no-extensions".to_string(),
+        "--no-skills".to_string(),
+        "--no-prompt-templates".to_string(),
+        "--no-themes".to_string(),
+        "--no-context-files".to_string(),
+        "--no-approve".to_string(),
+        "--offline".to_string(),
+        "--print".to_string(),
+        PI_TEST_PROMPT.to_string(),
+    ]
+}
+
+fn first_non_empty_model_id(config: &PiProviderConfig) -> Result<&str, String> {
+    config
+        .models
+        .iter()
+        .map(|model| model.id.trim())
+        .find(|id| !id.is_empty())
+        .ok_or_else(|| "Pi provider must define at least one model before testing".to_string())
+}
+
+fn write_pi_test_files(
+    agent_dir: &Path,
+    provider_id: &str,
+    config: &PiProviderConfig,
+) -> Result<(), String> {
+    let current = PiCurrentConfig {
+        providers: HashMap::from([(provider_id.to_string(), config.clone())]),
+    };
+    let models_json = serde_json::to_vec_pretty(&current)
+        .map_err(|e| format!("Failed to serialize temporary Pi config: {e}"))?;
+    let settings_json = br#"{
+  "retry": {
+    "enabled": false,
+    "provider": {
+      "timeoutMs": 45000,
+      "maxRetries": 0,
+      "maxRetryDelayMs": 30000
+    }
+  },
+  "httpIdleTimeoutMs": 45000,
+  "defaultProjectTrust": "never",
+  "enableInstallTelemetry": false
+}
+"#;
+
+    write_private_file(&agent_dir.join("models.json"), &models_json)?;
+    write_private_file(&agent_dir.join("settings.json"), settings_json)
+}
+
+fn write_private_file(path: &Path, contents: &[u8]) -> Result<(), String> {
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+
+    std::io::Write::write_all(
+        &mut options
+            .open(path)
+            .map_err(|e| format!("Failed to create {}: {e}", path.display()))?,
+        contents,
+    )
+    .map_err(|e| format!("Failed to write {}: {e}", path.display()))
+}
+
+fn resolve_pi_executable() -> Result<PathBuf, String> {
+    if let Some(path) = executable_on_path("pi") {
+        return Ok(path);
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let shell = std::env::var("SHELL")
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| "/bin/zsh".to_string());
+        if let Ok(output) = Command::new(shell)
+            .args(["-l", "-c", "command -v pi"])
+            .output()
+        {
+            if output.status.success() {
+                let candidate = String::from_utf8_lossy(&output.stdout);
+                let path = PathBuf::from(candidate.trim());
+                if path.is_file() {
+                    return Ok(path);
+                }
+            }
+        }
+    }
+
+    Err("Pi CLI is not installed or not available in PATH".to_string())
+}
+
+fn executable_on_path(program: &str) -> Option<PathBuf> {
+    let path = std::env::var_os("PATH")?;
+    for directory in std::env::split_paths(&path) {
+        let candidate = directory.join(program);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+
+        #[cfg(target_os = "windows")]
+        for extension in ["exe", "cmd", "bat"] {
+            let candidate = directory.join(format!("{program}.{extension}"));
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+    }
+    None
+}
+
+fn truncate_output(value: &str) -> String {
+    value.chars().take(PI_TEST_OUTPUT_LIMIT).collect()
+}
+
+fn redact_provider_secrets(value: &str, config: &PiProviderConfig) -> String {
+    let mut redacted = value.to_string();
+    let secrets = config
+        .api_key
+        .iter()
+        .chain(config.headers.iter().flat_map(|headers| headers.values()));
+
+    for secret in secrets {
+        let trimmed = secret.trim();
+        if trimmed.len() >= 4 && !trimmed.starts_with('$') && !trimmed.starts_with('!') {
+            redacted = redacted.replace(trimmed, "[REDACTED]");
+        }
+    }
+
+    truncate_output(redacted.trim())
+}
+
+fn read_child_output(mut child: std::process::Child) -> Result<(bool, String, String), String> {
+    let status = child
+        .wait()
+        .map_err(|e| format!("Failed to wait for Pi CLI: {e}"))?;
+    let mut stdout = String::new();
+    let mut stderr = String::new();
+    if let Some(mut pipe) = child.stdout.take() {
+        pipe.read_to_string(&mut stdout)
+            .map_err(|e| format!("Failed to read Pi CLI output: {e}"))?;
+    }
+    if let Some(mut pipe) = child.stderr.take() {
+        pipe.read_to_string(&mut stderr)
+            .map_err(|e| format!("Failed to read Pi CLI error output: {e}"))?;
+    }
+    Ok((status.success(), stdout, stderr))
+}
+
+fn run_pi_provider_test(
+    program: &Path,
+    provider_id: &str,
+    config: &PiProviderConfig,
+    timeout: Duration,
+) -> Result<PiProviderTestResult, String> {
+    let provider_id = provider_id.trim();
+    if provider_id.is_empty() {
+        return Err("Pi provider ID cannot be empty".to_string());
+    }
+    let model_id = first_non_empty_model_id(config)?.to_string();
+    let temp_dir = tempfile::Builder::new()
+        .prefix("droidgear-pi-test-")
+        .tempdir()
+        .map_err(|e| format!("Failed to create temporary Pi config directory: {e}"))?;
+    write_pi_test_files(temp_dir.path(), provider_id, config)?;
+
+    let started_at = Instant::now();
+    let mut child = Command::new(program)
+        .args(pi_test_args(provider_id, &model_id))
+        .current_dir(temp_dir.path())
+        .env("PI_CODING_AGENT_DIR", temp_dir.path())
+        .env(
+            "PI_CODING_AGENT_SESSION_DIR",
+            temp_dir.path().join("sessions"),
+        )
+        .env("PI_SKIP_VERSION_CHECK", "1")
+        .env("PI_TELEMETRY", "0")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to start Pi CLI: {e}"))?;
+
+    let (success, stdout, stderr) = loop {
+        match child.try_wait() {
+            Ok(Some(_)) => break read_child_output(child)?,
+            Ok(None) if started_at.elapsed() >= timeout => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Ok(PiProviderTestResult {
+                    success: false,
+                    provider_id: provider_id.to_string(),
+                    model_id,
+                    latency_ms: started_at.elapsed().as_millis() as u64,
+                    response_text: None,
+                    error: Some(format!(
+                        "Pi connection test timed out after {} seconds",
+                        timeout.as_secs()
+                    )),
+                });
+            }
+            Ok(None) => std::thread::sleep(Duration::from_millis(50)),
+            Err(e) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(format!("Failed to monitor Pi CLI: {e}"));
+            }
+        }
+    };
+
+    let latency_ms = started_at.elapsed().as_millis() as u64;
+    if success {
+        let response = redact_provider_secrets(&stdout, config);
+        Ok(PiProviderTestResult {
+            success: true,
+            provider_id: provider_id.to_string(),
+            model_id,
+            latency_ms,
+            response_text: (!response.is_empty()).then_some(response),
+            error: None,
+        })
+    } else {
+        let raw_error = if stderr.trim().is_empty() {
+            stdout.as_str()
+        } else {
+            stderr.as_str()
+        };
+        let error = redact_provider_secrets(raw_error, config);
+        Ok(PiProviderTestResult {
+            success: false,
+            provider_id: provider_id.to_string(),
+            model_id,
+            latency_ms,
+            response_text: None,
+            error: Some(if error.is_empty() {
+                "Pi CLI exited without an error message".to_string()
+            } else {
+                error
+            }),
+        })
+    }
+}
+
+/// Validate one provider by launching Pi against an isolated temporary config.
+pub fn test_pi_provider_connection(
+    provider_id: &str,
+    config: PiProviderConfig,
+) -> Result<PiProviderTestResult, String> {
+    let program = resolve_pi_executable()?;
+    run_pi_provider_test(&program, provider_id, &config, PI_TEST_TIMEOUT)
 }
 
 // ============================================================================
@@ -678,6 +968,136 @@ mod tests {
             updated_at: "2026-01-01T00:00:00Z".to_string(),
             providers,
         }
+    }
+
+    fn test_provider_config() -> PiProviderConfig {
+        PiProviderConfig {
+            base_url: Some("https://example.com/v1".to_string()),
+            api: Some("openai-completions".to_string()),
+            api_key: Some("secret-test-key".to_string()),
+            models: vec![PiModel {
+                id: "test-model".to_string(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        }
+    }
+
+    #[cfg(unix)]
+    fn write_executable_script(temp: &TempDir, contents: &str) -> PathBuf {
+        use std::os::unix::fs::PermissionsExt;
+
+        let path = temp.path().join("fake-pi");
+        std::fs::write(&path, contents).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).unwrap();
+        path
+    }
+
+    #[test]
+    fn test_pi_test_args_isolate_the_one_shot_run() {
+        let args = pi_test_args("test-provider", "test-model");
+
+        assert!(args
+            .windows(2)
+            .any(|pair| pair == ["--provider", "test-provider"]));
+        assert!(args
+            .windows(2)
+            .any(|pair| pair == ["--model", "test-model"]));
+        assert!(args.windows(2).any(|pair| pair == ["--thinking", "off"]));
+        for flag in [
+            "--no-session",
+            "--no-tools",
+            "--no-extensions",
+            "--no-skills",
+            "--no-context-files",
+            "--no-approve",
+            "--offline",
+            "--print",
+        ] {
+            assert!(args.iter().any(|arg| arg == flag), "missing {flag}");
+        }
+    }
+
+    #[test]
+    fn test_write_pi_test_files_uses_only_requested_provider() {
+        let temp = TempDir::new().unwrap();
+        write_pi_test_files(temp.path(), "test-provider", &test_provider_config()).unwrap();
+
+        let models = std::fs::read_to_string(temp.path().join("models.json")).unwrap();
+        let parsed: PiCurrentConfig = serde_json::from_str(&models).unwrap();
+        assert_eq!(parsed.providers.len(), 1);
+        assert_eq!(parsed.providers["test-provider"].models[0].id, "test-model");
+
+        let settings = std::fs::read_to_string(temp.path().join("settings.json")).unwrap();
+        assert!(settings.contains(r#""enabled": false"#));
+        assert!(settings.contains(r#""timeoutMs": 45000"#));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_run_pi_provider_test_uses_temporary_agent_directory() {
+        let temp = TempDir::new().unwrap();
+        let script = write_executable_script(
+            &temp,
+            r#"#!/bin/sh
+test -f "$PI_CODING_AGENT_DIR/models.json" || exit 2
+test -f "$PI_CODING_AGENT_DIR/settings.json" || exit 3
+printf 'OK\n'
+"#,
+        );
+
+        let result = run_pi_provider_test(
+            &script,
+            "test-provider",
+            &test_provider_config(),
+            Duration::from_secs(2),
+        )
+        .unwrap();
+
+        assert!(result.success);
+        assert_eq!(result.provider_id, "test-provider");
+        assert_eq!(result.model_id, "test-model");
+        assert_eq!(result.response_text.as_deref(), Some("OK"));
+        assert!(result.error.is_none());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_run_pi_provider_test_redacts_key_from_failures() {
+        let temp = TempDir::new().unwrap();
+        let script = write_executable_script(
+            &temp,
+            "#!/bin/sh\nprintf 'Rejected secret-test-key\\n' >&2\nexit 1\n",
+        );
+
+        let result = run_pi_provider_test(
+            &script,
+            "test-provider",
+            &test_provider_config(),
+            Duration::from_secs(2),
+        )
+        .unwrap();
+
+        assert!(!result.success);
+        assert_eq!(result.error.as_deref(), Some("Rejected [REDACTED]"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_run_pi_provider_test_times_out() {
+        let temp = TempDir::new().unwrap();
+        let script = write_executable_script(&temp, "#!/bin/sh\nwhile :; do :; done\n");
+
+        let result = run_pi_provider_test(
+            &script,
+            "test-provider",
+            &test_provider_config(),
+            Duration::from_millis(20),
+        )
+        .unwrap();
+
+        assert!(!result.success);
+        assert!(result.error.unwrap().contains("timed out"));
     }
 
     #[test]
