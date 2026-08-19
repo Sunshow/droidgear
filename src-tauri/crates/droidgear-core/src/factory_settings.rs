@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use specta::Type;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use crate::paths;
@@ -255,6 +255,79 @@ fn system_home_dir() -> Result<PathBuf, String> {
     dirs::home_dir().ok_or_else(|| "Failed to get home directory".to_string())
 }
 
+fn canonical_custom_model_id(model: &CustomModel, index: usize) -> String {
+    let display_name = model
+        .display_name
+        .as_deref()
+        .filter(|name| !name.trim().is_empty())
+        .unwrap_or(&model.model);
+    format!("custom:{display_name}-{index}")
+}
+
+fn custom_model_ids(models: &[CustomModel]) -> HashSet<String> {
+    models
+        .iter()
+        .enumerate()
+        .map(|(index, model)| {
+            model
+                .id
+                .as_deref()
+                .filter(|id| id.starts_with("custom:") && !id.trim().is_empty())
+                .map(ToOwned::to_owned)
+                .unwrap_or_else(|| canonical_custom_model_id(model, index))
+        })
+        .collect()
+}
+
+fn normalize_model_favorites(
+    favorites: impl IntoIterator<Item = String>,
+    models: &[CustomModel],
+) -> Vec<String> {
+    let custom_ids = custom_model_ids(models);
+    let mut seen = HashSet::new();
+
+    favorites
+        .into_iter()
+        .map(|favorite| favorite.trim().to_string())
+        .filter(|favorite| !favorite.is_empty())
+        .filter(|favorite| !favorite.starts_with("custom:") || custom_ids.contains(favorite))
+        .filter(|favorite| seen.insert(favorite.clone()))
+        .collect()
+}
+
+fn parse_custom_models(config: &Value) -> Vec<CustomModel> {
+    config
+        .get("customModels")
+        .and_then(Value::as_array)
+        .map(|models| {
+            models
+                .iter()
+                .filter_map(|model| serde_json::from_value(model.clone()).ok())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn read_model_favorites(config: &Value, models: &[CustomModel]) -> Vec<String> {
+    let favorites = config
+        .get("modelFavorites")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(ToOwned::to_owned);
+    normalize_model_favorites(favorites, models)
+}
+
+fn insert_model_favorites(config: &mut Value, favorites: Vec<String>, models: &[CustomModel]) {
+    let normalized = normalize_model_favorites(favorites, models);
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("modelFavorites".to_string(), serde_json::json!(normalized));
+    } else {
+        *config = serde_json::json!({ "modelFavorites": normalized });
+    }
+}
+
 // ============================================================================
 // Public API (for Tauri + TUI)
 // ============================================================================
@@ -284,17 +357,7 @@ pub fn load_custom_models_for_home(home_dir: &Path) -> Result<Vec<CustomModel>, 
         ConfigReadResult::ParseError(_) => return Ok(vec![]),
     };
 
-    let models: Vec<CustomModel> = config
-        .get("customModels")
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|v| serde_json::from_value(v.clone()).ok())
-                .collect()
-        })
-        .unwrap_or_default();
-
-    Ok(models)
+    Ok(parse_custom_models(&config))
 }
 
 pub fn load_custom_models() -> Result<Vec<CustomModel>, String> {
@@ -304,17 +367,54 @@ pub fn load_custom_models() -> Result<Vec<CustomModel>, String> {
         ConfigReadResult::ParseError(_) => return Ok(vec![]),
     };
 
-    let models: Vec<CustomModel> = config
-        .get("customModels")
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|v| serde_json::from_value(v.clone()).ok())
-                .collect()
-        })
-        .unwrap_or_default();
+    Ok(parse_custom_models(&config))
+}
 
-    Ok(models)
+pub fn get_model_favorites_for_home(home_dir: &Path) -> Result<Vec<String>, String> {
+    let config = match read_config_file_for_home(home_dir) {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound | ConfigReadResult::ParseError(_) => return Ok(vec![]),
+    };
+    let models = parse_custom_models(&config);
+    Ok(read_model_favorites(&config, &models))
+}
+
+pub fn get_model_favorites() -> Result<Vec<String>, String> {
+    let config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound | ConfigReadResult::ParseError(_) => return Ok(vec![]),
+    };
+    let models = parse_custom_models(&config);
+    Ok(read_model_favorites(&config, &models))
+}
+
+pub fn save_model_favorites_for_home(
+    home_dir: &Path,
+    favorites: Vec<String>,
+) -> Result<(), String> {
+    let mut config = match read_config_file_for_home(home_dir) {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => serde_json::json!({}),
+        ConfigReadResult::ParseError(e) => {
+            return Err(format!("{CONFIG_PARSE_ERROR_PREFIX} {e}"));
+        }
+    };
+    let models = parse_custom_models(&config);
+    insert_model_favorites(&mut config, favorites, &models);
+    write_config_file_for_home(home_dir, &config)
+}
+
+pub fn save_model_favorites(favorites: Vec<String>) -> Result<(), String> {
+    let mut config = match read_active_config_file() {
+        ConfigReadResult::Ok(value) => value,
+        ConfigReadResult::NotFound => serde_json::json!({}),
+        ConfigReadResult::ParseError(e) => {
+            return Err(format!("{CONFIG_PARSE_ERROR_PREFIX} {e}"));
+        }
+    };
+    let models = parse_custom_models(&config);
+    insert_model_favorites(&mut config, favorites, &models);
+    write_active_config_file(&config)
 }
 
 pub fn save_custom_models_for_home(
@@ -331,9 +431,13 @@ pub fn save_custom_models_for_home(
 
     let models_value =
         serde_json::to_value(&models).map_err(|e| format!("Failed to serialize models: {e}"))?;
+    let favorites = read_model_favorites(&config, &models);
 
     if let Some(obj) = config.as_object_mut() {
         obj.insert("customModels".to_string(), models_value);
+        if obj.contains_key("modelFavorites") {
+            obj.insert("modelFavorites".to_string(), serde_json::json!(favorites));
+        }
     } else {
         config = serde_json::json!({ "customModels": models_value });
     }
@@ -352,9 +456,13 @@ pub fn save_custom_models(models: Vec<CustomModel>) -> Result<(), String> {
 
     let models_value =
         serde_json::to_value(&models).map_err(|e| format!("Failed to serialize models: {e}"))?;
+    let favorites = read_model_favorites(&config, &models);
 
     if let Some(obj) = config.as_object_mut() {
         obj.insert("customModels".to_string(), models_value);
+        if obj.contains_key("modelFavorites") {
+            obj.insert("modelFavorites".to_string(), serde_json::json!(favorites));
+        }
     } else {
         config = serde_json::json!({ "customModels": models_value });
     }

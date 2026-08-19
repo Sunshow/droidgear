@@ -63,9 +63,49 @@ pub(super) fn handle_factory_key(app: &mut app::App, code: KeyCode) -> Option<Ac
                 });
             }
         }
+        KeyCode::Char('f') => toggle_factory_favorite(app),
+        KeyCode::Char('F') => {
+            app.pi_import_pending_selected = Some(vec![true; app.model_favorites.len()]);
+            app.modal = Some(app::Modal::MultiSelect {
+                title: "Model favorites".to_string(),
+                options: app.model_favorites.clone(),
+                selected: vec![true; app.model_favorites.len()],
+                index: 0,
+                action: app::SelectAction::FactorySaveFavorites,
+            });
+        }
         _ => {}
     }
     None
+}
+
+fn toggle_factory_favorite(app: &mut app::App) {
+    let Some(model_id) = factory_model_id(
+        app.custom_models.get(app.factory_models_index),
+        app.factory_models_index,
+    ) else {
+        return;
+    };
+
+    let mut favorites = app.model_favorites.clone();
+    if let Some(index) = favorites.iter().position(|favorite| favorite == &model_id) {
+        favorites.remove(index);
+    } else {
+        favorites.push(model_id);
+    }
+
+    match droidgear_core::factory_settings::save_model_favorites_for_home(&app.home_dir, favorites)
+    {
+        Ok(()) => {
+            if let Ok(updated) =
+                droidgear_core::factory_settings::get_model_favorites_for_home(&app.home_dir)
+            {
+                app.model_favorites = updated;
+            }
+            app.set_toast("Favorite updated", false);
+        }
+        Err(error) => app.set_toast(error, true),
+    }
 }
 
 pub(super) fn normalize_factory_models(

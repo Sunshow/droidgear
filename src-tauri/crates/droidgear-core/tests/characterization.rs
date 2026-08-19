@@ -1100,6 +1100,68 @@ fn factory_save_custom_models_preserves_other_fields_and_errors_on_parse() {
 }
 
 #[test]
+fn factory_model_save_preserves_official_favorites_and_removes_missing_custom_models() {
+    let temp = TempDir::new().unwrap();
+    let home = home_dir(&temp);
+    write_file(
+        &factory_settings_path(home),
+        r#"{
+  "modelFavorites": ["claude-opus-5", "custom:keep-0", "custom:gone-1"],
+  "otherSetting": true
+}"#,
+    );
+
+    let model = factory_settings::CustomModel {
+        model: "keep".to_string(),
+        id: Some("custom:keep-0".to_string()),
+        index: Some(0),
+        display_name: None,
+        base_url: "https://example.com/v1".to_string(),
+        api_key: "sk".to_string(),
+        provider: factory_settings::Provider::Openai,
+        max_output_tokens: None,
+        no_image_support: None,
+        extra_args: None,
+        extra_headers: None,
+    };
+
+    factory_settings::save_custom_models_for_home(home, vec![model]).unwrap();
+    let value: Value = serde_json::from_str(&read_to_string(&factory_settings_path(home))).unwrap();
+    assert_eq!(value.get("otherSetting"), Some(&Value::Bool(true)));
+    assert_eq!(
+        value.get("modelFavorites"),
+        Some(&serde_json::json!(["claude-opus-5", "custom:keep-0"]))
+    );
+}
+
+#[test]
+fn factory_favorite_manager_can_remove_official_and_custom_favorites() {
+    let temp = TempDir::new().unwrap();
+    let home = home_dir(&temp);
+    write_file(
+        &factory_settings_path(home),
+        r#"{
+  "customModels": [{"model":"m1","id":"custom:m1-0","baseUrl":"https://example.com","apiKey":"sk","provider":"openai"}],
+  "modelFavorites": ["claude-opus-5", "custom:m1-0"]
+}"#,
+    );
+
+    factory_settings::save_model_favorites_for_home(
+        home,
+        vec!["custom:m1-0".to_string(), "gpt-5.6-sol".to_string()],
+    )
+    .unwrap();
+    assert_eq!(
+        factory_settings::get_model_favorites_for_home(home).unwrap(),
+        vec!["custom:m1-0", "gpt-5.6-sol"]
+    );
+
+    factory_settings::save_model_favorites_for_home(home, vec![]).unwrap();
+    let value: Value = serde_json::from_str(&read_to_string(&factory_settings_path(home))).unwrap();
+    assert_eq!(value.get("modelFavorites"), Some(&serde_json::json!([])));
+}
+
+#[test]
 fn mcp_toggle_missing_server_returns_error() {
     let temp = TempDir::new().unwrap();
     let home = home_dir(&temp);

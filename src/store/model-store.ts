@@ -11,6 +11,7 @@ const CONFIG_PARSE_ERROR_PREFIX = 'CONFIG_PARSE_ERROR:'
 interface ModelState {
   models: CustomModel[]
   originalModels: CustomModel[]
+  modelFavorites: string[]
   configPath: string
   hasChanges: boolean
   isLoading: boolean
@@ -21,7 +22,10 @@ interface ModelState {
 
   // Actions
   loadModels: () => Promise<void>
+  loadModelFavorites: () => Promise<void>
   saveModels: () => Promise<void>
+  saveModelFavorites: (favorites: string[]) => Promise<void>
+  toggleModelFavorite: (modelId: string) => Promise<void>
   resetConfigAndSave: () => Promise<void>
   addModel: (model: CustomModel) => void
   updateModel: (index: number, model: CustomModel) => void
@@ -40,6 +44,16 @@ interface ModelState {
 function modelsEqual(a: CustomModel[], b: CustomModel[]): boolean {
   if (a.length !== b.length) return false
   return JSON.stringify(a) === JSON.stringify(b)
+}
+
+function normalizeFavorites(favorites: string[]): string[] {
+  return Array.from(
+    new Set(
+      favorites
+        .map(favorite => favorite.trim())
+        .filter(favorite => favorite.length > 0)
+    )
+  )
 }
 
 function isSameModelConfig(a: CustomModel, b: CustomModel): boolean {
@@ -89,6 +103,7 @@ export const useModelStore = create<ModelState>()(
     (set, get) => ({
       models: [],
       originalModels: [],
+      modelFavorites: [],
       configPath: '~/.factory/config.json',
       hasChanges: false,
       isLoading: false,
@@ -141,6 +156,23 @@ export const useModelStore = create<ModelState>()(
         }
       },
 
+      loadModelFavorites: async () => {
+        try {
+          const result = await commands.getModelFavorites()
+          if (result.status === 'ok') {
+            set(
+              { modelFavorites: normalizeFavorites(result.data) },
+              undefined,
+              'loadModelFavorites/success'
+            )
+          } else {
+            set({ error: result.error }, undefined, 'loadModelFavorites/error')
+          }
+        } catch (e) {
+          set({ error: String(e) }, undefined, 'loadModelFavorites/exception')
+        }
+      },
+
       saveModels: async () => {
         const { models } = get()
         set(
@@ -151,6 +183,7 @@ export const useModelStore = create<ModelState>()(
         try {
           const result = await commands.saveCustomModels(models)
           if (result.status === 'ok') {
+            await get().loadModelFavorites()
             set(
               {
                 originalModels: JSON.parse(JSON.stringify(models)),
@@ -184,6 +217,44 @@ export const useModelStore = create<ModelState>()(
         }
       },
 
+      saveModelFavorites: async favorites => {
+        const previousFavorites = get().modelFavorites
+        const normalizedFavorites = normalizeFavorites(favorites)
+        set(
+          { modelFavorites: normalizedFavorites, error: null },
+          undefined,
+          'saveModelFavorites/start'
+        )
+        try {
+          const result = await commands.saveModelFavorites(normalizedFavorites)
+          if (result.status === 'ok') {
+            await get().loadModelFavorites()
+          } else {
+            set(
+              { modelFavorites: previousFavorites, error: result.error },
+              undefined,
+              'saveModelFavorites/error'
+            )
+          }
+        } catch (e) {
+          set(
+            { modelFavorites: previousFavorites, error: String(e) },
+            undefined,
+            'saveModelFavorites/exception'
+          )
+        }
+      },
+
+      toggleModelFavorite: async modelId => {
+        const favorites = new Set(get().modelFavorites)
+        if (favorites.has(modelId)) {
+          favorites.delete(modelId)
+        } else {
+          favorites.add(modelId)
+        }
+        await get().saveModelFavorites(Array.from(favorites))
+      },
+
       resetConfigAndSave: async () => {
         const { models } = get()
         set(
@@ -204,6 +275,7 @@ export const useModelStore = create<ModelState>()(
 
           const saveResult = await commands.saveCustomModels(models)
           if (saveResult.status === 'ok') {
+            await get().loadModelFavorites()
             set(
               {
                 originalModels: JSON.parse(JSON.stringify(models)),

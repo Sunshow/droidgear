@@ -241,6 +241,28 @@ pub(super) fn handle_modal_key(app: &mut app::App, code: KeyCode, modal: app::Mo
                     action,
                 });
             }
+            KeyCode::Char('a') => {
+                selected.fill(true);
+                app.pi_import_pending_selected = Some(selected.clone());
+                app.modal = Some(app::Modal::MultiSelect {
+                    title,
+                    options,
+                    selected,
+                    index,
+                    action,
+                });
+            }
+            KeyCode::Char('x') => {
+                selected.fill(false);
+                app.pi_import_pending_selected = Some(selected.clone());
+                app.modal = Some(app::Modal::MultiSelect {
+                    title,
+                    options,
+                    selected,
+                    index,
+                    action,
+                });
+            }
             KeyCode::Tab | KeyCode::Char('c') => {
                 // Sync final selection to app state and confirm
                 app.pi_import_pending_selected = Some(selected);
@@ -860,6 +882,23 @@ pub(super) fn run_select_action(
             if draft.base_url.trim().is_empty() {
                 draft.base_url = default_base_url.to_string();
             }
+            Ok(())
+        }
+        app::SelectAction::FactorySaveFavorites => {
+            let selected = app.pi_import_pending_selected.take().unwrap_or_default();
+            let next_favorites = app
+                .model_favorites
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| selected.get(*index).copied().unwrap_or(false))
+                .map(|(_, favorite)| favorite.clone())
+                .collect::<Vec<_>>();
+            droidgear_core::factory_settings::save_model_favorites_for_home(
+                &app.home_dir,
+                next_favorites,
+            )
+            .map_err(anyhow::Error::msg)?;
+            app.set_toast("Favorites saved", false);
             Ok(())
         }
         app::SelectAction::FactoryDraftSetReasoningEffort => {
