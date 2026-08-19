@@ -655,7 +655,7 @@
   "models.filterProvider": "所有提供商",
   "models.favorites.button": "收藏",
   "models.favorites.title": "模型收藏",
-  "models.favorites.description": "选择要保留在 modelFavorites 中的模型，内置模型和 BYOK 模型会一起显示。",
+  "models.favorites.description": "管理 modelFavorites 中已有的模型，仅显示已收藏的内置模型和当前 BYOK 模型。",
   "models.favorites.count": "已收藏 {{count}} 个",
   "models.favorites.batchDelete": "选择删除",
   "models.favorites.selectAll": "全选",

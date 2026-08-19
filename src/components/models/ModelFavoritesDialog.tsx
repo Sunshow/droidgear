@@ -77,22 +77,23 @@ export function ModelFavoritesDialog({
   )
 
   const options = useMemo(() => {
-    const registryOptions = getAllRegistryModels().map(model => ({
-      id: model.id,
-      name: model.name,
-      isByok: false,
-    }))
+    // Built-in rows are limited to IDs already persisted in settings. The
+    // current BYOK list remains available so its models can be favorited here.
+    const registryOptions = getAllRegistryModels()
+      .filter(model => favoriteIds.has(model.id))
+      .map(model => ({
+        id: model.id,
+        name: model.name,
+        isByok: false,
+      }))
+    const registryIds = new Set(registryOptions.map(option => option.id))
     const customOptions = byokModels.map(model => ({
       id: model.id as string,
       name: model.displayName || model.model || (model.id as string),
       isByok: true,
     }))
     const settingsOnlyOptions = visibleFavorites
-      .filter(
-        favorite =>
-          !registryOptions.some(option => option.id === favorite) &&
-          !byokIds.has(favorite)
-      )
+      .filter(favorite => !registryIds.has(favorite) && !byokIds.has(favorite))
       .map(id => ({ id, name: id, isByok: false }))
 
     return uniqueOptions([
@@ -100,7 +101,7 @@ export function ModelFavoritesDialog({
       ...registryOptions,
       ...customOptions,
     ])
-  }, [byokIds, byokModels, visibleFavorites])
+  }, [byokIds, byokModels, favoriteIds, visibleFavorites])
 
   useEffect(() => {
     if (!open) return

@@ -655,7 +655,7 @@
   "models.filterProvider": "All Providers",
   "models.favorites.button": "Favorites",
   "models.favorites.title": "Model Favorites",
-  "models.favorites.description": "Select models to keep in modelFavorites. Built-in and BYOK models are shown together.",
+  "models.favorites.description": "Manage models already in modelFavorites. Existing built-in favorites and current BYOK models are shown together.",
   "models.favorites.count": "{{count}} favorites",
   "models.favorites.batchDelete": "Select to Delete",
   "models.favorites.selectAll": "Select All",
