@@ -2,7 +2,7 @@
 
 [中文](README.md)
 
-A desktop enhancement tool for [Factory Droid](https://factory.ai) / [Claude](https://claude.ai) / [OpenClaw](https://openclaw.ai) / [Codex](https://github.com/openai/codex) / [OpenCode](https://opencode.ai) / [Pi](https://pi.dev).
+A desktop enhancement tool for [Factory Droid](https://factory.ai) / [Claude](https://claude.ai) / [OpenClaw](https://openclaw.ai) / [Codex](https://github.com/openai/codex) / [OpenCode](https://opencode.ai) / [Hermes Agent](https://hermes-agent.nousresearch.com) / [Pi](https://pi.dev).
 
 Supports custom AI models (BYOK), embedded terminal, session & specs management, MCP server configuration, and more.
 
@@ -169,6 +169,7 @@ The TUI version supports the following configuration management features:
 - **Codex Profiles**: Configuration file management, change preview, one-click apply
 - **OpenCode Profiles**: Provider/Auth configuration management
 - **OpenClaw Profiles**: Configuration management and apply (with Subagents/Helpers nav entries)
+- **Hermes Profiles**: Configuration management and apply
 - **Pi Profiles**: Provider/Model configuration management and apply
 - **Sessions**: Session browsing and management
 - **Paths**: Path override configuration (for server environments)
@@ -194,6 +195,7 @@ The TUI version shares configuration files with the desktop version:
 - Codex config: `~/.codex/`
 - OpenCode config: `~/.config/opencode/`
 - OpenClaw config: `~/.openclaw/`
+- Hermes config: `~/.hermes/`
 - Pi config: `~/.pi/agent/`
 
 For detailed design documentation, see [docs/developer/tui-design.md](docs/developer/tui-design.md)

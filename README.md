@@ -2,7 +2,7 @@
 
 [English](README_EN.md)
 
-[Factory Droid](https://factory.ai) / [Claude](https://claude.ai) / [OpenClaw](https://openclaw.ai) / [Codex](https://github.com/openai/codex) / [OpenCode](https://opencode.ai) / [Pi](https://pi.dev) 的桌面增强管理工具。
+[Factory Droid](https://factory.ai) / [Claude](https://claude.ai) / [OpenClaw](https://openclaw.ai) / [Codex](https://github.com/openai/codex) / [OpenCode](https://opencode.ai) / [Hermes Agent](https://hermes-agent.nousresearch.com) / [Pi](https://pi.dev) 的桌面增强管理工具。
 
 支持自定义 AI 模型（BYOK）、嵌入式终端、会话与 Specs 管理、MCP 服务器配置等。
 
@@ -168,6 +168,7 @@ TUI 版本支持以下配置管理功能：
 - **Codex Profile**：配置文件管理、变更预览、一键应用
 - **OpenCode Profile**：Provider/Auth 配置管理
 - **OpenClaw Profile**：配置管理与应用（含 Subagents/Helpers 导航入口）
+- **Hermes Profile**：配置管理与应用
 - **Pi Profile**：Provider/Model 配置管理与应用
 - **Sessions**：会话浏览与管理
 - **Paths**：路径覆盖配置（适配服务器环境）
@@ -193,6 +194,7 @@ TUI 版本与桌面版共享配置文件：
 - Codex 配置：`~/.codex/`
 - OpenCode 配置：`~/.config/opencode/`
 - OpenClaw 配置：`~/.openclaw/`
+- Hermes 配置：`~/.hermes/`
 - Pi 配置：`~/.pi/agent/`
 
 详细设计文档见 [docs/developer/tui-design.md](docs/developer/tui-design.md)
