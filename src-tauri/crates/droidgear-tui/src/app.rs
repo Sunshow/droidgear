@@ -595,6 +595,9 @@ pub enum SelectAction {
     HermesImportFromChannel {
         profile_id: String,
     },
+    HermesSetProfileReasoningEffort {
+        id: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1398,7 +1401,7 @@ impl App {
             self.hermes_index = self.hermes_profiles.len().saturating_sub(1);
         }
         // HermesProfile screen has 6 fields: Name, Description, Default Model, Provider, Base URL, API Key
-        let hermes_detail_fields_count = 6;
+        let hermes_detail_fields_count = 7; // Name, Description, Default Model, Provider, Base URL, API Key, Reasoning Effort
         if self.hermes_detail_field_index >= hermes_detail_fields_count {
             self.hermes_detail_field_index = hermes_detail_fields_count.saturating_sub(1);
         }

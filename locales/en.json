@@ -1201,12 +1201,13 @@
   "hermes.model.baseUrlPlaceholder": "e.g. https://api.openai.com/v1",
   "hermes.model.apiKey": "API Key",
   "hermes.model.apiKeyPlaceholder": "Enter API key",
+  "hermes.model.reasoningEffort": "Reasoning Effort",
   "hermes.model.loadFromConfig": "Load from Config",
 
   "hermes.configStatus.title": "Config Status",
 
   "hermes.actions.apply": "Apply Profile",
-  "hermes.actions.applyConfirm": "Apply this profile? This will update your Hermes configuration file (~/.hermes/config.yaml).",
+  "hermes.actions.applyConfirm": "Apply this profile? This will update your Hermes configuration file:",
   "hermes.actions.applySuccess": "Profile applied successfully",
   "hermes.actions.loadedFromLive": "Loaded from live config",
   "hermes.model.importFromChannel": "Import from Channel",

@@ -3412,6 +3412,13 @@ fn draw_hermes_profile(frame: &mut Frame, app: &app::App, area: Rect) {
                 "(not set)".to_string()
             },
         ),
+        (
+            "Reasoning Effort",
+            profile
+                .reasoning_effort
+                .clone()
+                .unwrap_or_else(|| "(none)".to_string()),
+        ),
     ];
 
     let mut items: Vec<ListItem> = Vec::new();

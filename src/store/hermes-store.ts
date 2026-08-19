@@ -234,6 +234,8 @@ export const useHermesStore = create<HermesState>()(
         const updated: HermesProfile = {
           ...currentProfile,
           model: live.model,
+          reasoningEffort:
+            live.reasoningEffort ?? currentProfile.reasoningEffort,
           updatedAt: new Date().toISOString(),
         }
         set(

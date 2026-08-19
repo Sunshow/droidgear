@@ -1522,6 +1522,21 @@ pub(super) fn run_select_action(
             });
             Ok(())
         }
+        app::SelectAction::HermesSetProfileReasoningEffort { id } => {
+            let mut profile =
+                droidgear_core::hermes::get_hermes_profile_for_home(&app.home_dir, &id)
+                    .map_err(anyhow::Error::msg)?;
+            profile.reasoning_effort = selected.and_then(|s| {
+                if s == "(none)" {
+                    None
+                } else {
+                    Some(s.to_string())
+                }
+            });
+            droidgear_core::hermes::save_hermes_profile_for_home(&app.home_dir, profile)
+                .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
     }
 }
 
@@ -3538,6 +3553,7 @@ pub(super) fn run_input_action(
                     base_url: Some(String::new()),
                     api_key: Some(String::new()),
                 },
+                reasoning_effort: None,
             };
 
             droidgear_core::hermes::save_hermes_profile_for_home(&app.home_dir, profile)

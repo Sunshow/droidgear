@@ -171,6 +171,32 @@ pub(super) fn handle_hermes_profile_key(app: &mut app::App, code: KeyCode) -> Op
                         },
                     });
                 }
+                6 => {
+                    let options = vec![
+                        "(none)".to_string(),
+                        "none".to_string(),
+                        "minimal".to_string(),
+                        "low".to_string(),
+                        "medium".to_string(),
+                        "high".to_string(),
+                        "xhigh".to_string(),
+                        "max".to_string(),
+                        "ultra".to_string(),
+                    ];
+                    let index = profile
+                        .reasoning_effort
+                        .as_deref()
+                        .and_then(|v| options.iter().position(|o| o == v))
+                        .unwrap_or(0);
+                    app.modal = Some(app::Modal::Select {
+                        title: "Reasoning effort".to_string(),
+                        options,
+                        index,
+                        action: app::SelectAction::HermesSetProfileReasoningEffort {
+                            id: profile_id.clone(),
+                        },
+                    });
+                }
                 _ => {}
             }
         }
