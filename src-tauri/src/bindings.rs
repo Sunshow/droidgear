@@ -20,6 +20,8 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         config::reset_config_file,
         config::load_custom_models,
         config::save_custom_models,
+        config::get_model_favorites,
+        config::save_model_favorites,
         config::check_legacy_config,
         config::delete_legacy_config,
         config::fetch_models,

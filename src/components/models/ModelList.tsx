@@ -28,6 +28,7 @@ interface ModelListProps {
   onDelete: (index: number) => void
   onCopy: (index: number) => void
   onSetDefault: (index: number) => void
+  onToggleFavorite?: (modelId: string) => void
   onTestConnection?: (modelId: string) => void
   filteredModels?: FilteredModel[]
   selectionMode?: boolean
@@ -35,6 +36,7 @@ interface ModelListProps {
   onSelect?: (index: number, selected: boolean) => void
   defaultModelId?: string | null
   specModeModelId?: string | null
+  favoriteModelIds?: Set<string>
 }
 
 export function ModelList({
@@ -42,6 +44,7 @@ export function ModelList({
   onDelete,
   onCopy,
   onSetDefault,
+  onToggleFavorite,
   onTestConnection: onTestConnectionProp,
   filteredModels,
   selectionMode = false,
@@ -49,6 +52,7 @@ export function ModelList({
   onSelect,
   defaultModelId,
   specModeModelId,
+  favoriteModelIds,
 }: ModelListProps) {
   const { t } = useTranslation()
   const { models, reorderModels } = useModelStore()
@@ -131,11 +135,17 @@ export function ModelList({
             isSelected={selectedIndices.has(originalIndex)}
             isDefault={isModelDefault(model)}
             isSpecMode={isModelSpecMode(model)}
+            isFavorite={favoriteModelIds?.has(model.id ?? '') ?? false}
             onSelect={onSelect}
             onEdit={() => onEdit(originalIndex)}
             onDelete={() => onDelete(originalIndex)}
             onCopy={() => onCopy(originalIndex)}
             onSetDefault={() => onSetDefault(originalIndex)}
+            onToggleFavorite={
+              onToggleFavorite && model.id
+                ? () => onToggleFavorite?.(model.id as string)
+                : undefined
+            }
             onTestConnection={() => handleTestConnection(model.id)}
           />
         ))}
@@ -165,11 +175,17 @@ export function ModelList({
               isSelected={selectedIndices.has(originalIndex)}
               isDefault={isModelDefault(model)}
               isSpecMode={isModelSpecMode(model)}
+              isFavorite={favoriteModelIds?.has(model.id ?? '') ?? false}
               onSelect={onSelect}
               onEdit={() => onEdit(originalIndex)}
               onDelete={() => onDelete(originalIndex)}
               onCopy={() => onCopy(originalIndex)}
               onSetDefault={() => onSetDefault(originalIndex)}
+              onToggleFavorite={
+                onToggleFavorite && model.id
+                  ? () => onToggleFavorite?.(model.id as string)
+                  : undefined
+              }
               onTestConnection={() => handleTestConnection(model.id)}
             />
           ))}

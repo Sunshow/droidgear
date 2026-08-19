@@ -6,6 +6,7 @@ import {
   Trash2,
   Copy,
   Star,
+  Heart,
   Wifi,
   WifiOff,
   CircleAlert,
@@ -31,11 +32,13 @@ interface ModelCardProps {
   isSelected?: boolean
   isDefault?: boolean
   isSpecMode?: boolean
+  isFavorite?: boolean
   onSelect?: (index: number, selected: boolean) => void
   onEdit: () => void
   onDelete: () => void
   onCopy: () => void
   onSetDefault?: () => void
+  onToggleFavorite?: () => void
   onTestConnection?: () => void
 }
 
@@ -46,11 +49,13 @@ export function ModelCard({
   isSelected = false,
   isDefault = false,
   isSpecMode = false,
+  isFavorite = false,
   onSelect,
   onEdit,
   onDelete,
   onCopy,
   onSetDefault,
+  onToggleFavorite,
   onTestConnection,
 }: ModelCardProps) {
   const { t } = useTranslation()
@@ -287,6 +292,40 @@ export function ModelCard({
                   : {new Date(connectionStatus.timestamp).toLocaleTimeString()}
                 </p>
               )}
+            </TooltipContent>
+          </Tooltip>
+        )}
+        {onToggleFavorite && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onToggleFavorite}
+                disabled={!model.id}
+                className={
+                  isFavorite ? 'text-rose-500 hover:text-rose-600' : ''
+                }
+                aria-label={t(
+                  isFavorite
+                    ? 'models.favorites.remove'
+                    : 'models.favorites.add'
+                )}
+              >
+                <Heart
+                  className="h-4 w-4"
+                  fill={isFavorite ? 'currentColor' : 'none'}
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>
+                {t(
+                  isFavorite
+                    ? 'models.favorites.remove'
+                    : 'models.favorites.add'
+                )}
+              </p>
             </TooltipContent>
           </Tooltip>
         )}

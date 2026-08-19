@@ -28,6 +28,10 @@ pub(super) fn refresh_factory(app: &mut app::App) {
         Ok(id) => app.factory_default_model_id = id,
         Err(e) => app.set_toast(e, true),
     }
+    match droidgear_core::factory_settings::get_model_favorites_for_home(&app.home_dir) {
+        Ok(favorites) => app.model_favorites = favorites,
+        Err(e) => app.set_toast(e, true),
+    }
 }
 
 pub(super) fn refresh_mcp(app: &mut app::App) {

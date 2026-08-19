@@ -142,6 +142,28 @@ async saveCustomModels(models: CustomModel[]) : Promise<Result<null, string>> {
 }
 },
 /**
+ * Loads modelFavorites from settings.json.
+ */
+async getModelFavorites() : Promise<Result<string[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_model_favorites") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Saves modelFavorites to settings.json (preserves other fields).
+ */
+async saveModelFavorites(favorites: string[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_model_favorites", { favorites }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Checks if legacy config.json exists and settings.json has customModels
  */
 async checkLegacyConfig() : Promise<Result<boolean, string>> {

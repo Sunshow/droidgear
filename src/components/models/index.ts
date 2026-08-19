@@ -3,6 +3,7 @@ export { ModelList } from './ModelList'
 export { ModelDialog } from './ModelDialog'
 export { ModelConfigPage } from './ModelConfigPage'
 export { ConnectivityPanel } from './ConnectivityPanel'
+export { ModelFavoritesDialog } from './ModelFavoritesDialog'
 export { BatchModelSelector } from './BatchModelSelector'
 export {
   buildModelsFromBatch,

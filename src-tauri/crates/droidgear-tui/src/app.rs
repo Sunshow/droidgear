@@ -561,6 +561,7 @@ pub enum SelectAction {
         id: String,
     },
     FactoryDraftSetProvider,
+    FactorySaveFavorites,
     FactoryDraftSetReasoningEffort,
     FactoryDraftSetReasoningFormat,
     McpDraftSetType,
@@ -640,6 +641,7 @@ pub struct App {
     pub droid_settings_files_index: usize,
 
     pub custom_models: Vec<CustomModel>,
+    pub model_favorites: Vec<String>,
     pub factory_default_model_id: Option<String>,
     pub factory_models_index: usize,
     pub factory_edit_index: Option<usize>,
@@ -809,6 +811,7 @@ impl App {
             droid_settings_files: Vec::new(),
             droid_settings_files_index: 0,
             custom_models: Vec::new(),
+            model_favorites: Vec::new(),
             factory_default_model_id: None,
             factory_models_index: 0,
             factory_edit_index: None,

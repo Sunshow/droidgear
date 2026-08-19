@@ -12,6 +12,7 @@ import {
   Download,
   Upload,
   Wifi,
+  Heart,
 } from 'lucide-react'
 import { save, open } from '@tauri-apps/plugin-dialog'
 import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs'
@@ -41,6 +42,7 @@ import { ModelDialog } from './ModelDialog'
 import { ModelImportDialog, type MergeStrategy } from './ModelImportDialog'
 import { DefaultModelDialog } from './DefaultModelDialog'
 import { ConnectivityPanel } from './ConnectivityPanel'
+import { ModelFavoritesDialog } from './ModelFavoritesDialog'
 import { useModelStore } from '@/store/model-store'
 import { useConnectivityStore } from '@/store/connectivity-store'
 import type { CustomModel } from '@/lib/bindings'
@@ -57,6 +59,7 @@ export function ModelConfigPage() {
   const {
     models,
     configPath,
+    modelFavorites,
     hasChanges,
     isLoading,
     error,
@@ -64,7 +67,10 @@ export function ModelConfigPage() {
     defaultModelId,
     sessionDefaultSettings,
     loadModels,
+    loadModelFavorites,
     saveModels,
+    saveModelFavorites,
+    toggleModelFavorite,
     resetConfigAndSave,
     addModel,
     updateModel,
@@ -103,6 +109,7 @@ export function ModelConfigPage() {
 
   // Connectivity panel state
   const [showConnectivityPanel, setShowConnectivityPanel] = useState(false)
+  const [favoritesDialogOpen, setFavoritesDialogOpen] = useState(false)
 
   // Default model dialog state
   const [defaultDialogOpen, setDefaultDialogOpen] = useState(false)
@@ -112,8 +119,9 @@ export function ModelConfigPage() {
 
   useEffect(() => {
     loadModels()
+    loadModelFavorites()
     loadDefaultModel()
-  }, [loadModels, loadDefaultModel])
+  }, [loadModels, loadModelFavorites, loadDefaultModel])
 
   // Filter models based on search text and provider
   const filteredModels = useMemo(() => {
@@ -159,6 +167,7 @@ export function ModelConfigPage() {
       setShowRefreshConfirm(true)
     } else {
       loadModels()
+      loadModelFavorites()
       loadDefaultModel()
     }
   }
@@ -166,6 +175,7 @@ export function ModelConfigPage() {
   const handleConfirmRefresh = () => {
     setShowRefreshConfirm(false)
     loadModels()
+    loadModelFavorites()
     loadDefaultModel()
   }
 
@@ -265,6 +275,10 @@ export function ModelConfigPage() {
     deleteModels(Array.from(selectedIndices))
     setShowBatchDeleteConfirm(false)
     handleExitSelectionMode()
+  }
+
+  const handleToggleFavorite = async (modelId: string) => {
+    await toggleModelFavorite(modelId)
   }
 
   // Export models to JSON file
@@ -510,7 +524,7 @@ export function ModelConfigPage() {
           )}
 
           {/* Filter Bar */}
-          {models.length > 0 && (
+          {(models.length > 0 || modelFavorites.length > 0) && (
             <div className="flex items-center gap-2 px-4 pt-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -540,6 +554,23 @@ export function ModelConfigPage() {
                   </SelectItem>
                 </SelectContent>
               </Select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFavoritesDialogOpen(true)}
+                title={t('models.favorites.button')}
+              >
+                <Heart
+                  className="mr-1.5 h-4 w-4 text-rose-500"
+                  fill={modelFavorites.length > 0 ? 'currentColor' : 'none'}
+                />
+                {t('models.favorites.button')}
+                {modelFavorites.length > 0 && (
+                  <Badge variant="secondary" className="ml-1.5 px-1.5">
+                    {modelFavorites.length}
+                  </Badge>
+                )}
+              </Button>
               {!selectionMode ? (
                 <Button
                   variant="outline"
@@ -594,6 +625,8 @@ export function ModelConfigPage() {
               onSelect={handleSelect}
               defaultModelId={defaultModelId}
               specModeModelId={sessionDefaultSettings?.specModeModel ?? null}
+              favoriteModelIds={new Set(modelFavorites)}
+              onToggleFavorite={handleToggleFavorite}
               onTestConnection={() => setShowConnectivityPanel(true)}
             />
           </div>
@@ -744,6 +777,14 @@ export function ModelConfigPage() {
         }
         currentSettings={sessionDefaultSettings}
         onSave={saveSessionDefaultSettings}
+      />
+
+      <ModelFavoritesDialog
+        open={favoritesDialogOpen}
+        onOpenChange={setFavoritesDialogOpen}
+        favorites={modelFavorites}
+        models={models}
+        onSave={saveModelFavorites}
       />
     </div>
   )

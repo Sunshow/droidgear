@@ -36,6 +36,20 @@ pub async fn save_custom_models(models: Vec<CustomModel>) -> Result<(), String> 
     droidgear_core::factory_settings::save_custom_models(models)
 }
 
+/// Loads modelFavorites from settings.json.
+#[tauri::command]
+#[specta::specta]
+pub async fn get_model_favorites() -> Result<Vec<String>, String> {
+    droidgear_core::factory_settings::get_model_favorites()
+}
+
+/// Saves modelFavorites to settings.json (preserves other fields).
+#[tauri::command]
+#[specta::specta]
+pub async fn save_model_favorites(favorites: Vec<String>) -> Result<(), String> {
+    droidgear_core::factory_settings::save_model_favorites(favorites)
+}
+
 /// Checks if legacy config.json exists and settings.json has customModels
 #[tauri::command]
 #[specta::specta]
