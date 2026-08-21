@@ -1260,6 +1260,7 @@
   "hermes.model.importDialog.imported": "已从渠道导入配置",
 
   "sidebar.pi": "Pi",
+  "sidebar.omp": "OMP",
 
   "pi.title": "Pi 配置",
 
@@ -1361,6 +1362,45 @@
   "pi.actions.applySuccess": "配置已成功应用",
   "pi.actions.loadedFromLive": "已从活跃配置加载",
 
+  "omp.title": "OMP 配置",
+
+  "omp.features.title": "OMP",
+  "omp.features.config": "提供商",
+  "omp.features.hint": "管理 OMP 模型角色分配 (config.yml)。",
+
+  "omp.profile.active": "当前活跃",
+  "omp.profile.select": "配置",
+  "omp.profile.name": "名称",
+  "omp.profile.namePlaceholder": "输入配置名称",
+  "omp.profile.description": "描述",
+  "omp.profile.descriptionPlaceholder": "可选描述",
+  "omp.profile.create": "创建配置",
+  "omp.profile.createDescription": "创建新的配置以管理 OMP 模型角色",
+  "omp.profile.duplicate": "复制配置",
+  "omp.profile.delete": "删除配置",
+
+  "omp.modelRoles.title": "模型角色",
+
+  "omp.configStatus.title": "配置状态",
+
+  "omp.actions.apply": "应用配置",
+  "omp.actions.applySuccess": "配置已成功应用",
+  "omp.actions.loadedFromLive": "已从活跃配置加载",
+  "omp.actions.loadFromLive": "从活跃配置加载",
+  "omp.actions.noLiveRoles": "config.yml 中未找到模型角色配置",
+  "omp.actions.refreshLive": "刷新",
+
+  "omp.providers.title": "提供商",
+  "omp.provider.modelsCount": "{{count}} 个模型",
+  "omp.provider.apiKeyConfigured": "API Key 已配置",
+  "omp.provider.apiKeyNotConfigured": "无 API Key",
+
+  "omp.liveConfig.title": "当前配置",
+  "omp.liveConfig.currentRoles": "当前模型角色",
+  "omp.liveConfig.credentials": "凭证",
+  "omp.liveConfig.providers": "提供商",
+  "omp.liveConfig.models": "个模型",
+
   "connectivity.title": "连接性",
   "connectivity.summary": "概览",
   "connectivity.testControls": "测试控制",
@@ -1393,6 +1433,9 @@
   "connectivity.defaultPrompt": "Hi",
   "connectivity.responseText": "模型响应",
   "connectivity.inferenceWarning": "推理模式会消耗少量 token",
+  "connectivity.failed": "连接失败",
+  "connectivity.provider": "提供商",
+  "connectivity.model": "模型",
   "factoryAuth.title": "认证配置",
   "factoryAuth.description": "管理多个 Droid 认证配置文件，无需重新登录即可切换账户。",
   "factoryAuth.loadError": "加载认证配置失败",

@@ -1473,6 +1473,138 @@ async readPiCurrentConfig() : Promise<Result<PiCurrentConfig, string>> {
 }
 },
 /**
+ * List all OMP profiles
+ */
+async listOmpProfiles() : Promise<Result<OmpProfile[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_omp_profiles") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get a profile by ID
+ */
+async getOmpProfile(id: string) : Promise<Result<OmpProfile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_omp_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Save a profile (create or update)
+ */
+async saveOmpProfile(profile: OmpProfile) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_omp_profile", { profile }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Delete a profile
+ */
+async deleteOmpProfile(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_omp_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Duplicate a profile
+ */
+async duplicateOmpProfile(id: string, newName: string) : Promise<Result<OmpProfile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("duplicate_omp_profile", { id, newName }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Create default profile (when no profiles exist)
+ */
+async createDefaultOmpProfile() : Promise<Result<OmpProfile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("create_default_omp_profile") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get active profile ID
+ */
+async getActiveOmpProfileId() : Promise<Result<string | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_active_omp_profile_id") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Set active profile ID
+ */
+async setActiveOmpProfileId(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_active_omp_profile_id", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Apply a profile to `~/.omp/agent/models.yml`
+ */
+async applyOmpProfile(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("apply_omp_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get OMP config status
+ */
+async getOmpConfigStatus() : Promise<Result<OmpConfigStatus, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_omp_config_status") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Read current OMP configuration from config files
+ */
+async readOmpCurrentConfig() : Promise<Result<OmpCurrentConfig, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("read_omp_current_config") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Test an OMP provider connection via HTTP
+ */
+async testOmpProviderConnection(providerId: string) : Promise<Result<OmpProviderTestResult, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("test_omp_provider_connection", { providerId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Test a Pi provider using an isolated temporary models.json and Pi CLI run.
  */
 async testPiProviderConnection(providerId: string, config: PiProviderConfig) : Promise<Result<PiProviderTestResult, string>> {
@@ -2495,7 +2627,7 @@ export type CodexTemporaryRunPlan = { program: string; args: string[]; env: ([st
 /**
  * User-defined configuration paths (only stores explicitly set paths)
  */
-export type ConfigPaths = { factory?: string | null; opencode?: string | null; opencodeAuth?: string | null; codex?: string | null; claude?: string | null; openclaw?: string | null; hermes?: string | null; pi?: string | null }
+export type ConfigPaths = { factory?: string | null; opencode?: string | null; opencodeAuth?: string | null; codex?: string | null; claude?: string | null; openclaw?: string | null; hermes?: string | null; pi?: string | null; omp?: string | null }
 export type ConnectionDiagnostics = { success: boolean; provider: string; modelId: string; latencyMs: number; error?: string | null; timestamp: string; testMode: TestMode; 
 /**
  * Actual model response text (inference mode only).
@@ -2566,7 +2698,7 @@ export type EffectivePath = { key: string; path: string; isDefault: boolean }
 /**
  * All effective paths
  */
-export type EffectivePaths = { factory: EffectivePath; opencode: EffectivePath; opencodeAuth: EffectivePath; codex: EffectivePath; claude: EffectivePath; openclaw: EffectivePath; hermes: EffectivePath; pi: EffectivePath }
+export type EffectivePaths = { factory: EffectivePath; opencode: EffectivePath; opencodeAuth: EffectivePath; codex: EffectivePath; claude: EffectivePath; openclaw: EffectivePath; hermes: EffectivePath; pi: EffectivePath; omp: EffectivePath }
 /**
  * Output format
  */
@@ -2717,6 +2849,58 @@ export type MissionModelSettings = { workerModel?: string | null; workerReasonin
  */
 export type ModelInfo = { id: string; name: string | null }
 export type ModelTestResult = { modelId: string; modelName: string; diagnostics: ConnectionDiagnostics; isAvailable: boolean }
+/**
+ * OMP agent configuration (from `~/.omp/agent/config.yml`).
+ */
+export type OmpAgentConfig = { modelRoles?: OmpModelRoles | null; theme?: OmpTheme | null; steeringMode?: string | null; followUpMode?: string | null; interruptMode?: string | null; symbolPreset?: string | null; setupVersion?: number | null }
+/**
+ * A cached model entry from `models.db` (read-only).
+ */
+export type OmpCachedModel = { id: string; name?: string | null; api?: string | null; provider?: string | null; baseUrl?: string | null; reasoning?: boolean; input?: string[]; cost?: OmpModelCost | null; contextWindow?: number; maxTokens?: number; thinking?: OmpThinkingConfig | null }
+/**
+ * Full OMP configuration status.
+ */
+export type OmpConfigStatus = { configExists: boolean; configPath: string; modelsDbExists: boolean; agentDbExists: boolean }
+/**
+ * OMP credential status for a provider.
+ */
+export type OmpCredentialStatus = { provider: string; credentialType: string; hasKey: boolean }
+/**
+ * Current OMP configuration (combined from all sources).
+ */
+export type OmpCurrentConfig = { agentConfig?: OmpAgentConfig; providerModels?: OmpProviderModels[]; credentials?: OmpCredentialStatus[] }
+/**
+ * OMP model cost information.
+ */
+export type OmpModelCost = { input?: number; output?: number; cacheRead?: number; cacheWrite?: number }
+/**
+ * OMP model roles — which model handles which role.
+ */
+export type OmpModelRoles = { default?: string | null; smol?: string | null; slow?: string | null; plan?: string | null; commit?: string | null }
+/**
+ * OMP profile (stored in DroidGear) — snapshot of model role assignments.
+ */
+export type OmpProfile = { id: string; name: string; description?: string | null; createdAt: string; updatedAt: string; 
+/**
+ * Model role assignments (what gets written to config.yml on apply).
+ */
+modelRoles?: OmpModelRoles }
+/**
+ * A provider's cached model list from `models.db`.
+ */
+export type OmpProviderModels = { providerId: string; models: OmpCachedModel[] }
+/**
+ * Result of validating an OMP provider through HTTP connectivity testing.
+ */
+export type OmpProviderTestResult = { success: boolean; providerId: string; modelId: string; latencyMs: number; responseText?: string | null; error?: string | null }
+/**
+ * OMP theme configuration.
+ */
+export type OmpTheme = { dark?: string | null; light?: string | null }
+/**
+ * OMP thinking/reasoning configuration.
+ */
+export type OmpThinkingConfig = { mode?: string | null; efforts?: string[] | null }
 /**
  * OpenClaw config status
  */

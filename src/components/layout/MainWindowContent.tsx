@@ -97,6 +97,11 @@ const PiConfigPage = lazy(() =>
     default: m.PiConfigPage,
   }))
 )
+const OmpConfigPage = lazy(() =>
+  import('@/components/omp/OmpConfigPage').then(m => ({
+    default: m.OmpConfigPage,
+  }))
+)
 const ChannelDetail = lazy(() =>
   import('@/components/channels/ChannelDetail').then(m => ({
     default: m.ChannelDetail,
@@ -212,6 +217,10 @@ export function MainWindowContent({
 
     if (currentView === 'pi') {
       return <PiConfigPage />
+    }
+
+    if (currentView === 'omp') {
+      return <OmpConfigPage />
     }
 
     if (currentView === 'openclaw') {

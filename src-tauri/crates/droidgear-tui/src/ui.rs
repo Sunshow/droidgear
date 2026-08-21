@@ -417,6 +417,8 @@ fn draw_main(frame: &mut Frame, app: &app::App, area: Rect) {
         app::Screen::PiProfile => draw_pi_profile(frame, app, area),
         app::Screen::PiProvider => draw_pi_provider(frame, app, area),
         app::Screen::PiModel => draw_pi_model(frame, app, area),
+        app::Screen::Omp => draw_omp_profiles(frame, app, area),
+        app::Screen::OmpProfile => draw_omp_profile(frame, app, area),
         app::Screen::Hermes => draw_hermes_profiles(frame, app, area),
         app::Screen::HermesProfile => draw_hermes_profile(frame, app, area),
         app::Screen::HermesProvider => draw_hermes_provider(frame, app, area),
@@ -3380,6 +3382,88 @@ fn draw_pi_model(frame: &mut Frame, app: &app::App, area: Rect) {
     render_list(frame, list, chunks[0], Some(app.pi_model_field_index));
 
     let help = help_paragraph("Up/Down: select  Enter/e: edit/toggle  q/Esc: back");
+    frame.render_widget(help, chunks[1]);
+}
+
+fn draw_omp_profiles(frame: &mut Frame, app: &app::App, area: Rect) {
+    let active = app.omp_active_id.as_deref();
+    let selected_index = app.omp_index;
+    draw_profile_list(
+        frame,
+        area,
+        "OMP Profiles",
+        app.omp_profiles
+            .iter()
+            .map(|p| (p.name.as_str(), p.id.as_str())),
+        active,
+        selected_index,
+        "Up/Down: select  Enter/e: open  a: apply  n: new  c: copy  d: delete  r: refresh  q/Esc: back",
+    );
+}
+
+fn draw_omp_profile(frame: &mut Frame, app: &app::App, area: Rect) {
+    let t = theme();
+    let Some(profile) = app.omp_detail.as_ref() else {
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Failed to load profile",
+            t.error_style(),
+        ))])
+        .block(block("OMP Profile"))
+        .wrap(Wrap { trim: true });
+        frame.render_widget(p, area);
+        return;
+    };
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
+
+    // Fields: 0=Name, 1=Description, 2=default, 3=smol, 4=slow, 5=plan, 6=commit
+    let fields: Vec<(&str, String)> = vec![
+        ("Name", profile.name.clone()),
+        (
+            "Description",
+            profile
+                .description
+                .clone()
+                .unwrap_or_else(|| "".to_string()),
+        ),
+        (
+            "Default",
+            profile.model_roles.default.clone().unwrap_or_default(),
+        ),
+        ("Smol", profile.model_roles.smol.clone().unwrap_or_default()),
+        ("Slow", profile.model_roles.slow.clone().unwrap_or_default()),
+        ("Plan", profile.model_roles.plan.clone().unwrap_or_default()),
+        (
+            "Commit",
+            profile.model_roles.commit.clone().unwrap_or_default(),
+        ),
+    ];
+
+    let mut field_items: Vec<ListItem> = Vec::new();
+    for (i, (label, value)) in fields.into_iter().enumerate() {
+        let selected = i == app.omp_detail_field_index;
+        let line = if selected {
+            Line::from(format!("{label:>14}: {value}"))
+        } else {
+            field_line(label, &value, 14)
+        };
+        field_items.push(ListItem::new(line));
+    }
+    let field_list = List::new(field_items)
+        .block(block(format!("OMP Profile: {}", profile.name)))
+        .highlight_style(t.selected_row_style());
+    render_list(
+        frame,
+        field_list,
+        chunks[0],
+        Some(app.omp_detail_field_index),
+    );
+
+    let help =
+        help_paragraph("Up/Down: move  Enter/e: edit field  a: apply  l: load live  q/Esc: back");
     frame.render_widget(help, chunks[1]);
 }
 

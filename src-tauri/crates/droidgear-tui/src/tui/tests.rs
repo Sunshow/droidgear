@@ -573,6 +573,62 @@ fn pi_input_action_variants_exist() {
 }
 
 #[test]
+fn omp_screen_variants_exist() {
+    let _omp = app::Screen::Omp;
+    let _omp_profile = app::Screen::OmpProfile;
+}
+
+#[test]
+fn omp_is_in_omp_nav_group() {
+    let group = app::App::group_of_screen(app::Screen::Omp).expect("Omp should be a nav item");
+    assert_eq!(app::App::nav_groups()[group].label, "OMP");
+}
+
+#[test]
+fn omp_app_state_initializes_correctly() {
+    use std::path::PathBuf;
+    let app = app::App::new(PathBuf::from("/tmp/test-home"));
+    assert!(app.omp_profiles.is_empty());
+    assert!(app.omp_active_id.is_none());
+    assert_eq!(app.omp_index, 0);
+    assert!(app.omp_detail_id.is_none());
+    assert!(app.omp_detail.is_none());
+    assert_eq!(app.omp_detail_field_index, 0);
+}
+
+#[test]
+fn omp_clamp_indices_does_not_panic_on_empty_profiles() {
+    use std::path::PathBuf;
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.clamp_indices();
+    assert_eq!(app.omp_index, 0);
+}
+
+#[test]
+fn omp_confirm_action_variants_exist() {
+    let _apply = app::ConfirmAction::OmpApply {
+        id: "test".to_string(),
+    };
+    let _delete = app::ConfirmAction::OmpDelete {
+        id: "test".to_string(),
+    };
+    let _test_all = app::ConfirmAction::OmpTestAll;
+}
+
+#[test]
+fn omp_input_action_variants_exist() {
+    let _create = app::InputAction::OmpCreateProfile;
+    let _dup = app::InputAction::OmpDuplicate {
+        id: "x".to_string(),
+    };
+    let _update_name = app::InputAction::OmpUpdateProfileName;
+    let _update_desc = app::InputAction::OmpUpdateProfileDescription;
+    let _update_role = app::InputAction::OmpUpdateModelRole {
+        role: "default".to_string(),
+    };
+}
+
+#[test]
 fn load_droid_run_preferences_from_path_reads_nested_policy() {
     let temp = TempDir::new().unwrap();
     let prefs_path = temp.path().join("preferences.json");

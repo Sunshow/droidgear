@@ -1187,8 +1187,12 @@ mod tests {
         use super::{windows_powershell_args, windows_wt_ps_args};
         use std::path::Path;
 
-        let wt_with_cwd =
-            windows_wt_ps_args("pwsh", "& 'C:\\temp\\run.ps1'", Some(Path::new(r"D:\proj")));
+        let wt_with_cwd = windows_wt_ps_args(
+            "pwsh",
+            "& 'C:\\temp\\run.ps1'",
+            Some(Path::new(r"D:\proj")),
+            false,
+        );
         assert_eq!(
             wt_with_cwd,
             vec![
@@ -1201,7 +1205,7 @@ mod tests {
             ]
         );
 
-        let wt_plain = windows_wt_ps_args("powershell", "& 'C:\\temp\\run.ps1'", None);
+        let wt_plain = windows_wt_ps_args("powershell", "& 'C:\\temp\\run.ps1'", None, false);
         assert_eq!(
             wt_plain,
             vec![
@@ -1212,7 +1216,8 @@ mod tests {
             ]
         );
 
-        let ps = windows_powershell_args(r"& 'C:\temp\run.ps1'", Some(Path::new(r"D:\work")));
+        let ps =
+            windows_powershell_args(r"& 'C:\temp\run.ps1'", Some(Path::new(r"D:\work")), false);
         assert_eq!(
             ps,
             vec![
@@ -1407,6 +1412,7 @@ mod tests {
             unset_env: vec!["OPENAI_API_KEY".to_string()],
             cwd: Some(PathBuf::from(r"D:\work tree")),
             support_dir: Some(support_dir.clone()),
+            no_keep_open: false,
         };
 
         let path = write_secure_ps_wrapper(&spec).unwrap();
@@ -1474,6 +1480,7 @@ mod tests {
             unset_env: vec![],
             cwd: None,
             support_dir: None,
+            no_keep_open: false,
         };
 
         let powershell = prepare_powershell_command(&spec);
@@ -1535,6 +1542,7 @@ mod tests {
             unset_env: vec![],
             cwd: Some(PathBuf::from(r"C:\Users\%USERNAME%\A^B")),
             support_dir: None,
+            no_keep_open: false,
         };
 
         let prepared = prepare_cmd_command(&spec);

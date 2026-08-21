@@ -10,6 +10,7 @@ use droidgear_core::{
     factory_settings::{CustomModel, MissionModelSettings},
     hermes::HermesProfile,
     mcp::McpServer,
+    omp::OmpProfile,
     openclaw::{OpenClawProfile, OpenClawSubAgent},
     opencode::OpenCodeProfile,
     paths::{EffectivePath, EffectivePaths},
@@ -53,6 +54,8 @@ pub enum Screen {
     PiProfile,
     PiProvider,
     PiModel,
+    Omp,
+    OmpProfile,
     Hermes,
     HermesProfile,
     HermesProvider,
@@ -198,6 +201,12 @@ pub enum ConfirmAction {
         provider_id: String,
         model_index: usize,
     },
+    OmpApply {
+        id: String,
+    },
+    OmpDelete {
+        id: String,
+    },
     HermesApply {
         id: String,
     },
@@ -229,6 +238,7 @@ pub enum ConfirmAction {
     TrustedFoldersDelete {
         paths: Vec<String>,
     },
+    OmpTestAll,
 }
 
 #[derive(Debug, Clone)]
@@ -477,6 +487,15 @@ pub enum InputAction {
         profile_id: String,
         provider_id: String,
         model_index: usize,
+    },
+    OmpCreateProfile,
+    OmpDuplicate {
+        id: String,
+    },
+    OmpUpdateProfileName,
+    OmpUpdateProfileDescription,
+    OmpUpdateModelRole {
+        role: String,
     },
     HermesCreateProfile,
     HermesDuplicate {
@@ -744,6 +763,13 @@ pub struct App {
     pub pi_model_index: usize,
     pub pi_model_field_index: usize,
 
+    pub omp_profiles: Vec<OmpProfile>,
+    pub omp_active_id: Option<String>,
+    pub omp_index: usize,
+    pub omp_detail_id: Option<String>,
+    pub omp_detail: Option<OmpProfile>,
+    pub omp_detail_field_index: usize,
+
     pub hermes_profiles: Vec<HermesProfile>,
     pub hermes_active_id: Option<String>,
     pub hermes_index: usize,
@@ -907,6 +933,12 @@ impl App {
             pi_provider_field_index: 0,
             pi_model_index: 0,
             pi_model_field_index: 0,
+            omp_profiles: Vec::new(),
+            omp_active_id: None,
+            omp_index: 0,
+            omp_detail_id: None,
+            omp_detail: None,
+            omp_detail_field_index: 0,
             hermes_profiles: Vec::new(),
             hermes_active_id: None,
             hermes_index: 0,
@@ -1010,6 +1042,11 @@ impl App {
                 system: false,
             },
             NavGroup {
+                label: "OMP",
+                items: &[("Profiles", Screen::Omp)],
+                system: false,
+            },
+            NavGroup {
                 label: "Channels",
                 items: &[("Channels", Screen::Channels)],
                 system: true,
@@ -1104,6 +1141,7 @@ impl App {
             Screen::PiProfile => Screen::Pi,
             Screen::PiProvider => Screen::PiProfile,
             Screen::PiModel => Screen::PiProvider,
+            Screen::OmpProfile => Screen::Omp,
             Screen::HermesProfile => Screen::Hermes,
             Screen::HermesProvider => Screen::HermesProfile,
             Screen::ChannelsEdit => Screen::Channels,
@@ -1386,6 +1424,15 @@ impl App {
         let pi_model_fields_count = 7;
         if self.pi_model_field_index >= pi_model_fields_count {
             self.pi_model_field_index = pi_model_fields_count.saturating_sub(1);
+        }
+        // --- OMP ---
+        if self.omp_index >= self.omp_profiles.len() {
+            self.omp_index = self.omp_profiles.len().saturating_sub(1);
+        }
+        // OmpProfile screen: 7 fields (Name, Description, default, smol, slow, plan, commit)
+        let omp_detail_fields_count = 7;
+        if self.omp_detail_field_index >= omp_detail_fields_count {
+            self.omp_detail_field_index = omp_detail_fields_count.saturating_sub(1);
         }
         if self.sessions_index >= self.sessions.len() {
             self.sessions_index = self.sessions.len().saturating_sub(1);

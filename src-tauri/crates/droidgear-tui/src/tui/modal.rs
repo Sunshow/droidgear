@@ -2032,6 +2032,53 @@ pub(super) fn run_confirm_action(
                 .map_err(anyhow::Error::msg)?;
             Ok(())
         }
+        app::ConfirmAction::OmpApply { id } => {
+            droidgear_core::omp::apply_omp_profile_for_home(&app.home_dir, &id)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Applied", false);
+            Ok(())
+        }
+        app::ConfirmAction::OmpDelete { id } => {
+            droidgear_core::omp::delete_omp_profile_for_home(&app.home_dir, &id)
+                .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
+        app::ConfirmAction::OmpTestAll => {
+            let config = droidgear_core::omp::read_omp_current_config_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            if config.provider_models.is_empty() {
+                app.set_toast("No providers found in models.db", true);
+                return Ok(());
+            }
+            let mut results = Vec::new();
+            for pm in &config.provider_models {
+                match droidgear_core::omp::test_omp_provider_connection_for_home(
+                    &app.home_dir,
+                    &pm.provider_id,
+                ) {
+                    Ok(result) => {
+                        if result.success {
+                            results.push(format!(
+                                "{}: OK ({}ms)",
+                                result.provider_id, result.latency_ms
+                            ));
+                        } else {
+                            results.push(format!(
+                                "{}: FAILED - {}",
+                                result.provider_id,
+                                result.error.unwrap_or_else(|| "unknown error".to_string())
+                            ));
+                        }
+                    }
+                    Err(e) => {
+                        results.push(format!("{}: ERROR - {e}", pm.provider_id));
+                    }
+                }
+            }
+            let summary = results.join("\n");
+            app.set_toast(summary, false);
+            Ok(())
+        }
         app::ConfirmAction::HermesApply { id } => {
             droidgear_core::hermes::apply_hermes_profile_for_home(&app.home_dir, &id)
                 .map_err(anyhow::Error::msg)?;
@@ -4114,6 +4161,89 @@ pub(super) fn run_input_action(
             droidgear_core::pi::save_pi_profile_for_home(&app.home_dir, profile)
                 .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::OmpCreateProfile => {
+            if trimmed.is_empty() {
+                return Err(anyhow::Error::msg("Profile name is required"));
+            }
+
+            let before = droidgear_core::omp::list_omp_profiles_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            let before_ids = before
+                .iter()
+                .map(|p| p.id.clone())
+                .collect::<std::collections::HashSet<String>>();
+
+            let profile = droidgear_core::omp::OmpProfile {
+                id: String::new(),
+                name: trimmed.to_string(),
+                description: None,
+                created_at: String::new(),
+                updated_at: String::new(),
+                model_roles: droidgear_core::omp::OmpModelRoles::default(),
+            };
+            droidgear_core::omp::save_omp_profile_for_home(&app.home_dir, profile)
+                .map_err(anyhow::Error::msg)?;
+
+            refresh_omp(app);
+            if let Some((idx, p)) = app
+                .omp_profiles
+                .iter()
+                .enumerate()
+                .find(|(_, p)| !before_ids.contains(&p.id))
+            {
+                app.omp_index = idx;
+                app.omp_detail_id = Some(p.id.clone());
+                app.omp_detail_field_index = 0;
+                app.screen = app::Screen::OmpProfile;
+                refresh_omp_detail(app);
+            }
+
+            Ok(())
+        }
+        app::InputAction::OmpDuplicate { id } => {
+            if trimmed.is_empty() {
+                return Err(anyhow::Error::msg("Profile name is required"));
+            }
+            let new_profile =
+                droidgear_core::omp::duplicate_omp_profile_for_home(&app.home_dir, &id, trimmed)
+                    .map_err(anyhow::Error::msg)?;
+            refresh_omp(app);
+            if let Some(idx) = app.omp_profiles.iter().position(|p| p.id == new_profile.id) {
+                app.omp_index = idx;
+            }
+            Ok(())
+        }
+        app::InputAction::OmpUpdateProfileName => {
+            if trimmed.is_empty() {
+                return Err(anyhow::Error::msg("Profile name is required"));
+            }
+            if let Some(ref mut profile) = app.omp_detail {
+                profile.name = trimmed.to_string();
+            }
+            app.set_toast("Saved (in-memory)", false);
+            Ok(())
+        }
+        app::InputAction::OmpUpdateProfileDescription => {
+            if let Some(ref mut profile) = app.omp_detail {
+                profile.description = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            }
+            app.set_toast("Saved (in-memory)", false);
+            Ok(())
+        }
+        app::InputAction::OmpUpdateModelRole { role } => {
+            if let Some(ref mut profile) = app.omp_detail {
+                match role.as_str() {
+                    "default" => profile.model_roles.default = Some(trimmed.to_string()),
+                    "smol" => profile.model_roles.smol = Some(trimmed.to_string()),
+                    "slow" => profile.model_roles.slow = Some(trimmed.to_string()),
+                    "plan" => profile.model_roles.plan = Some(trimmed.to_string()),
+                    "commit" => profile.model_roles.commit = Some(trimmed.to_string()),
+                    _ => return Err(anyhow::Error::msg("Unknown model role")),
+                }
+            }
+            app.set_toast("Saved (in-memory)", false);
             Ok(())
         }
         app::InputAction::FactoryAuthSaveProfile => {
