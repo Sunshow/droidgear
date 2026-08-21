@@ -14,6 +14,7 @@ pub mod factory_settings;
 pub mod hermes;
 pub mod json;
 pub mod mcp;
+pub mod omp;
 pub mod openclaw;
 pub mod opencode;
 pub mod paths;

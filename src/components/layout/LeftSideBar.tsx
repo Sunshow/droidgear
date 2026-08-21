@@ -43,6 +43,7 @@ import { ClaudeFeatureList } from '@/components/claude/ClaudeFeatureList'
 import { OpenClawFeatureList } from '@/components/openclaw/OpenClawFeatureList'
 import { HermesFeatureList } from '@/components/hermes/HermesFeatureList'
 import { PiFeatureList } from '@/components/pi/PiFeatureList'
+import { OmpFeatureList } from '@/components/omp/OmpFeatureList'
 import { useUIStore } from '@/store/ui-store'
 import { useChannelStore } from '@/store/channel-store'
 import { useModelStore } from '@/store/model-store'
@@ -58,6 +59,7 @@ type NavigationView =
   | 'openclaw'
   | 'hermes'
   | 'pi'
+  | 'omp'
 
 interface LeftSideBarProps {
   children?: React.ReactNode
@@ -115,6 +117,11 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
         <>
           <CircuitBoard className="h-4 w-4 mr-2" />
           {t('sidebar.pi')}
+        </>
+      ) : lastToolView === 'omp' ? (
+        <>
+          <CircuitBoard className="h-4 w-4 mr-2" />
+          {t('sidebar.omp')}
         </>
       ) : (
         <>
@@ -317,6 +324,18 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
                 {t('sidebar.pi')}
                 {lastToolView === 'pi' && <Check className="h-4 w-4 ml-auto" />}
               </ActionDropdownMenuItem>
+              <ActionDropdownMenuItem
+                onClick={() => {
+                  handleViewChange('omp')
+                  setDropdownOpen(false)
+                }}
+              >
+                <CircuitBoard className="h-4 w-4 mr-2" />
+                {t('sidebar.omp')}
+                {lastToolView === 'omp' && (
+                  <Check className="h-4 w-4 ml-auto" />
+                )}
+              </ActionDropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         )}
@@ -338,6 +357,8 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
           <HermesFeatureList />
         ) : currentView === 'pi' ? (
           <PiFeatureList />
+        ) : currentView === 'omp' ? (
+          <OmpFeatureList />
         ) : (
           <CodexFeatureList />
         )}

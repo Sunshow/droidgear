@@ -1260,6 +1260,7 @@
   "hermes.model.importDialog.imported": "Config imported from channel",
 
   "sidebar.pi": "Pi",
+  "sidebar.omp": "OMP",
 
   "pi.title": "Pi Configuration",
 
@@ -1361,6 +1362,45 @@
   "pi.actions.applySuccess": "Profile applied successfully",
   "pi.actions.loadedFromLive": "Loaded from live config",
 
+  "omp.title": "OMP Configuration",
+
+  "omp.features.title": "OMP",
+  "omp.features.config": "Providers",
+  "omp.features.hint": "Manage OMP model role assignments (config.yml).",
+
+  "omp.profile.active": "Active",
+  "omp.profile.select": "Profile",
+  "omp.profile.name": "Name",
+  "omp.profile.namePlaceholder": "Enter profile name",
+  "omp.profile.description": "Description",
+  "omp.profile.descriptionPlaceholder": "Optional description",
+  "omp.profile.create": "Create Profile",
+  "omp.profile.createDescription": "Create a new profile to manage OMP model roles",
+  "omp.profile.duplicate": "Duplicate Profile",
+  "omp.profile.delete": "Delete Profile",
+
+  "omp.modelRoles.title": "Model Roles",
+
+  "omp.configStatus.title": "Config Status",
+
+  "omp.actions.apply": "Apply Profile",
+  "omp.actions.applySuccess": "Profile applied successfully",
+  "omp.actions.loadedFromLive": "Loaded from live config",
+  "omp.actions.loadFromLive": "Load from Live",
+  "omp.actions.noLiveRoles": "No model roles found in config.yml",
+  "omp.actions.refreshLive": "Refresh",
+
+  "omp.providers.title": "Providers",
+  "omp.provider.modelsCount": "{{count}} models",
+  "omp.provider.apiKeyConfigured": "API Key Configured",
+  "omp.provider.apiKeyNotConfigured": "No API Key",
+
+  "omp.liveConfig.title": "Live Config",
+  "omp.liveConfig.currentRoles": "Current model roles",
+  "omp.liveConfig.credentials": "Credentials",
+  "omp.liveConfig.providers": "Providers",
+  "omp.liveConfig.models": "models",
+
   "connectivity.title": "Connectivity",
   "connectivity.summary": "Summary",
   "connectivity.testControls": "Test Controls",
@@ -1393,6 +1433,9 @@
   "connectivity.defaultPrompt": "Hi",
   "connectivity.responseText": "Response",
   "connectivity.inferenceWarning": "Inference mode consumes a small amount of tokens",
+  "connectivity.failed": "Connection Failed",
+  "connectivity.provider": "Provider",
+  "connectivity.model": "Model",
   "factoryAuth.title": "Auth Profiles",
   "factoryAuth.description": "Manage multiple Droid authentication profiles. Switch between accounts without re-logging in.",
   "factoryAuth.loadError": "Failed to load auth profiles",

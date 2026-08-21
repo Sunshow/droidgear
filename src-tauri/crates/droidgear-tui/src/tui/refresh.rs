@@ -317,6 +317,40 @@ pub(super) fn pi_load_from_live_config(app: &mut app::App, profile_id: &str) -> 
     Ok(())
 }
 
+pub(super) fn refresh_omp(app: &mut app::App) {
+    match droidgear_core::omp::list_omp_profiles_for_home(&app.home_dir) {
+        Ok(list) => app.omp_profiles = list,
+        Err(e) => app.set_toast(e, true),
+    }
+
+    if app.omp_profiles.is_empty() {
+        if let Ok(p) = droidgear_core::omp::create_default_omp_profile_for_home(&app.home_dir) {
+            app.omp_profiles = vec![p];
+        }
+    }
+
+    match droidgear_core::omp::get_active_omp_profile_id_for_home(&app.home_dir) {
+        Ok(id) => app.omp_active_id = id,
+        Err(e) => app.set_toast(e, true),
+    }
+}
+
+pub(super) fn refresh_omp_detail(app: &mut app::App) {
+    let Some(id) = app.omp_detail_id.clone() else {
+        app.omp_detail = None;
+        return;
+    };
+    match droidgear_core::omp::get_omp_profile_for_home(&app.home_dir, &id) {
+        Ok(profile) => {
+            app.omp_detail = Some(profile);
+        }
+        Err(e) => {
+            app.omp_detail = None;
+            app.set_toast(e, true);
+        }
+    }
+}
+
 pub(super) fn refresh_sessions(app: &mut app::App) {
     match droidgear_core::sessions::list_sessions_for_home(&app.home_dir, None) {
         Ok(list) => app.sessions = list,

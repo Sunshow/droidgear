@@ -27,6 +27,8 @@ pub struct ConfigPaths {
     pub hermes: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pi: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub omp: Option<String>,
 }
 
 /// Effective path info with default indicator
@@ -50,6 +52,7 @@ pub struct EffectivePaths {
     pub openclaw: EffectivePath,
     pub hermes: EffectivePath,
     pub pi: EffectivePath,
+    pub omp: EffectivePath,
 }
 
 /// WSL distribution info
@@ -221,6 +224,13 @@ pub fn get_default_paths_for_home(home_dir: &Path) -> Result<EffectivePaths, Str
                 .to_string(),
             is_default: true,
         },
+        omp: EffectivePath {
+            key: "omp".to_string(),
+            path: default_omp_home_for_home(home_dir)?
+                .to_string_lossy()
+                .to_string(),
+            is_default: true,
+        },
     })
 }
 
@@ -235,6 +245,7 @@ pub fn get_effective_paths_for_home(home_dir: &Path) -> Result<EffectivePaths, S
     let openclaw_path = get_openclaw_home_for_home(home_dir, &config)?;
     let hermes_path = get_hermes_home_for_home(home_dir, &config)?;
     let pi_path = get_pi_home_for_home(home_dir, &config)?;
+    let omp_path = get_omp_home_for_home(home_dir, &config)?;
 
     Ok(EffectivePaths {
         factory: EffectivePath {
@@ -276,6 +287,11 @@ pub fn get_effective_paths_for_home(home_dir: &Path) -> Result<EffectivePaths, S
             key: "pi".to_string(),
             path: pi_path.to_string_lossy().to_string(),
             is_default: config.pi.is_none(),
+        },
+        omp: EffectivePath {
+            key: "omp".to_string(),
+            path: omp_path.to_string_lossy().to_string(),
+            is_default: config.omp.is_none(),
         },
     })
 }
@@ -333,6 +349,7 @@ pub fn save_config_path_for_home(home_dir: &Path, key: &str, path: &str) -> Resu
         "openclaw" => "openclaw",
         "hermes" => "hermes",
         "pi" => "pi",
+        "omp" => "omp",
         _ => return Err(format!("Unknown config path key: {key}")),
     };
 
@@ -361,6 +378,7 @@ pub fn reset_config_path_for_home(home_dir: &Path, key: &str) -> Result<(), Stri
                     "openclaw" => "openclaw",
                     "hermes" => "hermes",
                     "pi" => "pi",
+                    "omp" => "omp",
                     _ => return Err(format!("Unknown config path key: {key}")),
                 };
                 paths_obj.remove(storage_key);
@@ -447,6 +465,11 @@ fn default_hermes_home_with_priority(home_dir: &Path) -> Result<PathBuf, String>
 /// Pi home defaults to `~/.pi/agent`
 fn default_pi_home_for_home(home_dir: &Path) -> Result<PathBuf, String> {
     Ok(home_dir.join(".pi").join("agent"))
+}
+
+/// OMP home defaults to `~/.omp/agent`
+fn default_omp_home_for_home(home_dir: &Path) -> Result<PathBuf, String> {
+    Ok(home_dir.join(".omp").join("agent"))
 }
 
 // ============================================================================
@@ -566,6 +589,19 @@ pub fn get_pi_home_for_home(home_dir: &Path, config: &ConfigPaths) -> Result<Pat
     match &config.pi {
         Some(custom) => Ok(PathBuf::from(custom)),
         None => default_pi_home_for_home(home_dir),
+    }
+}
+
+pub fn get_omp_home() -> Result<PathBuf, String> {
+    let home = get_home_dir()?;
+    let config = load_config_paths_for_home(&home);
+    get_omp_home_for_home(&home, &config)
+}
+
+pub fn get_omp_home_for_home(home_dir: &Path, config: &ConfigPaths) -> Result<PathBuf, String> {
+    match &config.omp {
+        Some(custom) => Ok(PathBuf::from(custom)),
+        None => default_omp_home_for_home(home_dir),
     }
 }
 

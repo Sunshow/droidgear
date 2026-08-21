@@ -28,6 +28,7 @@ mod keys_hermes;
 mod keys_main;
 mod keys_mcp;
 mod keys_missions;
+mod keys_omp;
 mod keys_openclaw;
 mod keys_opencode;
 mod keys_paths;
@@ -62,6 +63,7 @@ use keys_mcp::{
     handle_mcp_args_key, handle_mcp_key, handle_mcp_key_values_key, handle_mcp_server_key,
 };
 use keys_missions::handle_missions_key;
+use keys_omp::{handle_omp_key, handle_omp_profile_key};
 use keys_openclaw::{
     handle_openclaw_helpers_key, handle_openclaw_key, handle_openclaw_model_key,
     handle_openclaw_profile_key, handle_openclaw_provider_key, handle_openclaw_subagent_detail_key,
@@ -280,6 +282,11 @@ fn refresh_screen_data(app: &mut app::App) {
         app::Screen::PiProfile | app::Screen::PiProvider | app::Screen::PiModel => {
             refresh_pi(app);
             refresh_pi_detail(app);
+        }
+        app::Screen::Omp => refresh_omp(app),
+        app::Screen::OmpProfile => {
+            refresh_omp(app);
+            refresh_omp_detail(app);
         }
         app::Screen::Hermes => refresh_hermes(app),
         app::Screen::HermesProfile | app::Screen::HermesProvider => {

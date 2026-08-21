@@ -17,6 +17,7 @@ pub mod factory_auth_profiles;
 pub mod hermes;
 pub mod mcp;
 pub mod notifications;
+pub mod omp;
 pub mod openclaw;
 pub mod opencode;
 pub mod paths;
