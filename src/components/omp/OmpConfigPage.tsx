@@ -52,10 +52,11 @@ function ProfileFields({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <Label className="w-24">{t('omp.profile.name')}</Label>
+        <Label className="w-24 shrink-0">{t('omp.profile.name')}</Label>
         <Input
+          className="flex-1"
           value={name}
           onChange={e => setName(e.target.value)}
           onBlur={handleBlur}
@@ -63,8 +64,9 @@ function ProfileFields({
         />
       </div>
       <div className="flex items-center gap-2">
-        <Label className="w-24">{t('omp.profile.description')}</Label>
+        <Label className="w-24 shrink-0">{t('omp.profile.description')}</Label>
         <Input
+          className="flex-1"
           value={description}
           onChange={e => setDescription(e.target.value)}
           onBlur={handleBlur}
@@ -197,71 +199,73 @@ export function OmpConfigPage() {
         <ConfigStatus status={configStatus} />
 
         {/* Profile Selector */}
-        <div className="flex items-center gap-2">
-          <Label className="w-24">{t('omp.profile.select')}</Label>
-          <Select
-            value={currentProfile?.id ?? ''}
-            onValueChange={handleProfileChange}
-          >
-            <SelectTrigger className="flex-1">
-              <SelectValue placeholder={t('omp.profile.select')} />
-            </SelectTrigger>
-            <SelectContent>
-              {profiles.map(profile => (
-                <SelectItem key={profile.id} value={profile.id}>
-                  {profile.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setShowCreateDialog(true)}
-            title={t('omp.profile.create')}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => {
-              if (currentProfile) {
-                duplicateProfile(
-                  currentProfile.id,
-                  `${currentProfile.name} (copy)`
-                )
-              }
-            }}
-            disabled={!currentProfile}
-            title={t('omp.profile.duplicate')}
-          >
-            <Copy className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => {
-              if (currentProfile) {
-                deleteProfile(currentProfile.id)
-              }
-            }}
-            disabled={!currentProfile || profiles.length <= 1}
-            title={t('omp.profile.delete')}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Label className="w-24 shrink-0">{t('omp.profile.select')}</Label>
+            <Select
+              value={currentProfile?.id ?? ''}
+              onValueChange={handleProfileChange}
+            >
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder={t('omp.profile.select')} />
+              </SelectTrigger>
+              <SelectContent>
+                {profiles.map(profile => (
+                  <SelectItem key={profile.id} value={profile.id}>
+                    {profile.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowCreateDialog(true)}
+              title={t('omp.profile.create')}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                if (currentProfile) {
+                  duplicateProfile(
+                    currentProfile.id,
+                    `${currentProfile.name} (copy)`
+                  )
+                }
+              }}
+              disabled={!currentProfile}
+              title={t('omp.profile.duplicate')}
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                if (currentProfile) {
+                  deleteProfile(currentProfile.id)
+                }
+              }}
+              disabled={!currentProfile || profiles.length <= 1}
+              title={t('omp.profile.delete')}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
 
-        {/* Profile Name & Description */}
-        {currentProfile && (
-          <ProfileFields
-            key={currentProfile.id}
-            profile={currentProfile}
-            onSave={updateCurrentProfile}
-            t={t}
-          />
-        )}
+          {/* Profile Name & Description */}
+          {currentProfile && (
+            <ProfileFields
+              key={currentProfile.id}
+              profile={currentProfile}
+              onSave={updateCurrentProfile}
+              t={t}
+            />
+          )}
+        </div>
 
         {/* Model Roles */}
         {currentProfile && (
@@ -285,7 +289,9 @@ export function OmpConfigPage() {
             <CardContent className="space-y-3">
               {ROLE_KEYS.map(role => (
                 <div key={role} className="flex items-center gap-2">
-                  <Label className="w-24 text-sm capitalize">{role}</Label>
+                  <Label className="w-24 shrink-0 text-sm capitalize">
+                    {role}
+                  </Label>
                   <Input
                     value={
                       (currentProfile.modelRoles as Record<string, string>)[
@@ -294,7 +300,7 @@ export function OmpConfigPage() {
                     }
                     onChange={e => handleModelRoleChange(role, e.target.value)}
                     placeholder="provider/model-id"
-                    className="font-mono text-sm"
+                    className="flex-1 font-mono text-sm"
                   />
                 </div>
               ))}

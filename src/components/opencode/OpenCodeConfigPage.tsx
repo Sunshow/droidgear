@@ -265,7 +265,9 @@ export function OpenCodeConfigPage() {
         {/* Profile Section */}
         <div className="space-y-3 p-4 border rounded-lg">
           <div className="flex items-center gap-2">
-            <Label className="w-24">{t('opencode.profile.select')}</Label>
+            <Label className="w-24 shrink-0">
+              {t('opencode.profile.select')}
+            </Label>
             <Select
               value={currentProfile?.id ?? ''}
               onValueChange={handleProfileChange}
@@ -317,8 +319,11 @@ export function OpenCodeConfigPage() {
           {currentProfile && (
             <>
               <div className="flex items-center gap-2">
-                <Label className="w-24">{t('opencode.profile.name')}</Label>
+                <Label className="w-24 shrink-0">
+                  {t('opencode.profile.name')}
+                </Label>
                 <Input
+                  className="flex-1"
                   value={editingName}
                   onChange={e => setEditingName(e.target.value)}
                   onBlur={() => {
@@ -330,10 +335,11 @@ export function OpenCodeConfigPage() {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <Label className="w-24">
+                <Label className="w-24 shrink-0">
                   {t('opencode.profile.description')}
                 </Label>
                 <Input
+                  className="flex-1"
                   value={editingDescription}
                   onChange={e => setEditingDescription(e.target.value)}
                   onBlur={() => {
