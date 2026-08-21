@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.2.6
+## v1.2.7
 
 **New Features / 新功能**
 
