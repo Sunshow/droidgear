@@ -1,8 +1,9 @@
 //! Codex CLI 配置管理（core）。
 //!
 //! 负责 Profile CRUD，并支持将 Profile 应用到 `~/.codex/config.toml`。
-//! Custom providers write `experimental_bearer_token` + `requires_openai_auth`
-//! into `[model_providers.<id>]`. Official `model_provider = "openai"` still
+//! Custom providers write `experimental_bearer_token` into `[model_providers.<id>]`
+//! and never set `requires_openai_auth` (it defaults to false in Codex and must
+//! not be combined with a bearer token). Official `model_provider = "openai"` still
 //! uses `~/.codex/auth.json` for ChatGPT login / auth profiles.
 //! 逻辑从原 Tauri command 层抽离，以便在 TUI 与桌面端复用。
 
@@ -297,10 +298,9 @@ pub(crate) fn provider_config_to_toml(
             toml::Value::String(wire_api.clone()),
         );
     }
-    table.insert(
-        "requires_openai_auth".to_string(),
-        toml::Value::Boolean(config.requires_openai_auth.unwrap_or(true)),
-    );
+    // `requires_openai_auth` is intentionally NOT written here: Codex defaults
+    // it to false and it must not be combined with `experimental_bearer_token`.
+    // Custom providers carry their own bearer token, so the field stays internal-only.
     let bearer_token = config
         .api_key
         .as_deref()
@@ -430,7 +430,7 @@ pub(crate) fn apply_profile_to_config_map(
                 name: None,
                 base_url: None,
                 wire_api: None,
-                requires_openai_auth: Some(true),
+                requires_openai_auth: Some(false),
                 env_key: None,
                 env_key_instructions: None,
                 http_headers: None,
@@ -774,7 +774,7 @@ pub fn create_default_codex_profile_for_home(home_dir: &Path) -> Result<CodexPro
             name: Some("Custom Provider".to_string()),
             base_url: None,
             wire_api: Some("responses".to_string()),
-            requires_openai_auth: Some(true),
+            requires_openai_auth: Some(false),
             env_key: None,
             env_key_instructions: None,
             http_headers: None,
@@ -1182,7 +1182,7 @@ mod tests {
                 name: Some("Custom".to_string()),
                 base_url: Some("https://example.com".to_string()),
                 wire_api: Some("responses".to_string()),
-                requires_openai_auth: Some(true),
+                requires_openai_auth: Some(false),
                 env_key: None,
                 env_key_instructions: None,
                 http_headers: None,
@@ -1220,7 +1220,7 @@ mod tests {
                 name: Some("Custom".to_string()),
                 base_url: Some("https://example.com".to_string()),
                 wire_api: Some("responses".to_string()),
-                requires_openai_auth: Some(true),
+                requires_openai_auth: Some(false),
                 env_key: None,
                 env_key_instructions: None,
                 http_headers: None,
@@ -1310,10 +1310,9 @@ mod tests {
             table.get("name").and_then(|v| v.as_str()),
             Some("My Provider")
         );
-        assert_eq!(
-            table.get("requires_openai_auth").and_then(|v| v.as_bool()),
-            Some(true),
-            "custom providers default requires_openai_auth to true"
+        assert!(
+            table.get("requires_openai_auth").is_none(),
+            "custom providers must not write requires_openai_auth"
         );
         assert!(table.get("experimental_bearer_token").is_none());
     }
@@ -1334,10 +1333,7 @@ mod tests {
             api_key: Some("  sk-test  ".to_string()),
         };
         let table = provider_config_to_toml("custom", &config).unwrap();
-        assert_eq!(
-            table.get("requires_openai_auth").and_then(|v| v.as_bool()),
-            Some(true)
-        );
+        assert!(table.get("requires_openai_auth").is_none());
         assert_eq!(
             table
                 .get("experimental_bearer_token")
@@ -1364,10 +1360,7 @@ mod tests {
             api_key: Some("   ".to_string()),
         };
         let table = provider_config_to_toml("custom", &config).unwrap();
-        assert_eq!(
-            table.get("requires_openai_auth").and_then(|v| v.as_bool()),
-            Some(false)
-        );
+        assert!(table.get("requires_openai_auth").is_none());
         assert!(table.get("experimental_bearer_token").is_none());
         assert_eq!(
             table.get("env_key").and_then(|v| v.as_str()),

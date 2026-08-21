@@ -68,7 +68,7 @@ base_url = "https://api.openai.com/v1"
             name: Some("Custom Provider".to_string()),
             base_url: Some("https://example.com/v1".to_string()),
             wire_api: Some("responses".to_string()),
-            requires_openai_auth: Some(true),
+            requires_openai_auth: Some(false),
             env_key: None,
             env_key_instructions: None,
             http_headers: None,
@@ -148,9 +148,9 @@ base_url = "https://api.openai.com/v1"
             .and_then(|v| v.as_str()),
         Some("sk-test")
     );
-    assert_eq!(
-        custom.get("requires_openai_auth").and_then(|v| v.as_bool()),
-        Some(true)
+    assert!(
+        custom.get("requires_openai_auth").is_none(),
+        "custom providers must not write requires_openai_auth"
     );
     assert!(custom.get("env_key").is_none());
 
@@ -766,7 +766,7 @@ model = "existing-live-model"
             name: Some("Custom".to_string()),
             base_url: Some("https://example.com/v1".to_string()),
             wire_api: Some("responses".to_string()),
-            requires_openai_auth: Some(true),
+            requires_openai_auth: Some(false),
             env_key: Some("EXAMPLE_API_KEY".to_string()),
             env_key_instructions: None,
             http_headers: None,
@@ -844,12 +844,7 @@ model = "existing-live-model"
             .and_then(|value| value.as_str()),
         Some("sk-temp")
     );
-    assert_eq!(
-        runtime_provider
-            .get("requires_openai_auth")
-            .and_then(|value| value.as_bool()),
-        Some(true)
-    );
+    assert!(runtime_provider.get("requires_openai_auth").is_none());
 
     assert!(!plan.runtime_home_path.join("auth.json").exists());
 

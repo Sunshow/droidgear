@@ -135,11 +135,9 @@ fn provider_overrides(provider_id: &str, provider: &codex::CodexProviderConfig) 
             quote_toml_string(wire_api)
         ));
     }
-    overrides.push(format!(
-        "model_providers.{provider_id}.requires_openai_auth={}",
-        provider.requires_openai_auth.unwrap_or(true)
-    ));
-    // Bearer tokens stay in the runtime config.toml snapshot, not --config.
+    // `requires_openai_auth` is deliberately NOT overridden: it defaults to
+    // false in Codex and must not be combined with experimental_bearer_token,
+    // which lives in the runtime config.toml snapshot instead of --config.
     if let Some(http_headers) = provider.http_headers.as_ref() {
         for (key, value) in http_headers {
             overrides.push(format!(
@@ -556,9 +554,9 @@ mod tests {
         assert!(overrides
             .contains(&r#"model_providers.custom.base_url="https://example.com/v1""#.to_string()));
         assert!(overrides.contains(&r#"model_providers.custom.wire_api="responses""#.to_string()));
-        assert!(
-            overrides.contains(&"model_providers.custom.requires_openai_auth=false".to_string())
-        );
+        assert!(!overrides
+            .iter()
+            .any(|value| value.contains("requires_openai_auth")));
         assert!(!overrides.iter().any(|value| value.contains("env_key")));
         assert!(!overrides
             .iter()
@@ -633,12 +631,7 @@ mod tests {
                 .and_then(|value| value.as_str()),
             Some("sk-provider")
         );
-        assert_eq!(
-            provider
-                .get("requires_openai_auth")
-                .and_then(|value| value.as_bool()),
-            Some(false)
-        );
+        assert!(provider.get("requires_openai_auth").is_none());
         assert!(provider.get("env_key").is_none());
         assert!(!plan.runtime_home_path.join("auth.json").exists());
     }

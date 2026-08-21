@@ -876,7 +876,7 @@
   "codex.provider.modelPlaceholder": "gpt-5.2",
   "codex.provider.reasoningEffort": "Reasoning Effort",
   "codex.provider.apiKey": "API Key",
-  "codex.provider.apiKeyHint": "Saved to ~/.codex/config.toml as experimental_bearer_token (requires_openai_auth = true)",
+  "codex.provider.apiKeyHint": "Saved to ~/.codex/config.toml as experimental_bearer_token",
   "codex.provider.apiKeyConfigured": "API Key configured",
   "codex.provider.apiKeyNotConfigured": "No API Key",
   "codex.provider.setActive": "Set Active",
