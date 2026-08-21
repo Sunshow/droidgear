@@ -135,23 +135,11 @@ fn provider_overrides(provider_id: &str, provider: &codex::CodexProviderConfig) 
             quote_toml_string(wire_api)
         ));
     }
-    if let Some(requires_openai_auth) = provider.requires_openai_auth {
-        overrides.push(format!(
-            "model_providers.{provider_id}.requires_openai_auth={requires_openai_auth}"
-        ));
-    }
-    if let Some(env_key) = provider.env_key.as_deref() {
-        overrides.push(format!(
-            "model_providers.{provider_id}.env_key={}",
-            quote_toml_string(env_key)
-        ));
-    }
-    if let Some(env_key_instructions) = provider.env_key_instructions.as_deref() {
-        overrides.push(format!(
-            "model_providers.{provider_id}.env_key_instructions={}",
-            quote_toml_string(env_key_instructions)
-        ));
-    }
+    overrides.push(format!(
+        "model_providers.{provider_id}.requires_openai_auth={}",
+        provider.requires_openai_auth.unwrap_or(true)
+    ));
+    // Bearer tokens stay in the runtime config.toml snapshot, not --config.
     if let Some(http_headers) = provider.http_headers.as_ref() {
         for (key, value) in http_headers {
             overrides.push(format!(
@@ -325,7 +313,6 @@ fn has_portable_managed_auth(auth: &HashMap<String, serde_json::Value>) -> bool 
 
 fn build_runtime_auth_snapshot(
     profile: &codex::CodexProfile,
-    provider: Option<&codex::CodexProviderConfig>,
     mut live_auth: HashMap<String, serde_json::Value>,
 ) -> Result<Option<HashMap<String, serde_json::Value>>, String> {
     // Official subscription mode: never inject profile API keys.
@@ -339,48 +326,8 @@ fn build_runtime_auth_snapshot(
         );
     }
 
-    if let Some(api_key) = codex::resolved_api_key(profile, provider) {
-        let mut auth = HashMap::new();
-        auth.insert(
-            codex::OPENAI_API_KEY_FIELD.to_string(),
-            serde_json::Value::String(api_key),
-        );
-        return Ok(Some(auth));
-    }
-
-    codex::apply_api_key_to_auth_map(&mut live_auth, None);
-
-    if has_portable_managed_auth(&live_auth) {
-        return Ok(Some(live_auth));
-    }
-
-    if provider.and_then(|config| config.requires_openai_auth) == Some(true) {
-        return Err(
-            "Codex temporary run requires live Codex auth for this profile, but no portable auth snapshot was available. Use an API-key profile or switch Codex CLI auth storage to file.".to_string(),
-        );
-    }
-
+    // Custom providers keep credentials in config.toml experimental_bearer_token.
     Ok(None)
-}
-
-fn build_secret_env(
-    profile: &codex::CodexProfile,
-    provider: Option<&codex::CodexProviderConfig>,
-) -> Vec<(String, String)> {
-    if profile.model_provider == "openai" {
-        return Vec::new();
-    }
-
-    let Some(api_key) = codex::resolved_api_key(profile, provider) else {
-        return Vec::new();
-    };
-
-    let env_key = provider
-        .and_then(|config| config.env_key.as_deref())
-        .filter(|key| !key.is_empty())
-        .unwrap_or(codex::OPENAI_API_KEY_FIELD);
-
-    vec![(env_key.to_string(), api_key)]
 }
 
 fn build_unset_env(profile: &codex::CodexProfile) -> Vec<String> {
@@ -406,7 +353,7 @@ fn build_runtime_home_snapshot(
         .map_err(|e| format!("Failed to create Codex runtime home: {e}"))?;
     populate_runtime_shared_entries(&live_codex_home, &runtime_home_path)?;
 
-    let (provider_id, provider) = codex::resolve_active_provider(profile);
+    let (provider_id, _) = codex::resolve_active_provider(profile);
     validate_provider_id(&provider_id)?;
 
     let mut config = read_config_template(&live_codex_home.join("config.toml"))?;
@@ -414,7 +361,7 @@ fn build_runtime_home_snapshot(
     write_config_snapshot(&runtime_home_path, &config)?;
 
     let live_auth = read_auth_template(&live_codex_home.join("auth.json"));
-    if let Some(auth) = build_runtime_auth_snapshot(profile, provider, live_auth)? {
+    if let Some(auth) = build_runtime_auth_snapshot(profile, live_auth)? {
         write_auth_snapshot(&runtime_home_path, &auth)?;
     }
 
@@ -515,24 +462,12 @@ pub fn build_temporary_run_plan_for_home(
     home_dir: &Path,
     profile: &codex::CodexProfile,
 ) -> Result<CodexTemporaryLaunchPlan, String> {
-    let (provider_id, provider) = codex::resolve_active_provider(profile);
+    let (provider_id, _) = codex::resolve_active_provider(profile);
     validate_provider_id(&provider_id)?;
 
     let runtime_home_path = build_runtime_home_snapshot(home_dir, profile)?;
-    let secret_env = build_secret_env(profile, provider);
-
-    let mut warnings = Vec::new();
-    if provider
-        .and_then(|config| config.env_key.as_deref())
-        .filter(|key| !key.is_empty())
-        .is_none()
-        && !secret_env.is_empty()
-    {
-        warnings.push(
-            "Codex provider did not declare env_key; temporary run will inject OPENAI_API_KEY"
-                .to_string(),
-        );
-    }
+    let secret_env = Vec::new();
+    let warnings = Vec::new();
 
     Ok(CodexTemporaryLaunchPlan {
         program: "codex".to_string(),
@@ -622,11 +557,12 @@ mod tests {
             .contains(&r#"model_providers.custom.base_url="https://example.com/v1""#.to_string()));
         assert!(overrides.contains(&r#"model_providers.custom.wire_api="responses""#.to_string()));
         assert!(
-            overrides.contains(&r#"model_providers.custom.env_key="EXAMPLE_API_KEY""#.to_string())
+            overrides.contains(&"model_providers.custom.requires_openai_auth=false".to_string())
         );
-        assert!(overrides.contains(
-            &r#"model_providers.custom.env_key_instructions="Set EXAMPLE_API_KEY""#.to_string()
-        ));
+        assert!(!overrides.iter().any(|value| value.contains("env_key")));
+        assert!(!overrides
+            .iter()
+            .any(|value| value.contains("experimental_bearer_token")));
         assert!(
             overrides.contains(&r#"model_providers.custom.http_headers.X-Test="abc""#.to_string())
         );
@@ -666,10 +602,7 @@ mod tests {
             "expected runtime CODEX_HOME, got {:?}",
             plan.env
         );
-        assert_eq!(
-            plan.secret_env,
-            vec![("EXAMPLE_API_KEY".to_string(), "sk-provider".to_string())]
-        );
+        assert!(plan.secret_env.is_empty());
         assert_eq!(
             plan.unset_env,
             vec!["EXAMPLE_API_KEY".to_string(), "OPENAI_API_KEY".to_string(),]
@@ -690,6 +623,24 @@ mod tests {
             config.get("model").and_then(|v| v.as_str()),
             Some("gpt-5.5")
         );
+        let provider = config
+            .get("model_providers")
+            .and_then(|value| value.get("custom"))
+            .unwrap();
+        assert_eq!(
+            provider
+                .get("experimental_bearer_token")
+                .and_then(|value| value.as_str()),
+            Some("sk-provider")
+        );
+        assert_eq!(
+            provider
+                .get("requires_openai_auth")
+                .and_then(|value| value.as_bool()),
+            Some(false)
+        );
+        assert!(provider.get("env_key").is_none());
+        assert!(!plan.runtime_home_path.join("auth.json").exists());
     }
 
     #[test]
@@ -758,7 +709,7 @@ mod tests {
     }
 
     #[test]
-    fn temporary_run_plan_clears_openai_api_key_from_runtime_auth_snapshot() {
+    fn temporary_run_plan_does_not_write_byok_auth_snapshot_for_custom_providers() {
         let temp = TempDir::new().unwrap();
         let live_home = temp.path().join("live-codex-home");
         crate::paths::save_config_path_for_home(
@@ -781,16 +732,7 @@ mod tests {
         );
 
         let plan = build_temporary_run_plan_for_home(temp.path(), &sample_profile()).unwrap();
-        let runtime_auth =
-            std::fs::read_to_string(plan.runtime_home_path.join("auth.json")).unwrap();
-        let auth: serde_json::Value = serde_json::from_str(&runtime_auth).unwrap();
-
-        assert_eq!(
-            auth.get("OPENAI_API_KEY").and_then(|value| value.as_str()),
-            Some("sk-provider")
-        );
-        assert!(auth.get("tokens").is_none());
-        assert!(auth.get("auth_mode").is_none());
+        assert!(!plan.runtime_home_path.join("auth.json").exists());
     }
 
     #[test]
@@ -842,10 +784,16 @@ env_key = "OLD_API_KEY"
         assert!(provider.get("base_url").is_none());
         assert!(provider.get("wire_api").is_none());
         assert!(provider.get("env_key").is_none());
+        assert_eq!(
+            provider
+                .get("experimental_bearer_token")
+                .and_then(|value| value.as_str()),
+            Some("sk-provider")
+        );
     }
 
     #[test]
-    fn temporary_run_plan_falls_back_to_openai_api_key_when_env_key_is_missing() {
+    fn temporary_run_plan_does_not_inject_secret_env_when_env_key_is_missing() {
         let temp = TempDir::new().unwrap();
         let mut profile = sample_profile();
         let provider = profile.providers.get_mut("custom").unwrap();
@@ -854,15 +802,9 @@ env_key = "OLD_API_KEY"
 
         let plan = build_temporary_run_plan_for_home(temp.path(), &profile).unwrap();
 
-        assert_eq!(
-            plan.secret_env,
-            vec![("OPENAI_API_KEY".to_string(), "sk-provider".to_string())]
-        );
+        assert!(plan.secret_env.is_empty());
         assert_eq!(plan.unset_env, vec!["OPENAI_API_KEY".to_string()]);
-        assert!(plan.warnings.contains(
-            &"Codex provider did not declare env_key; temporary run will inject OPENAI_API_KEY"
-                .to_string()
-        ));
+        assert!(plan.warnings.is_empty());
     }
 
     #[test]

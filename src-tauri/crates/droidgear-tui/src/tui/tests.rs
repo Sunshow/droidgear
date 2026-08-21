@@ -766,7 +766,7 @@ fn preview_codex_temporary_run_lists_secret_keys_without_secret_values() {
     assert!(output.contains("Codex temporary run preview"));
     assert!(output.contains("Runtime CODEX_HOME:"));
     assert!(output.contains("Secret environment keys:"));
-    assert!(output.contains("OPENAI_API_KEY"));
+    assert!(output.contains("(none)"));
     assert!(!output.contains("sk-secret"));
 }
 

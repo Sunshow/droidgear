@@ -2622,7 +2622,11 @@ authProfileName?: string | null }
 /**
  * Codex Provider 配置（对应 config.toml 中的 [model_providers.<id>]）
  */
-export type CodexProviderConfig = { name?: string | null; baseUrl?: string | null; wireApi?: string | null; requiresOpenaiAuth?: boolean | null; envKey?: string | null; envKeyInstructions?: string | null; httpHeaders?: Partial<{ [key in string]: string }> | null; queryParams?: Partial<{ [key in string]: string }> | null; model?: string | null; modelReasoningEffort?: string | null; apiKey?: string | null }
+export type CodexProviderConfig = { name?: string | null; baseUrl?: string | null; wireApi?: string | null; requiresOpenaiAuth?: boolean | null; envKey?: string | null; envKeyInstructions?: string | null; httpHeaders?: Partial<{ [key in string]: string }> | null; queryParams?: Partial<{ [key in string]: string }> | null; model?: string | null; modelReasoningEffort?: string | null; 
+/**
+ * Provider API key. Written to config.toml as `experimental_bearer_token`.
+ */
+apiKey?: string | null }
 export type CodexTemporaryRunPlan = { program: string; args: string[]; env: ([string, string])[]; unsetEnv: string[]; secretEnvKeys: string[]; warnings: string[] }
 /**
  * User-defined configuration paths (only stores explicitly set paths)

@@ -2438,7 +2438,7 @@ pub(super) fn run_input_action(
                     name: None,
                     base_url: None,
                     wire_api: Some("responses".to_string()),
-                    requires_openai_auth: None,
+                    requires_openai_auth: Some(true),
                     env_key: None,
                     env_key_instructions: None,
                     http_headers: None,

@@ -115,7 +115,7 @@ TUI 的默认行为应尽量“安全”，避免 SSH 录屏、滚屏、粘贴�
 - Codex apply：只替换模型相关字段，保留其它 TOML 配置（见 `apply_codex_profile`）
   - 断言：`model_provider/model/model_reasoning_effort/model_providers` 发生变化
   - 断言：其它 key（如 `projects`、`network_access` 等）保持原样
-  - 断言：`auth.json` 写入 `OPENAI_API_KEY` 的规则（空 key 不写）
+  - 断言：custom provider 将 API key 写入 `config.toml` 的 `experimental_bearer_token`，并设置 `requires_openai_auth = true`；不再写入 `auth.json` 的 `OPENAI_API_KEY`（空 token 不写；残留 key 从 auth.json 剥离）
 - OpenClaw deep-merge：`REPLACE_PATHS` 上“整段替换”，其它路径 deep merge（见 `deep_merge_with_replace`）
 - OpenCode apply：`opencode.jsonc` 优先于 `opencode.json`，合并规则为“provider/auth shallow merge”（见 `apply_opencode_profile`）
 - Paths：`save_config_path/reset_config_path` 对 `~/.droidgear/settings.json` 的读写与 key 映射规则

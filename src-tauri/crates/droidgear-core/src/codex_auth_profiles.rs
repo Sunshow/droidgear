@@ -637,9 +637,12 @@ pub fn detect_apply_auth_conflict_for_home(
 
     let profile = crate::codex::get_codex_profile_for_home(home_dir, codex_profile_id)?;
     let target_is_official = profile.model_provider == "openai";
+    // Custom providers no longer overwrite auth.json, so applying one while
+    // official ChatGPT auth is live is not a conflict.
+    let has_conflict = target_is_official && !current_is_official;
 
     Ok(CodexAuthConflictInfo {
-        has_conflict: current_is_official != target_is_official,
+        has_conflict,
         current_is_official,
         target_is_official,
     })

@@ -180,7 +180,7 @@ function ProviderForm({
       name: trimToNull(name),
       baseUrl: trimToNull(baseUrl),
       wireApi: wireApi || null,
-      requiresOpenaiAuth: null,
+      requiresOpenaiAuth: true,
       envKey: null,
       envKeyInstructions: null,
       httpHeaders: null,

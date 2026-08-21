@@ -1,6 +1,9 @@
 //! Codex CLI 配置管理（core）。
 //!
-//! 负责 Profile CRUD，并支持将 Profile 应用到 `~/.codex/auth.json` 与 `~/.codex/config.toml`。
+//! 负责 Profile CRUD，并支持将 Profile 应用到 `~/.codex/config.toml`。
+//! Custom providers write `experimental_bearer_token` + `requires_openai_auth`
+//! into `[model_providers.<id>]`. Official `model_provider = "openai"` still
+//! uses `~/.codex/auth.json` for ChatGPT login / auth profiles.
 //! 逻辑从原 Tauri command 层抽离，以便在 TUI 与桌面端复用。
 
 use chrono::Utc;
@@ -18,6 +21,7 @@ use crate::{json, paths, storage};
 // ============================================================================
 
 pub(crate) const OPENAI_API_KEY_FIELD: &str = "OPENAI_API_KEY";
+pub(crate) const EXPERIMENTAL_BEARER_TOKEN_FIELD: &str = "experimental_bearer_token";
 
 /// DeepSeek V4 models that require the Codex model catalog file
 /// (`model_catalog_json` in config.toml). Content mirrors the official
@@ -56,11 +60,13 @@ pub struct CodexProviderConfig {
     pub http_headers: Option<HashMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub query_params: Option<HashMap<String, String>>,
-    // DroidGear-only 字段（不写入 config.toml 的 [model_providers] 中）
+    // DroidGear-only fields except `api_key`, which maps to
+    // config.toml `experimental_bearer_token`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_reasoning_effort: Option<String>,
+    /// Provider API key. Written to config.toml as `experimental_bearer_token`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api_key: Option<String>,
 }
@@ -291,20 +297,30 @@ pub(crate) fn provider_config_to_toml(
             toml::Value::String(wire_api.clone()),
         );
     }
-    if let Some(requires_openai_auth) = config.requires_openai_auth {
+    table.insert(
+        "requires_openai_auth".to_string(),
+        toml::Value::Boolean(config.requires_openai_auth.unwrap_or(true)),
+    );
+    let bearer_token = config
+        .api_key
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    if let Some(token) = bearer_token {
         table.insert(
-            "requires_openai_auth".to_string(),
-            toml::Value::Boolean(requires_openai_auth),
+            EXPERIMENTAL_BEARER_TOKEN_FIELD.to_string(),
+            toml::Value::String(token.to_string()),
         );
-    }
-    if let Some(ref env_key) = config.env_key {
-        table.insert("env_key".to_string(), toml::Value::String(env_key.clone()));
-    }
-    if let Some(ref env_key_instructions) = config.env_key_instructions {
-        table.insert(
-            "env_key_instructions".to_string(),
-            toml::Value::String(env_key_instructions.clone()),
-        );
+    } else {
+        if let Some(ref env_key) = config.env_key {
+            table.insert("env_key".to_string(), toml::Value::String(env_key.clone()));
+        }
+        if let Some(ref env_key_instructions) = config.env_key_instructions {
+            table.insert(
+                "env_key_instructions".to_string(),
+                toml::Value::String(env_key_instructions.clone()),
+            );
+        }
     }
     if let Some(ref http_headers) = config.http_headers {
         let mut headers_table = toml::map::Map::new();
@@ -389,7 +405,7 @@ pub(crate) fn apply_profile_to_config_map(
 
     config.insert(
         "model_provider".to_string(),
-        toml::Value::String(effective_provider_id),
+        toml::Value::String(effective_provider_id.clone()),
     );
     config.insert(
         "model".to_string(),
@@ -407,13 +423,37 @@ pub(crate) fn apply_profile_to_config_map(
 
     // Official OpenAI mode should not inject custom model_providers into live config.
     config.remove("model_providers");
-    if !is_openai_provider && !profile.providers.is_empty() {
+    if !is_openai_provider {
         let mut providers_table = toml::map::Map::new();
-        for (provider_id, provider_config) in &profile.providers {
+        if profile.providers.is_empty() {
+            let fallback = CodexProviderConfig {
+                name: None,
+                base_url: None,
+                wire_api: None,
+                requires_openai_auth: Some(true),
+                env_key: None,
+                env_key_instructions: None,
+                http_headers: None,
+                query_params: None,
+                model: None,
+                model_reasoning_effort: None,
+                api_key: resolved_api_key(profile, None),
+            };
             providers_table.insert(
-                provider_id.clone(),
-                provider_config_to_toml(provider_id, provider_config)?,
+                effective_provider_id.clone(),
+                provider_config_to_toml(&effective_provider_id, &fallback)?,
             );
+        } else {
+            for (provider_id, provider_config) in &profile.providers {
+                let mut config = provider_config.clone();
+                if provider_id == &effective_provider_id {
+                    config.api_key = resolved_api_key(profile, Some(provider_config));
+                }
+                providers_table.insert(
+                    provider_id.clone(),
+                    provider_config_to_toml(provider_id, &config)?,
+                );
+            }
         }
         config.insert(
             "model_providers".to_string(),
@@ -493,6 +533,12 @@ fn toml_to_provider_config(value: &toml::Value) -> Result<CodexProviderConfig, S
         .get("env_key_instructions")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
+    let api_key = table
+        .get(EXPERIMENTAL_BEARER_TOKEN_FIELD)
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
 
     let http_headers = table
         .get("http_headers")
@@ -523,7 +569,7 @@ fn toml_to_provider_config(value: &toml::Value) -> Result<CodexProviderConfig, S
         query_params,
         model: None,
         model_reasoning_effort: None,
-        api_key: None,
+        api_key,
     })
 }
 
@@ -805,47 +851,21 @@ fn write_auth_or_delete_if_empty(
 
 /// Apply a CodexProfile's auth to auth.json.
 ///
-/// When `model_provider == "openai"`, treat as official subscription mode:
-/// never write OPENAI_API_KEY; if no non-key fields remain, delete auth.json
-/// (empty `{}` is not accepted by Codex). Otherwise merge/replace BYOK key.
+/// Official `model_provider == "openai"` never writes OPENAI_API_KEY; if no
+/// non-key fields remain, delete auth.json (empty `{}` is not accepted by
+/// Codex). Custom providers keep credentials in config.toml, so this only
+/// strips leftover OPENAI_API_KEY and preserves other auth.json fields.
 pub(crate) fn apply_auth_for_profile(
     home_dir: &Path,
     profile: &CodexProfile,
-    resolved_api_key: Option<&str>,
 ) -> Result<(), String> {
     let auth_path = codex_auth_path_for_home(home_dir)?;
-    let current_auth = json::read_json_object_file(&auth_path).unwrap_or_default();
-
+    let mut auth = json::read_json_object_file(&auth_path).unwrap_or_default();
+    auth.remove(OPENAI_API_KEY_FIELD);
+    write_auth_or_delete_if_empty(&auth_path, &auth)?;
     if uses_openai_subscription_auth(profile) {
-        let mut auth = current_auth;
-        auth.remove(OPENAI_API_KEY_FIELD);
-        write_auth_or_delete_if_empty(&auth_path, &auth)?;
         // Auth no longer matches a BYOK saved profile marker.
         let _ = crate::codex_auth_profiles::clear_active_for_home(home_dir);
-        return Ok(());
-    }
-
-    // BYOK mode (custom model_provider)
-    let current_is_official = current_auth.contains_key("auth_mode");
-
-    if current_is_official {
-        // Full replacement: official OAuth and BYOK are incompatible
-        let mut auth: HashMap<String, Value> = HashMap::new();
-        if let Some(key) = resolved_api_key {
-            if !key.is_empty() {
-                auth.insert(
-                    OPENAI_API_KEY_FIELD.to_string(),
-                    Value::String(key.to_string()),
-                );
-            }
-        }
-        write_auth_or_delete_if_empty(&auth_path, &auth)?;
-        let _ = crate::codex_auth_profiles::clear_active_for_home(home_dir);
-    } else {
-        // Same mode: merge only OPENAI_API_KEY (preserve other fields)
-        let mut auth = current_auth;
-        apply_api_key_to_auth_map(&mut auth, resolved_api_key);
-        write_auth_or_delete_if_empty(&auth_path, &auth)?;
     }
     Ok(())
 }
@@ -888,16 +908,12 @@ pub fn apply_codex_profile_config_only_for_home(home_dir: &Path, id: &str) -> Re
 ///
 /// 只替换 config.toml 中的模型相关配置（model_provider, model, model_reasoning_effort,
 /// [model_providers]），保留其他所有配置（projects, network_access 等）。
-/// Auth.json is updated based on model_provider (openai subscription vs BYOK).
+/// Custom providers write experimental_bearer_token into config.toml.
+/// Official openai mode still restores/cleans auth.json.
 pub fn apply_codex_profile_for_home(home_dir: &Path, id: &str) -> Result<(), String> {
     let profile = load_profile_by_id(home_dir, id)?;
     let (_, active_provider) = resolve_active_provider(&profile);
     let resolved_model = resolved_model(&profile, active_provider);
-    let resolved_api_key = if uses_openai_subscription_auth(&profile) {
-        None
-    } else {
-        resolved_api_key(&profile, active_provider)
-    };
 
     let config_path = codex_config_path_for_home(home_dir)?;
     let mut config = if config_path.exists() {
@@ -935,10 +951,10 @@ pub fn apply_codex_profile_for_home(home_dir: &Path, id: &str) -> Result<(), Str
             auth.remove(OPENAI_API_KEY_FIELD);
             write_auth_or_delete_if_empty(&auth_path, &auth)?;
         } else {
-            apply_auth_for_profile(home_dir, &profile, None)?;
+            apply_auth_for_profile(home_dir, &profile)?;
         }
     } else {
-        apply_auth_for_profile(home_dir, &profile, resolved_api_key.as_deref())?;
+        apply_auth_for_profile(home_dir, &profile)?;
     }
 
     set_active_profile_id_for_home(home_dir, id)?;
@@ -1015,10 +1031,12 @@ pub fn read_codex_current_config_for_home(home_dir: &Path) -> Result<CodexCurren
         }
     }
 
-    let api_key = if auth_path.exists() {
+    let auth_api_key = if auth_path.exists() {
         let auth = json::read_json_object_file(&auth_path)?;
         auth.get("OPENAI_API_KEY")
             .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
             .map(|s| s.to_string())
     } else {
         None
@@ -1026,9 +1044,14 @@ pub fn read_codex_current_config_for_home(home_dir: &Path) -> Result<CodexCurren
 
     if let Some(provider) = providers.get_mut(&model_provider) {
         if provider.api_key.is_none() {
-            provider.api_key = api_key.clone();
+            provider.api_key = auth_api_key.clone();
         }
     }
+
+    let api_key = providers
+        .get(&model_provider)
+        .and_then(|provider| provider.api_key.clone())
+        .or(auth_api_key);
 
     Ok(CodexCurrentConfig {
         providers,
@@ -1286,6 +1309,69 @@ mod tests {
         assert_eq!(
             table.get("name").and_then(|v| v.as_str()),
             Some("My Provider")
+        );
+        assert_eq!(
+            table.get("requires_openai_auth").and_then(|v| v.as_bool()),
+            Some(true),
+            "custom providers default requires_openai_auth to true"
+        );
+        assert!(table.get("experimental_bearer_token").is_none());
+    }
+
+    #[test]
+    fn provider_config_to_toml_writes_bearer_token_and_skips_env_key() {
+        let config = CodexProviderConfig {
+            name: Some("Custom".to_string()),
+            base_url: Some("https://example.com/v1".to_string()),
+            wire_api: Some("responses".to_string()),
+            requires_openai_auth: None,
+            env_key: Some("EXAMPLE_API_KEY".to_string()),
+            env_key_instructions: Some("Set EXAMPLE_API_KEY".to_string()),
+            http_headers: None,
+            query_params: None,
+            model: None,
+            model_reasoning_effort: None,
+            api_key: Some("  sk-test  ".to_string()),
+        };
+        let table = provider_config_to_toml("custom", &config).unwrap();
+        assert_eq!(
+            table.get("requires_openai_auth").and_then(|v| v.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            table
+                .get("experimental_bearer_token")
+                .and_then(|v| v.as_str()),
+            Some("sk-test")
+        );
+        assert!(table.get("env_key").is_none());
+        assert!(table.get("env_key_instructions").is_none());
+    }
+
+    #[test]
+    fn provider_config_to_toml_omits_empty_bearer_token() {
+        let config = CodexProviderConfig {
+            name: Some("Custom".to_string()),
+            base_url: None,
+            wire_api: None,
+            requires_openai_auth: Some(false),
+            env_key: Some("EXAMPLE_API_KEY".to_string()),
+            env_key_instructions: None,
+            http_headers: None,
+            query_params: None,
+            model: None,
+            model_reasoning_effort: None,
+            api_key: Some("   ".to_string()),
+        };
+        let table = provider_config_to_toml("custom", &config).unwrap();
+        assert_eq!(
+            table.get("requires_openai_auth").and_then(|v| v.as_bool()),
+            Some(false)
+        );
+        assert!(table.get("experimental_bearer_token").is_none());
+        assert_eq!(
+            table.get("env_key").and_then(|v| v.as_str()),
+            Some("EXAMPLE_API_KEY")
         );
     }
 

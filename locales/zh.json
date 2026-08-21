@@ -876,7 +876,7 @@
   "codex.provider.modelPlaceholder": "gpt-5.2",
   "codex.provider.reasoningEffort": "推理强度",
   "codex.provider.apiKey": "API Key",
-  "codex.provider.apiKeyHint": "仅用于 requires_openai_auth = true 的 Provider，写入 ~/.codex/auth.json",
+  "codex.provider.apiKeyHint": "写入 ~/.codex/config.toml 的 experimental_bearer_token（requires_openai_auth = true）",
   "codex.provider.apiKeyConfigured": "已配置 API Key",
   "codex.provider.apiKeyNotConfigured": "未配置 API Key",
   "codex.provider.setActive": "设为激活",

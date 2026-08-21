@@ -141,13 +141,23 @@ base_url = "https://api.openai.com/v1"
     assert!(providers.contains_key("custom"));
     assert!(!providers.contains_key("openai"));
 
-    // auth.json: provider-level api_key wins and is written as OPENAI_API_KEY
-    let auth_after = read_to_string(&home.join(".codex").join("auth.json"));
-    let auth_json: Value = serde_json::from_str(&auth_after).unwrap();
+    let custom = providers.get("custom").and_then(|v| v.as_table()).unwrap();
     assert_eq!(
-        auth_json.get("OPENAI_API_KEY").and_then(|v| v.as_str()),
+        custom
+            .get("experimental_bearer_token")
+            .and_then(|v| v.as_str()),
         Some("sk-test")
     );
+    assert_eq!(
+        custom.get("requires_openai_auth").and_then(|v| v.as_bool()),
+        Some(true)
+    );
+    assert!(custom.get("env_key").is_none());
+
+    // Custom apply writes the key to config.toml and strips leftover OPENAI_API_KEY.
+    let auth_after = read_to_string(&home.join(".codex").join("auth.json"));
+    let auth_json: Value = serde_json::from_str(&auth_after).unwrap();
+    assert!(auth_json.get("OPENAI_API_KEY").is_none());
     assert_eq!(
         auth_json.get("session").and_then(|v| v.as_str()),
         Some("official-session-token")
@@ -165,6 +175,78 @@ base_url = "https://api.openai.com/v1"
             .join("active-profile.txt"),
     );
     assert_eq!(active.trim(), "test_profile");
+}
+
+#[test]
+fn codex_read_current_config_prefers_toml_bearer_token_over_auth_json() {
+    let temp = TempDir::new().unwrap();
+    let home = home_dir(&temp);
+
+    write_file(
+        &home.join(".codex").join("config.toml"),
+        r#"
+model_provider = "custom"
+model = "gpt-5.2"
+
+[model_providers.custom]
+name = "Custom Provider"
+base_url = "https://example.com/v1"
+requires_openai_auth = true
+experimental_bearer_token = "sk-from-toml"
+"#
+        .trim_start(),
+    );
+    write_file(
+        &home.join(".codex").join("auth.json"),
+        r#"{
+  "OPENAI_API_KEY": "sk-from-auth"
+}"#,
+    );
+
+    let current = codex::read_codex_current_config_for_home(home).unwrap();
+    assert_eq!(current.api_key.as_deref(), Some("sk-from-toml"));
+    assert_eq!(
+        current
+            .providers
+            .get("custom")
+            .and_then(|provider| provider.api_key.as_deref()),
+        Some("sk-from-toml")
+    );
+}
+
+#[test]
+fn codex_read_current_config_falls_back_to_auth_json_when_toml_has_no_token() {
+    let temp = TempDir::new().unwrap();
+    let home = home_dir(&temp);
+
+    write_file(
+        &home.join(".codex").join("config.toml"),
+        r#"
+model_provider = "custom"
+model = "gpt-5.2"
+
+[model_providers.custom]
+name = "Custom Provider"
+base_url = "https://example.com/v1"
+"#
+        .trim_start(),
+    );
+    write_file(
+        &home.join(".codex").join("auth.json"),
+        r#"{
+  "OPENAI_API_KEY": "sk-from-auth"
+}"#,
+    );
+
+    let current = codex::read_codex_current_config_for_home(home).unwrap();
+    assert_eq!(current.api_key.as_deref(), Some("sk-from-auth"));
+    assert_eq!(
+        current
+            .providers
+            .get("custom")
+            .and_then(|provider| provider.api_key.as_deref()),
+        Some("sk-from-auth")
+    );
 }
 
 #[test]
@@ -684,7 +766,7 @@ model = "existing-live-model"
             name: Some("Custom".to_string()),
             base_url: Some("https://example.com/v1".to_string()),
             wire_api: Some("responses".to_string()),
-            requires_openai_auth: Some(false),
+            requires_openai_auth: Some(true),
             env_key: Some("EXAMPLE_API_KEY".to_string()),
             env_key_instructions: None,
             http_headers: None,
@@ -732,10 +814,7 @@ model = "existing-live-model"
             && value.contains("codex")
             && value.contains("temporary-run-")
     }));
-    assert_eq!(
-        plan.secret_env,
-        vec![("EXAMPLE_API_KEY".to_string(), "sk-temp".to_string())]
-    );
+    assert!(plan.secret_env.is_empty());
     assert_eq!(
         plan.unset_env,
         vec!["EXAMPLE_API_KEY".to_string(), "OPENAI_API_KEY".to_string(),]
@@ -755,17 +834,24 @@ model = "existing-live-model"
             .and_then(|value| value.as_str()),
         Some("gpt-5.5")
     );
-
-    let runtime_auth = read_to_string(&plan.runtime_home_path.join("auth.json"));
-    let runtime_auth_json: Value = serde_json::from_str(&runtime_auth).unwrap();
+    let runtime_provider = runtime_config_toml
+        .get("model_providers")
+        .and_then(|value| value.get("custom"))
+        .unwrap();
     assert_eq!(
-        runtime_auth_json
-            .get("OPENAI_API_KEY")
+        runtime_provider
+            .get("experimental_bearer_token")
             .and_then(|value| value.as_str()),
         Some("sk-temp")
     );
-    assert!(runtime_auth_json.get("session").is_none());
-    assert!(runtime_auth_json.get("tokens").is_none());
+    assert_eq!(
+        runtime_provider
+            .get("requires_openai_auth")
+            .and_then(|value| value.as_bool()),
+        Some(true)
+    );
+
+    assert!(!plan.runtime_home_path.join("auth.json").exists());
 
     let after_config = read_to_string(&home.join(".codex").join("config.toml"));
     let after_auth = read_to_string(&home.join(".codex").join("auth.json"));
