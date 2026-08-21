@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.2.6
+
+**New Features / 新功能**
+
+- Codex custom providers store their API key in `config.toml` as `experimental_bearer_token` instead of `auth.json` / Codex 自定义 Provider 的 API Key 改为写入 `config.toml` 的 `experimental_bearer_token`，不再写入 `auth.json`
+
+**Bug Fixes / 问题修复**
+
+- Codex custom providers no longer write `requires_openai_auth` into `config.toml` (it defaults to false and must not be combined with a bearer token) / Codex 自定义 Provider 不再向 `config.toml` 写入 `requires_openai_auth`（默认为 false，且不能与 bearer token 同时使用）
+
 ## v1.2.5
 
 **New Features / 新功能**
