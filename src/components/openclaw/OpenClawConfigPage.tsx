@@ -243,7 +243,9 @@ export function OpenClawConfigPage() {
         {/* Profile Section */}
         <div className="space-y-3 p-4 border rounded-lg">
           <div className="flex items-center gap-2">
-            <Label className="w-24">{t('openclaw.profile.select')}</Label>
+            <Label className="w-24 shrink-0">
+              {t('openclaw.profile.select')}
+            </Label>
             <Select
               value={currentProfile?.id ?? ''}
               onValueChange={handleProfileChange}
@@ -295,8 +297,11 @@ export function OpenClawConfigPage() {
           {currentProfile && (
             <>
               <div className="flex items-center gap-2">
-                <Label className="w-24">{t('openclaw.profile.name')}</Label>
+                <Label className="w-24 shrink-0">
+                  {t('openclaw.profile.name')}
+                </Label>
                 <Input
+                  className="flex-1"
                   value={editingName}
                   onChange={e => setEditingName(e.target.value)}
                   onBlur={() => {
@@ -308,10 +313,11 @@ export function OpenClawConfigPage() {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <Label className="w-24">
+                <Label className="w-24 shrink-0">
                   {t('openclaw.profile.description')}
                 </Label>
                 <Input
+                  className="flex-1"
                   value={editingDescription}
                   onChange={e => setEditingDescription(e.target.value)}
                   onBlur={() => {
@@ -334,7 +340,9 @@ export function OpenClawConfigPage() {
             {t('openclaw.defaultModel.title')}
           </h2>
           <div className="flex items-center gap-2">
-            <Label className="w-24">{t('openclaw.defaultModel.label')}</Label>
+            <Label className="w-24 shrink-0">
+              {t('openclaw.defaultModel.label')}
+            </Label>
             <Select
               value={currentProfile?.defaultModel ?? ''}
               onValueChange={updateDefaultModel}
