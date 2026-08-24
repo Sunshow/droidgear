@@ -59,7 +59,7 @@ export function buildModelsFromBatch(
       provider: config.provider,
       displayName,
       maxOutputTokens,
-      noImageSupport: noImageSupport || undefined,
+      noImageSupport: noImageSupport || false,
     })
   }
 
