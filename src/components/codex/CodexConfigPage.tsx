@@ -352,7 +352,7 @@ export function CodexConfigPage() {
         {/* Profile Section */}
         <div className="space-y-3 p-4 border rounded-lg">
           <div className="flex items-center gap-2">
-            <Label className="w-24">{t('codex.profile.select')}</Label>
+            <Label className="w-24 shrink-0">{t('codex.profile.select')}</Label>
             <Select
               value={currentProfile?.id ?? ''}
               onValueChange={handleProfileChange}
@@ -404,8 +404,11 @@ export function CodexConfigPage() {
           {currentProfile && (
             <>
               <div className="flex items-center gap-2">
-                <Label className="w-24">{t('codex.profile.name')}</Label>
+                <Label className="w-24 shrink-0">
+                  {t('codex.profile.name')}
+                </Label>
                 <Input
+                  className="flex-1"
                   value={editingName}
                   onChange={e => setEditingName(e.target.value)}
                   onBlur={() => {
@@ -417,8 +420,11 @@ export function CodexConfigPage() {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <Label className="w-24">{t('codex.profile.description')}</Label>
+                <Label className="w-24 shrink-0">
+                  {t('codex.profile.description')}
+                </Label>
                 <Input
+                  className="flex-1"
                   value={editingDescription}
                   onChange={e => setEditingDescription(e.target.value)}
                   onBlur={() => {
@@ -433,7 +439,7 @@ export function CodexConfigPage() {
               </div>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Label className="w-24">
+                  <Label className="w-24 shrink-0">
                     {t('codex.profile.modelProvider')}
                   </Label>
                   <Select
@@ -477,7 +483,7 @@ export function CodexConfigPage() {
               {t('codex.profile.authProfile')}
             </h2>
             <div className="flex items-center gap-2">
-              <Label className="w-24">
+              <Label className="w-24 shrink-0">
                 {t('codex.profile.authProfileSelect')}
               </Label>
               <Select
@@ -521,8 +527,11 @@ export function CodexConfigPage() {
               </Select>
             </div>
             <div className="flex items-center gap-2">
-              <Label className="w-24">{t('codex.profile.model')}</Label>
+              <Label className="w-24 shrink-0">
+                {t('codex.profile.model')}
+              </Label>
               <Input
+                className="flex-1"
                 value={editingModel}
                 onChange={e => setEditingModel(e.target.value)}
                 onBlur={() => {
