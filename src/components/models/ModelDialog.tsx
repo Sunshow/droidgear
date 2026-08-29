@@ -624,7 +624,7 @@ function ModelForm({
       provider,
       displayName: displayName || undefined,
       maxOutputTokens: maxTokens ? parseInt(maxTokens) : undefined,
-      noImageSupport: noImageSupport || undefined,
+      noImageSupport: noImageSupport || false,
       extraArgs: buildExtraArgs(),
       extraHeaders: (() => {
         const parsed = parseJsonSafe(extraHeaders) as

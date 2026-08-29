@@ -207,7 +207,7 @@ export function ChannelModelPicker({
       provider,
       displayName,
       maxOutputTokens,
-      noImageSupport: batchNoImageSupport || undefined,
+      noImageSupport: batchNoImageSupport || false,
     }
   }
 

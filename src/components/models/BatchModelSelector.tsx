@@ -320,7 +320,7 @@ export function BatchModelSelector({
                         checked={modelConfig?.noImageSupport ?? false}
                         onCheckedChange={checked =>
                           onConfigChange(m.id, {
-                            noImageSupport: checked === true ? true : undefined,
+                            noImageSupport: checked === true,
                           })
                         }
                       />

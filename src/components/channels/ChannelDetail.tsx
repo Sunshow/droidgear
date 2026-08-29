@@ -240,7 +240,7 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
         provider: config.provider,
         displayName,
         maxOutputTokens,
-        noImageSupport: noImageSupport || undefined,
+        noImageSupport: noImageSupport || false,
       })
     }
 
