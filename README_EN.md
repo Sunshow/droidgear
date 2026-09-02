@@ -2,7 +2,7 @@
 
 [中文](README.md)
 
-A desktop enhancement tool for [Factory Droid](https://factory.ai) / [Claude](https://claude.ai) / [OpenClaw](https://openclaw.ai) / [Codex](https://github.com/openai/codex) / [OpenCode](https://opencode.ai) / [Hermes Agent](https://hermes-agent.nousresearch.com) / [Pi](https://pi.dev).
+A desktop enhancement tool for [Factory Droid](https://factory.ai) / [Claude](https://claude.ai) / [OpenClaw](https://openclaw.ai) / [Codex](https://github.com/openai/codex) / [OpenCode](https://opencode.ai) / [Hermes Agent](https://hermes-agent.nousresearch.com) / [Pi](https://pi.dev) / [Dsh (DeepSeek Harness)](https://deepseek.ai).
 
 Supports custom AI models (BYOK), embedded terminal, session & specs management, MCP server configuration, and more.
 
@@ -122,6 +122,14 @@ Run the installer directly.
 - **Live Config Reading** - Load existing configuration from Pi's live config
 - **Registry-Driven Models** - Enrich Pi provider models from the built-in model registry, with provider-neutral thinking level mapping
 
+### Dsh (DeepSeek Harness) Support
+
+- **Provider Configuration** - Manage `llm-pi-ai.providers` in `~/.dsh/settings.yaml` (displayName, baseURL, apiKeyEnv, api, compat, model list), preserving the rest of the file and unknown fields
+- **API Key Values** - Configure API key values in `~/.dsh/.credentials.yaml` (0600 permissions), linked to the `apiKeyEnv` variable name
+- **Channel Import** - Import providers from channels (auto-fills ID, base URL, key, and API type)
+- **Model Fetching** - Fetch the model list from the provider API after configuring the URL and key, with multi-select before adding
+- **Registry Auto-Adaptation** - Auto-fill model name, context window, max tokens, and reasoning efforts from the registry by model ID
+
 ### Other Features
 
 - **Auto Update** - Version check, auto update notification and download progress
@@ -171,6 +179,7 @@ The TUI version supports the following configuration management features:
 - **OpenClaw Profiles**: Configuration management and apply (with Subagents/Helpers nav entries)
 - **Hermes Profiles**: Configuration management and apply
 - **Pi Profiles**: Provider/Model configuration management and apply
+- **Dsh Providers**: `llm-pi-ai.providers` configuration and credential value management (with channel import and model fetching)
 - **Sessions**: Session browsing and management
 - **Paths**: Path override configuration (for server environments)
 - **Channels**: Proxy platform and credential management

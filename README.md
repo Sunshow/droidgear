@@ -2,7 +2,7 @@
 
 [English](README_EN.md)
 
-[Factory Droid](https://factory.ai) / [Claude](https://claude.ai) / [OpenClaw](https://openclaw.ai) / [Codex](https://github.com/openai/codex) / [OpenCode](https://opencode.ai) / [Hermes Agent](https://hermes-agent.nousresearch.com) / [Pi](https://pi.dev) 的桌面增强管理工具。
+[Factory Droid](https://factory.ai) / [Claude](https://claude.ai) / [OpenClaw](https://openclaw.ai) / [Codex](https://github.com/openai/codex) / [OpenCode](https://opencode.ai) / [Hermes Agent](https://hermes-agent.nousresearch.com) / [Pi](https://pi.dev) / [Dsh (DeepSeek Harness)](https://deepseek.ai) 的桌面增强管理工具。
 
 支持自定义 AI 模型（BYOK）、嵌入式终端、会话与 Specs 管理、MCP 服务器配置等。
 
@@ -122,6 +122,14 @@ xattr -cr /Applications/DroidGear.app
 - **实时配置读取** - 支持从 Pi 的 live config 加载现有配置
 - **模型注册表驱动** - 从内置模型注册表丰富 Pi Provider 模型，支持与 Provider 无关的思考级别映射
 
+### Dsh（DeepSeek Harness）支持
+
+- **Provider 配置管理** - 管理 `~/.dsh/settings.yaml` 的 `llm-pi-ai.providers`（displayName、baseURL、apiKeyEnv、api、compat、模型列表），保留文件其余段落与未知字段
+- **密钥值管理** - 在 `~/.dsh/.credentials.yaml` 中配置 API 密钥值（0600 权限），与 `apiKeyEnv` 环境变量名联动
+- **渠道导入** - 从渠道导入 Provider（自动填充 ID、Base URL、密钥与 API 类型）
+- **模型拉取** - 配置 URL 与密钥后从服务商 API 拉取模型列表，多选添加
+- **注册表自动适配** - 按模型 ID 自动填充名称、上下文窗口、最大 Token 与推理强度（reasoningEfforts）
+
 ### 其他功能
 
 - **自动更新** - 版本检查、自动更新提示和下载进度显示
@@ -170,6 +178,7 @@ TUI 版本支持以下配置管理功能：
 - **OpenClaw Profile**：配置管理与应用（含 Subagents/Helpers 导航入口）
 - **Hermes Profile**：配置管理与应用
 - **Pi Profile**：Provider/Model 配置管理与应用
+- **Dsh Provider**：`llm-pi-ai.providers` 配置管理与凭据值管理（含渠道导入、模型拉取）
 - **Sessions**：会话浏览与管理
 - **Paths**：路径覆盖配置（适配服务器环境）
 - **Channels**：代理平台与凭据管理

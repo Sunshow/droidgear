@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.2.8
+
+**New Features / 新功能**
+
+- Add Dsh (DeepSeek Harness) support: manage `llm-pi-ai.providers` in `~/.dsh/settings.yaml` and API key values in `~/.dsh/.credentials.yaml` from GUI and TUI / 新增 Dsh（DeepSeek Harness）支持：在 GUI 与 TUI 中管理 `~/.dsh/settings.yaml` 的 `llm-pi-ai.providers` 与 `~/.dsh/.credentials.yaml` 的 API 密钥值
+- Dsh provider dialog: fetch model lists from the provider API with multi-select, import providers from channels, and auto-adapt model metadata (name/contextWindow/maxTokens/reasoningEfforts) from the model registry / Dsh Provider 对话框：从服务商 API 拉取模型列表并多选添加、从渠道导入 Provider、按模型 ID 从注册表自动适配模型元数据（名称/上下文窗口/最大 Token/推理强度）
+- Only write `compat.supportsDeveloperRole` for protocols that support it (openai-completions/openai-responses/azure-openai-responses/openai-codex-responses) / 仅对支持的协议（openai-completions/openai-responses/azure-openai-responses/openai-codex-responses）写入 `compat.supportsDeveloperRole`
+
+**Bug Fixes / 问题修复**
+
+- Droid image support now requires explicit configuration (`noImageSupport` defaults to `false` instead of being omitted) / Droid 图像支持要求明确配置（`noImageSupport` 默认写入 `false`，不再省略）
+- Align label/input layout across config pages / 统一各配置页标签与输入框的布局对齐
+
 ## v1.2.7
 
 **New Features / 新功能**
