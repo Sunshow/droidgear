@@ -9,6 +9,7 @@ pub mod codex_runtime;
 pub mod connectivity;
 pub mod droid_runtime;
 pub mod droid_settings_files;
+pub mod dsh;
 pub mod factory_auth_profiles;
 pub mod factory_settings;
 pub mod hermes;

@@ -102,6 +102,11 @@ const OmpConfigPage = lazy(() =>
     default: m.OmpConfigPage,
   }))
 )
+const DshConfigPage = lazy(() =>
+  import('@/components/dsh/DshConfigPage').then(m => ({
+    default: m.DshConfigPage,
+  }))
+)
 const ChannelDetail = lazy(() =>
   import('@/components/channels/ChannelDetail').then(m => ({
     default: m.ChannelDetail,
@@ -221,6 +226,10 @@ export function MainWindowContent({
 
     if (currentView === 'omp') {
       return <OmpConfigPage />
+    }
+
+    if (currentView === 'dsh') {
+      return <DshConfigPage />
     }
 
     if (currentView === 'openclaw') {

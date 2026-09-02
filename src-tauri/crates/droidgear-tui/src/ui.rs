@@ -419,6 +419,9 @@ fn draw_main(frame: &mut Frame, app: &app::App, area: Rect) {
         app::Screen::PiModel => draw_pi_model(frame, app, area),
         app::Screen::Omp => draw_omp_profiles(frame, app, area),
         app::Screen::OmpProfile => draw_omp_profile(frame, app, area),
+        app::Screen::Dsh => draw_dsh_providers(frame, app, area),
+        app::Screen::DshProvider => draw_dsh_provider(frame, app, area),
+        app::Screen::DshModel => draw_dsh_model(frame, app, area),
         app::Screen::Hermes => draw_hermes_profiles(frame, app, area),
         app::Screen::HermesProfile => draw_hermes_profile(frame, app, area),
         app::Screen::HermesProvider => draw_hermes_provider(frame, app, area),
@@ -3382,6 +3385,271 @@ fn draw_pi_model(frame: &mut Frame, app: &app::App, area: Rect) {
     render_list(frame, list, chunks[0], Some(app.pi_model_field_index));
 
     let help = help_paragraph("Up/Down: select  Enter/e: edit/toggle  q/Esc: back");
+    frame.render_widget(help, chunks[1]);
+}
+
+fn draw_dsh_providers(frame: &mut Frame, app: &app::App, area: Rect) {
+    let t = theme();
+
+    let mut items: Vec<ListItem> = Vec::new();
+    for (provider_id, config) in app.dsh_providers.iter() {
+        let display = config
+            .display_name
+            .clone()
+            .unwrap_or_else(|| provider_id.clone());
+        items.push(ListItem::new(Line::from(vec![
+            Span::raw(display),
+            Span::styled(format!("  ({} models)", config.models.len()), t.dim_style()),
+        ])));
+    }
+    if items.is_empty() {
+        items.push(ListItem::new(Line::from(Span::styled(
+            "No providers",
+            t.placeholder_style(),
+        ))));
+    }
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
+
+    let highlight = (!app.dsh_providers.is_empty()).then_some(app.dsh_index);
+    let list = List::new(items)
+        .block(block("Dsh Providers"))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, list, chunks[0], highlight);
+
+    let help = help_paragraph(
+        "Up/Down: select  Enter/e: open  n: add  i: import from channel  d: delete  r: refresh  q/Esc: back",
+    );
+    frame.render_widget(help, chunks[1]);
+}
+
+fn draw_dsh_provider(frame: &mut Frame, app: &app::App, area: Rect) {
+    let t = theme();
+    let Some(provider_id) = app.dsh_provider_id.as_deref() else {
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "No provider selected",
+            t.warning_style(),
+        ))])
+        .block(block("Dsh Provider"))
+        .wrap(Wrap { trim: true });
+        frame.render_widget(p, area);
+        return;
+    };
+    let Some(config) = app.dsh_current_provider() else {
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Provider not found",
+            t.error_style(),
+        ))])
+        .block(block("Dsh Provider"))
+        .wrap(Wrap { trim: true });
+        frame.render_widget(p, area);
+        return;
+    };
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Length(8),
+                Constraint::Min(0),
+                Constraint::Length(2),
+            ]
+            .as_ref(),
+        )
+        .split(area);
+
+    let api_key_env_set = config
+        .api_key_env
+        .as_deref()
+        .is_some_and(|v| !v.trim().is_empty());
+    let api_key_value_set = config
+        .api_key_env
+        .as_deref()
+        .is_some_and(|env| app.dsh_credentials.get(env).is_some_and(|v| !v.is_empty()));
+    let supports_dev_role = config
+        .compat
+        .as_ref()
+        .and_then(|c| c.supports_developer_role)
+        .unwrap_or(false);
+    let supports_dev_role_applicable =
+        droidgear_core::dsh::supports_developer_role_protocol(config.api.as_deref());
+
+    let fields: Vec<(&str, String)> = vec![
+        (
+            "Display Name",
+            config
+                .display_name
+                .clone()
+                .unwrap_or_else(|| "".to_string()),
+        ),
+        (
+            "Base URL",
+            config.base_url.clone().unwrap_or_else(|| "".to_string()),
+        ),
+        ("API", config.api.clone().unwrap_or_else(|| "".to_string())),
+        (
+            "API Key Env",
+            if api_key_env_set {
+                config.api_key_env.clone().unwrap_or_default()
+            } else {
+                "(not set)".to_string()
+            },
+        ),
+        (
+            "API Key",
+            if api_key_value_set {
+                "********".to_string()
+            } else {
+                "(not set)".to_string()
+            },
+        ),
+        (
+            "Developer Role",
+            if supports_dev_role_applicable {
+                if supports_dev_role { "on" } else { "off" }.to_string()
+            } else {
+                "(n/a)".to_string()
+            },
+        ),
+    ];
+
+    let fields_count = fields.len();
+    let mut field_items: Vec<ListItem> = Vec::new();
+    for (i, (label, value)) in fields.into_iter().enumerate() {
+        let selected = i == app.dsh_provider_field_index;
+        let line = if selected {
+            Line::from(format!("{label:>15}: {value}"))
+        } else {
+            field_line(label, &value, 15)
+        };
+        field_items.push(ListItem::new(line));
+    }
+    let fields_list = List::new(field_items)
+        .block(block(format!("Dsh Provider: {provider_id}")))
+        .highlight_style(t.selected_row_style());
+    let fields_selected =
+        (app.dsh_provider_field_index < fields_count).then_some(app.dsh_provider_field_index);
+    render_list(frame, fields_list, chunks[0], fields_selected);
+
+    // Models section
+    let mut model_items: Vec<ListItem> = Vec::new();
+    for m in config.models.iter() {
+        model_items.push(ListItem::new(Line::from(Span::raw(m.id.clone()))));
+    }
+    if model_items.is_empty() {
+        model_items.push(ListItem::new(Line::from(Span::styled(
+            "No models",
+            t.placeholder_style(),
+        ))));
+    }
+    let model_selected = (app.dsh_provider_field_index >= fields_count
+        && !config.models.is_empty())
+    .then_some(app.dsh_provider_field_index - fields_count);
+    let models_list = List::new(model_items)
+        .block(block("Models"))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, models_list, chunks[1], model_selected);
+
+    let help = help_paragraph(
+        "Up/Down: move  Enter/e: edit field/open model  n: add model  f: fetch models  d: del model  r: refresh  q/Esc: back",
+    );
+    frame.render_widget(help, chunks[2]);
+}
+
+fn draw_dsh_model(frame: &mut Frame, app: &app::App, area: Rect) {
+    let t = theme();
+    let Some(_provider_id) = app.dsh_provider_id.as_deref() else {
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "No provider selected",
+            t.warning_style(),
+        ))])
+        .block(block("Dsh Model"))
+        .wrap(Wrap { trim: true });
+        frame.render_widget(p, area);
+        return;
+    };
+    let Some(provider) = app.dsh_current_provider() else {
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Provider not found",
+            t.error_style(),
+        ))])
+        .block(block("Dsh Model"))
+        .wrap(Wrap { trim: true });
+        frame.render_widget(p, area);
+        return;
+    };
+    let Some(model) = provider.models.get(app.dsh_model_index) else {
+        let p = Paragraph::new(vec![Line::from(Span::styled(
+            "Model not found",
+            t.error_style(),
+        ))])
+        .block(block("Dsh Model"))
+        .wrap(Wrap { trim: true });
+        frame.render_widget(p, area);
+        return;
+    };
+
+    let reasoning = model
+        .reasoning_efforts
+        .as_ref()
+        .map(|efforts| {
+            let parts: Vec<String> = efforts
+                .iter()
+                .map(|(level, value)| match value {
+                    Some(v) => format!("{level}:{v}"),
+                    None => level.clone(),
+                })
+                .collect();
+            parts.join(", ")
+        })
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "(auto from registry)".to_string());
+
+    let fields: Vec<(&str, String)> = vec![
+        ("ID", model.id.clone()),
+        ("Name", model.name.clone().unwrap_or_else(|| "".to_string())),
+        (
+            "Context Window",
+            model
+                .context_window
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| "".to_string()),
+        ),
+        (
+            "Max Tokens",
+            model
+                .max_tokens
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| "".to_string()),
+        ),
+        ("Reasoning", reasoning),
+    ];
+
+    let mut items: Vec<ListItem> = Vec::new();
+    for (i, (label, value)) in fields.into_iter().enumerate() {
+        let selected = i == app.dsh_model_field_index;
+        let line = if selected {
+            Line::from(format!("{label:>15}: {value}"))
+        } else {
+            field_line(label, &value, 15)
+        };
+        items.push(ListItem::new(line));
+    }
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
+
+    let list = List::new(items)
+        .block(block(format!("Dsh Model: {}", model.id)))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, list, chunks[0], Some(app.dsh_model_field_index));
+
+    let help = help_paragraph("Up/Down: select  Enter/e: edit  q/Esc: back");
     frame.render_widget(help, chunks[1]);
 }
 

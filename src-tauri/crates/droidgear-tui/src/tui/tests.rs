@@ -579,6 +579,113 @@ fn omp_screen_variants_exist() {
 }
 
 #[test]
+fn dsh_screen_variants_exist() {
+    let _dsh = app::Screen::Dsh;
+    let _dsh_provider = app::Screen::DshProvider;
+    let _dsh_model = app::Screen::DshModel;
+}
+
+#[test]
+fn dsh_is_in_dsh_nav_group() {
+    let group = app::App::group_of_screen(app::Screen::Dsh).expect("Dsh should be a nav item");
+    assert_eq!(app::App::nav_groups()[group].label, "Dsh");
+}
+
+#[test]
+fn dsh_app_state_initializes_correctly() {
+    use std::path::PathBuf;
+    let app = app::App::new(PathBuf::from("/tmp/test-home"));
+    assert!(app.dsh_providers.is_empty());
+    assert_eq!(app.dsh_index, 0);
+    assert!(app.dsh_provider_id.is_none());
+    assert_eq!(app.dsh_provider_field_index, 0);
+    assert_eq!(app.dsh_model_index, 0);
+    assert_eq!(app.dsh_model_field_index, 0);
+}
+
+#[test]
+fn dsh_provider_f_key_routes_through_fetch_action() {
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.dsh_provider_id = Some("test-provider".to_string());
+    app.dsh_providers = vec![(
+        "test-provider".to_string(),
+        droidgear_core::dsh::DshProviderConfig {
+            base_url: Some("https://example.com/v1".to_string()),
+            api_key_env: Some("TEST_API_KEY".to_string()),
+            ..Default::default()
+        },
+    )];
+
+    let action = super::keys_dsh::handle_dsh_provider_key(&mut app, KeyCode::Char('f'));
+
+    match action {
+        Some(super::Action::FetchDshModels { provider_id }) => {
+            assert_eq!(provider_id, "test-provider");
+        }
+        other => panic!("expected FetchDshModels action, got {other:?}"),
+    }
+}
+
+#[test]
+fn dsh_action_variants_exist() {
+    let _add = app::InputAction::DshAddProvider;
+    let _add_channel = app::InputAction::DshAddProviderFromChannel;
+    let _import_key = app::InputAction::DshImportSetApiKey {
+        provider_id: "x".to_string(),
+    };
+    let _import_channel = app::SelectAction::DshImportFromChannel {
+        provider_id: "x".to_string(),
+    };
+    let _import_toggle = app::SelectAction::DshImportToggleModel {
+        provider_id: "x".to_string(),
+    };
+    let _add_fetched = app::SelectAction::DshAddFetchedModels {
+        provider_id: "x".to_string(),
+    };
+    let _set_display = app::InputAction::DshSetProviderDisplayName {
+        provider_id: "x".to_string(),
+    };
+    let _set_base = app::InputAction::DshSetProviderBaseUrl {
+        provider_id: "x".to_string(),
+    };
+    let _set_env = app::InputAction::DshSetProviderApiKeyEnv {
+        provider_id: "x".to_string(),
+    };
+    let _set_key = app::InputAction::DshSetProviderApiKey {
+        provider_id: "x".to_string(),
+    };
+    let _add_model = app::InputAction::DshAddModel {
+        provider_id: "x".to_string(),
+    };
+    let _set_model_id = app::InputAction::DshSetModelId {
+        provider_id: "x".to_string(),
+        model_index: 0,
+    };
+    let _set_model_name = app::InputAction::DshSetModelName {
+        provider_id: "x".to_string(),
+        model_index: 0,
+    };
+    let _set_ctx = app::InputAction::DshSetModelContextWindow {
+        provider_id: "x".to_string(),
+        model_index: 0,
+    };
+    let _set_max = app::InputAction::DshSetModelMaxTokens {
+        provider_id: "x".to_string(),
+        model_index: 0,
+    };
+    let _sel_api = app::SelectAction::DshSetProviderApi {
+        provider_id: "x".to_string(),
+    };
+    let _del_provider = app::ConfirmAction::DshDeleteProvider {
+        provider_id: "x".to_string(),
+    };
+    let _del_model = app::ConfirmAction::DshDeleteModel {
+        provider_id: "x".to_string(),
+        model_index: 0,
+    };
+}
+
+#[test]
 fn omp_is_in_omp_nav_group() {
     let group = app::App::group_of_screen(app::Screen::Omp).expect("Omp should be a nav item");
     assert_eq!(app::App::nav_groups()[group].label, "OMP");
@@ -905,6 +1012,7 @@ fn nav_groups_cover_all_screens_exactly_once() {
         app::Screen::CodexAuth,
         app::Screen::OpenClawSubagents,
         app::Screen::OpenClawHelpers,
+        app::Screen::Dsh,
     ];
     for screen in screens {
         let group = app::App::group_of_screen(screen)

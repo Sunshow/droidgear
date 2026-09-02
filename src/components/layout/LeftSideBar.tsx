@@ -44,6 +44,7 @@ import { OpenClawFeatureList } from '@/components/openclaw/OpenClawFeatureList'
 import { HermesFeatureList } from '@/components/hermes/HermesFeatureList'
 import { PiFeatureList } from '@/components/pi/PiFeatureList'
 import { OmpFeatureList } from '@/components/omp/OmpFeatureList'
+import { DshFeatureList } from '@/components/dsh/DshFeatureList'
 import { useUIStore } from '@/store/ui-store'
 import { useChannelStore } from '@/store/channel-store'
 import { useModelStore } from '@/store/model-store'
@@ -60,6 +61,7 @@ type NavigationView =
   | 'hermes'
   | 'pi'
   | 'omp'
+  | 'dsh'
 
 interface LeftSideBarProps {
   children?: React.ReactNode
@@ -122,6 +124,11 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
         <>
           <CircuitBoard className="h-4 w-4 mr-2" />
           {t('sidebar.omp')}
+        </>
+      ) : lastToolView === 'dsh' ? (
+        <>
+          <CircuitBoard className="h-4 w-4 mr-2" />
+          {t('sidebar.dsh')}
         </>
       ) : (
         <>
@@ -336,6 +343,18 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
                   <Check className="h-4 w-4 ml-auto" />
                 )}
               </ActionDropdownMenuItem>
+              <ActionDropdownMenuItem
+                onClick={() => {
+                  handleViewChange('dsh')
+                  setDropdownOpen(false)
+                }}
+              >
+                <CircuitBoard className="h-4 w-4 mr-2" />
+                {t('sidebar.dsh')}
+                {lastToolView === 'dsh' && (
+                  <Check className="h-4 w-4 ml-auto" />
+                )}
+              </ActionDropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         )}
@@ -359,6 +378,8 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
           <PiFeatureList />
         ) : currentView === 'omp' ? (
           <OmpFeatureList />
+        ) : currentView === 'dsh' ? (
+          <DshFeatureList />
         ) : (
           <CodexFeatureList />
         )}

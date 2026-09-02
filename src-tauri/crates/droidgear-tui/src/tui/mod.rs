@@ -22,6 +22,7 @@ mod keys_claude;
 mod keys_codex;
 mod keys_codex_auth;
 mod keys_droid_settings;
+mod keys_dsh;
 mod keys_factory;
 mod keys_factory_auth;
 mod keys_hermes;
@@ -56,6 +57,7 @@ use keys_channels::{handle_channels_edit_key, handle_channels_key};
 use keys_claude::{handle_claude_key, handle_claude_settings_detail_key};
 use keys_codex::{handle_codex_key, handle_codex_profile_key, handle_codex_provider_key};
 use keys_droid_settings::handle_droid_settings_files_key;
+use keys_dsh::{handle_dsh_key, handle_dsh_model_key, handle_dsh_provider_key};
 use keys_factory::{handle_factory_key, handle_factory_model_key, normalize_factory_models};
 use keys_hermes::{handle_hermes_key, handle_hermes_profile_key, handle_hermes_provider_key};
 use keys_main::handle_key;
@@ -152,6 +154,9 @@ enum Action {
     TestPiProvider {
         provider_id: String,
         config: Box<droidgear_core::pi::PiProviderConfig>,
+    },
+    FetchDshModels {
+        provider_id: String,
     },
     ViewSession {
         path: String,
@@ -287,6 +292,9 @@ fn refresh_screen_data(app: &mut app::App) {
         app::Screen::OmpProfile => {
             refresh_omp(app);
             refresh_omp_detail(app);
+        }
+        app::Screen::Dsh | app::Screen::DshProvider | app::Screen::DshModel => {
+            refresh_dsh(app);
         }
         app::Screen::Hermes => refresh_hermes(app),
         app::Screen::HermesProfile | app::Screen::HermesProvider => {

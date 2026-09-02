@@ -351,6 +351,36 @@ pub(super) fn refresh_omp_detail(app: &mut app::App) {
     }
 }
 
+pub(super) fn refresh_dsh(app: &mut app::App) {
+    match droidgear_core::dsh::read_dsh_current_config_for_home(&app.home_dir) {
+        Ok(config) => {
+            let mut providers: Vec<(String, droidgear_core::dsh::DshProviderConfig)> =
+                config.providers.into_iter().collect();
+            providers.sort_by_key(|(id, _)| id.to_lowercase());
+            app.dsh_providers = providers;
+        }
+        Err(e) => {
+            app.dsh_providers.clear();
+            app.set_toast(e, true);
+        }
+    }
+
+    match droidgear_core::dsh::read_dsh_credentials_for_home(&app.home_dir) {
+        Ok(credentials) => app.dsh_credentials = credentials.refs,
+        Err(e) => {
+            app.dsh_credentials.clear();
+            app.set_toast(e, true);
+        }
+    }
+
+    // Drop the open provider if it was removed on disk.
+    if let Some(provider_id) = app.dsh_provider_id.clone() {
+        if !app.dsh_providers.iter().any(|(id, _)| id == &provider_id) {
+            app.dsh_provider_id = None;
+        }
+    }
+}
+
 pub(super) fn refresh_sessions(app: &mut app::App) {
     match droidgear_core::sessions::list_sessions_for_home(&app.home_dir, None) {
         Ok(list) => app.sessions = list,

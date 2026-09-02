@@ -1880,6 +1880,97 @@ async saveOpenclawSubagents(subagents: OpenClawSubAgent[]) : Promise<Result<null
 }
 },
 /**
+ * Read the current Dsh providers from `~/.dsh/settings.yaml`.
+ */
+async readDshCurrentConfig() : Promise<Result<DshCurrentConfig, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("read_dsh_current_config") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Insert or update one provider in `llm-pi-ai.providers`.
+ */
+async saveDshProvider(providerId: string, config: DshProviderConfig) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_dsh_provider", { providerId, config }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Remove one provider from `llm-pi-ai.providers`.
+ */
+async deleteDshProvider(providerId: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_dsh_provider", { providerId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get the status of `~/.dsh/settings.yaml`.
+ */
+async getDshConfigStatus() : Promise<Result<DshConfigStatus, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_dsh_config_status") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Read env-var → API key refs from `~/.dsh/.credentials.yaml`.
+ */
+async readDshCredentials() : Promise<Result<DshCredentials, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("read_dsh_credentials") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Insert or update one credential ref (env var name → value) in
+ * `~/.dsh/.credentials.yaml`. An empty value removes the entry.
+ */
+async saveDshCredentialRef(name: string, value: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_dsh_credential_ref", { name, value }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Remove one credential ref from `~/.dsh/.credentials.yaml`.
+ */
+async deleteDshCredentialRef(name: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_dsh_credential_ref", { name }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Fetch the model list from a provider's `/{baseURL}/models` endpoint using
+ * the given API key, with registry metadata enrichment (reasoningEfforts,
+ * contextWindow, maxTokens, name).
+ */
+async fetchDshModels(baseUrl: string, apiKey: string, api: string | null) : Promise<Result<DshModel[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("fetch_dsh_models", { baseUrl, apiKey, api }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Lists all session projects from ~/.factory/sessions directory.
  */
 async listSessionProjects() : Promise<Result<SessionProject[], string>> {
@@ -2695,6 +2786,42 @@ extraArgs?: Partial<{ [key in string]: JsonValue }> | null;
  */
 extraHeaders?: Partial<{ [key in string]: string }> | null }
 export type DroidRunPreferences = { disableAutoUpdateEnv?: boolean | null; unsetAnthropicAuthToken?: boolean | null }
+/**
+ * Dsh provider compatibility flags. Unknown fields are retained.
+ */
+export type DshCompatConfig = { supportsDeveloperRole?: boolean | null }
+/**
+ * Dsh settings.yaml file status.
+ */
+export type DshConfigStatus = { configExists: boolean; configPath: string; credentialsExists: boolean; credentialsPath: string }
+/**
+ * Credentials read from `~/.dsh/.credentials.yaml` (version + env refs).
+ */
+export type DshCredentials = { version?: number; 
+/**
+ * Environment variable name → API key value.
+ */
+refs?: Partial<{ [key in string]: string }> }
+/**
+ * Current Dsh configuration read from `~/.dsh/settings.yaml`.
+ */
+export type DshCurrentConfig = { providers?: Partial<{ [key in string]: DshProviderConfig }> }
+/**
+ * Dsh model definition inside a provider.
+ */
+export type DshModel = { id: string; name?: string | null; contextWindow?: number | null; maxTokens?: number | null; 
+/**
+ * Reasoning effort mapping, e.g. `{"off": null, "high": "high"}`.
+ */
+reasoningEfforts?: Partial<{ [key in string]: string | null }> | null }
+/**
+ * Dsh provider configuration (one entry of `llm-pi-ai.providers`).
+ */
+export type DshProviderConfig = { displayName?: string | null; 
+/**
+ * The file uses `baseURL` (not `baseUrl`).
+ */
+baseURL?: string | null; apiKeyEnv?: string | null; api?: string | null; compat?: DshCompatConfig | null; models: DshModel[] }
 /**
  * Effective path info with default indicator
  */

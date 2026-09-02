@@ -104,6 +104,67 @@ pub(super) fn run_action(app: &mut app::App, action: Action) -> anyhow::Result<(
             }
             Ok(())
         }
+        Action::FetchDshModels { provider_id } => {
+            let config = droidgear_core::dsh::read_dsh_current_config_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            let Some(provider) = config.providers.get(&provider_id) else {
+                return Err(anyhow::anyhow!("Provider not found"));
+            };
+            let base_url = provider
+                .base_url
+                .clone()
+                .ok_or_else(|| anyhow::anyhow!("Base URL not set; configure it before fetching"))?;
+            let env_name = provider
+                .api_key_env
+                .clone()
+                .filter(|v| !v.trim().is_empty())
+                .ok_or_else(|| {
+                    anyhow::anyhow!("API key env var not set; configure it before fetching")
+                })?;
+            let credentials = droidgear_core::dsh::read_dsh_credentials_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            let api_key = credentials
+                .refs
+                .get(&env_name)
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("No API key value for '{env_name}'"))?;
+
+            let fetched = droidgear_core::dsh::fetch_dsh_models_blocking(
+                &base_url,
+                &api_key,
+                provider.api.as_deref(),
+            )
+            .map_err(anyhow::Error::msg)?;
+
+            let existing_ids: std::collections::HashSet<String> =
+                provider.models.iter().map(|m| m.id.clone()).collect();
+            let new_models: Vec<droidgear_core::dsh::DshModel> = fetched
+                .into_iter()
+                .filter(|m| !existing_ids.contains(&m.id))
+                .collect();
+
+            if new_models.is_empty() {
+                app.set_toast("No new models from provider", false);
+                return Ok(());
+            }
+
+            app.dsh_fetch_pending_models = Some(new_models);
+            let selected = vec![true; app.dsh_fetch_pending_models.as_ref().map_or(0, |v| v.len())];
+            app.pending_multi_selected = Some(selected.clone());
+            let options: Vec<String> = app
+                .dsh_fetch_pending_models
+                .as_ref()
+                .map(|models| models.iter().map(|m| m.id.clone()).collect())
+                .unwrap_or_default();
+            app.modal = Some(app::Modal::MultiSelect {
+                title: "Select models to add (Tab/c: confirm)".to_string(),
+                options,
+                selected,
+                index: 0,
+                action: app::SelectAction::DshAddFetchedModels { provider_id },
+            });
+            Ok(())
+        }
         Action::ViewSession { path } => {
             let detail =
                 droidgear_core::sessions::get_session_detail_for_home(&app.home_dir, &path)

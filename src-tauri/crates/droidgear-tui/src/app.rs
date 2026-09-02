@@ -6,6 +6,7 @@ use droidgear_core::{
     codex::CodexProfile,
     codex_auth_profiles::CodexAuthProfile,
     droid_settings_files::SettingsFileInfo,
+    dsh::DshProviderConfig,
     factory_auth_profiles::AuthProfile,
     factory_settings::{CustomModel, MissionModelSettings},
     hermes::HermesProfile,
@@ -56,6 +57,9 @@ pub enum Screen {
     PiModel,
     Omp,
     OmpProfile,
+    Dsh,
+    DshProvider,
+    DshModel,
     Hermes,
     HermesProfile,
     HermesProvider,
@@ -206,6 +210,13 @@ pub enum ConfirmAction {
     },
     OmpDelete {
         id: String,
+    },
+    DshDeleteProvider {
+        provider_id: String,
+    },
+    DshDeleteModel {
+        provider_id: String,
+        model_index: usize,
     },
     HermesApply {
         id: String,
@@ -497,6 +508,42 @@ pub enum InputAction {
     OmpUpdateModelRole {
         role: String,
     },
+    DshAddProvider,
+    DshAddProviderFromChannel,
+    DshSetProviderDisplayName {
+        provider_id: String,
+    },
+    DshSetProviderBaseUrl {
+        provider_id: String,
+    },
+    DshSetProviderApiKeyEnv {
+        provider_id: String,
+    },
+    DshSetProviderApiKey {
+        provider_id: String,
+    },
+    DshImportSetApiKey {
+        provider_id: String,
+    },
+    DshAddModel {
+        provider_id: String,
+    },
+    DshSetModelId {
+        provider_id: String,
+        model_index: usize,
+    },
+    DshSetModelName {
+        provider_id: String,
+        model_index: usize,
+    },
+    DshSetModelContextWindow {
+        provider_id: String,
+        model_index: usize,
+    },
+    DshSetModelMaxTokens {
+        provider_id: String,
+        model_index: usize,
+    },
     HermesCreateProfile,
     HermesDuplicate {
         id: String,
@@ -619,6 +666,18 @@ pub enum SelectAction {
     },
     PiAddProviderFromChannel {
         profile_id: String,
+        provider_id: String,
+    },
+    DshSetProviderApi {
+        provider_id: String,
+    },
+    DshImportFromChannel {
+        provider_id: String,
+    },
+    DshImportToggleModel {
+        provider_id: String,
+    },
+    DshAddFetchedModels {
         provider_id: String,
     },
     HermesImportFromChannel {
@@ -770,6 +829,22 @@ pub struct App {
     pub omp_detail: Option<OmpProfile>,
     pub omp_detail_field_index: usize,
 
+    pub dsh_providers: Vec<(String, DshProviderConfig)>,
+    pub dsh_credentials: std::collections::HashMap<String, String>,
+    pub dsh_index: usize,
+    pub dsh_provider_id: Option<String>,
+    pub dsh_provider_field_index: usize,
+    pub dsh_model_index: usize,
+    pub dsh_model_field_index: usize,
+    /// Pending models fetched from a provider (for fetch multi-select flow)
+    pub dsh_fetch_pending_models: Option<Vec<droidgear_core::dsh::DshModel>>,
+    /// Temporary state used during Dsh "import from channel" flow in TUI
+    pub dsh_import_pending_provider_id: Option<String>,
+    pub dsh_import_pending_base_url: Option<String>,
+    pub dsh_import_pending_api_key: Option<String>,
+    pub dsh_import_pending_api_type: Option<String>,
+    pub dsh_import_pending_models: Option<Vec<droidgear_core::factory_settings::ModelInfo>>,
+
     pub hermes_profiles: Vec<HermesProfile>,
     pub hermes_active_id: Option<String>,
     pub hermes_index: usize,
@@ -787,7 +862,7 @@ pub struct App {
     /// Pending models fetched from channel (for model selection in import flow)
     pub pi_import_pending_models: Option<Vec<droidgear_core::factory_settings::ModelInfo>>,
     /// Selected indices in pending models
-    pub pi_import_pending_selected: Option<Vec<bool>>,
+    pub pending_multi_selected: Option<Vec<bool>>,
     /// Resolved API key for pending channel import
     pub pi_import_pending_api_key: Option<String>,
     /// Fetched tokens for the current channel import (for platform lookup)
@@ -939,6 +1014,19 @@ impl App {
             omp_detail_id: None,
             omp_detail: None,
             omp_detail_field_index: 0,
+            dsh_providers: Vec::new(),
+            dsh_credentials: std::collections::HashMap::new(),
+            dsh_index: 0,
+            dsh_provider_id: None,
+            dsh_provider_field_index: 0,
+            dsh_model_index: 0,
+            dsh_model_field_index: 0,
+            dsh_fetch_pending_models: None,
+            dsh_import_pending_provider_id: None,
+            dsh_import_pending_base_url: None,
+            dsh_import_pending_api_key: None,
+            dsh_import_pending_api_type: None,
+            dsh_import_pending_models: None,
             hermes_profiles: Vec::new(),
             hermes_active_id: None,
             hermes_index: 0,
@@ -952,7 +1040,7 @@ impl App {
             pi_import_pending_base_url: None,
             pi_import_pending_provider_id: None,
             pi_import_pending_models: None,
-            pi_import_pending_selected: None,
+            pending_multi_selected: None,
             pi_import_pending_api_key: None,
             pi_import_pending_tokens: None,
             pi_import_pending_api_type: None,
@@ -1044,6 +1132,11 @@ impl App {
             NavGroup {
                 label: "OMP",
                 items: &[("Profiles", Screen::Omp)],
+                system: false,
+            },
+            NavGroup {
+                label: "Dsh",
+                items: &[("Providers", Screen::Dsh)],
                 system: false,
             },
             NavGroup {
@@ -1142,6 +1235,8 @@ impl App {
             Screen::PiProvider => Screen::PiProfile,
             Screen::PiModel => Screen::PiProvider,
             Screen::OmpProfile => Screen::Omp,
+            Screen::DshProvider => Screen::Dsh,
+            Screen::DshModel => Screen::DshProvider,
             Screen::HermesProfile => Screen::Hermes,
             Screen::HermesProvider => Screen::HermesProfile,
             Screen::ChannelsEdit => Screen::Channels,
@@ -1174,6 +1269,22 @@ impl App {
         let mut keys: Vec<String> = detail.providers.keys().cloned().collect();
         keys.sort_by_key(|a| a.to_lowercase());
         keys.get(self.pi_provider_index).cloned()
+    }
+
+    /// Get the provider ID at the current dsh_index.
+    pub fn dsh_current_provider_id(&self) -> Option<String> {
+        self.dsh_providers
+            .get(self.dsh_index)
+            .map(|(id, _)| id.clone())
+    }
+
+    /// Get the config for the currently open Dsh provider.
+    pub fn dsh_current_provider(&self) -> Option<&DshProviderConfig> {
+        let id = self.dsh_provider_id.as_deref()?;
+        self.dsh_providers
+            .iter()
+            .find(|(provider_id, _)| provider_id == id)
+            .map(|(_, config)| config)
     }
 
     pub fn current_paths_key(&self) -> Option<String> {
@@ -1424,6 +1535,29 @@ impl App {
         let pi_model_fields_count = 7;
         if self.pi_model_field_index >= pi_model_fields_count {
             self.pi_model_field_index = pi_model_fields_count.saturating_sub(1);
+        }
+        // --- Dsh ---
+        if self.dsh_index >= self.dsh_providers.len() {
+            self.dsh_index = self.dsh_providers.len().saturating_sub(1);
+        }
+        // DshProvider screen: 6 fields (DisplayName, BaseURL, API, APIKeyEnv, API Key value, SupportsDevRole)
+        // + model list entries.
+        let dsh_provider_fields_count = 6usize;
+        let dsh_model_count = self
+            .dsh_current_provider()
+            .map(|c| c.models.len())
+            .unwrap_or(0);
+        let dsh_provider_total = dsh_provider_fields_count + dsh_model_count;
+        if self.dsh_provider_field_index >= dsh_provider_total {
+            self.dsh_provider_field_index = dsh_provider_total.saturating_sub(1);
+        }
+        if self.dsh_model_index >= dsh_model_count {
+            self.dsh_model_index = dsh_model_count.saturating_sub(1);
+        }
+        // DshModel screen has 5 fields: id, name, contextWindow, maxTokens, reasoning
+        let dsh_model_fields_count = 5usize;
+        if self.dsh_model_field_index >= dsh_model_fields_count {
+            self.dsh_model_field_index = dsh_model_fields_count.saturating_sub(1);
         }
         // --- OMP ---
         if self.omp_index >= self.omp_profiles.len() {

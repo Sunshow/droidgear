@@ -65,7 +65,7 @@ pub(super) fn handle_factory_key(app: &mut app::App, code: KeyCode) -> Option<Ac
         }
         KeyCode::Char('f') => toggle_factory_favorite(app),
         KeyCode::Char('F') => {
-            app.pi_import_pending_selected = Some(vec![true; app.model_favorites.len()]);
+            app.pending_multi_selected = Some(vec![true; app.model_favorites.len()]);
             app.modal = Some(app::Modal::MultiSelect {
                 title: "Model favorites".to_string(),
                 options: app.model_favorites.clone(),

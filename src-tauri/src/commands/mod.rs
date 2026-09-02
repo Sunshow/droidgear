@@ -12,6 +12,7 @@ pub mod codex_auth_profiles;
 pub mod config;
 pub mod connectivity;
 pub mod droid_settings;
+pub mod dsh;
 pub mod env;
 pub mod factory_auth_profiles;
 pub mod hermes;

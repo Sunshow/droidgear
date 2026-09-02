@@ -232,7 +232,7 @@ pub(super) fn handle_modal_key(app: &mut app::App, code: KeyCode, modal: app::Mo
                     selected[index] = !selected[index];
                 }
                 // Sync selection to app state
-                app.pi_import_pending_selected = Some(selected.clone());
+                app.pending_multi_selected = Some(selected.clone());
                 app.modal = Some(app::Modal::MultiSelect {
                     title,
                     options,
@@ -243,7 +243,7 @@ pub(super) fn handle_modal_key(app: &mut app::App, code: KeyCode, modal: app::Mo
             }
             KeyCode::Char('a') => {
                 selected.fill(true);
-                app.pi_import_pending_selected = Some(selected.clone());
+                app.pending_multi_selected = Some(selected.clone());
                 app.modal = Some(app::Modal::MultiSelect {
                     title,
                     options,
@@ -254,7 +254,7 @@ pub(super) fn handle_modal_key(app: &mut app::App, code: KeyCode, modal: app::Mo
             }
             KeyCode::Char('x') => {
                 selected.fill(false);
-                app.pi_import_pending_selected = Some(selected.clone());
+                app.pending_multi_selected = Some(selected.clone());
                 app.modal = Some(app::Modal::MultiSelect {
                     title,
                     options,
@@ -265,7 +265,7 @@ pub(super) fn handle_modal_key(app: &mut app::App, code: KeyCode, modal: app::Mo
             }
             KeyCode::Tab | KeyCode::Char('c') => {
                 // Sync final selection to app state and confirm
-                app.pi_import_pending_selected = Some(selected);
+                app.pending_multi_selected = Some(selected);
                 app.modal = None;
                 if let Err(e) = run_select_action(app, action, index, None) {
                     app.set_toast(e.to_string(), true);
@@ -885,7 +885,7 @@ pub(super) fn run_select_action(
             Ok(())
         }
         app::SelectAction::FactorySaveFavorites => {
-            let selected = app.pi_import_pending_selected.take().unwrap_or_default();
+            let selected = app.pending_multi_selected.take().unwrap_or_default();
             let next_favorites = app
                 .model_favorites
                 .iter()
@@ -1101,6 +1101,145 @@ pub(super) fn run_select_action(
             app.set_toast("Saved", false);
             Ok(())
         }
+        app::SelectAction::DshSetProviderApi { provider_id } => {
+            let Some(selected) = selected else {
+                return Ok(());
+            };
+            let mut config = droidgear_core::dsh::read_dsh_current_config_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            let Some(provider) = config.providers.get_mut(&provider_id) else {
+                return Err(anyhow::Error::msg("Provider not found"));
+            };
+            provider.api = Some(selected);
+            droidgear_core::dsh::save_dsh_provider_for_home(&app.home_dir, &provider_id, provider)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::SelectAction::DshImportFromChannel { provider_id } => {
+            let Some(selected) = selected else {
+                return Ok(());
+            };
+            let channel = app
+                .channels
+                .iter()
+                .find(|c| c.enabled && format!("{} ({})", c.name, c.base_url) == selected);
+            let Some(channel) = channel else {
+                return Err(anyhow::anyhow!("Channel not found"));
+            };
+
+            app.dsh_import_pending_base_url = Some(channel.base_url.clone());
+
+            let api_key =
+                resolve_channel_api_key(app, &channel.id, &channel.channel_type, &channel.base_url);
+
+            let Some(api_key) = api_key else {
+                app.modal = Some(app::Modal::Input {
+                    title: "API key for import".to_string(),
+                    value: String::new(),
+                    cursor: usize::MAX,
+                    is_secret: true,
+                    action: app::InputAction::DshImportSetApiKey { provider_id },
+                });
+                return Ok(());
+            };
+
+            app.dsh_import_pending_api_key = Some(api_key.clone());
+            let models = droidgear_core::channel::fetch_models_by_api_key_blocking(
+                &channel.base_url,
+                &api_key,
+                None,
+            )
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+            app.dsh_import_pending_models = Some(models.clone());
+            let selected_bools: Vec<bool> = vec![true; models.len()];
+            app.pending_multi_selected = Some(selected_bools.clone());
+            let options: Vec<String> = models.iter().map(|m| m.id.clone()).collect();
+            app.modal = Some(app::Modal::MultiSelect {
+                title: "Select models to import (Tab/c: confirm)".to_string(),
+                options,
+                selected: selected_bools,
+                index: 0,
+                action: app::SelectAction::DshImportToggleModel { provider_id },
+            });
+            Ok(())
+        }
+        app::SelectAction::DshImportToggleModel { provider_id } => {
+            let models = app.dsh_import_pending_models.take().unwrap_or_default();
+            let selected = app.pending_multi_selected.take().unwrap_or_default();
+            let api_key = app.dsh_import_pending_api_key.take().unwrap_or_default();
+            let base_url = app.dsh_import_pending_base_url.take().unwrap_or_default();
+
+            let mut config = droidgear_core::dsh::read_dsh_current_config_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            let Some(provider) = config.providers.get_mut(&provider_id) else {
+                return Err(anyhow::Error::msg("Provider not found"));
+            };
+
+            let dsh_models: Vec<droidgear_core::dsh::DshModel> = models
+                .into_iter()
+                .enumerate()
+                .filter(|(i, _)| selected.get(*i).copied().unwrap_or(false))
+                .map(|(_, m)| droidgear_core::dsh::DshModel {
+                    id: m.id,
+                    name: m.name,
+                    ..Default::default()
+                })
+                .collect();
+
+            provider.base_url = Some(base_url);
+            provider.api_key_env = Some(format!(
+                "{}_API_KEY",
+                provider_id.to_uppercase().replace('-', "_")
+            ));
+            provider.api = app.dsh_import_pending_api_type.take();
+            provider.models = dsh_models;
+            droidgear_core::dsh::save_dsh_provider_for_home(&app.home_dir, &provider_id, provider)
+                .map_err(anyhow::Error::msg)?;
+
+            // Store the API key in the credentials refs under the env name.
+            let env_name = provider_id.to_uppercase().replace('-', "_") + "_API_KEY";
+            droidgear_core::dsh::save_dsh_credential_ref_for_home(
+                &app.home_dir,
+                &env_name,
+                &api_key,
+            )
+            .map_err(anyhow::Error::msg)?;
+
+            app.dsh_import_pending_provider_id = None;
+            app.set_toast("Imported from channel", false);
+            Ok(())
+        }
+        app::SelectAction::DshAddFetchedModels { provider_id } => {
+            let models = app.dsh_fetch_pending_models.take().unwrap_or_default();
+            let selected = app.pending_multi_selected.take().unwrap_or_default();
+
+            let mut config = droidgear_core::dsh::read_dsh_current_config_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            let Some(provider) = config.providers.get_mut(&provider_id) else {
+                return Err(anyhow::Error::msg("Provider not found"));
+            };
+
+            let mut added = 0usize;
+            for (i, model) in models.into_iter().enumerate() {
+                if !selected.get(i).copied().unwrap_or(false) {
+                    continue;
+                }
+                if provider.models.iter().any(|m| m.id == model.id) {
+                    continue;
+                }
+                provider.models.push(model);
+                added += 1;
+            }
+            droidgear_core::dsh::save_dsh_provider_for_home(&app.home_dir, &provider_id, provider)
+                .map_err(anyhow::Error::msg)?;
+            if added > 0 {
+                app.set_toast(format!("Fetched models: {added} added"), false);
+            } else {
+                app.set_toast("No new models from provider", false);
+            }
+            Ok(())
+        }
         app::SelectAction::PiImportFromChannel {
             profile_id,
             provider_id,
@@ -1214,7 +1353,7 @@ pub(super) fn run_select_action(
                             // Store models and show MultiSelect
                             app.pi_import_pending_models = Some(models.clone());
                             let selected_bools: Vec<bool> = vec![true; models.len()];
-                            app.pi_import_pending_selected = Some(selected_bools.clone());
+                            app.pending_multi_selected = Some(selected_bools.clone());
                             app.pi_import_pending_api_key = Some(api_key);
 
                             let options: Vec<String> =
@@ -1307,7 +1446,7 @@ pub(super) fn run_select_action(
             // Store models and show MultiSelect
             app.pi_import_pending_models = Some(models.clone());
             let selected_bools: Vec<bool> = vec![true; models.len()];
-            app.pi_import_pending_selected = Some(selected_bools.clone());
+            app.pending_multi_selected = Some(selected_bools.clone());
             app.pi_import_pending_api_key = Some(api_key);
 
             let options: Vec<String> = models.iter().map(|m| m.id.clone()).collect();
@@ -1329,7 +1468,7 @@ pub(super) fn run_select_action(
         } => {
             // User confirmed the model selection - import selected models
             let models = app.pi_import_pending_models.take().unwrap_or_default();
-            let selected = app.pi_import_pending_selected.take().unwrap_or_default();
+            let selected = app.pending_multi_selected.take().unwrap_or_default();
             let api_key = app.pi_import_pending_api_key.take().unwrap_or_default();
             let base_url = app.pi_import_pending_base_url.take().unwrap_or_default();
 
@@ -1491,7 +1630,7 @@ pub(super) fn run_select_action(
                             // Store models and show MultiSelect
                             app.pi_import_pending_models = Some(models.clone());
                             let selected_bools: Vec<bool> = vec![true; models.len()];
-                            app.pi_import_pending_selected = Some(selected_bools.clone());
+                            app.pending_multi_selected = Some(selected_bools.clone());
                             app.pi_import_pending_api_key = Some(api_key);
 
                             let options: Vec<String> =
@@ -2041,6 +2180,29 @@ pub(super) fn run_confirm_action(
         app::ConfirmAction::OmpDelete { id } => {
             droidgear_core::omp::delete_omp_profile_for_home(&app.home_dir, &id)
                 .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
+        app::ConfirmAction::DshDeleteProvider { provider_id } => {
+            droidgear_core::dsh::delete_dsh_provider_for_home(&app.home_dir, &provider_id)
+                .map_err(anyhow::Error::msg)?;
+            refresh_dsh(app);
+            Ok(())
+        }
+        app::ConfirmAction::DshDeleteModel {
+            provider_id,
+            model_index,
+        } => {
+            let mut config = droidgear_core::dsh::read_dsh_current_config_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            let Some(provider) = config.providers.get_mut(&provider_id) else {
+                return Err(anyhow::Error::msg("Provider not found"));
+            };
+            if model_index < provider.models.len() {
+                provider.models.remove(model_index);
+            }
+            droidgear_core::dsh::save_dsh_provider_for_home(&app.home_dir, &provider_id, provider)
+                .map_err(anyhow::Error::msg)?;
+            refresh_dsh(app);
             Ok(())
         }
         app::ConfirmAction::OmpTestAll => {
@@ -3781,7 +3943,7 @@ pub(super) fn run_input_action(
             app.pi_import_pending_models = Some(models.clone());
             app.pi_import_pending_api_key = Some(trimmed.to_string());
             let selected_bools: Vec<bool> = vec![true; models.len()];
-            app.pi_import_pending_selected = Some(selected_bools.clone());
+            app.pending_multi_selected = Some(selected_bools.clone());
 
             let options: Vec<String> = models.iter().map(|m| m.id.clone()).collect();
             app.modal = Some(app::Modal::MultiSelect {
@@ -4159,6 +4321,274 @@ pub(super) fn run_input_action(
                 extra: Default::default(),
             });
             droidgear_core::pi::save_pi_profile_for_home(&app.home_dir, profile)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::DshAddProvider => {
+            if trimmed.is_empty() {
+                return Err(anyhow::Error::msg("Provider id is required"));
+            }
+            let config = droidgear_core::dsh::read_dsh_current_config_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            if config.providers.contains_key(trimmed) {
+                return Err(anyhow::Error::msg("Provider already exists"));
+            }
+            let provider_id = trimmed.to_string();
+            droidgear_core::dsh::save_dsh_provider_for_home(
+                &app.home_dir,
+                &provider_id,
+                &super::keys_dsh::dsh_default_provider_config(),
+            )
+            .map_err(anyhow::Error::msg)?;
+
+            refresh_dsh(app);
+            if let Some(idx) = app
+                .dsh_providers
+                .iter()
+                .position(|(id, _)| id == &provider_id)
+            {
+                app.dsh_index = idx;
+                app.dsh_provider_id = Some(provider_id);
+                app.dsh_provider_field_index = 0;
+                app.dsh_model_index = 0;
+                app.dsh_model_field_index = 0;
+                app.screen = app::Screen::DshProvider;
+            }
+            Ok(())
+        }
+        app::InputAction::DshAddProviderFromChannel => {
+            if trimmed.is_empty() {
+                return Err(anyhow::Error::msg("Provider id is required"));
+            }
+            let config = droidgear_core::dsh::read_dsh_current_config_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            if config.providers.contains_key(trimmed) {
+                return Err(anyhow::Error::msg("Provider already exists"));
+            }
+            let provider_id = trimmed.to_string();
+            droidgear_core::dsh::save_dsh_provider_for_home(
+                &app.home_dir,
+                &provider_id,
+                &super::keys_dsh::dsh_default_provider_config(),
+            )
+            .map_err(anyhow::Error::msg)?;
+            refresh_dsh(app);
+
+            refresh_channels(app);
+            let enabled_channels: Vec<String> = app
+                .channels
+                .iter()
+                .filter(|c| c.enabled)
+                .map(|c| format!("{} ({})", c.name, c.base_url))
+                .collect();
+            if enabled_channels.is_empty() {
+                return Err(anyhow::anyhow!(
+                    "No enabled channels found. Add a channel first."
+                ));
+            }
+            app.dsh_import_pending_provider_id = Some(provider_id);
+            app.modal = Some(app::Modal::Select {
+                title: "Select channel to import from".to_string(),
+                options: enabled_channels,
+                index: 0,
+                action: app::SelectAction::DshImportFromChannel {
+                    provider_id: app.dsh_import_pending_provider_id.clone().unwrap(),
+                },
+            });
+            Ok(())
+        }
+        app::InputAction::DshImportSetApiKey { provider_id } => {
+            if trimmed.is_empty() {
+                return Err(anyhow::Error::msg("API key is required"));
+            }
+            app.dsh_import_pending_api_key = Some(trimmed.to_string());
+            let base_url = app.dsh_import_pending_base_url.clone().unwrap_or_default();
+            let models =
+                droidgear_core::channel::fetch_models_by_api_key_blocking(&base_url, trimmed, None)
+                    .map_err(|e| anyhow::anyhow!("{e}"))?;
+            app.dsh_import_pending_models = Some(models.clone());
+            let selected_bools: Vec<bool> = vec![true; models.len()];
+            app.pending_multi_selected = Some(selected_bools.clone());
+            let options: Vec<String> = models.iter().map(|m| m.id.clone()).collect();
+            app.modal = Some(app::Modal::MultiSelect {
+                title: "Select models to import (Tab/c: confirm)".to_string(),
+                options,
+                selected: selected_bools,
+                index: 0,
+                action: app::SelectAction::DshImportToggleModel { provider_id },
+            });
+            Ok(())
+        }
+        app::InputAction::DshSetProviderDisplayName { provider_id } => {
+            let mut config = droidgear_core::dsh::read_dsh_current_config_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            let Some(provider) = config.providers.get_mut(&provider_id) else {
+                return Err(anyhow::Error::msg("Provider not found"));
+            };
+            provider.display_name = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            droidgear_core::dsh::save_dsh_provider_for_home(&app.home_dir, &provider_id, provider)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::DshSetProviderBaseUrl { provider_id } => {
+            let mut config = droidgear_core::dsh::read_dsh_current_config_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            let Some(provider) = config.providers.get_mut(&provider_id) else {
+                return Err(anyhow::Error::msg("Provider not found"));
+            };
+            provider.base_url = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            droidgear_core::dsh::save_dsh_provider_for_home(&app.home_dir, &provider_id, provider)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::DshSetProviderApiKeyEnv { provider_id } => {
+            let mut config = droidgear_core::dsh::read_dsh_current_config_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            let Some(provider) = config.providers.get_mut(&provider_id) else {
+                return Err(anyhow::Error::msg("Provider not found"));
+            };
+            provider.api_key_env = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            droidgear_core::dsh::save_dsh_provider_for_home(&app.home_dir, &provider_id, provider)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::DshSetProviderApiKey { provider_id } => {
+            let config = droidgear_core::dsh::read_dsh_current_config_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            let Some(provider) = config.providers.get(&provider_id) else {
+                return Err(anyhow::Error::msg("Provider not found"));
+            };
+            let Some(env_name) = provider
+                .api_key_env
+                .clone()
+                .filter(|v| !v.trim().is_empty())
+            else {
+                return Err(anyhow::Error::msg(
+                    "API key env var not set; set it first, then the key value",
+                ));
+            };
+            droidgear_core::dsh::save_dsh_credential_ref_for_home(
+                &app.home_dir,
+                &env_name,
+                trimmed,
+            )
+            .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::DshAddModel { provider_id } => {
+            if trimmed.is_empty() {
+                return Err(anyhow::Error::msg("Model id is required"));
+            }
+            let mut config = droidgear_core::dsh::read_dsh_current_config_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            let Some(provider) = config.providers.get_mut(&provider_id) else {
+                return Err(anyhow::Error::msg("Provider not found"));
+            };
+            let new_index = provider.models.len();
+            provider.models.push(droidgear_core::dsh::DshModel {
+                id: trimmed.to_string(),
+                ..Default::default()
+            });
+            droidgear_core::dsh::save_dsh_provider_for_home(&app.home_dir, &provider_id, provider)
+                .map_err(anyhow::Error::msg)?;
+            app.dsh_model_index = new_index;
+            app.dsh_model_field_index = 0;
+            app.screen = app::Screen::DshModel;
+            refresh_dsh(app);
+            Ok(())
+        }
+        app::InputAction::DshSetModelId {
+            provider_id,
+            model_index,
+        } => {
+            if trimmed.is_empty() {
+                return Err(anyhow::Error::msg("Model id is required"));
+            }
+            let mut config = droidgear_core::dsh::read_dsh_current_config_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            let Some(provider) = config.providers.get_mut(&provider_id) else {
+                return Err(anyhow::Error::msg("Provider not found"));
+            };
+            let Some(model) = provider.models.get_mut(model_index) else {
+                return Err(anyhow::Error::msg("Model not found"));
+            };
+            model.id = trimmed.to_string();
+            droidgear_core::dsh::save_dsh_provider_for_home(&app.home_dir, &provider_id, provider)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::DshSetModelName {
+            provider_id,
+            model_index,
+        } => {
+            let mut config = droidgear_core::dsh::read_dsh_current_config_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            let Some(provider) = config.providers.get_mut(&provider_id) else {
+                return Err(anyhow::Error::msg("Provider not found"));
+            };
+            let Some(model) = provider.models.get_mut(model_index) else {
+                return Err(anyhow::Error::msg("Model not found"));
+            };
+            model.name = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            droidgear_core::dsh::save_dsh_provider_for_home(&app.home_dir, &provider_id, provider)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::DshSetModelContextWindow {
+            provider_id,
+            model_index,
+        } => {
+            let mut config = droidgear_core::dsh::read_dsh_current_config_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            let Some(provider) = config.providers.get_mut(&provider_id) else {
+                return Err(anyhow::Error::msg("Provider not found"));
+            };
+            let Some(model) = provider.models.get_mut(model_index) else {
+                return Err(anyhow::Error::msg("Model not found"));
+            };
+            model.context_window = if trimmed.is_empty() {
+                None
+            } else {
+                Some(
+                    trimmed
+                        .parse::<u32>()
+                        .map_err(|_| anyhow::Error::msg("Invalid context window"))?,
+                )
+            };
+            droidgear_core::dsh::save_dsh_provider_for_home(&app.home_dir, &provider_id, provider)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::DshSetModelMaxTokens {
+            provider_id,
+            model_index,
+        } => {
+            let mut config = droidgear_core::dsh::read_dsh_current_config_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            let Some(provider) = config.providers.get_mut(&provider_id) else {
+                return Err(anyhow::Error::msg("Provider not found"));
+            };
+            let Some(model) = provider.models.get_mut(model_index) else {
+                return Err(anyhow::Error::msg("Model not found"));
+            };
+            model.max_tokens = if trimmed.is_empty() {
+                None
+            } else {
+                Some(
+                    trimmed
+                        .parse::<u32>()
+                        .map_err(|_| anyhow::Error::msg("Invalid max tokens"))?,
+                )
+            };
+            droidgear_core::dsh::save_dsh_provider_for_home(&app.home_dir, &provider_id, provider)
                 .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
