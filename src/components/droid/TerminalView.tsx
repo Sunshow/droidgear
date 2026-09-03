@@ -17,6 +17,10 @@ import { platform } from '@tauri-apps/plugin-os'
 import { usePreferences } from '@/services/preferences'
 import { notify } from '@/lib/notifications'
 import { getShellEnv } from '@/services/shell-env'
+import {
+  installWebkitBeforeInputFix,
+  type XtermWebkitFixTarget,
+} from '@/lib/terminal-webkit-input-fix'
 import { logger } from '@/lib/logger'
 
 // Default fallback fonts for terminal
@@ -308,6 +312,20 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
 
       ptyRef.current = pty
 
+      // macOS WebKit (WKWebView) may deliver beforeinput/input before the
+      // character's own keydown when an IME is active or Caps Lock/Shift is
+      // held, causing xterm to drop the first character (e.g. "#" via
+      // Shift+3 with a Chinese IME, or the first letter after Caps Lock).
+      // Reset xterm's internal keydown flag on beforeinput so the input is
+      // delivered normally.
+      // https://github.com/xtermjs/xterm.js/issues/5374#issuecomment-5390337647
+      const disposeWebkitInputFix =
+        currentPlatform === 'macos'
+          ? installWebkitBeforeInputFix(
+              terminal as unknown as XtermWebkitFixTarget
+            )
+          : undefined
+
       // Custom key event handler for special shortcuts
       terminal.attachCustomKeyEventHandler(event => {
         if (event.type !== 'keydown') return true
@@ -445,6 +463,7 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
       }, 100)
 
       return () => {
+        disposeWebkitInputFix?.()
         resizeObserver.disconnect()
         container.removeEventListener('mousedown', handleMouseDown)
         selectionDisposable.dispose()

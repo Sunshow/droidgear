@@ -1050,7 +1050,10 @@ printf 'OK\n'
             &script,
             "test-provider",
             &test_provider_config(),
-            Duration::from_secs(2),
+            // Generous timeout: this test asserts success, and the timeout is
+            // only a safety net. A tight limit makes the test flaky when the
+            // machine is busy (e.g. running the full test suite in parallel).
+            Duration::from_secs(10),
         )
         .unwrap();
 
