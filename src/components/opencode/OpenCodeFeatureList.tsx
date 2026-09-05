@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Server } from 'lucide-react'
+import { Server, TerminalSquare } from 'lucide-react'
 import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -16,6 +16,11 @@ interface FeatureItem {
 
 const features: FeatureItem[] = [
   { id: 'providers', labelKey: 'opencode.features.providers', icon: Server },
+  {
+    id: 'terminal',
+    labelKey: 'opencode.features.terminal',
+    icon: TerminalSquare,
+  },
 ]
 
 export function OpenCodeFeatureList() {

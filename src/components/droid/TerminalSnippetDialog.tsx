@@ -129,9 +129,9 @@ export function TerminalSnippetDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {mode === 'list' && t('droid.terminal.snippets.manage')}
-            {mode === 'add' && t('droid.terminal.snippets.add')}
-            {mode === 'edit' && t('droid.terminal.snippets.edit')}
+            {mode === 'list' && t('terminal.snippets.manage')}
+            {mode === 'add' && t('terminal.snippets.add')}
+            {mode === 'edit' && t('terminal.snippets.edit')}
           </DialogTitle>
         </DialogHeader>
 
@@ -139,7 +139,7 @@ export function TerminalSnippetDialog({
           <div className="flex flex-col gap-2">
             {snippets.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
-                {t('droid.terminal.snippets.empty')}
+                {t('terminal.snippets.empty')}
               </div>
             ) : (
               <div className="max-h-64 overflow-y-auto">
@@ -195,7 +195,7 @@ export function TerminalSnippetDialog({
                 }}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                {t('droid.terminal.snippets.add')}
+                {t('terminal.snippets.add')}
               </Button>
             </DialogFooter>
           </div>
@@ -203,30 +203,30 @@ export function TerminalSnippetDialog({
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="snippet-name">
-                {t('droid.terminal.snippets.name')}
+                {t('terminal.snippets.name')}
               </Label>
               <Input
                 id="snippet-name"
                 value={name}
                 onChange={e => setName(e.target.value)}
-                placeholder={t('droid.terminal.snippets.namePlaceholder')}
+                placeholder={t('terminal.snippets.namePlaceholder')}
               />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="snippet-content">
-                {t('droid.terminal.snippets.content')}
+                {t('terminal.snippets.content')}
               </Label>
               <Textarea
                 id="snippet-content"
                 value={content}
                 onChange={e => setContent(e.target.value)}
-                placeholder={t('droid.terminal.snippets.contentPlaceholder')}
+                placeholder={t('terminal.snippets.contentPlaceholder')}
                 rows={3}
               />
             </div>
             <div className="flex items-center justify-between">
               <Label htmlFor="auto-execute">
-                {t('droid.terminal.snippets.autoExecute')}
+                {t('terminal.snippets.autoExecute')}
               </Label>
               <Switch
                 id="auto-execute"

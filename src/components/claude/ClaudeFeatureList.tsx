@@ -12,6 +12,7 @@ import {
   Play,
   Plus,
   Settings as SettingsIcon,
+  TerminalSquare,
   Trash2,
   Zap,
 } from 'lucide-react'
@@ -50,10 +51,22 @@ import { ActionDropdownMenuItem } from '@/components/ui/action-dropdown-menu-ite
 import { commands } from '@/lib/bindings'
 import { formatClaudePreview } from '@/lib/claude-preview-format'
 import { useClaudeSettingsStore } from '@/store/claude-settings-store'
+import { useUIStore, type ClaudeSubView } from '@/store/ui-store'
 
-const features = [
+interface FeatureItem {
+  id: ClaudeSubView
+  labelKey: string
+  icon: React.ElementType
+}
+
+const features: FeatureItem[] = [
   { id: 'settings', labelKey: 'claude.features.settings', icon: SettingsIcon },
-] as const
+  {
+    id: 'terminal',
+    labelKey: 'claude.features.terminal',
+    icon: TerminalSquare,
+  },
+]
 
 export function ClaudeFeatureList() {
   const { t } = useTranslation()
@@ -70,6 +83,8 @@ export function ClaudeFeatureList() {
   const loadFromLive = useClaudeSettingsStore(state => state.loadFromLive)
   const preview = useClaudeSettingsStore(state => state.preview)
   const launch = useClaudeSettingsStore(state => state.launch)
+  const claudeSubView = useUIStore(state => state.claudeSubView)
+  const setClaudeSubView = useUIStore(state => state.setClaudeSubView)
 
   const [newFileDialogOpen, setNewFileDialogOpen] = useState(false)
   const [deleteFileDialogOpen, setDeleteFileDialogOpen] = useState(false)
@@ -199,9 +214,10 @@ export function ClaudeFeatureList() {
         {features.map(feature => (
           <ActionButton
             key={feature.id}
-            variant="secondary"
+            variant={claudeSubView === feature.id ? 'secondary' : 'ghost'}
             size="sm"
             className={cn('justify-start w-full')}
+            onClick={() => setClaudeSubView(feature.id)}
           >
             <feature.icon className="h-4 w-4 mr-2" />
             {t(feature.labelKey)}

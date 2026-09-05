@@ -1,20 +1,28 @@
 import { useTranslation } from 'react-i18next'
-import { Cpu } from 'lucide-react'
+import { Cpu, TerminalSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ActionButton } from '@/components/ui/action-button'
+import { useUIStore, type HermesSubView } from '@/store/ui-store'
 
 interface FeatureItem {
-  id: 'model'
+  id: HermesSubView
   labelKey: string
   icon: React.ElementType
 }
 
 const features: FeatureItem[] = [
   { id: 'model', labelKey: 'hermes.features.model', icon: Cpu },
+  {
+    id: 'terminal',
+    labelKey: 'hermes.features.terminal',
+    icon: TerminalSquare,
+  },
 ]
 
 export function HermesFeatureList() {
   const { t } = useTranslation()
+  const hermesSubView = useUIStore(state => state.hermesSubView)
+  const setHermesSubView = useUIStore(state => state.setHermesSubView)
 
   return (
     <div className="flex h-full flex-col">
@@ -22,9 +30,10 @@ export function HermesFeatureList() {
         {features.map(feature => (
           <ActionButton
             key={feature.id}
-            variant="secondary"
+            variant={hermesSubView === feature.id ? 'secondary' : 'ghost'}
             size="sm"
             className={cn('justify-start w-full')}
+            onClick={() => setHermesSubView(feature.id)}
           >
             <feature.icon className="h-4 w-4 mr-2" />
             {t(feature.labelKey)}

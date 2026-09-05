@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Server, KeyRound } from 'lucide-react'
+import { Server, KeyRound, TerminalSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ActionButton } from '@/components/ui/action-button'
 import { useUIStore } from '@/store/ui-store'
@@ -17,6 +17,11 @@ const features: FeatureItem[] = [
     id: 'auth-profiles',
     labelKey: 'codex.features.authProfiles',
     icon: KeyRound,
+  },
+  {
+    id: 'terminal',
+    labelKey: 'codex.features.terminal',
+    icon: TerminalSquare,
   },
 ]
 

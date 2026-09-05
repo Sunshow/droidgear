@@ -130,6 +130,7 @@ function PageLoadingFallback() {
 }
 import { useUIStore } from '@/store/ui-store'
 import { useChannelStore } from '@/store/channel-store'
+import { useTerminalActive } from '@/hooks/use-terminal-active'
 import type { Channel } from '@/lib/bindings'
 import { saveChannelAuth } from '@/lib/channel-utils'
 
@@ -147,8 +148,15 @@ export function MainWindowContent({
   const droidSubView = useUIStore(state => state.droidSubView)
   const codexSubView = useUIStore(state => state.codexSubView)
   const droidRefreshKey = useUIStore(state => state.droidRefreshKey)
+  const opencodeSubView = useUIStore(state => state.opencodeSubView)
   const openclawSubView = useUIStore(state => state.openclawSubView)
+  const claudeSubView = useUIStore(state => state.claudeSubView)
+  const hermesSubView = useUIStore(state => state.hermesSubView)
+  const piSubView = useUIStore(state => state.piSubView)
+  const ompSubView = useUIStore(state => state.ompSubView)
+  const dshSubView = useUIStore(state => state.dshSubView)
   const channelsSubView = useUIStore(state => state.channelsSubView)
+  const terminalActive = useTerminalActive()
   const channels = useChannelStore(state => state.channels)
   const selectedChannelId = useChannelStore(state => state.selectedChannelId)
   const saveChannels = useChannelStore(state => state.saveChannels)
@@ -200,7 +208,7 @@ export function MainWindowContent({
     }
 
     if (currentView === 'opencode') {
-      return <OpenCodeConfigPage />
+      return opencodeSubView === 'terminal' ? null : <OpenCodeConfigPage />
     }
 
     if (currentView === 'codex') {
@@ -213,23 +221,23 @@ export function MainWindowContent({
     }
 
     if (currentView === 'claude') {
-      return <ClaudeSettingsPage />
+      return claudeSubView === 'terminal' ? null : <ClaudeSettingsPage />
     }
 
     if (currentView === 'hermes') {
-      return <HermesConfigPage />
+      return hermesSubView === 'terminal' ? null : <HermesConfigPage />
     }
 
     if (currentView === 'pi') {
-      return <PiConfigPage />
+      return piSubView === 'terminal' ? null : <PiConfigPage />
     }
 
     if (currentView === 'omp') {
-      return <OmpConfigPage />
+      return ompSubView === 'terminal' ? null : <OmpConfigPage />
     }
 
     if (currentView === 'dsh') {
-      return <DshConfigPage />
+      return dshSubView === 'terminal' ? null : <DshConfigPage />
     }
 
     if (currentView === 'openclaw') {
@@ -274,12 +282,7 @@ export function MainWindowContent({
     >
       <Suspense fallback={<PageLoadingFallback />}>{renderContent()}</Suspense>
       {/* Terminal is always mounted across all views, hidden when not active */}
-      <div
-        className={cn(
-          !(currentView === 'droid' && droidSubView === 'terminal') && 'hidden',
-          'absolute inset-0'
-        )}
-      >
+      <div className={cn(!terminalActive && 'hidden', 'absolute inset-0')}>
         <Suspense fallback={<PageLoadingFallback />}>
           <TerminalPage />
         </Suspense>

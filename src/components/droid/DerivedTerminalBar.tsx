@@ -50,7 +50,7 @@ export function DerivedTerminalBar({
         )}
       >
         <TerminalIcon className="h-3.5 w-3.5" />
-        <span>{t('droid.terminal.mainTerminal')}</span>
+        <span>{t('terminal.mainTerminal')}</span>
       </ActionButton>
 
       {/* Separator when there are derived terminals */}
@@ -113,7 +113,7 @@ export function DerivedTerminalBar({
             <Plus className="h-3.5 w-3.5" />
           </ActionButton>
         </TooltipTrigger>
-        <TooltipContent>{t('droid.terminal.newDerived')}</TooltipContent>
+        <TooltipContent>{t('terminal.newDerived')}</TooltipContent>
       </Tooltip>
 
       <CreateDerivedDialog

@@ -52,12 +52,11 @@ import { TerminalView, type TerminalViewRef } from './TerminalView'
 import { DerivedTerminalBar } from './DerivedTerminalBar'
 import { TerminalSnippetDialog } from './TerminalSnippetDialog'
 import { useTerminalStore } from '@/store/terminal-store'
-import { useUIStore } from '@/store/ui-store'
+import { useTerminalActive } from '@/hooks/use-terminal-active'
 
 export function TerminalPage() {
   const { t } = useTranslation()
-  const currentView = useUIStore(state => state.currentView)
-  const droidSubView = useUIStore(state => state.droidSubView)
+  const terminalActive = useTerminalActive()
   const terminals = useTerminalStore(state => state.terminals)
   const selectedTerminalId = useTerminalStore(state => state.selectedTerminalId)
   const createTerminal = useTerminalStore(state => state.createTerminal)
@@ -172,7 +171,7 @@ export function TerminalPage() {
     const selected = await open({
       directory: true,
       multiple: false,
-      title: t('droid.terminal.selectDirectory'),
+      title: t('terminal.selectDirectory'),
     })
     if (selected) {
       const dirPath = selected as string
@@ -239,7 +238,7 @@ export function TerminalPage() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Only respond when Terminal page is active
-      if (currentView !== 'droid' || droidSubView !== 'terminal') return
+      if (!terminalActive) return
 
       // Ctrl/Cmd + Shift + S to open Snippets
       if (
@@ -323,8 +322,7 @@ export function TerminalPage() {
   }, [
     selectedTerminalId,
     handleCloseCurrentTab,
-    currentView,
-    droidSubView,
+    terminalActive,
     terminals,
     selectTerminal,
     selectDerivedTerminal,
@@ -448,7 +446,7 @@ export function TerminalPage() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b">
-        <h1 className="text-xl font-semibold">{t('droid.terminal.title')}</h1>
+        <h1 className="text-xl font-semibold">{t('terminal.title')}</h1>
         <div className="flex items-center gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -460,7 +458,7 @@ export function TerminalPage() {
                 />
               </div>
             </TooltipTrigger>
-            <TooltipContent>{t('droid.terminal.copyOnSelect')}</TooltipContent>
+            <TooltipContent>{t('terminal.copyOnSelect')}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -472,7 +470,7 @@ export function TerminalPage() {
                 />
               </div>
             </TooltipTrigger>
-            <TooltipContent>{t('droid.terminal.forceDark')}</TooltipContent>
+            <TooltipContent>{t('terminal.forceDark')}</TooltipContent>
           </Tooltip>
           <DropdownMenu
             open={snippetDropdownOpen}
@@ -491,7 +489,7 @@ export function TerminalPage() {
                 </DropdownMenuTrigger>
               </TooltipTrigger>
               <TooltipContent>
-                {t('droid.terminal.snippets.title')} (⌘⇧S)
+                {t('terminal.snippets.title')} (⌘⇧S)
               </TooltipContent>
             </Tooltip>
             <DropdownMenuContent
@@ -513,7 +511,7 @@ export function TerminalPage() {
             >
               {snippets.length === 0 ? (
                 <DropdownMenuItem disabled>
-                  {t('droid.terminal.snippets.empty')}
+                  {t('terminal.snippets.empty')}
                 </DropdownMenuItem>
               ) : (
                 snippets.slice(0, 10).map((snippet, index) => (
@@ -544,7 +542,7 @@ export function TerminalPage() {
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setSnippetDialogOpen(true)}>
                 <Settings className="h-4 w-4 mr-2" />
-                {t('droid.terminal.snippets.manage')}
+                {t('terminal.snippets.manage')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -559,9 +557,7 @@ export function TerminalPage() {
                 <FolderOpen className="h-4 w-4" />
               </ActionButton>
             </TooltipTrigger>
-            <TooltipContent>
-              {t('droid.terminal.newTerminalInDir')}
-            </TooltipContent>
+            <TooltipContent>{t('terminal.newTerminalInDir')}</TooltipContent>
           </Tooltip>
           <ActionButton
             variant="outline"
@@ -569,7 +565,7 @@ export function TerminalPage() {
             onClick={handleCreateTerminal}
           >
             <Plus className="h-4 w-4 mr-2" />
-            {t('droid.terminal.newTerminal')}
+            {t('terminal.newTerminal')}
           </ActionButton>
         </div>
       </div>
@@ -581,7 +577,7 @@ export function TerminalPage() {
             <div className="p-2 flex flex-col gap-1.5">
               {terminals.length === 0 ? (
                 <div className="text-center text-muted-foreground text-sm py-8">
-                  {t('droid.terminal.noTerminals')}
+                  {t('terminal.noTerminals')}
                 </div>
               ) : (
                 terminals.map(terminal => (
@@ -639,20 +635,20 @@ export function TerminalPage() {
                         }
                       >
                         <Pencil className="h-4 w-4 mr-2" />
-                        {t('droid.terminal.rename')}
+                        {t('terminal.rename')}
                       </ContextMenuItem>
                       <ContextMenuItem
                         onClick={() => handleReloadTerminal(terminal.id)}
                       >
                         <RotateCw className="h-4 w-4 mr-2" />
-                        {t('droid.terminal.reload')}
+                        {t('terminal.reload')}
                       </ContextMenuItem>
                       {terminal.cwd && (
                         <ContextMenuItem
                           onClick={() => writeText(terminal.cwd)}
                         >
                           <Copy className="h-4 w-4 mr-2" />
-                          {t('droid.terminal.copyPath')}
+                          {t('terminal.copyPath')}
                         </ContextMenuItem>
                       )}
                       <ContextMenuItem
@@ -660,7 +656,7 @@ export function TerminalPage() {
                         className="text-destructive"
                       >
                         <X className="h-4 w-4 mr-2" />
-                        {t('droid.terminal.close')}
+                        {t('terminal.close')}
                       </ContextMenuItem>
                     </ContextMenuContent>
                   </ContextMenu>
@@ -774,7 +770,7 @@ export function TerminalPage() {
             ))
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
-              <p>{t('droid.terminal.selectOrCreate')}</p>
+              <p>{t('terminal.selectOrCreate')}</p>
             </div>
           )}
         </div>
@@ -791,10 +787,10 @@ export function TerminalPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t('droid.terminal.closeConfirmTitle')}
+              {t('terminal.closeConfirmTitle')}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {t('droid.terminal.closeConfirmDescription')}
+              {t('terminal.closeConfirmDescription')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -803,10 +799,10 @@ export function TerminalPage() {
                 setPendingClose(null)
               }}
             >
-              {t('droid.terminal.closeConfirmCancel')}
+              {t('terminal.closeConfirmCancel')}
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmClose}>
-              {t('droid.terminal.closeConfirmAction')}
+              {t('terminal.closeConfirmAction')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

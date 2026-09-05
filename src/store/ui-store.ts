@@ -33,9 +33,14 @@ export type DroidSubView =
   | 'terminal'
   | 'missions'
   | 'legacy-versions'
-export type CodexSubView = 'providers' | 'auth-profiles'
-export type OpenCodeSubView = 'providers'
-export type OpenClawSubView = 'providers' | 'helpers' | 'subagents'
+export type CodexSubView = 'providers' | 'auth-profiles' | 'terminal'
+export type OpenCodeSubView = 'providers' | 'terminal'
+export type OpenClawSubView = 'providers' | 'helpers' | 'subagents' | 'terminal'
+export type ClaudeSubView = 'settings' | 'terminal'
+export type HermesSubView = 'model' | 'terminal'
+export type PiSubView = 'providers' | 'terminal'
+export type OmpSubView = 'config' | 'terminal'
+export type DshSubView = 'providers' | 'terminal'
 export type ChannelsSubView = 'detail' | 'export-templates'
 
 export interface PendingUpdate {
@@ -56,6 +61,11 @@ interface UIState {
   codexSubView: CodexSubView
   opencodeSubView: OpenCodeSubView
   openclawSubView: OpenClawSubView
+  claudeSubView: ClaudeSubView
+  hermesSubView: HermesSubView
+  piSubView: PiSubView
+  ompSubView: OmpSubView
+  dshSubView: DshSubView
   channelsSubView: ChannelsSubView
   lastSpecExportPath: string | null
   pendingUpdate: PendingUpdate | null
@@ -77,6 +87,11 @@ interface UIState {
   setCodexSubView: (view: CodexSubView) => void
   setOpenCodeSubView: (view: OpenCodeSubView) => void
   setOpenClawSubView: (view: OpenClawSubView) => void
+  setClaudeSubView: (view: ClaudeSubView) => void
+  setHermesSubView: (view: HermesSubView) => void
+  setPiSubView: (view: PiSubView) => void
+  setOmpSubView: (view: OmpSubView) => void
+  setDshSubView: (view: DshSubView) => void
   setChannelsSubView: (view: ChannelsSubView) => void
   setLastSpecExportPath: (path: string) => void
   setPendingUpdate: (update: PendingUpdate | null) => void
@@ -101,6 +116,11 @@ export const useUIStore = create<UIState>()(
         codexSubView: 'providers',
         opencodeSubView: 'providers',
         openclawSubView: 'providers',
+        claudeSubView: 'settings',
+        hermesSubView: 'model',
+        piSubView: 'providers',
+        ompSubView: 'config',
+        dshSubView: 'providers',
         channelsSubView: 'detail',
         lastSpecExportPath: null,
         pendingUpdate: null,
@@ -193,6 +213,21 @@ export const useUIStore = create<UIState>()(
 
         setOpenClawSubView: view =>
           set({ openclawSubView: view }, undefined, 'setOpenClawSubView'),
+
+        setClaudeSubView: view =>
+          set({ claudeSubView: view }, undefined, 'setClaudeSubView'),
+
+        setHermesSubView: view =>
+          set({ hermesSubView: view }, undefined, 'setHermesSubView'),
+
+        setPiSubView: view =>
+          set({ piSubView: view }, undefined, 'setPiSubView'),
+
+        setOmpSubView: view =>
+          set({ ompSubView: view }, undefined, 'setOmpSubView'),
+
+        setDshSubView: view =>
+          set({ dshSubView: view }, undefined, 'setDshSubView'),
 
         setChannelsSubView: view =>
           set({ channelsSubView: view }, undefined, 'setChannelsSubView'),

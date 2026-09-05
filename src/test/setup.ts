@@ -57,6 +57,23 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 })
 
+// jsdom does not implement ResizeObserver, but Radix UI components (e.g.
+// AlertDialog) construct one while sizing content. Provide a minimal stub so
+// tests never depend on worker scheduling luck — a single test file used to
+// stub this global, which only helped files sharing its worker.
+if (!('ResizeObserver' in globalThis)) {
+  class ResizeObserverStub {
+    observe = vi.fn()
+    unobserve = vi.fn()
+    disconnect = vi.fn()
+  }
+  Object.defineProperty(globalThis, 'ResizeObserver', {
+    configurable: true,
+    writable: true,
+    value: ResizeObserverStub,
+  })
+}
+
 // Radix UI components rely on Pointer Events APIs that jsdom doesn't fully implement.
 // Provide minimal shims to prevent runtime errors in tests.
 if (!('hasPointerCapture' in Element.prototype)) {

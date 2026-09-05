@@ -51,31 +51,29 @@ export function CreateDerivedDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{t('droid.terminal.newDerived')}</DialogTitle>
+          <DialogTitle>{t('terminal.newDerived')}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4 py-4">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="command">
-              {t('droid.terminal.derivedCommand')}
-            </Label>
+            <Label htmlFor="command">{t('terminal.derivedCommand')}</Label>
             <Input
               id="command"
               value={command}
               onChange={e => setCommand(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={t('droid.terminal.derivedCommandPlaceholder')}
+              placeholder={t('terminal.derivedCommandPlaceholder')}
               autoFocus
               className="font-mono"
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="name">{t('droid.terminal.derivedName')}</Label>
+            <Label htmlFor="name">{t('terminal.derivedName')}</Label>
             <Input
               id="name"
               value={name}
               onChange={e => setName(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={t('droid.terminal.derivedNamePlaceholder')}
+              placeholder={t('terminal.derivedNamePlaceholder')}
             />
           </div>
         </div>
