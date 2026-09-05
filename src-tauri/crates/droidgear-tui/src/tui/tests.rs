@@ -382,6 +382,10 @@ fn hermes_confirm_action_variants_exist() {
     let _delete = app::ConfirmAction::HermesDelete {
         id: "test".to_string(),
     };
+    let _delete_model = app::ConfirmAction::HermesDeleteModel {
+        id: "test".to_string(),
+        model_index: 0,
+    };
 }
 
 #[test]
@@ -397,23 +401,33 @@ fn hermes_input_action_variants_exist() {
     let _desc = app::InputAction::HermesSetProfileDescription {
         id: "x".to_string(),
     };
-    let _model = app::InputAction::HermesSetProfileDefaultModel {
+    let _model_name = app::InputAction::HermesSetModelName {
         id: "x".to_string(),
+        model_index: 0,
     };
-    let _prov = app::InputAction::HermesSetProfileProvider {
+    let _model = app::InputAction::HermesSetModelDefault {
         id: "x".to_string(),
+        model_index: 0,
     };
-    let _url = app::InputAction::HermesSetProfileBaseUrl {
+    let _prov = app::InputAction::HermesSetModelProvider {
         id: "x".to_string(),
+        model_index: 0,
     };
-    let _key = app::InputAction::HermesSetProfileApiKey {
+    let _url = app::InputAction::HermesSetModelBaseUrl {
         id: "x".to_string(),
+        model_index: 0,
+    };
+    let _key = app::InputAction::HermesSetModelApiKey {
+        id: "x".to_string(),
+        model_index: 0,
     };
     let _import_key = app::InputAction::HermesImportSetApiKey {
         id: "x".to_string(),
+        model_index: 0,
     };
     let _import_channel = app::SelectAction::HermesImportFromChannel {
         profile_id: "x".to_string(),
+        model_index: 0,
     };
 }
 

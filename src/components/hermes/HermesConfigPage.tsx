@@ -9,6 +9,8 @@ import {
   Trash2,
   Download,
   CloudDownload,
+  Circle,
+  CheckCircle2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -42,8 +44,31 @@ import {
 } from '@/components/ui/dialog'
 import { useHermesStore } from '@/store/hermes-store'
 import { trimToNull } from '@/lib/utils'
+import type { HermesModelConfig } from '@/lib/bindings'
 import { ConfigStatus } from './ConfigStatus'
 import { ImportFromChannelDialog } from './ImportFromChannelDialog'
+
+function cleanEntry(entry: HermesModelConfig): HermesModelConfig {
+  return {
+    name: trimToNull(entry.name ?? ''),
+    default: trimToNull(entry.default ?? ''),
+    provider: trimToNull(entry.provider ?? ''),
+    baseUrl: trimToNull(entry.baseUrl ?? ''),
+    apiKey: trimToNull(entry.apiKey ?? ''),
+    isDefault: entry.isDefault === true,
+  }
+}
+
+function emptyEntry(isDefault: boolean): HermesModelConfig {
+  return {
+    name: null,
+    default: null,
+    provider: null,
+    baseUrl: null,
+    apiKey: null,
+    isDefault,
+  }
+}
 
 export function HermesConfigPage() {
   const { t } = useTranslation()
@@ -77,23 +102,14 @@ export function HermesConfigPage() {
     useState(false)
   const [newProfileName, setNewProfileName] = useState('')
 
-  // Local editing state for profile fields and model fields
+  // Local editing state for profile fields and model list
   const profileKey = currentProfile?.id ?? ''
   const [editingName, setEditingName] = useState(currentProfile?.name ?? '')
   const [editingDescription, setEditingDescription] = useState(
     currentProfile?.description ?? ''
   )
-  const [editingDefaultModel, setEditingDefaultModel] = useState(
-    currentProfile?.model.default ?? ''
-  )
-  const [editingProvider, setEditingProvider] = useState(
-    currentProfile?.model.provider ?? ''
-  )
-  const [editingBaseUrl, setEditingBaseUrl] = useState(
-    currentProfile?.model.baseUrl ?? ''
-  )
-  const [editingApiKey, setEditingApiKey] = useState(
-    currentProfile?.model.apiKey ?? ''
+  const [editingModels, setEditingModels] = useState<HermesModelConfig[]>(() =>
+    (currentProfile?.models ?? []).map(m => ({ ...m }))
   )
   const [editingReasoningEffort, setEditingReasoningEffort] = useState(
     currentProfile?.reasoningEffort ?? ''
@@ -105,10 +121,7 @@ export function HermesConfigPage() {
     setLastProfileKey(profileKey)
     setEditingName(currentProfile?.name ?? '')
     setEditingDescription(currentProfile?.description ?? '')
-    setEditingDefaultModel(currentProfile?.model.default ?? '')
-    setEditingProvider(currentProfile?.model.provider ?? '')
-    setEditingBaseUrl(currentProfile?.model.baseUrl ?? '')
-    setEditingApiKey(currentProfile?.model.apiKey ?? '')
+    setEditingModels((currentProfile?.models ?? []).map(m => ({ ...m })))
     setEditingReasoningEffort(currentProfile?.reasoningEffort ?? '')
   }
 
@@ -158,26 +171,73 @@ export function HermesConfigPage() {
     // because the profile id doesn't change so the profileKey diff won't trigger.
     const updated = useHermesStore.getState().currentProfile
     if (updated) {
-      setEditingDefaultModel(updated.model.default ?? '')
-      setEditingProvider(updated.model.provider ?? '')
-      setEditingBaseUrl(updated.model.baseUrl ?? '')
-      setEditingApiKey(updated.model.apiKey ?? '')
+      setEditingModels((updated.models ?? []).map(m => ({ ...m })))
       setEditingReasoningEffort(updated.reasoningEffort ?? '')
     }
     toast.success(t('hermes.actions.loadedFromLive'))
+  }
+
+  const persistModelChanges = async (
+    models: HermesModelConfig[],
+    effort: string
+  ) => {
+    if (!currentProfile) return
+    const updated = {
+      ...currentProfile,
+      models: models.map(cleanEntry),
+      reasoningEffort: trimToNull(effort),
+      updatedAt: new Date().toISOString(),
+    }
+    useHermesStore.setState(
+      { currentProfile: updated },
+      undefined,
+      'hermes/updateModelFields'
+    )
+    await saveProfile()
+  }
+
+  const handleModelBlur = () => {
+    persistModelChanges(editingModels, editingReasoningEffort)
+  }
+
+  const handleAddModel = () => {
+    const next = [...editingModels, emptyEntry(editingModels.length === 0)]
+    setEditingModels(next)
+    persistModelChanges(next, editingReasoningEffort)
+  }
+
+  const handleRemoveModel = (index: number) => {
+    const removed = editingModels[index]
+    const next = editingModels.filter((_, i) => i !== index)
+    if (removed?.isDefault && next.length > 0) {
+      next[0] = { ...next[0], isDefault: true }
+    }
+    setEditingModels(next)
+    persistModelChanges(next, editingReasoningEffort)
+  }
+
+  const handleSetDefault = (index: number) => {
+    const next = editingModels.map((m, i) => ({
+      ...m,
+      isDefault: i === index,
+    }))
+    setEditingModels(next)
+    persistModelChanges(next, editingReasoningEffort)
   }
 
   const handleImportFromChannel = async (result: {
     baseUrl: string
     apiKey: string
     provider: string
+    name?: string
     defaultModel?: string
   }) => {
     await importFromChannel(result)
-    setEditingBaseUrl(result.baseUrl)
-    setEditingApiKey(result.apiKey)
-    setEditingProvider(result.provider)
-    setEditingDefaultModel(result.defaultModel ?? '')
+    // Sync editing state from the store (import appends a new default entry)
+    const updated = useHermesStore.getState().currentProfile
+    if (updated) {
+      setEditingModels((updated.models ?? []).map(m => ({ ...m })))
+    }
     toast.success(t('hermes.model.importDialog.imported'))
   }
 
@@ -197,27 +257,6 @@ export function HermesConfigPage() {
       { currentProfile: updated },
       undefined,
       'hermes/updateProfileFields'
-    )
-    await saveProfile()
-  }
-
-  const handleModelBlur = async () => {
-    if (!currentProfile) return
-    const updated = {
-      ...currentProfile,
-      model: {
-        default: trimToNull(editingDefaultModel),
-        provider: trimToNull(editingProvider),
-        baseUrl: trimToNull(editingBaseUrl),
-        apiKey: trimToNull(editingApiKey),
-      },
-      reasoningEffort: trimToNull(editingReasoningEffort),
-      updatedAt: new Date().toISOString(),
-    }
-    useHermesStore.setState(
-      { currentProfile: updated },
-      undefined,
-      'hermes/updateModelFields'
     )
     await saveProfile()
   }
@@ -387,94 +426,159 @@ export function HermesConfigPage() {
               </div>
             </div>
 
+            <p className="text-xs text-muted-foreground">
+              {t('hermes.model.defaultHint')}
+            </p>
+
+            {editingModels.length === 0 && (
+              <p className="text-sm text-muted-foreground py-2">
+                {t('hermes.model.empty')}
+              </p>
+            )}
+
             <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Label className="w-24 shrink-0">
-                  {t('hermes.model.default')}
-                </Label>
-                <Input
-                  value={editingDefaultModel}
-                  onChange={e => setEditingDefaultModel(e.target.value)}
-                  onBlur={handleModelBlur}
-                  placeholder={t('hermes.model.defaultPlaceholder')}
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <Label className="w-24 shrink-0">
-                  {t('hermes.model.provider')}
-                </Label>
-                <Input
-                  value={editingProvider}
-                  onChange={e => setEditingProvider(e.target.value)}
-                  onBlur={handleModelBlur}
-                  placeholder={t('hermes.model.providerPlaceholder')}
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <Label className="w-24 shrink-0">
-                  {t('hermes.model.baseUrl')}
-                </Label>
-                <Input
-                  value={editingBaseUrl}
-                  onChange={e => setEditingBaseUrl(e.target.value)}
-                  onBlur={handleModelBlur}
-                  placeholder={t('hermes.model.baseUrlPlaceholder')}
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <Label className="w-24 shrink-0">
-                  {t('hermes.model.apiKey')}
-                </Label>
-                <Input
-                  type="password"
-                  value={editingApiKey}
-                  onChange={e => setEditingApiKey(e.target.value)}
-                  onBlur={handleModelBlur}
-                  placeholder={t('hermes.model.apiKeyPlaceholder')}
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <Label className="w-24 shrink-0">
-                  {t('hermes.model.reasoningEffort')}
-                </Label>
-                <Select
-                  value={editingReasoningEffort || '(none)'}
-                  onValueChange={value => {
-                    const newValue = value === '(none)' ? '' : value
-                    setEditingReasoningEffort(newValue)
-                    // Auto-save on selection change
-                    if (currentProfile) {
-                      const updated = {
-                        ...currentProfile,
-                        model: { ...currentProfile.model },
-                        reasoningEffort: trimToNull(newValue),
-                        updatedAt: new Date().toISOString(),
+              {editingModels.map((entry, index) => (
+                <div key={index} className="space-y-2 border rounded-md p-3">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0"
+                      onClick={() => handleSetDefault(index)}
+                      title={
+                        entry.isDefault
+                          ? t('hermes.model.isDefault')
+                          : t('hermes.model.setDefault')
                       }
-                      useHermesStore.setState(
-                        { currentProfile: updated },
-                        undefined,
-                        'hermes/updateReasoningEffort'
-                      )
-                      saveProfile()
-                    }
-                  }}
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="(none)">(none)</SelectItem>
-                    <SelectItem value="none">none</SelectItem>
-                    <SelectItem value="minimal">minimal</SelectItem>
-                    <SelectItem value="low">low</SelectItem>
-                    <SelectItem value="medium">medium</SelectItem>
-                    <SelectItem value="high">high</SelectItem>
-                    <SelectItem value="xhigh">xhigh</SelectItem>
-                    <SelectItem value="max">max</SelectItem>
-                    <SelectItem value="ultra">ultra</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                    >
+                      {entry.isDefault ? (
+                        <CheckCircle2 className="h-4 w-4 text-primary" />
+                      ) : (
+                        <Circle className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                    <Input
+                      className="w-40 shrink-0"
+                      value={entry.name ?? ''}
+                      onChange={e =>
+                        setEditingModels(prev =>
+                          prev.map((m, i) =>
+                            i === index ? { ...m, name: e.target.value } : m
+                          )
+                        )
+                      }
+                      onBlur={handleModelBlur}
+                      placeholder={t('hermes.model.namePlaceholder')}
+                    />
+                    <Input
+                      className="flex-1"
+                      value={entry.default ?? ''}
+                      onChange={e =>
+                        setEditingModels(prev =>
+                          prev.map((m, i) =>
+                            i === index ? { ...m, default: e.target.value } : m
+                          )
+                        )
+                      }
+                      onBlur={handleModelBlur}
+                      placeholder={t('hermes.model.defaultPlaceholder')}
+                    />
+                    {entry.isDefault && (
+                      <Badge
+                        variant="outline"
+                        className="shrink-0 text-primary"
+                      >
+                        {t('hermes.model.isDefault')}
+                      </Badge>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0"
+                      onClick={() => handleRemoveModel(index)}
+                      title={t('hermes.model.removeEntry')}
+                    >
+                      <Trash2 className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2 pl-10">
+                    <Input
+                      className="flex-1"
+                      value={entry.provider ?? ''}
+                      onChange={e =>
+                        setEditingModels(prev =>
+                          prev.map((m, i) =>
+                            i === index ? { ...m, provider: e.target.value } : m
+                          )
+                        )
+                      }
+                      onBlur={handleModelBlur}
+                      placeholder={t('hermes.model.providerPlaceholder')}
+                    />
+                    <Input
+                      className="flex-1"
+                      value={entry.baseUrl ?? ''}
+                      onChange={e =>
+                        setEditingModels(prev =>
+                          prev.map((m, i) =>
+                            i === index ? { ...m, baseUrl: e.target.value } : m
+                          )
+                        )
+                      }
+                      onBlur={handleModelBlur}
+                      placeholder={t('hermes.model.baseUrlPlaceholder')}
+                    />
+                    <Input
+                      className="flex-1"
+                      type="password"
+                      value={entry.apiKey ?? ''}
+                      onChange={e =>
+                        setEditingModels(prev =>
+                          prev.map((m, i) =>
+                            i === index ? { ...m, apiKey: e.target.value } : m
+                          )
+                        )
+                      }
+                      onBlur={handleModelBlur}
+                      placeholder={t('hermes.model.apiKeyPlaceholder')}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <Button variant="outline" size="sm" onClick={handleAddModel}>
+              <Plus className="h-4 w-4 mr-2" />
+              {t('hermes.model.addEntry')}
+            </Button>
+
+            <div className="flex items-center gap-2 pt-2">
+              <Label className="w-24 shrink-0">
+                {t('hermes.model.reasoningEffort')}
+              </Label>
+              <Select
+                value={editingReasoningEffort || '(none)'}
+                onValueChange={value => {
+                  const newValue = value === '(none)' ? '' : value
+                  setEditingReasoningEffort(newValue)
+                  persistModelChanges(editingModels, newValue)
+                }}
+              >
+                <SelectTrigger className="flex-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="(none)">(none)</SelectItem>
+                  <SelectItem value="none">none</SelectItem>
+                  <SelectItem value="minimal">minimal</SelectItem>
+                  <SelectItem value="low">low</SelectItem>
+                  <SelectItem value="medium">medium</SelectItem>
+                  <SelectItem value="high">high</SelectItem>
+                  <SelectItem value="xhigh">xhigh</SelectItem>
+                  <SelectItem value="max">max</SelectItem>
+                  <SelectItem value="ultra">ultra</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         )}

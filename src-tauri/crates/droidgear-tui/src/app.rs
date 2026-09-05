@@ -224,6 +224,10 @@ pub enum ConfirmAction {
     HermesDelete {
         id: String,
     },
+    HermesDeleteModel {
+        id: String,
+        model_index: usize,
+    },
     FactoryAuthSwitch {
         name: String,
     },
@@ -554,17 +558,25 @@ pub enum InputAction {
     HermesSetProfileDescription {
         id: String,
     },
-    HermesSetProfileDefaultModel {
+    HermesSetModelName {
         id: String,
+        model_index: usize,
     },
-    HermesSetProfileProvider {
+    HermesSetModelDefault {
         id: String,
+        model_index: usize,
     },
-    HermesSetProfileBaseUrl {
+    HermesSetModelProvider {
         id: String,
+        model_index: usize,
     },
-    HermesSetProfileApiKey {
+    HermesSetModelBaseUrl {
         id: String,
+        model_index: usize,
+    },
+    HermesSetModelApiKey {
+        id: String,
+        model_index: usize,
     },
     PiImportSetApiKey {
         profile_id: String,
@@ -575,6 +587,7 @@ pub enum InputAction {
     },
     HermesImportSetApiKey {
         id: String,
+        model_index: usize,
     },
     FactoryAuthSaveProfile,
     FactoryAuthRename {
@@ -682,6 +695,7 @@ pub enum SelectAction {
     },
     HermesImportFromChannel {
         profile_id: String,
+        model_index: usize,
     },
     HermesSetProfileReasoningEffort {
         id: String,
@@ -851,10 +865,13 @@ pub struct App {
     pub hermes_detail_id: Option<String>,
     pub hermes_detail: Option<HermesProfile>,
     pub hermes_detail_field_index: usize,
+    /// 当前编辑的模型配置条目下标（HermesProvider 屏幕）
+    pub hermes_model_index: usize,
     pub hermes_provider_field_index: usize,
     /// Temporary state used during "import from channel" flow in TUI
     pub hermes_import_pending_base_url: Option<String>,
     pub hermes_import_pending_provider: Option<String>,
+    pub hermes_import_pending_name: Option<String>,
     /// Temporary state used during Pi "import from channel" flow in TUI
     pub pi_import_pending_channel_id: Option<String>,
     pub pi_import_pending_base_url: Option<String>,
@@ -1033,9 +1050,11 @@ impl App {
             hermes_detail_id: None,
             hermes_detail: None,
             hermes_detail_field_index: 0,
+            hermes_model_index: 0,
             hermes_provider_field_index: 0,
             hermes_import_pending_base_url: None,
             hermes_import_pending_provider: None,
+            hermes_import_pending_name: None,
             pi_import_pending_channel_id: None,
             pi_import_pending_base_url: None,
             pi_import_pending_provider_id: None,
@@ -1604,15 +1623,27 @@ impl App {
         if self.hermes_index >= self.hermes_profiles.len() {
             self.hermes_index = self.hermes_profiles.len().saturating_sub(1);
         }
-        // HermesProfile screen has 6 fields: Name, Description, Default Model, Provider, Base URL, API Key
-        let hermes_detail_fields_count = 7; // Name, Description, Default Model, Provider, Base URL, API Key, Reasoning Effort
+        // HermesProfile screen: Name, Description, Reasoning Effort + one row per model entry
+        let hermes_detail_fields_count = 3 + self
+            .hermes_detail
+            .as_ref()
+            .map(|p| p.models.len())
+            .unwrap_or(0);
         if self.hermes_detail_field_index >= hermes_detail_fields_count {
             self.hermes_detail_field_index = hermes_detail_fields_count.saturating_sub(1);
         }
-        // HermesProvider screen has 4 fields: Default Model, Provider, Base URL, API Key
-        let hermes_provider_fields_count = 4;
+        // HermesProvider screen: Name, Default Model, Provider, Base URL, API Key
+        let hermes_provider_fields_count = 5;
         if self.hermes_provider_field_index >= hermes_provider_fields_count {
             self.hermes_provider_field_index = hermes_provider_fields_count.saturating_sub(1);
+        }
+        let hermes_models_count = self
+            .hermes_detail
+            .as_ref()
+            .map(|p| p.models.len())
+            .unwrap_or(0);
+        if self.hermes_model_index >= hermes_models_count {
+            self.hermes_model_index = hermes_models_count.saturating_sub(1);
         }
         if self.factory_auth_index >= self.factory_auth_profiles.len() {
             self.factory_auth_index = self.factory_auth_profiles.len().saturating_sub(1);

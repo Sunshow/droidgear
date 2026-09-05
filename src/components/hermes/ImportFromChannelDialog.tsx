@@ -45,6 +45,7 @@ interface ImportResult {
   baseUrl: string
   apiKey: string
   provider: string
+  name?: string
   defaultModel?: string
 }
 
@@ -215,6 +216,7 @@ export function ImportFromChannelDialog({
       baseUrl: resolvedBaseUrl,
       apiKey: resolvedApiKey,
       provider: resolvedProvider,
+      name: selectedChannel?.name,
       defaultModel: selectedModel || undefined,
     })
     onOpenChange(false)

@@ -1676,7 +1676,10 @@ pub(super) fn run_select_action(
             }
             Ok(())
         }
-        app::SelectAction::HermesImportFromChannel { profile_id } => {
+        app::SelectAction::HermesImportFromChannel {
+            profile_id,
+            model_index,
+        } => {
             let Some(selected) = selected else {
                 return Ok(());
             };
@@ -1691,12 +1694,16 @@ pub(super) fn run_select_action(
             // Store channel info as pending import state; prompt for API key next
             app.hermes_import_pending_base_url = Some(channel.base_url.clone());
             app.hermes_import_pending_provider = Some("custom".to_string());
+            app.hermes_import_pending_name = Some(channel.name.clone());
             app.modal = Some(app::Modal::Input {
                 title: "API key for import".to_string(),
                 value: String::new(),
                 cursor: usize::MAX,
                 is_secret: true,
-                action: app::InputAction::HermesImportSetApiKey { id: profile_id },
+                action: app::InputAction::HermesImportSetApiKey {
+                    id: profile_id,
+                    model_index,
+                },
             });
             Ok(())
         }
@@ -2250,6 +2257,26 @@ pub(super) fn run_confirm_action(
         app::ConfirmAction::HermesDelete { id } => {
             droidgear_core::hermes::delete_hermes_profile_for_home(&app.home_dir, &id)
                 .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
+        app::ConfirmAction::HermesDeleteModel { id, model_index } => {
+            let mut profile =
+                droidgear_core::hermes::get_hermes_profile_for_home(&app.home_dir, &id)
+                    .map_err(anyhow::Error::msg)?;
+            if model_index >= profile.models.len() {
+                return Err(anyhow::anyhow!("Model config not found"));
+            }
+            profile.models.remove(model_index);
+            droidgear_core::hermes::save_hermes_profile_for_home(&app.home_dir, profile)
+                .map_err(anyhow::Error::msg)?;
+            refresh_hermes_detail(app);
+            app.hermes_model_index = app.hermes_model_index.min(
+                app.hermes_detail
+                    .as_ref()
+                    .map(|p| p.models.len().saturating_sub(1))
+                    .unwrap_or(0),
+            );
+            app.set_toast("Deleted", false);
             Ok(())
         }
         app::ConfirmAction::FactoryAuthDelete { name } => {
@@ -3810,12 +3837,14 @@ pub(super) fn run_input_action(
                 description: None,
                 created_at: String::new(),
                 updated_at: String::new(),
-                model: droidgear_core::hermes::HermesModelConfig {
-                    default: Some(String::new()),
-                    provider: Some(String::new()),
-                    base_url: Some(String::new()),
-                    api_key: Some(String::new()),
-                },
+                models: vec![droidgear_core::hermes::HermesModelConfig {
+                    name: None,
+                    default: None,
+                    provider: None,
+                    base_url: None,
+                    api_key: None,
+                    is_default: true,
+                }],
                 reasoning_effort: None,
             };
 
@@ -3881,41 +3910,71 @@ pub(super) fn run_input_action(
             app.set_toast("Saved", false);
             Ok(())
         }
-        app::InputAction::HermesSetProfileDefaultModel { id } => {
+        app::InputAction::HermesSetModelName { id, model_index } => {
             let mut profile =
                 droidgear_core::hermes::get_hermes_profile_for_home(&app.home_dir, &id)
                     .map_err(anyhow::Error::msg)?;
-            profile.model.default = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            let entry = profile
+                .models
+                .get_mut(model_index)
+                .ok_or_else(|| anyhow::anyhow!("Model config not found"))?;
+            entry.name = (!trimmed.is_empty()).then(|| trimmed.to_string());
             droidgear_core::hermes::save_hermes_profile_for_home(&app.home_dir, profile)
                 .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
-        app::InputAction::HermesSetProfileProvider { id } => {
+        app::InputAction::HermesSetModelDefault { id, model_index } => {
             let mut profile =
                 droidgear_core::hermes::get_hermes_profile_for_home(&app.home_dir, &id)
                     .map_err(anyhow::Error::msg)?;
-            profile.model.provider = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            let entry = profile
+                .models
+                .get_mut(model_index)
+                .ok_or_else(|| anyhow::anyhow!("Model config not found"))?;
+            entry.default = (!trimmed.is_empty()).then(|| trimmed.to_string());
             droidgear_core::hermes::save_hermes_profile_for_home(&app.home_dir, profile)
                 .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
-        app::InputAction::HermesSetProfileBaseUrl { id } => {
+        app::InputAction::HermesSetModelProvider { id, model_index } => {
             let mut profile =
                 droidgear_core::hermes::get_hermes_profile_for_home(&app.home_dir, &id)
                     .map_err(anyhow::Error::msg)?;
-            profile.model.base_url = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            let entry = profile
+                .models
+                .get_mut(model_index)
+                .ok_or_else(|| anyhow::anyhow!("Model config not found"))?;
+            entry.provider = (!trimmed.is_empty()).then(|| trimmed.to_string());
             droidgear_core::hermes::save_hermes_profile_for_home(&app.home_dir, profile)
                 .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
             Ok(())
         }
-        app::InputAction::HermesSetProfileApiKey { id } => {
+        app::InputAction::HermesSetModelBaseUrl { id, model_index } => {
             let mut profile =
                 droidgear_core::hermes::get_hermes_profile_for_home(&app.home_dir, &id)
                     .map_err(anyhow::Error::msg)?;
-            profile.model.api_key = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            let entry = profile
+                .models
+                .get_mut(model_index)
+                .ok_or_else(|| anyhow::anyhow!("Model config not found"))?;
+            entry.base_url = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            droidgear_core::hermes::save_hermes_profile_for_home(&app.home_dir, profile)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::HermesSetModelApiKey { id, model_index } => {
+            let mut profile =
+                droidgear_core::hermes::get_hermes_profile_for_home(&app.home_dir, &id)
+                    .map_err(anyhow::Error::msg)?;
+            let entry = profile
+                .models
+                .get_mut(model_index)
+                .ok_or_else(|| anyhow::anyhow!("Model config not found"))?;
+            entry.api_key = (!trimmed.is_empty()).then(|| trimmed.to_string());
             droidgear_core::hermes::save_hermes_profile_for_home(&app.home_dir, profile)
                 .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
@@ -3958,16 +4017,26 @@ pub(super) fn run_input_action(
             });
             Ok(())
         }
-        app::InputAction::HermesImportSetApiKey { id } => {
-            // Complete the "import from channel" flow: apply stored base_url/provider + entered api_key
+        app::InputAction::HermesImportSetApiKey { id, model_index } => {
+            // Complete the "import from channel" flow: apply stored base_url/provider/name + entered api_key
             let base_url = app.hermes_import_pending_base_url.take();
             let provider = app.hermes_import_pending_provider.take();
+            let name = app.hermes_import_pending_name.take();
             let mut profile =
                 droidgear_core::hermes::get_hermes_profile_for_home(&app.home_dir, &id)
                     .map_err(anyhow::Error::msg)?;
-            profile.model.base_url = base_url;
-            profile.model.provider = provider;
-            profile.model.api_key = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            let entry = profile
+                .models
+                .get_mut(model_index)
+                .ok_or_else(|| anyhow::anyhow!("Model config not found"))?;
+            entry.name = name.filter(|n| !n.trim().is_empty());
+            entry.base_url = base_url;
+            entry.provider = provider;
+            entry.api_key = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            // 导入的条目设为默认
+            for (i, m) in profile.models.iter_mut().enumerate() {
+                m.is_default = i == model_index;
+            }
             droidgear_core::hermes::save_hermes_profile_for_home(&app.home_dir, profile.clone())
                 .map_err(anyhow::Error::msg)?;
             app.hermes_detail = Some(profile);

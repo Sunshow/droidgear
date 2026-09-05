@@ -3769,11 +3769,7 @@ fn draw_hermes_profile(frame: &mut Frame, app: &app::App, area: Rect) {
         .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
         .split(area);
 
-    let api_key_set = profile
-        .model
-        .api_key
-        .as_deref()
-        .is_some_and(|k| !k.trim().is_empty());
+    let mut items: Vec<ListItem> = Vec::new();
 
     let fields: Vec<(&str, String)> = vec![
         ("Name", profile.name.clone()),
@@ -3785,38 +3781,6 @@ fn draw_hermes_profile(frame: &mut Frame, app: &app::App, area: Rect) {
                 .unwrap_or_else(|| "".to_string()),
         ),
         (
-            "Default Model",
-            profile
-                .model
-                .default
-                .clone()
-                .unwrap_or_else(|| "".to_string()),
-        ),
-        (
-            "Provider",
-            profile
-                .model
-                .provider
-                .clone()
-                .unwrap_or_else(|| "".to_string()),
-        ),
-        (
-            "Base URL",
-            profile
-                .model
-                .base_url
-                .clone()
-                .unwrap_or_else(|| "".to_string()),
-        ),
-        (
-            "API Key",
-            if api_key_set {
-                "********".to_string()
-            } else {
-                "(not set)".to_string()
-            },
-        ),
-        (
             "Reasoning Effort",
             profile
                 .reasoning_effort
@@ -3824,18 +3788,35 @@ fn draw_hermes_profile(frame: &mut Frame, app: &app::App, area: Rect) {
                 .unwrap_or_else(|| "(none)".to_string()),
         ),
     ];
-
-    let mut items: Vec<ListItem> = Vec::new();
     for (i, (label, value)) in fields.into_iter().enumerate() {
         let selected = i == app.hermes_detail_field_index;
         let line = if selected {
             Line::from(format!("{label:>16}: {value}"))
         } else {
-            let custom_style = match label {
-                "API Key" if value == "********" => Some(t.success_fg_style()),
-                _ => None,
-            };
-            field_line_custom(label, &value, 16, custom_style)
+            field_line_custom(label, &value, 16, None)
+        };
+        items.push(ListItem::new(line));
+    }
+
+    // Model config entries (one row per entry)
+    for (i, entry) in profile.models.iter().enumerate() {
+        let field_idx = 3 + i;
+        let selected = field_idx == app.hermes_detail_field_index;
+        let marker = if entry.is_default { '*' } else { ' ' };
+        let display = format!(
+            "[{marker}] {} | {} | {} | {}",
+            entry.name.clone().unwrap_or_else(|| "—".to_string()),
+            entry.default.clone().unwrap_or_else(|| "—".to_string()),
+            entry.provider.clone().unwrap_or_else(|| "—".to_string()),
+            entry.base_url.clone().unwrap_or_else(|| "—".to_string()),
+        );
+        let line = if selected {
+            Line::from(format!("        Model #{}: {display}", i + 1))
+        } else {
+            Line::from(Span::styled(
+                format!("        Model #{}: {display}", i + 1),
+                t.dim_style(),
+            ))
         };
         items.push(ListItem::new(line));
     }
@@ -3846,7 +3827,7 @@ fn draw_hermes_profile(frame: &mut Frame, app: &app::App, area: Rect) {
     render_list(frame, list, chunks[0], Some(app.hermes_detail_field_index));
 
     let help = help_paragraph(
-        "Up/Down: move  Enter/e: edit  m: model config  l: load live  a: apply  q/Esc: back",
+        "Up/Down: move  Enter/e: edit  n: add model  s: set default  d: delete model  a: apply  l: load live  q/Esc: back",
     );
     frame.render_widget(help, chunks[1]);
 }
@@ -3869,36 +3850,32 @@ fn draw_hermes_provider(frame: &mut Frame, app: &app::App, area: Rect) {
         .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
         .split(area);
 
-    let api_key_set = profile
-        .model
+    let Some(entry) = profile.models.get(app.hermes_model_index) else {
+        let p = Paragraph::new("No model config. Press n on the profile screen to add one.")
+            .block(block(format!("Hermes Model Config: {}", profile.name)))
+            .wrap(Wrap { trim: true });
+        frame.render_widget(p, area);
+        return;
+    };
+
+    let api_key_set = entry
         .api_key
         .as_deref()
         .is_some_and(|k| !k.trim().is_empty());
 
     let fields: Vec<(&str, String)> = vec![
+        ("Name", entry.name.clone().unwrap_or_else(|| "".to_string())),
         (
             "Default Model",
-            profile
-                .model
-                .default
-                .clone()
-                .unwrap_or_else(|| "".to_string()),
+            entry.default.clone().unwrap_or_else(|| "".to_string()),
         ),
         (
             "Provider",
-            profile
-                .model
-                .provider
-                .clone()
-                .unwrap_or_else(|| "".to_string()),
+            entry.provider.clone().unwrap_or_else(|| "".to_string()),
         ),
         (
             "Base URL",
-            profile
-                .model
-                .base_url
-                .clone()
-                .unwrap_or_else(|| "".to_string()),
+            entry.base_url.clone().unwrap_or_else(|| "".to_string()),
         ),
         (
             "API Key",
@@ -3925,8 +3902,16 @@ fn draw_hermes_provider(frame: &mut Frame, app: &app::App, area: Rect) {
         items.push(ListItem::new(line));
     }
 
+    let total = profile.models.len();
+    let title = format!(
+        "Hermes Model Config: {} [#{}/{}]{}",
+        profile.name,
+        app.hermes_model_index + 1,
+        total,
+        if entry.is_default { " (default)" } else { "" }
+    );
     let list = List::new(items)
-        .block(block(format!("Hermes Model Config: {}", profile.name)))
+        .block(block(title))
         .highlight_style(t.selected_row_style());
     render_list(
         frame,
@@ -3935,8 +3920,9 @@ fn draw_hermes_provider(frame: &mut Frame, app: &app::App, area: Rect) {
         Some(app.hermes_provider_field_index),
     );
 
-    let help =
-        help_paragraph("Up/Down: select  Enter/e: edit  i: import from channel  q/Esc: back");
+    let help = help_paragraph(
+        "Up/Down: select  Enter/e: edit  s: set as default  d: delete  i: import from channel  q/Esc: back",
+    );
     frame.render_widget(help, chunks[1]);
 }
 

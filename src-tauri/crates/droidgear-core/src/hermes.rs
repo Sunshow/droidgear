@@ -3,6 +3,16 @@
 //! 负责 Profile CRUD，并支持将 Profile 应用到 `~/.hermes/config.yaml`。
 //! Apply 逻辑采用读取-修改-写入模式，以保留 YAML 文件中的其他非 model 配置节。
 //! 逻辑从原 Tauri command 层抽离，以便在 TUI 与桌面端复用。
+//!
+//! 与 Hermes 官方文档（[AI Providers](https://hermes-agent.nousresearch.com/integrations/providers)）
+//! 保持一致的 config.yaml 语义：
+//! - `model.default`（或 `model.model`）是 Hermes 实际使用的模型 ID；
+//! - `model.provider` 选择供应商，命名自定义供应商写作 `custom:<name>`，
+//!   裸自定义端点写作 `custom`（此时 `model.base_url` / `model.api_key` 生效）；
+//! - `custom_providers` 是命名自定义供应商列表（name / base_url / api_key / model）。
+//!
+//! Profile 内的 `models` 是模型配置列表，其中 `is_default` 为 true 的条目
+//! 在 apply 时写入 `model.default` + `model.provider`。
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -17,22 +27,44 @@ use crate::{paths, storage};
 // Types
 // ============================================================================
 
-/// Hermes model 配置（对应 config.yaml 中的 model 节）
+/// 单条 Hermes model 配置。
+///
+/// apply 时：
+/// - `is_default` 的条目 → 写入 config.yaml 的 `model.default` / `model.provider`；
+/// - 解析出 `custom:<name>` 且带 base_url 的条目 → 写入 `custom_providers` 列表；
+/// - 裸 `custom`（无 name）→ base_url/api_key 直接写入 `model` 节。
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct HermesModelConfig {
+    /// 配置名称（对应 `custom_providers[].name`，也是 `custom:<name>` 的引用名）。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// 模型 ID（写入 `model.default` 或 `custom_providers[].model`）。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default: Option<String>,
+    /// 显式 provider（如 openrouter / deepseek / custom）。留空时按 name/base_url 推导。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
+    /// OpenAI 兼容端点地址（自定义供应商使用）。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub base_url: Option<String>,
+    /// API 密钥（自定义供应商使用）。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api_key: Option<String>,
+    /// 是否为默认配置（apply 时写入 `model.default` + `model.provider`）。
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub is_default: bool,
 }
 
-/// Hermes Profile（用于在 DroidGear 内部保存并切换）
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+fn is_false(v: &bool) -> bool {
+    !*v
+}
+
+/// Hermes Profile（用于在 DroidGear 内部保存并切换）。
+///
+/// 旧版 Profile 只有单条 `model` 对象；反序列化时会自动迁移为单元素的
+/// `models` 列表（并标记 is_default）。
+#[derive(Debug, Clone, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct HermesProfile {
     pub id: String,
@@ -41,11 +73,58 @@ pub struct HermesProfile {
     pub description: Option<String>,
     pub created_at: String,
     pub updated_at: String,
-    pub model: HermesModelConfig,
+    /// 模型配置列表（至少一条应标记 is_default）。
+    pub models: Vec<HermesModelConfig>,
     /// 推理努力程度（对应 config.yaml 中的 agent.reasoning_effort）
     /// 选项：none, minimal, low, medium, high, xhigh, max, ultra
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning_effort: Option<String>,
+}
+
+impl<'de> Deserialize<'de> for HermesProfile {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Helper {
+            id: String,
+            name: String,
+            #[serde(default)]
+            description: Option<String>,
+            created_at: String,
+            updated_at: String,
+            /// 旧版单条 model 配置（仅用于迁移）。
+            #[serde(default)]
+            model: Option<HermesModelConfig>,
+            #[serde(default)]
+            models: Vec<HermesModelConfig>,
+            #[serde(default)]
+            reasoning_effort: Option<String>,
+        }
+
+        let h = Helper::deserialize(deserializer)?;
+
+        let mut models = h.models;
+        if models.is_empty() {
+            if let Some(mut legacy) = h.model {
+                legacy.is_default = true;
+                models.push(legacy);
+            }
+        }
+        let models = normalize_models(models);
+
+        Ok(HermesProfile {
+            id: h.id,
+            name: h.name,
+            description: h.description,
+            created_at: h.created_at,
+            updated_at: h.updated_at,
+            models,
+            reasoning_effort: h.reasoning_effort,
+        })
+    }
 }
 
 /// Hermes Live 配置状态
@@ -60,10 +139,65 @@ pub struct HermesConfigStatus {
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct HermesCurrentConfig {
-    pub model: HermesModelConfig,
+    /// 模型配置列表：live 的 `model` 节合并 `custom_providers` 列表；
+    /// `is_default` 标记当前生效（model.default/model.provider）的条目。
+    pub models: Vec<HermesModelConfig>,
     /// 推理努力程度（对应 config.yaml 中的 agent.reasoning_effort）
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning_effort: Option<String>,
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/// Trim 后的非空字符串引用。
+fn non_empty(value: &Option<String>) -> Option<&str> {
+    value.as_deref().map(str::trim).filter(|s| !s.is_empty())
+}
+
+/// 保证至多一条 is_default；若无任何条目标记，则把第一条设为默认。
+fn normalize_models(mut models: Vec<HermesModelConfig>) -> Vec<HermesModelConfig> {
+    if models.is_empty() {
+        return models;
+    }
+    let mut seen_default = false;
+    for entry in &mut models {
+        if seen_default {
+            entry.is_default = false;
+        } else if entry.is_default {
+            seen_default = true;
+        }
+    }
+    if !seen_default {
+        if let Some(first) = models.first_mut() {
+            first.is_default = true;
+        }
+    }
+    models
+}
+
+/// 计算某条目 apply 后应写入 `model.provider` 的值。
+///
+/// 规则（与 Hermes 文档一致）：
+/// - 显式 provider 优先；`custom` 且有 name 时升格为 `custom:<name>`；
+/// - 无 provider 但有 name → `custom:<name>`；
+/// - 无 provider 无 name 但有 base_url → `custom`（裸自定义端点）；
+/// - 都没有 → None（不写 provider）。
+fn resolve_provider(entry: &HermesModelConfig) -> Option<String> {
+    let provider = non_empty(&entry.provider);
+    let name = non_empty(&entry.name);
+    match provider {
+        Some("custom") => match name {
+            Some(n) => Some(format!("custom:{n}")),
+            None => Some("custom".to_string()),
+        },
+        Some(p) => Some(p.to_string()),
+        None => match name {
+            Some(n) => Some(format!("custom:{n}")),
+            None => non_empty(&entry.base_url).map(|_| "custom".to_string()),
+        },
+    }
 }
 
 // ============================================================================
@@ -228,6 +362,7 @@ pub fn save_hermes_profile_for_home(
     }
 
     profile.updated_at = now_rfc3339();
+    profile.models = normalize_models(profile.models);
     write_profile_file(home_dir, &profile)
 }
 
@@ -275,12 +410,14 @@ pub fn create_default_hermes_profile_for_home(home_dir: &Path) -> Result<HermesP
         description: None,
         created_at: now.clone(),
         updated_at: now,
-        model: HermesModelConfig {
-            default: Some(String::new()),
-            provider: Some(String::new()),
-            base_url: Some(String::new()),
-            api_key: Some(String::new()),
-        },
+        models: vec![HermesModelConfig {
+            name: None,
+            default: None,
+            provider: None,
+            base_url: None,
+            api_key: None,
+            is_default: true,
+        }],
         reasoning_effort: None,
     };
 
@@ -316,9 +453,85 @@ fn set_active_profile_id_for_home(home_dir: &Path, id: &str) -> Result<(), Strin
 // Apply + status
 // ============================================================================
 
+/// 将一条命名自定义供应商条目 upsert 进 `custom_providers` 列表。
+/// 按 name 优先、base_url 其次匹配已有条目；未设置的字段保留原值。
+fn upsert_custom_provider(
+    providers_list: &mut Vec<Value>,
+    name: &str,
+    entry: &HermesModelConfig,
+) -> Result<(), String> {
+    let existing_idx = providers_list.iter().position(|p| {
+        p.get("name")
+            .and_then(|v| v.as_str())
+            .map(|n| n == name)
+            .unwrap_or(false)
+            || (non_empty(&entry.base_url).is_some()
+                && p.get("base_url")
+                    .and_then(|v| v.as_str())
+                    .map(|url| url == non_empty(&entry.base_url).unwrap())
+                    .unwrap_or(false))
+    });
+
+    if let Some(idx) = existing_idx {
+        let existing = providers_list
+            .get_mut(idx)
+            .and_then(|v| v.as_mapping_mut())
+            .ok_or("custom_providers entry must be a YAML mapping")?;
+        existing.insert(
+            Value::String("name".to_string()),
+            Value::String(name.to_string()),
+        );
+        if let Some(base_url) = non_empty(&entry.base_url) {
+            existing.insert(
+                Value::String("base_url".to_string()),
+                Value::String(base_url.to_string()),
+            );
+        }
+        if let Some(api_key) = non_empty(&entry.api_key) {
+            existing.insert(
+                Value::String("api_key".to_string()),
+                Value::String(api_key.to_string()),
+            );
+        }
+        if let Some(model) = non_empty(&entry.default) {
+            existing.insert(
+                Value::String("model".to_string()),
+                Value::String(model.to_string()),
+            );
+        }
+    } else {
+        let mut new_provider = serde_yaml::Mapping::new();
+        new_provider.insert(
+            Value::String("name".to_string()),
+            Value::String(name.to_string()),
+        );
+        if let Some(base_url) = non_empty(&entry.base_url) {
+            new_provider.insert(
+                Value::String("base_url".to_string()),
+                Value::String(base_url.to_string()),
+            );
+        }
+        if let Some(api_key) = non_empty(&entry.api_key) {
+            new_provider.insert(
+                Value::String("api_key".to_string()),
+                Value::String(api_key.to_string()),
+            );
+        }
+        if let Some(model) = non_empty(&entry.default) {
+            new_provider.insert(
+                Value::String("model".to_string()),
+                Value::String(model.to_string()),
+            );
+        }
+        providers_list.push(Value::Mapping(new_provider));
+    }
+    Ok(())
+}
+
 /// Internal: write a profile's model config to the given config.yaml path.
 ///
-/// 采用读取-修改-写入模式：只替换 config.yaml 中的 model 节，保留其他所有配置。
+/// 采用读取-修改-写入模式：只替换 config.yaml 中与模型相关的节
+/// （`model` + `custom_providers` + `agent.reasoning_effort`），保留其他所有配置。
 fn apply_profile_to_config_path(profile: &HermesProfile, config_path: &Path) -> Result<(), String> {
     // Read existing YAML as a generic Value to preserve all non-model sections.
     let mut config: Value = if config_path.exists() {
@@ -338,105 +551,92 @@ fn apply_profile_to_config_path(profile: &HermesProfile, config_path: &Path) -> 
         .as_mapping_mut()
         .ok_or("config.yaml root must be a YAML mapping")?;
 
-    // Update custom_providers list with the profile's provider config.
-    // Only add/update if the provider has a base_url (indicating it's a custom provider).
-    if let Some(ref base_url) = profile.model.base_url {
-        if !base_url.is_empty() {
-            let custom_providers = root
-                .entry(Value::String("custom_providers".to_string()))
-                .or_insert_with(|| Value::Sequence(Vec::new()));
-            let providers_list = custom_providers
-                .as_sequence_mut()
-                .ok_or("custom_providers must be a YAML sequence")?;
+    // 1. Upsert 命名自定义供应商（custom:<name>）到 custom_providers 列表。
+    for entry in &profile.models {
+        let Some(resolved) = resolve_provider(entry) else {
+            continue;
+        };
+        let Some(name) = resolved.strip_prefix("custom:") else {
+            continue;
+        };
+        if name.is_empty() || non_empty(&entry.base_url).is_none() {
+            continue;
+        }
+        let custom_providers = root
+            .entry(Value::String("custom_providers".to_string()))
+            .or_insert_with(|| Value::Sequence(Vec::new()));
+        let providers_list = custom_providers
+            .as_sequence_mut()
+            .ok_or("custom_providers must be a YAML sequence")?;
+        upsert_custom_provider(providers_list, name, entry)?;
+    }
 
-            // Try to find existing provider by base_url or name
-            let provider_name = profile
-                .model
-                .provider
-                .clone()
-                .unwrap_or_else(|| "custom".to_string());
-            let model_name = profile.model.default.clone().unwrap_or_default();
+    // 2. 写入 model 节：default + provider（Hermes 实际生效的配置）。
+    let default_entry = profile
+        .models
+        .iter()
+        .find(|m| m.is_default)
+        .or_else(|| profile.models.first());
+    if let Some(default_entry) = default_entry {
+        let resolved_provider = resolve_provider(default_entry);
+        let has_model = non_empty(&default_entry.default).is_some();
+        let has_provider = resolved_provider.is_some();
+        if has_model || has_provider {
+            let model_section = root
+                .entry(Value::String("model".to_string()))
+                .or_insert_with(|| Value::Mapping(serde_yaml::Mapping::new()));
+            let model_map = model_section
+                .as_mapping_mut()
+                .ok_or("model section must be a YAML mapping")?;
 
-            let existing_idx = providers_list.iter().position(|p| {
-                p.get("base_url")
-                    .and_then(|v| v.as_str())
-                    .map(|url| url == base_url)
-                    .unwrap_or(false)
-                    || p.get("name")
-                        .and_then(|v| v.as_str())
-                        .map(|name| name == provider_name)
-                        .unwrap_or(false)
-            });
-
-            let mut new_provider = serde_yaml::Mapping::new();
-            new_provider.insert(
-                Value::String("name".to_string()),
-                Value::String(provider_name.clone()),
-            );
-            new_provider.insert(
-                Value::String("base_url".to_string()),
-                Value::String(base_url.clone()),
-            );
-            if let Some(ref api_key) = profile.model.api_key {
-                if !api_key.is_empty() {
-                    new_provider.insert(
-                        Value::String("api_key".to_string()),
-                        Value::String(api_key.clone()),
-                    );
-                }
-            }
-            if !model_name.is_empty() {
-                new_provider.insert(
-                    Value::String("model".to_string()),
-                    Value::String(model_name),
+            if let Some(model) = non_empty(&default_entry.default) {
+                model_map.insert(
+                    Value::String("default".to_string()),
+                    Value::String(model.to_string()),
                 );
             }
 
-            if let Some(idx) = existing_idx {
-                // Update existing provider - preserve other fields
-                if let Some(existing) = providers_list.get_mut(idx) {
-                    if let Some(existing_map) = existing.as_mapping_mut() {
-                        // Only update fields that are set in profile
-                        if let Some(ref name) = profile.model.provider {
-                            if !name.is_empty() {
-                                existing_map.insert(
-                                    Value::String("name".to_string()),
-                                    Value::String(name.clone()),
-                                );
-                            }
-                        }
-                        if !base_url.is_empty() {
-                            existing_map.insert(
+            if let Some(provider) = resolved_provider {
+                model_map.insert(
+                    Value::String("provider".to_string()),
+                    Value::String(provider.clone()),
+                );
+                if provider == "custom" {
+                    // 裸自定义端点：base_url / api_key 写在 model 节。
+                    match non_empty(&default_entry.base_url) {
+                        Some(url) => {
+                            model_map.insert(
                                 Value::String("base_url".to_string()),
-                                Value::String(base_url.clone()),
+                                Value::String(url.to_string()),
                             );
                         }
-                        if let Some(ref api_key) = profile.model.api_key {
-                            if !api_key.is_empty() {
-                                existing_map.insert(
-                                    Value::String("api_key".to_string()),
-                                    Value::String(api_key.clone()),
-                                );
-                            }
-                        }
-                        if let Some(ref default) = profile.model.default {
-                            if !default.is_empty() {
-                                existing_map.insert(
-                                    Value::String("model".to_string()),
-                                    Value::String(default.clone()),
-                                );
-                            }
+                        None => {
+                            model_map.remove(Value::String("base_url".to_string()));
                         }
                     }
+                    match non_empty(&default_entry.api_key) {
+                        Some(key) => {
+                            model_map.insert(
+                                Value::String("api_key".to_string()),
+                                Value::String(key.to_string()),
+                            );
+                        }
+                        None => {
+                            model_map.remove(Value::String("api_key".to_string()));
+                        }
+                    }
+                } else if provider.starts_with("custom:") {
+                    // 命名自定义供应商：密钥/端点由 custom_providers 提供，
+                    // 清除 model 节中残留的 base_url/api_key 以免混淆。
+                    model_map.remove(Value::String("base_url".to_string()));
+                    model_map.remove(Value::String("api_key".to_string()));
                 }
-            } else {
-                // Add new provider
-                providers_list.push(Value::Mapping(new_provider));
+                // 其他一等供应商：保留用户已有的 model.base_url/api_key 不动。
             }
         }
     }
 
-    // Update agent.reasoning_effort if set in profile.
+    // 3. Update agent.reasoning_effort if set in profile.
     if let Some(ref effort) = profile.reasoning_effort {
         let agent_section = root
             .entry(Value::String("agent".to_string()))
@@ -456,76 +656,122 @@ fn apply_profile_to_config_path(profile: &HermesProfile, config_path: &Path) -> 
 }
 
 /// Internal: read current Hermes config from a specific config.yaml path.
-/// Reads from custom_providers list (first entry) and agent.reasoning_effort.
+///
+/// 以 live 的 `model` 节为准（`model.default` / `model.provider` 是 Hermes
+/// 实际使用的值），合并 `custom_providers` 列表为模型配置列表，并标记
+/// 当前生效条目为 is_default。
 fn read_current_config_from_path(config_path: &Path) -> Result<HermesCurrentConfig, String> {
+    let empty = || HermesCurrentConfig {
+        models: Vec::new(),
+        reasoning_effort: None,
+    };
+
     if !config_path.exists() {
-        return Ok(HermesCurrentConfig {
-            model: HermesModelConfig {
-                default: None,
-                provider: None,
-                base_url: None,
-                api_key: None,
-            },
-            reasoning_effort: None,
-        });
+        return Ok(empty());
     }
 
     let s = std::fs::read_to_string(config_path)
         .map_err(|e| format!("Failed to read config.yaml: {e}"))?;
     if s.trim().is_empty() {
-        return Ok(HermesCurrentConfig {
-            model: HermesModelConfig {
-                default: None,
-                provider: None,
-                base_url: None,
-                api_key: None,
-            },
-            reasoning_effort: None,
-        });
+        return Ok(empty());
     }
 
     let parsed: Value =
         serde_yaml::from_str(&s).map_err(|e| format!("Failed to parse config.yaml: {e}"))?;
 
-    // Read from custom_providers list (first entry), fallback to model section
-    let model = parsed
-        .get("custom_providers")
-        .and_then(|p| p.as_sequence())
-        .and_then(|seq| seq.first())
-        .map(|first| {
+    // custom_providers → 列表条目（先不标记默认）
+    let mut models: Vec<HermesModelConfig> = Vec::new();
+    if let Some(seq) = parsed.get("custom_providers").and_then(|v| v.as_sequence()) {
+        for item in seq.iter().filter_map(|v| v.as_mapping()) {
             let get_str = |key: &str| -> Option<String> {
-                first
-                    .get(key)
+                item.get(Value::String(key.to_string()))
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string())
             };
-            HermesModelConfig {
+            models.push(HermesModelConfig {
+                name: get_str("name"),
                 default: get_str("model"),
-                provider: get_str("name"),
+                provider: None,
                 base_url: get_str("base_url"),
                 api_key: get_str("api_key"),
-            }
-        })
-        .or_else(|| {
-            // Fallback to model section (legacy format)
-            parsed.get("model").map(|m| {
-                let get_str = |key: &str| -> Option<String> {
-                    m.get(key).and_then(|v| v.as_str()).map(|s| s.to_string())
-                };
-                HermesModelConfig {
-                    default: get_str("default"),
-                    provider: get_str("provider"),
-                    base_url: get_str("base_url"),
-                    api_key: get_str("api_key"),
+                is_default: false,
+            });
+        }
+    }
+
+    // live model 节（Hermes 实际生效的配置）
+    let model_section = parsed.get("model").and_then(|v| v.as_mapping());
+    let get_str = |key: &str| -> Option<String> {
+        model_section
+            .and_then(|m| m.get(Value::String(key.to_string())))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+    };
+    let live_default = get_str("default").or_else(|| get_str("model"));
+    let live_provider = get_str("provider");
+    let live_base_url = get_str("base_url");
+    let live_api_key = get_str("api_key");
+
+    match live_provider.as_deref() {
+        Some(p) if p.starts_with("custom:") && p.len() > "custom:".len() => {
+            let name = &p["custom:".len()..];
+            if let Some(entry) = models.iter_mut().find(|m| m.name.as_deref() == Some(name)) {
+                entry.is_default = true;
+                if entry.default.is_none() {
+                    entry.default = live_default;
                 }
-            })
-        })
-        .unwrap_or(HermesModelConfig {
-            default: None,
-            provider: None,
-            base_url: None,
-            api_key: None,
-        });
+            } else {
+                models.push(HermesModelConfig {
+                    name: Some(name.to_string()),
+                    default: live_default,
+                    provider: None,
+                    base_url: None,
+                    api_key: None,
+                    is_default: true,
+                });
+            }
+        }
+        Some("custom") => {
+            // 裸自定义端点：base_url/api_key 在 model 节。
+            models.push(HermesModelConfig {
+                name: None,
+                default: live_default,
+                provider: Some("custom".to_string()),
+                base_url: live_base_url,
+                api_key: live_api_key,
+                is_default: true,
+            });
+        }
+        Some(p) => {
+            // 一等供应商（openrouter / deepseek / ...）
+            models.push(HermesModelConfig {
+                name: None,
+                default: live_default,
+                provider: Some(p.to_string()),
+                base_url: live_base_url,
+                api_key: live_api_key,
+                is_default: true,
+            });
+        }
+        None => {
+            if live_default.is_some() || live_base_url.is_some() || live_api_key.is_some() {
+                models.push(HermesModelConfig {
+                    name: None,
+                    default: live_default,
+                    provider: None,
+                    base_url: live_base_url,
+                    api_key: live_api_key,
+                    is_default: true,
+                });
+            }
+        }
+    }
+
+    // 有条目但没有任何默认（如只有 custom_providers、没有 model 节）时，
+    // 把第一条视为默认，便于「从当前配置加载」。
+    if !models.is_empty() && !models.iter().any(|m| m.is_default) {
+        models[0].is_default = true;
+    }
 
     // Read agent.reasoning_effort
     let reasoning_effort = parsed
@@ -535,7 +781,7 @@ fn read_current_config_from_path(config_path: &Path) -> Result<HermesCurrentConf
         .map(|s| s.to_string());
 
     Ok(HermesCurrentConfig {
-        model,
+        models,
         reasoning_effort,
     })
 }
@@ -640,6 +886,17 @@ mod tests {
         std::fs::write(path, content).unwrap();
     }
 
+    fn make_entry(name: &str, default_model: Option<&str>) -> HermesModelConfig {
+        HermesModelConfig {
+            name: Some(name.to_string()),
+            default: default_model.map(|s| s.to_string()),
+            provider: None,
+            base_url: Some("https://api.openai.com/v1".to_string()),
+            api_key: Some("sk-test".to_string()),
+            is_default: true,
+        }
+    }
+
     fn make_profile(id: &str, name: &str, default_model: Option<&str>) -> HermesProfile {
         HermesProfile {
             id: id.to_string(),
@@ -647,12 +904,7 @@ mod tests {
             description: None,
             created_at: "2026-01-01T00:00:00Z".to_string(),
             updated_at: "2026-01-01T00:00:00Z".to_string(),
-            model: HermesModelConfig {
-                default: default_model.map(|s| s.to_string()),
-                provider: Some("openai".to_string()),
-                base_url: Some("https://api.openai.com/v1".to_string()),
-                api_key: Some("sk-test".to_string()),
-            },
+            models: vec![make_entry("openai", default_model)],
             reasoning_effort: None,
         }
     }
@@ -660,10 +912,12 @@ mod tests {
     #[test]
     fn test_yaml_serialization() {
         let model = HermesModelConfig {
+            name: Some("openai".to_string()),
             default: Some("gpt-4".to_string()),
             provider: Some("openai".to_string()),
             base_url: Some("https://api.openai.com/v1".to_string()),
             api_key: Some("sk-test".to_string()),
+            is_default: true,
         };
 
         let profile = HermesProfile {
@@ -672,16 +926,18 @@ mod tests {
             description: None,
             created_at: "2026-01-01T00:00:00Z".to_string(),
             updated_at: "2026-01-01T00:00:00Z".to_string(),
-            model,
+            models: vec![model],
             reasoning_effort: Some("high".to_string()),
         };
 
         // Verify JSON serialization (profiles stored as JSON)
         let json = serde_json::to_string_pretty(&profile).unwrap();
+        assert!(json.contains("\"models\":"));
         assert!(json.contains("\"default\":"));
         assert!(json.contains("\"provider\":"));
         assert!(json.contains("\"baseUrl\":"));
         assert!(json.contains("\"apiKey\":"));
+        assert!(json.contains("\"isDefault\": true"));
         assert!(json.contains("\"reasoningEffort\":"));
         assert!(json.contains("gpt-4"));
         assert!(json.contains("high"));
@@ -739,7 +995,9 @@ other_section:
         let loaded = get_hermes_profile_for_home(home, "p1").unwrap();
         assert_eq!(loaded.id, "p1");
         assert_eq!(loaded.name, "Profile 1");
-        assert_eq!(loaded.model.default.as_deref(), Some("gpt-4"));
+        assert_eq!(loaded.models.len(), 1);
+        assert_eq!(loaded.models[0].default.as_deref(), Some("gpt-4"));
+        assert!(loaded.models[0].is_default);
 
         // List
         let profiles = list_hermes_profiles_for_home(home).unwrap();
@@ -749,6 +1007,211 @@ other_section:
         delete_hermes_profile_for_home(home, "p1").unwrap();
         let profiles_after = list_hermes_profiles_for_home(home).unwrap();
         assert_eq!(profiles_after.len(), 0);
+    }
+
+    /// 回归：apply 必须写入 model.default / model.provider（微信 bot 等
+    /// 外部工具读取 model.default，只写 custom_providers 不生效）。
+    #[test]
+    fn test_apply_writes_default_model_and_provider() {
+        let temp = TempDir::new().unwrap();
+        let home = home(&temp);
+
+        // 模拟用户被旧版 droidgear 改坏的 config.yaml：
+        // astra 只写在 custom_providers 里，model.default 仍是 sol。
+        let base_yaml = r#"
+model:
+  default: gpt-5.6-sol
+  provider: custom:wududu-codex-pro
+custom_providers:
+- name: custom
+  base_url: https://sub.wududu.com/v1
+  model: gpt-6-astra
+"#;
+        write_file(
+            &home.join(".hermes").join("config.yaml"),
+            base_yaml.trim_start(),
+        );
+
+        let mut profile = HermesProfile {
+            id: "p1".to_string(),
+            name: "astra".to_string(),
+            description: None,
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            updated_at: "2026-01-01T00:00:00Z".to_string(),
+            models: vec![HermesModelConfig {
+                name: Some("wududu-codex-pro".to_string()),
+                default: Some("gpt-6-astra".to_string()),
+                provider: None,
+                base_url: Some("https://sub.wududu.com/v1".to_string()),
+                api_key: Some("sk-astra".to_string()),
+                is_default: true,
+            }],
+            reasoning_effort: None,
+        };
+        write_file(
+            &home
+                .join(".droidgear")
+                .join("hermes")
+                .join("profiles")
+                .join("p1.json"),
+            &serde_json::to_string_pretty(&profile).unwrap(),
+        );
+
+        apply_hermes_profile_for_home(home, "p1").unwrap();
+
+        let after = std::fs::read_to_string(home.join(".hermes").join("config.yaml")).unwrap();
+        let parsed: Value = serde_yaml::from_str(&after).unwrap();
+
+        // model.default / model.provider 必须是新模型（核心修复）
+        let model_section = parsed.get("model").unwrap();
+        assert_eq!(
+            model_section.get("default").and_then(|v| v.as_str()),
+            Some("gpt-6-astra")
+        );
+        assert_eq!(
+            model_section.get("provider").and_then(|v| v.as_str()),
+            Some("custom:wududu-codex-pro")
+        );
+        // 命名自定义供应商时 model 节不应残留 base_url/api_key
+        assert!(model_section.get("base_url").is_none());
+        assert!(model_section.get("api_key").is_none());
+
+        // custom_providers 里应有对应的命名条目
+        let providers = parsed
+            .get("custom_providers")
+            .and_then(|v| v.as_sequence())
+            .unwrap();
+        let ours = providers
+            .iter()
+            .find(|p| p.get("name").and_then(|v| v.as_str()) == Some("wududu-codex-pro"))
+            .expect("wududu-codex-pro entry should exist");
+        assert_eq!(
+            ours.get("model").and_then(|v| v.as_str()),
+            Some("gpt-6-astra")
+        );
+        assert_eq!(
+            ours.get("api_key").and_then(|v| v.as_str()),
+            Some("sk-astra")
+        );
+    }
+
+    /// 命名自定义供应商：apply 应更新已有同名条目而不是重复添加。
+    #[test]
+    fn test_apply_updates_existing_named_provider() {
+        let temp = TempDir::new().unwrap();
+        let home = home(&temp);
+
+        let base_yaml = r#"
+custom_providers:
+- name: mine
+  base_url: https://old.example.com/v1
+  model: old-model
+"#;
+        write_file(
+            &home.join(".hermes").join("config.yaml"),
+            base_yaml.trim_start(),
+        );
+
+        let mut profile = make_profile("p1", "Profile 1", Some("gpt-4"));
+        profile.models[0] = HermesModelConfig {
+            name: Some("mine".to_string()),
+            default: Some("gpt-4".to_string()),
+            provider: None,
+            base_url: Some("https://new.example.com/v1".to_string()),
+            api_key: Some("sk-new".to_string()),
+            is_default: true,
+        };
+        write_file(
+            &home
+                .join(".droidgear")
+                .join("hermes")
+                .join("profiles")
+                .join("p1.json"),
+            &serde_json::to_string_pretty(&profile).unwrap(),
+        );
+
+        apply_hermes_profile_for_home(home, "p1").unwrap();
+
+        let after = std::fs::read_to_string(home.join(".hermes").join("config.yaml")).unwrap();
+        let parsed: Value = serde_yaml::from_str(&after).unwrap();
+
+        let providers = parsed
+            .get("custom_providers")
+            .and_then(|v| v.as_sequence())
+            .unwrap();
+        assert_eq!(providers.len(), 1, "同名条目应被更新而不是新增");
+        assert_eq!(
+            providers[0].get("base_url").and_then(|v| v.as_str()),
+            Some("https://new.example.com/v1")
+        );
+        assert_eq!(
+            providers[0].get("model").and_then(|v| v.as_str()),
+            Some("gpt-4")
+        );
+
+        // model 节引用命名供应商
+        assert_eq!(
+            parsed
+                .get("model")
+                .and_then(|v| v.get("provider"))
+                .and_then(|v| v.as_str()),
+            Some("custom:mine")
+        );
+    }
+
+    /// 裸 custom（无 name）：base_url/api_key 写入 model 节。
+    #[test]
+    fn test_apply_bare_custom_writes_model_base_url() {
+        let temp = TempDir::new().unwrap();
+        let home = home(&temp);
+
+        let base_yaml = r#"
+model:
+  default: old-model
+  provider: openrouter
+  base_url: https://stale.example.com/v1
+"#;
+        write_file(
+            &home.join(".hermes").join("config.yaml"),
+            base_yaml.trim_start(),
+        );
+
+        let mut profile = make_profile("p1", "Profile 1", Some("gpt-4"));
+        profile.models[0] = HermesModelConfig {
+            name: None,
+            default: Some("gpt-4".to_string()),
+            provider: Some("custom".to_string()),
+            base_url: Some("https://api.openai.com/v1".to_string()),
+            api_key: Some("sk-test".to_string()),
+            is_default: true,
+        };
+        write_file(
+            &home
+                .join(".droidgear")
+                .join("hermes")
+                .join("profiles")
+                .join("p1.json"),
+            &serde_json::to_string_pretty(&profile).unwrap(),
+        );
+
+        apply_hermes_profile_for_home(home, "p1").unwrap();
+
+        let after = std::fs::read_to_string(home.join(".hermes").join("config.yaml")).unwrap();
+        let parsed: Value = serde_yaml::from_str(&after).unwrap();
+
+        let model_section = parsed.get("model").unwrap();
+        assert_eq!(
+            model_section.get("provider").and_then(|v| v.as_str()),
+            Some("custom")
+        );
+        assert_eq!(
+            model_section.get("base_url").and_then(|v| v.as_str()),
+            Some("https://api.openai.com/v1")
+        );
+        assert_eq!(
+            model_section.get("api_key").and_then(|v| v.as_str()),
+            Some("sk-test")
+        );
     }
 
     #[test]
@@ -810,7 +1273,6 @@ custom_providers:
             .get("custom_providers")
             .and_then(|v| v.as_sequence())
             .unwrap();
-        // Old provider preserved (different base_url and name)
         assert_eq!(providers.len(), 2);
         assert_eq!(
             providers[0].get("name").and_then(|v| v.as_str()),
@@ -832,6 +1294,22 @@ custom_providers:
         assert_eq!(
             providers[1].get("api_key").and_then(|v| v.as_str()),
             Some("sk-test")
+        );
+
+        // model 节写入默认模型 + custom:<name>
+        assert_eq!(
+            parsed
+                .get("model")
+                .and_then(|v| v.get("default"))
+                .and_then(|v| v.as_str()),
+            Some("gpt-4")
+        );
+        assert_eq!(
+            parsed
+                .get("model")
+                .and_then(|v| v.get("provider"))
+                .and_then(|v| v.as_str()),
+            Some("custom:openai")
         );
 
         // Active profile set
@@ -873,12 +1351,52 @@ custom_providers:
         );
     }
 
+    /// 空 profile（只有一条空默认条目）apply 不应破坏现有 model 节。
+    #[test]
+    fn test_apply_empty_profile_leaves_model_section() {
+        let temp = TempDir::new().unwrap();
+        let home = home(&temp);
+
+        let base_yaml = r#"
+model:
+  default: keep-me
+  provider: openrouter
+"#;
+        write_file(
+            &home.join(".hermes").join("config.yaml"),
+            base_yaml.trim_start(),
+        );
+
+        let profile = create_default_hermes_profile_for_home(home).unwrap();
+        apply_hermes_profile_for_home(home, &profile.id).unwrap();
+
+        let after = std::fs::read_to_string(home.join(".hermes").join("config.yaml")).unwrap();
+        let parsed: Value = serde_yaml::from_str(&after).unwrap();
+        assert_eq!(
+            parsed
+                .get("model")
+                .and_then(|v| v.get("default"))
+                .and_then(|v| v.as_str()),
+            Some("keep-me")
+        );
+        assert_eq!(
+            parsed
+                .get("model")
+                .and_then(|v| v.get("provider"))
+                .and_then(|v| v.as_str()),
+            Some("openrouter")
+        );
+    }
+
     #[test]
     fn test_read_current_config_with_reasoning_effort() {
         let temp = TempDir::new().unwrap();
         let home = home(&temp);
 
         let yaml = r#"
+model:
+  default: gpt-4
+  provider: custom:openai
 custom_providers:
 - name: openai
   base_url: https://api.openai.com/v1
@@ -890,8 +1408,12 @@ agent:
         write_file(&home.join(".hermes").join("config.yaml"), yaml.trim_start());
 
         let config = read_hermes_current_config_for_home(home).unwrap();
-        assert_eq!(config.model.default.as_deref(), Some("gpt-4"));
         assert_eq!(config.reasoning_effort.as_deref(), Some("xhigh"));
+        // live model 节 + custom_providers 合并为一条默认条目
+        assert_eq!(config.models.len(), 1);
+        assert_eq!(config.models[0].default.as_deref(), Some("gpt-4"));
+        assert_eq!(config.models[0].name.as_deref(), Some("openai"));
+        assert!(config.models[0].is_default);
     }
 
     #[test]
@@ -908,6 +1430,10 @@ custom_providers:
 
         let config = read_hermes_current_config_for_home(home).unwrap();
         assert_eq!(config.reasoning_effort, None);
+        // 只有 custom_providers 时第一条视为默认
+        assert_eq!(config.models.len(), 1);
+        assert_eq!(config.models[0].default.as_deref(), Some("gpt-4"));
+        assert!(config.models[0].is_default);
     }
 
     #[test]
@@ -926,100 +1452,70 @@ model:
         write_file(&home.join(".hermes").join("config.yaml"), yaml.trim_start());
 
         let config = read_hermes_current_config_for_home(home).unwrap();
-        assert_eq!(config.model.default.as_deref(), Some("gpt-4-turbo"));
-        assert_eq!(config.model.provider.as_deref(), Some("openai"));
+        assert_eq!(config.models.len(), 1);
+        assert_eq!(config.models[0].default.as_deref(), Some("gpt-4-turbo"));
+        assert_eq!(config.models[0].provider.as_deref(), Some("openai"));
         assert_eq!(
-            config.model.base_url.as_deref(),
+            config.models[0].base_url.as_deref(),
             Some("https://api.openai.com/v1")
         );
-        assert_eq!(config.model.api_key.as_deref(), Some("sk-live"));
+        assert_eq!(config.models[0].api_key.as_deref(), Some("sk-live"));
+        assert!(config.models[0].is_default);
     }
 
+    /// live model 节优先：provider 指向的命名条目是默认，其余条目保留在列表中。
     #[test]
-    fn test_read_custom_providers_takes_precedence() {
+    fn test_read_model_section_takes_precedence() {
         let temp = TempDir::new().unwrap();
         let home = home(&temp);
 
-        // Both model and custom_providers exist
+        // 用户反馈的坏状态：provider 引用 wududu-codex-pro，
+        // 但 custom_providers 里只有 name: custom 的旧条目。
         let yaml = r#"
 model:
-  default: old-model
-  provider: old-provider
+  default: gpt-5.6-sol
+  provider: custom:wududu-codex-pro
 custom_providers:
-- name: new-provider
-  base_url: https://new-api.com/v1
-  model: new-model
+- name: custom
+  base_url: https://sub.wududu.com/v1
+  model: gpt-6-astra
 "#;
         write_file(&home.join(".hermes").join("config.yaml"), yaml.trim_start());
 
         let config = read_hermes_current_config_for_home(home).unwrap();
-        // Should read from custom_providers, not model
-        assert_eq!(config.model.default.as_deref(), Some("new-model"));
-        assert_eq!(config.model.provider.as_deref(), Some("new-provider"));
-        assert_eq!(
-            config.model.base_url.as_deref(),
-            Some("https://new-api.com/v1")
-        );
+
+        // 列表应包含 custom_providers 里的条目 + live 引用条目
+        assert_eq!(config.models.len(), 2);
+        let live = config
+            .models
+            .iter()
+            .find(|m| m.is_default)
+            .expect("live entry should be default");
+        assert_eq!(live.name.as_deref(), Some("wududu-codex-pro"));
+        assert_eq!(live.default.as_deref(), Some("gpt-5.6-sol"));
     }
 
     #[test]
-    fn test_apply_does_not_delete_model_section() {
+    fn test_read_bare_custom_roundtrip() {
         let temp = TempDir::new().unwrap();
         let home = home(&temp);
 
-        let base_yaml = r#"
+        let yaml = r#"
 model:
-  default: old-model
-  provider: old-provider
-custom_providers:
-- name: existing
-  base_url: https://existing.com/v1
-  model: existing-model
+  default: gpt-4
+  provider: custom
+  base_url: https://api.openai.com/v1
+  api_key: sk-test
 "#;
-        write_file(
-            &home.join(".hermes").join("config.yaml"),
-            base_yaml.trim_start(),
-        );
+        write_file(&home.join(".hermes").join("config.yaml"), yaml.trim_start());
 
-        let mut profile = make_profile("p1", "Profile 1", Some("gpt-4"));
-        profile.model.base_url = Some("https://new-api.com/v1".to_string());
-        write_file(
-            &home
-                .join(".droidgear")
-                .join("hermes")
-                .join("profiles")
-                .join("p1.json"),
-            &serde_json::to_string_pretty(&profile).unwrap(),
-        );
-
-        apply_hermes_profile_for_home(home, "p1").unwrap();
-
-        let after = std::fs::read_to_string(home.join(".hermes").join("config.yaml")).unwrap();
-        let parsed: Value = serde_yaml::from_str(&after).unwrap();
-
-        // model section should still exist (not deleted)
-        assert_eq!(
-            parsed
-                .get("model")
-                .and_then(|v| v.get("default"))
-                .and_then(|v| v.as_str()),
-            Some("old-model")
-        );
-
-        // custom_providers should have new provider added
-        let providers = parsed
-            .get("custom_providers")
-            .and_then(|v| v.as_sequence())
-            .unwrap();
-        assert_eq!(providers.len(), 2);
-        assert_eq!(
-            providers[1].get("name").and_then(|v| v.as_str()),
-            Some("openai")
-        );
-        assert_eq!(
-            providers[1].get("model").and_then(|v| v.as_str()),
-            Some("gpt-4")
-        );
+        let config = read_hermes_current_config_for_home(home).unwrap();
+        assert_eq!(config.models.len(), 1);
+        let entry = &config.models[0];
+        assert!(entry.is_default);
+        assert_eq!(entry.provider.as_deref(), Some("custom"));
+        assert_eq!(entry.base_url.as_deref(), Some("https://api.openai.com/v1"));
+        assert_eq!(entry.api_key.as_deref(), Some("sk-test"));
     }
 
     #[test]
@@ -1047,6 +1543,8 @@ custom_providers:
         let profile = create_default_hermes_profile_for_home(home).unwrap();
         assert!(!profile.id.is_empty());
         assert_eq!(profile.name, "默认");
+        assert_eq!(profile.models.len(), 1);
+        assert!(profile.models[0].is_default);
 
         // Should fail when profiles already exist
         let err = create_default_hermes_profile_for_home(home).unwrap_err();
@@ -1071,7 +1569,7 @@ custom_providers:
         let dup = duplicate_hermes_profile_for_home(home, "orig", "Copy").unwrap();
         assert_ne!(dup.id, "orig");
         assert_eq!(dup.name, "Copy");
-        assert_eq!(dup.model.default.as_deref(), Some("gpt-4"));
+        assert_eq!(dup.models[0].default.as_deref(), Some("gpt-4"));
 
         // Both should exist
         let profiles = list_hermes_profiles_for_home(home).unwrap();
@@ -1110,6 +1608,84 @@ custom_providers:
         assert!(active_after.is_none());
     }
 
+    /// 旧版单条 model 的 profile JSON 应自动迁移为 models 列表。
+    #[test]
+    fn test_legacy_profile_migration() {
+        let temp = TempDir::new().unwrap();
+        let home = home(&temp);
+
+        // 旧版格式：profile.model 是单个对象
+        let legacy_json = r#"{
+  "id": "legacy1",
+  "name": "Legacy",
+  "description": null,
+  "createdAt": "2026-01-01T00:00:00Z",
+  "updatedAt": "2026-01-01T00:00:00Z",
+  "model": {
+    "default": "gpt-5.6-sol",
+    "provider": "custom:wududu-codex-pro",
+    "baseUrl": "https://sub.wududu.com/v1",
+    "apiKey": "sk-old"
+  }
+}"#;
+        write_file(
+            &home
+                .join(".droidgear")
+                .join("hermes")
+                .join("profiles")
+                .join("legacy1.json"),
+            legacy_json,
+        );
+
+        let loaded = get_hermes_profile_for_home(home, "legacy1").unwrap();
+        assert_eq!(loaded.models.len(), 1);
+        let entry = &loaded.models[0];
+        assert_eq!(entry.default.as_deref(), Some("gpt-5.6-sol"));
+        assert_eq!(entry.provider.as_deref(), Some("custom:wududu-codex-pro"));
+        assert_eq!(entry.base_url.as_deref(), Some("https://sub.wududu.com/v1"));
+        assert_eq!(entry.api_key.as_deref(), Some("sk-old"));
+        assert!(entry.is_default);
+    }
+
+    /// 多条 is_default 的 profile 保存时应归一化为一条默认。
+    #[test]
+    fn test_normalize_models_on_save() {
+        let temp = TempDir::new().unwrap();
+        let home = home(&temp);
+
+        let mut profile = HermesProfile {
+            id: "p1".to_string(),
+            name: "multi".to_string(),
+            description: None,
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            updated_at: "2026-01-01T00:00:00Z".to_string(),
+            models: vec![
+                HermesModelConfig {
+                    name: Some("a".to_string()),
+                    default: Some("model-a".to_string()),
+                    provider: None,
+                    base_url: Some("https://a.example.com/v1".to_string()),
+                    api_key: None,
+                    is_default: true,
+                },
+                HermesModelConfig {
+                    name: Some("b".to_string()),
+                    default: Some("model-b".to_string()),
+                    provider: None,
+                    base_url: Some("https://b.example.com/v1".to_string()),
+                    api_key: None,
+                    is_default: true,
+                },
+            ],
+            reasoning_effort: None,
+        };
+
+        save_hermes_profile_for_home(home, profile.clone()).unwrap();
+        let loaded = get_hermes_profile_for_home(home, "p1").unwrap();
+        assert_eq!(loaded.models.iter().filter(|m| m.is_default).count(), 1);
+        assert!(loaded.models[0].is_default);
+    }
+
     #[test]
     fn test_read_current_config_from_yaml() {
         let temp = TempDir::new().unwrap();
@@ -1125,13 +1701,15 @@ unrelated: data
         write_file(&home.join(".hermes").join("config.yaml"), yaml);
 
         let current = read_hermes_current_config_for_home(home).unwrap();
-        assert_eq!(current.model.default.as_deref(), Some("gpt-4-turbo"));
-        assert_eq!(current.model.provider.as_deref(), Some("openai"));
+        assert_eq!(current.models.len(), 1);
+        assert_eq!(current.models[0].default.as_deref(), Some("gpt-4-turbo"));
+        assert_eq!(current.models[0].name.as_deref(), Some("openai"));
         assert_eq!(
-            current.model.base_url.as_deref(),
+            current.models[0].base_url.as_deref(),
             Some("https://api.openai.com/v1")
         );
-        assert_eq!(current.model.api_key.as_deref(), Some("sk-live"));
+        assert_eq!(current.models[0].api_key.as_deref(), Some("sk-live"));
+        assert!(current.models[0].is_default);
     }
 
     #[test]

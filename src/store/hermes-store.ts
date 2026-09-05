@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import {
   commands,
+  type HermesModelConfig,
   type HermesProfile,
   type HermesConfigStatus,
   type HermesCurrentConfig,
@@ -29,6 +30,7 @@ interface HermesState {
     baseUrl: string
     apiKey: string
     provider: string
+    name?: string
     defaultModel?: string
   }) => Promise<void>
 
@@ -140,18 +142,21 @@ export const useHermesStore = create<HermesState>()(
 
       createProfile: async name => {
         const now = new Date().toISOString()
+        const emptyModel: HermesModelConfig = {
+          name: null,
+          default: null,
+          provider: null,
+          baseUrl: null,
+          apiKey: null,
+          isDefault: true,
+        }
         const profile: HermesProfile = {
           id: '',
           name,
           description: null,
           createdAt: now,
           updatedAt: now,
-          model: {
-            default: null,
-            provider: null,
-            baseUrl: null,
-            apiKey: null,
-          },
+          models: [emptyModel],
         }
         const result = await commands.saveHermesProfile(profile)
         if (result.status !== 'ok') throw new Error(result.error)
@@ -231,9 +236,22 @@ export const useHermesStore = create<HermesState>()(
           return
         }
         const live: HermesCurrentConfig = result.data
+        const liveModels =
+          live.models.length > 0
+            ? live.models
+            : [
+                {
+                  name: null,
+                  default: null,
+                  provider: null,
+                  baseUrl: null,
+                  apiKey: null,
+                  isDefault: true,
+                } satisfies HermesModelConfig,
+              ]
         const updated: HermesProfile = {
           ...currentProfile,
-          model: live.model,
+          models: liveModels,
           reasoningEffort:
             live.reasoningEffort ?? currentProfile.reasoningEffort,
           updatedAt: new Date().toISOString(),
@@ -250,18 +268,28 @@ export const useHermesStore = create<HermesState>()(
         baseUrl,
         apiKey,
         provider,
+        name,
         defaultModel,
       }) => {
         const { currentProfile } = get()
         if (!currentProfile) return
+        const imported: HermesModelConfig = {
+          name: name || null,
+          default: defaultModel ?? null,
+          provider: provider || null,
+          baseUrl: baseUrl || null,
+          apiKey: apiKey || null,
+          isDefault: true,
+        }
+        // 导入为新条目并设为默认；原有条目保留（可手动删除）。
+        const models = currentProfile.models.map(m => ({
+          ...m,
+          isDefault: false,
+        }))
+        models.push(imported)
         const updated: HermesProfile = {
           ...currentProfile,
-          model: {
-            default: defaultModel ?? null,
-            provider: provider || null,
-            baseUrl: baseUrl || null,
-            apiKey: apiKey || null,
-          },
+          models,
           updatedAt: new Date().toISOString(),
         }
         set({ currentProfile: updated }, undefined, 'hermes/importFromChannel')

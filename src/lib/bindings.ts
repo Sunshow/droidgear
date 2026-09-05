@@ -2904,19 +2904,60 @@ export type HermesConfigStatus = { configExists: boolean; configPath: string }
 /**
  * 当前 Hermes Live 配置（从 `~/.hermes/config.yaml` 读取）
  */
-export type HermesCurrentConfig = { model: HermesModelConfig; 
+export type HermesCurrentConfig = { 
+/**
+ * 模型配置列表：live 的 `model` 节合并 `custom_providers` 列表；
+ * `is_default` 标记当前生效（model.default/model.provider）的条目。
+ */
+models: HermesModelConfig[]; 
 /**
  * 推理努力程度（对应 config.yaml 中的 agent.reasoning_effort）
  */
 reasoningEffort?: string | null }
 /**
- * Hermes model 配置（对应 config.yaml 中的 model 节）
+ * 单条 Hermes model 配置。
+ * 
+ * apply 时：
+ * - `is_default` 的条目 → 写入 config.yaml 的 `model.default` / `model.provider`；
+ * - 解析出 `custom:<name>` 且带 base_url 的条目 → 写入 `custom_providers` 列表；
+ * - 裸 `custom`（无 name）→ base_url/api_key 直接写入 `model` 节。
  */
-export type HermesModelConfig = { default?: string | null; provider?: string | null; baseUrl?: string | null; apiKey?: string | null }
+export type HermesModelConfig = { 
 /**
- * Hermes Profile（用于在 DroidGear 内部保存并切换）
+ * 配置名称（对应 `custom_providers[].name`，也是 `custom:<name>` 的引用名）。
  */
-export type HermesProfile = { id: string; name: string; description?: string | null; createdAt: string; updatedAt: string; model: HermesModelConfig; 
+name?: string | null; 
+/**
+ * 模型 ID（写入 `model.default` 或 `custom_providers[].model`）。
+ */
+default?: string | null; 
+/**
+ * 显式 provider（如 openrouter / deepseek / custom）。留空时按 name/base_url 推导。
+ */
+provider?: string | null; 
+/**
+ * OpenAI 兼容端点地址（自定义供应商使用）。
+ */
+baseUrl?: string | null; 
+/**
+ * API 密钥（自定义供应商使用）。
+ */
+apiKey?: string | null; 
+/**
+ * 是否为默认配置（apply 时写入 `model.default` + `model.provider`）。
+ */
+isDefault: boolean }
+/**
+ * Hermes Profile（用于在 DroidGear 内部保存并切换）。
+ * 
+ * 旧版 Profile 只有单条 `model` 对象；反序列化时会自动迁移为单元素的
+ * `models` 列表（并标记 is_default）。
+ */
+export type HermesProfile = { id: string; name: string; description?: string | null; createdAt: string; updatedAt: string; 
+/**
+ * 模型配置列表（至少一条应标记 is_default）。
+ */
+models: HermesModelConfig[]; 
 /**
  * 推理努力程度（对应 config.yaml 中的 agent.reasoning_effort）
  * 选项：none, minimal, low, medium, high, xhigh, max, ultra

@@ -458,8 +458,59 @@ pub(super) fn hermes_load_from_live_config(
     let mut profile =
         droidgear_core::hermes::get_hermes_profile_for_home(&app.home_dir, profile_id)
             .map_err(anyhow::Error::msg)?;
-    profile.model = live.model;
+    profile.models = live.models;
     droidgear_core::hermes::save_hermes_profile_for_home(&app.home_dir, profile)
         .map_err(anyhow::Error::msg)?;
+    Ok(())
+}
+
+/// 在 profile 末尾追加一条空模型配置（列表为空时自动设为默认），
+/// 并跳到 HermesProvider 屏幕编辑它。
+pub(super) fn hermes_add_model(app: &mut app::App, profile_id: &str) -> anyhow::Result<()> {
+    let mut profile =
+        droidgear_core::hermes::get_hermes_profile_for_home(&app.home_dir, profile_id)
+            .map_err(anyhow::Error::msg)?;
+    let is_default = profile.models.is_empty();
+    profile
+        .models
+        .push(droidgear_core::hermes::HermesModelConfig {
+            name: None,
+            default: None,
+            provider: None,
+            base_url: None,
+            api_key: None,
+            is_default,
+        });
+    droidgear_core::hermes::save_hermes_profile_for_home(&app.home_dir, profile)
+        .map_err(anyhow::Error::msg)?;
+    refresh_hermes_detail(app);
+    app.hermes_model_index = app
+        .hermes_detail
+        .as_ref()
+        .map(|p| p.models.len().saturating_sub(1))
+        .unwrap_or(0);
+    app.hermes_provider_field_index = 0;
+    app.screen = app::Screen::HermesProvider;
+    Ok(())
+}
+
+/// 把指定下标条目设为默认（其余清除）。
+pub(super) fn hermes_set_default_model(
+    app: &mut app::App,
+    profile_id: &str,
+    model_index: usize,
+) -> anyhow::Result<()> {
+    let mut profile =
+        droidgear_core::hermes::get_hermes_profile_for_home(&app.home_dir, profile_id)
+            .map_err(anyhow::Error::msg)?;
+    if model_index >= profile.models.len() {
+        return Err(anyhow::anyhow!("Model config not found"));
+    }
+    for (i, entry) in profile.models.iter_mut().enumerate() {
+        entry.is_default = i == model_index;
+    }
+    droidgear_core::hermes::save_hermes_profile_for_home(&app.home_dir, profile)
+        .map_err(anyhow::Error::msg)?;
+    refresh_hermes_detail(app);
     Ok(())
 }
