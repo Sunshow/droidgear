@@ -132,6 +132,9 @@ describe('getSupportedEfforts', () => {
       'high',
       'max',
     ])
+    expect(
+      getSupportedEfforts('deepseek-v4-flash-vision-exp', 'openai')
+    ).toEqual(['none', 'low', 'high', 'max'])
   })
 
   it('returns kimi-k3 efforts with max but no medium', () => {
@@ -139,6 +142,26 @@ describe('getSupportedEfforts', () => {
       'none',
       'low',
       'high',
+      'max',
+    ])
+  })
+
+  it('returns qwen3.8-max efforts with xhigh but no high', () => {
+    expect(getSupportedEfforts('qwen3.8-max', 'openai')).toEqual([
+      'none',
+      'low',
+      'medium',
+      'xhigh',
+    ])
+  })
+
+  it('returns gpt-6-astra full effort list with max', () => {
+    expect(getSupportedEfforts('gpt-6-astra', 'openai')).toEqual([
+      'none',
+      'low',
+      'medium',
+      'high',
+      'xhigh',
       'max',
     ])
   })
@@ -162,6 +185,9 @@ describe('clampEffortToSupported', () => {
     expect(clampEffortToSupported('xhigh', ['none', 'high', 'max'])).toBe(
       'high'
     )
+    expect(
+      clampEffortToSupported('max', ['none', 'low', 'medium', 'xhigh'])
+    ).toBe('xhigh')
   })
 
   it('clamps deepseek-v4-flash efforts to its whitelist', () => {
@@ -241,6 +267,26 @@ describe('getEffortEncoding profiles', () => {
         output_config: { effort: 'high' },
       }
     )
+  })
+
+  it('encodes deepseek-v4-flash-vision-exp like flash', () => {
+    expect(
+      getEffortEncoding('deepseek-v4-flash-vision-exp', 'openai', 'none')
+    ).toEqual({
+      thinking: { type: 'disabled' },
+    })
+    expect(
+      getEffortEncoding('deepseek-v4-flash-vision-exp', 'openai', 'high')
+    ).toEqual({
+      thinking: { type: 'enabled' },
+      reasoning_effort: 'high',
+    })
+    expect(
+      getEffortEncoding('deepseek-v4-flash-vision-exp', 'anthropic', 'max')
+    ).toEqual({
+      thinking: { type: 'enabled' },
+      output_config: { effort: 'max' },
+    })
   })
 
   it('returns null for unknown model ids', () => {

@@ -12,16 +12,17 @@ import {
 } from './utils'
 
 describe('isStrictSamplingModel', () => {
-  it('covers Opus 4.7, 4.8, 5 and Fable 5', () => {
+  it('covers Opus 4.7, 4.8, 5 and Fable 5 / 5.1', () => {
     expect(isStrictSamplingModel('claude-opus-4.7')).toBe(true)
     expect(isStrictSamplingModel('claude-opus-4.8')).toBe(true)
     expect(isStrictSamplingModel('claude-opus-5')).toBe(true)
     expect(isStrictSamplingModel('claude-fable-5')).toBe(true)
+    expect(isStrictSamplingModel('claude-fable-5-1')).toBe(true)
   })
 
   it('flags GPT-5/o-series and Kimi models that reject sampling params', () => {
-    expect(isStrictSamplingModel('gpt-5.2')).toBe(true)
     expect(isStrictSamplingModel('gpt-5')).toBe(true)
+    expect(isStrictSamplingModel('gpt-6-astra')).toBe(true)
     expect(isStrictSamplingModel('o3-mini')).toBe(true)
     expect(isStrictSamplingModel('kimi-k2.5')).toBe(true)
     expect(isStrictSamplingModel('kimi-k2.7-code')).toBe(true)
@@ -33,15 +34,24 @@ describe('isStrictSamplingModel', () => {
     expect(isStrictSamplingModel('claude-opus-4.6')).toBe(false)
     expect(isStrictSamplingModel('claude-sonnet-4.6')).toBe(false)
     expect(isStrictSamplingModel('gpt-5.3-chat-latest')).toBe(false)
+    expect(isStrictSamplingModel('gpt-5.1')).toBe(false)
+    expect(isStrictSamplingModel('gpt-5.2')).toBe(false)
+    expect(isStrictSamplingModel('gpt-5.3-codex')).toBe(false)
+    expect(isStrictSamplingModel('gpt-5.4')).toBe(false)
+    expect(isStrictSamplingModel('gpt-5.4-mini')).toBe(false)
+    expect(isStrictSamplingModel('gpt-5.4-nano')).toBe(false)
     expect(isStrictSamplingModel('claude-opus-4.7-custom-deploy')).toBe(false)
     expect(isStrictSamplingModel('grok-4.6')).toBe(false)
     expect(isStrictSamplingModel('gemini-3.6-flash')).toBe(false)
     expect(isStrictSamplingModel('gemini-3.7-flash')).toBe(false)
+    expect(isStrictSamplingModel('gemini-3.8-flash')).toBe(false)
+    expect(isStrictSamplingModel('qwen3.8-max')).toBe(false)
+    expect(isStrictSamplingModel('deepseek-v4-flash-vision-exp')).toBe(false)
   })
 })
 
 describe('isAnthropicAdaptiveThinkingModel', () => {
-  it('matches Opus 4.6 / 4.7 / 4.8 / 5, Sonnet 4.6 / 5, and Fable 5', () => {
+  it('matches Opus 4.6 / 4.7 / 4.8 / 5, Sonnet 4.6 / 5, and Fable 5 / 5.1', () => {
     expect(isAnthropicAdaptiveThinkingModel('claude-opus-4.7')).toBe(true)
     expect(isAnthropicAdaptiveThinkingModel('claude-opus-4-7')).toBe(true)
     expect(isAnthropicAdaptiveThinkingModel('claude-opus-4.8')).toBe(true)
@@ -51,6 +61,7 @@ describe('isAnthropicAdaptiveThinkingModel', () => {
     expect(isAnthropicAdaptiveThinkingModel('claude-sonnet-4.6')).toBe(true)
     expect(isAnthropicAdaptiveThinkingModel('claude-sonnet-5')).toBe(true)
     expect(isAnthropicAdaptiveThinkingModel('claude-fable-5')).toBe(true)
+    expect(isAnthropicAdaptiveThinkingModel('claude-fable-5-1')).toBe(true)
   })
 
   it('rejects older claude models and unregistered IDs', () => {
@@ -79,14 +90,19 @@ describe('supportsMaxEffort', () => {
 
   it('applies to registry whitelist models with max effort', () => {
     expect(supportsMaxEffort('deepseek-v4-pro')).toBe(true)
+    expect(supportsMaxEffort('deepseek-v4-flash-vision-exp')).toBe(true)
     expect(supportsMaxEffort('gpt-5.6')).toBe(true)
     expect(supportsMaxEffort('gpt-5.6-luna')).toBe(true)
+    expect(supportsMaxEffort('gpt-6-astra')).toBe(true)
     expect(supportsMaxEffort('kimi-k3')).toBe(true)
+    expect(supportsMaxEffort('claude-fable-5-1')).toBe(true)
   })
 
   it('does not apply to older openai models without max', () => {
     expect(supportsMaxEffort('gpt-5.2')).toBe(false)
     expect(supportsMaxEffort('o3-mini')).toBe(false)
+    expect(supportsMaxEffort('gemini-3.8-flash')).toBe(false)
+    expect(supportsMaxEffort('qwen3.8-max')).toBe(false)
   })
 })
 
@@ -107,11 +123,16 @@ describe('supportsXhighEffort', () => {
     expect(supportsXhighEffort('gpt-5.2')).toBe(true)
     expect(supportsXhighEffort('o3-mini')).toBe(true)
     expect(supportsXhighEffort('grok-4.6')).toBe(true)
+    expect(supportsXhighEffort('gpt-6-astra')).toBe(true)
+    expect(supportsXhighEffort('claude-fable-5-1')).toBe(true)
+    expect(supportsXhighEffort('qwen3.8-max')).toBe(true)
   })
 
   it('respects registry whitelist for xhigh', () => {
     // deepseek-v4-pro has whitelist: ["none", "high", "max"] — no xhigh
     expect(supportsXhighEffort('deepseek-v4-pro')).toBe(false)
+    // deepseek-v4-flash-vision-exp whitelist: ["none", "low", "high", "max"] — no xhigh
+    expect(supportsXhighEffort('deepseek-v4-flash-vision-exp')).toBe(false)
     // kimi-k3 whitelist: ["none", "low", "high", "max"] — no xhigh
     expect(supportsXhighEffort('kimi-k3')).toBe(false)
   })
@@ -119,6 +140,7 @@ describe('supportsXhighEffort', () => {
   it('rejects xhigh on non-reasoning registry models', () => {
     expect(supportsXhighEffort('gemini-2.5-pro')).toBe(false)
     expect(supportsXhighEffort('grok-4.5')).toBe(false)
+    expect(supportsXhighEffort('gemini-3.8-flash')).toBe(false)
   })
 
   it('does not grant xhigh to unregistered Claude IDs', () => {
@@ -164,11 +186,17 @@ describe('getDefaultMaxOutputTokens', () => {
 
   it('uses registry values for non-claude models', () => {
     expect(getDefaultMaxOutputTokens('gpt-5.2')).toBe(128000)
+    expect(getDefaultMaxOutputTokens('gpt-6-astra')).toBe(128000)
     expect(getDefaultMaxOutputTokens('gemini-2.5-pro')).toBe(65536)
     expect(getDefaultMaxOutputTokens('kimi-k3')).toBe(131072)
     expect(getDefaultMaxOutputTokens('grok-4.6')).toBe(500000)
     expect(getDefaultMaxOutputTokens('gemini-3.6-flash')).toBe(65536)
     expect(getDefaultMaxOutputTokens('gemini-3.7-flash')).toBe(65536)
+    expect(getDefaultMaxOutputTokens('gemini-3.8-flash')).toBe(65536)
+    expect(getDefaultMaxOutputTokens('qwen3.8-max')).toBe(131072)
+    expect(getDefaultMaxOutputTokens('deepseek-v4-flash-vision-exp')).toBe(
+      384000
+    )
   })
 
   it('falls back to generic rules for unregistered IDs', () => {
