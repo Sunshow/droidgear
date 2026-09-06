@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.2.9
+
+**New Features / 新功能**
+
+- Add a terminal entry to all tool panels (Claude/Codex/Dsh/Hermes/Omp/OpenClaw/OpenCode/Pi) / 为所有工具面板（Claude/Codex/Dsh/Hermes/Omp/OpenClaw/OpenCode/Pi）新增终端入口
+- Sync the model registry with models.dev latest: add claude-fable-5-1, deepseek-v4-flash-vision-exp, gemini-3.8-flash, gpt-6-astra, qwen3.8-max / 从 models.dev 同步模型注册表：新增 claude-fable-5-1、deepseek-v4-flash-vision-exp、gemini-3.8-flash、gpt-6-astra、qwen3.8-max
+
+**Bug Fixes / 问题修复**
+
+- Hermes apply now writes `model.default` and provider settings / Hermes apply 现在会写入 `model.default` 与 provider 设置
+- Fix macOS WebKit terminal dropping the first IME character / 修复 macOS WebKit 终端丢失第一个输入法字符的问题
+
 ## v1.2.8
 
 **New Features / 新功能**
