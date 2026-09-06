@@ -1032,7 +1032,7 @@ custom_providers:
             base_yaml.trim_start(),
         );
 
-        let mut profile = HermesProfile {
+        let profile = HermesProfile {
             id: "p1".to_string(),
             name: "astra".to_string(),
             description: None,
@@ -1653,7 +1653,7 @@ model:
         let temp = TempDir::new().unwrap();
         let home = home(&temp);
 
-        let mut profile = HermesProfile {
+        let profile = HermesProfile {
             id: "p1".to_string(),
             name: "multi".to_string(),
             description: None,
