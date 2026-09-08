@@ -2,10 +2,10 @@ use tauri_specta::{collect_commands, Builder};
 
 pub fn generate_bindings() -> Builder<tauri::Wry> {
     use crate::commands::{
-        channel, channel_export, claude, claude_settings, codex, codex_auth_profiles, config,
-        connectivity, droid_settings, dsh, env, factory_auth_profiles, hermes, mcp, notifications,
-        omp, openclaw, opencode, paths, pi, preferences, recovery, sessions, specs, updater,
-        window,
+        channel, channel_export, claude, claude_settings, codex, codex_auth_profiles,
+        codex_sessions, config, connectivity, droid_settings, dsh, env, factory_auth_profiles,
+        hermes, mcp, notifications, omp, openclaw, opencode, paths, pi, preferences, recovery,
+        sessions, specs, updater, window,
     };
 
     Builder::<tauri::Wry>::new().commands(collect_commands![
@@ -234,6 +234,13 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         codex_auth_profiles::rename_codex_auth_profile,
         codex_auth_profiles::detect_codex_auth_conflict,
         codex_auth_profiles::detect_codex_apply_auth_conflict,
+        codex_sessions::list_codex_sessions,
+        codex_sessions::list_codex_session_providers,
+        codex_sessions::get_codex_session_detail,
+        codex_sessions::delete_codex_session,
+        codex_sessions::set_codex_session_provider,
+        codex_sessions::start_codex_sessions_watcher,
+        codex_sessions::stop_codex_sessions_watcher,
         window::reset_window_state,
     ])
 }

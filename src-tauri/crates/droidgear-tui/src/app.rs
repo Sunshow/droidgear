@@ -5,6 +5,7 @@ use droidgear_core::{
     claude_settings_files::ClaudeSettingsFileInfo,
     codex::CodexProfile,
     codex_auth_profiles::CodexAuthProfile,
+    codex_sessions::CodexSessionSummary,
     droid_settings_files::SettingsFileInfo,
     dsh::DshProviderConfig,
     factory_auth_profiles::AuthProfile,
@@ -70,6 +71,7 @@ pub enum Screen {
     Missions,
     FactoryAuth,
     CodexAuth,
+    CodexSessions,
 }
 
 #[derive(Debug, Clone)]
@@ -176,6 +178,9 @@ pub enum ConfirmAction {
         index: usize,
     },
     SessionDelete {
+        path: String,
+    },
+    CodexSessionDelete {
         path: String,
     },
     SpecDelete {
@@ -626,6 +631,9 @@ pub enum SelectAction {
         profile_id: String,
         provider_id: String,
     },
+    CodexSessionSetProvider {
+        path: String,
+    },
     OpenCodeImportProviders {
         id: String,
     },
@@ -912,6 +920,9 @@ pub struct App {
     pub codex_auth_active: Option<String>,
     pub codex_auth_is_current_official: bool,
     pub codex_auth_index: usize,
+
+    pub codex_sessions: Vec<CodexSessionSummary>,
+    pub codex_sessions_index: usize,
 }
 
 /// A navigation group shown in the left sidebar. Groups mirror the GUI's
@@ -1088,6 +1099,8 @@ impl App {
             codex_auth_active: None,
             codex_auth_is_current_official: false,
             codex_auth_index: 0,
+            codex_sessions: Vec::new(),
+            codex_sessions_index: 0,
         }
     }
 
@@ -1116,6 +1129,7 @@ impl App {
                 items: &[
                     ("Providers", Screen::Codex),
                     ("Auth Profiles", Screen::CodexAuth),
+                    ("Sessions", Screen::CodexSessions),
                 ],
                 system: false,
             },
@@ -1589,6 +1603,9 @@ impl App {
         }
         if self.sessions_index >= self.sessions.len() {
             self.sessions_index = self.sessions.len().saturating_sub(1);
+        }
+        if self.codex_sessions_index >= self.codex_sessions.len() {
+            self.codex_sessions_index = self.codex_sessions.len().saturating_sub(1);
         }
         if self.specs_index >= self.specs.len() {
             self.specs_index = self.specs.len().saturating_sub(1);

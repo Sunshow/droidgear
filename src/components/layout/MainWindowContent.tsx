@@ -67,6 +67,11 @@ const CodexAuthPage = lazy(() =>
     default: m.CodexAuthPage,
   }))
 )
+const CodexSessionsPage = lazy(() =>
+  import('@/components/codex/CodexSessionsPage').then(m => ({
+    default: m.CodexSessionsPage,
+  }))
+)
 const ClaudeSettingsPage = lazy(() =>
   import('@/components/claude/ClaudeSettingsPage').then(m => ({
     default: m.ClaudeSettingsPage,
@@ -216,6 +221,7 @@ export function MainWindowContent({
         <>
           {codexSubView === 'providers' && <CodexConfigPage />}
           {codexSubView === 'auth-profiles' && <CodexAuthPage />}
+          {codexSubView === 'sessions' && <CodexSessionsPage />}
         </>
       )
     }

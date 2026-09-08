@@ -674,6 +674,19 @@ pub(super) fn run_select_action(
             app.set_toast("Saved", false);
             Ok(())
         }
+        app::SelectAction::CodexSessionSetProvider { path } => {
+            let Some(selected) = selected else {
+                return Ok(());
+            };
+            droidgear_core::codex_sessions::set_codex_session_provider_for_home(
+                &app.home_dir,
+                &path,
+                &selected,
+            )
+            .map_err(anyhow::Error::msg)?;
+            app.set_toast("Session provider updated", false);
+            Ok(())
+        }
         app::SelectAction::CodexSetProviderReasoningEffort {
             profile_id,
             provider_id,
@@ -2058,6 +2071,11 @@ pub(super) fn run_confirm_action(
         }
         app::ConfirmAction::SessionDelete { path } => {
             droidgear_core::sessions::delete_session(&path).map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
+        app::ConfirmAction::CodexSessionDelete { path } => {
+            droidgear_core::codex_sessions::delete_codex_session_for_home(&app.home_dir, &path)
+                .map_err(anyhow::Error::msg)?;
             Ok(())
         }
         app::ConfirmAction::SpecDelete { path } => {

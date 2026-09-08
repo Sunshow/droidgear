@@ -103,6 +103,9 @@ pub fn run() {
         .plugin(tauri_plugin_system_fonts::init())
         .manage(commands::specs::SpecsWatcherState(Mutex::new(None)))
         .manage(commands::sessions::SessionsWatcherState(Mutex::new(None)))
+        .manage(commands::codex_sessions::CodexSessionsWatcherState(
+            Mutex::new(None),
+        ))
         .setup(|app| {
             log::info!("Application starting up");
             log::debug!(

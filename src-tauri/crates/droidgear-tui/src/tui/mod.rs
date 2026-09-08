@@ -21,6 +21,7 @@ mod keys_channels;
 mod keys_claude;
 mod keys_codex;
 mod keys_codex_auth;
+mod keys_codex_sessions;
 mod keys_droid_settings;
 mod keys_dsh;
 mod keys_factory;
@@ -56,6 +57,7 @@ use actions::{read_to_string_if_exists, run_action};
 use keys_channels::{handle_channels_edit_key, handle_channels_key};
 use keys_claude::{handle_claude_key, handle_claude_settings_detail_key};
 use keys_codex::{handle_codex_key, handle_codex_profile_key, handle_codex_provider_key};
+use keys_codex_sessions::handle_codex_sessions_key;
 use keys_droid_settings::handle_droid_settings_files_key;
 use keys_dsh::{handle_dsh_key, handle_dsh_model_key, handle_dsh_provider_key};
 use keys_factory::{handle_factory_key, handle_factory_model_key, normalize_factory_models};
@@ -159,6 +161,9 @@ enum Action {
         provider_id: String,
     },
     ViewSession {
+        path: String,
+    },
+    ViewCodexSession {
         path: String,
     },
     EditSpec {
@@ -302,6 +307,7 @@ fn refresh_screen_data(app: &mut app::App) {
             refresh_hermes_detail(app);
         }
         app::Screen::Sessions => refresh_sessions(app),
+        app::Screen::CodexSessions => refresh_codex_sessions(app),
         app::Screen::Specs => refresh_specs(app),
         app::Screen::Channels => refresh_channels(app),
         app::Screen::ChannelsEdit => {}

@@ -33,7 +33,11 @@ export type DroidSubView =
   | 'terminal'
   | 'missions'
   | 'legacy-versions'
-export type CodexSubView = 'providers' | 'auth-profiles' | 'terminal'
+export type CodexSubView =
+  | 'providers'
+  | 'auth-profiles'
+  | 'sessions'
+  | 'terminal'
 export type OpenCodeSubView = 'providers' | 'terminal'
 export type OpenClawSubView = 'providers' | 'helpers' | 'subagents' | 'terminal'
 export type ClaudeSubView = 'settings' | 'terminal'

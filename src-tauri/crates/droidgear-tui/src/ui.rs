@@ -426,6 +426,7 @@ fn draw_main(frame: &mut Frame, app: &app::App, area: Rect) {
         app::Screen::HermesProfile => draw_hermes_profile(frame, app, area),
         app::Screen::HermesProvider => draw_hermes_provider(frame, app, area),
         app::Screen::Sessions => draw_sessions(frame, app, area),
+        app::Screen::CodexSessions => draw_codex_sessions(frame, app, area),
         app::Screen::Specs => draw_specs(frame, app, area),
         app::Screen::Channels => draw_channels(frame, app, area),
         app::Screen::ChannelsEdit => draw_channels_edit(frame, app, area),
@@ -2547,6 +2548,55 @@ fn draw_sessions(frame: &mut Frame, app: &app::App, area: Rect) {
     render_list(frame, list, chunks[0], selected);
 
     let help = help_paragraph("Up/Down: select  Enter/v: view  d: delete  r: refresh  q/Esc: back");
+    frame.render_widget(help, chunks[1]);
+}
+
+fn draw_codex_sessions(frame: &mut Frame, app: &app::App, area: Rect) {
+    let t = theme();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
+
+    let mut items: Vec<ListItem> = Vec::new();
+    for s in app.codex_sessions.iter() {
+        let project = s
+            .project
+            .rsplit('/')
+            .next()
+            .filter(|p| !p.is_empty())
+            .unwrap_or("unknown");
+        let provider = if s.model_provider.is_empty() {
+            "unknown"
+        } else {
+            &s.model_provider
+        };
+        items.push(ListItem::new(Line::from(vec![
+            Span::raw(s.title.clone()),
+            Span::raw("  "),
+            Span::styled(format!("[{}]", project), t.dim_style()),
+            Span::raw("  "),
+            Span::styled(provider, t.dim_style()),
+            Span::raw("  "),
+            Span::styled(s.model.clone(), t.key_style()),
+        ])));
+    }
+    if items.is_empty() {
+        items.push(ListItem::new(Line::from(Span::styled(
+            "No sessions",
+            t.placeholder_style(),
+        ))));
+    }
+
+    let selected = (!app.codex_sessions.is_empty()).then_some(app.codex_sessions_index);
+    let list = List::new(items)
+        .block(block(crumb_title(app, "Codex Sessions")))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, list, chunks[0], selected);
+
+    let help = help_paragraph(
+        "Up/Down: select  Enter/v: view  p: switch provider  d: delete  r: refresh  q/Esc: back",
+    );
     frame.render_widget(help, chunks[1]);
 }
 

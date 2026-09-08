@@ -2457,6 +2457,83 @@ async detectCodexApplyAuthConflict(codexProfileId: string) : Promise<Result<Code
 }
 },
 /**
+ * Lists all Codex sessions from `<codex home>/sessions`.
+ */
+async listCodexSessions() : Promise<Result<CodexSessionSummary[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_codex_sessions") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Lists all Codex model providers aggregated from every configured profile.
+ */
+async listCodexSessionProviders() : Promise<Result<CodexSessionProvider[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_codex_session_providers") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Gets detailed Codex session information including messages.
+ */
+async getCodexSessionDetail(sessionPath: string) : Promise<Result<CodexSessionDetail, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_codex_session_detail", { sessionPath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Deletes a Codex session by removing its .jsonl file.
+ */
+async deleteCodexSession(sessionPath: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_codex_session", { sessionPath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Rewrites the `model_provider` of a session file's `session_meta` line.
+ */
+async setCodexSessionProvider(sessionPath: string, providerId: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_codex_session_provider", { sessionPath, providerId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Starts watching the codex sessions directory for changes.
+ */
+async startCodexSessionsWatcher() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("start_codex_sessions_watcher") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Stops watching the codex sessions directory.
+ */
+async stopCodexSessionsWatcher() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("stop_codex_sessions_watcher") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Tauri command: snap the main window to the default size, clear fullscreen,
  * re-center, and quarantine the saved state file so the next launch starts
  * fresh. Surfaced via the application menu and a global shortcut so users
@@ -2687,6 +2764,10 @@ export type CodexCliCapability = { version: string; supportsConfigOverride: bool
  */
 export type CodexConfigStatus = { authExists: boolean; configExists: boolean; authPath: string; configPath: string }
 /**
+ * Message content block
+ */
+export type CodexContentBlock = { type: string; text?: string | null; thinking?: string | null }
+/**
  * 当前 Codex Live 配置（从 `~/.codex/*` 读取）
  */
 export type CodexCurrentConfig = { providers?: Partial<{ [key in string]: CodexProviderConfig }>; modelProvider: string; model: string; modelReasoningEffort?: string | null; apiKey?: string | null }
@@ -2718,7 +2799,67 @@ export type CodexProviderConfig = { name?: string | null; baseUrl?: string | nul
  * Provider API key. Written to config.toml as `experimental_bearer_token`.
  */
 apiKey?: string | null }
+/**
+ * Session detail with messages
+ */
+export type CodexSessionDetail = { id: string; title: string; cwd: string; model: string; modelProvider: string; modifiedAt: number; tokenUsage: CodexTokenUsage; messages: CodexSessionMessage[] }
+/**
+ * Session message
+ */
+export type CodexSessionMessage = { id: string; role: string; content: CodexContentBlock[]; timestamp: string }
+/**
+ * A Codex model provider aggregated from all configured profiles.
+ */
+export type CodexSessionProvider = { 
+/**
+ * Provider id as used in config.toml (`model_provider`) and session files
+ */
+id: string; 
+/**
+ * Display name (provider config name, or the id itself)
+ */
+name: string }
+/**
+ * Session summary for the list view.
+ */
+export type CodexSessionSummary = { 
+/**
+ * Session UUID
+ */
+id: string; 
+/**
+ * Session title
+ */
+title: string; 
+/**
+ * Working directory the session ran in (used as its "project")
+ */
+project: string; 
+/**
+ * Model used
+ */
+model: string; 
+/**
+ * Model provider owning this session (from session_meta)
+ */
+modelProvider: string; 
+/**
+ * Last modified timestamp in milliseconds
+ */
+modifiedAt: number; 
+/**
+ * Token usage
+ */
+tokenUsage: CodexTokenUsage; 
+/**
+ * Full path to the session .jsonl file
+ */
+path: string }
 export type CodexTemporaryRunPlan = { program: string; args: string[]; env: ([string, string])[]; unsetEnv: string[]; secretEnvKeys: string[]; warnings: string[] }
+/**
+ * Token usage statistics (from the last `event_msg/token_count` event).
+ */
+export type CodexTokenUsage = { inputTokens: number; outputTokens: number; cacheCreationTokens: number; cacheReadTokens: number; reasoningTokens: number; totalTokens: number }
 /**
  * User-defined configuration paths (only stores explicitly set paths)
  */

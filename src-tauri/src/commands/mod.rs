@@ -9,6 +9,7 @@ pub mod claude;
 pub mod claude_settings;
 pub mod codex;
 pub mod codex_auth_profiles;
+pub mod codex_sessions;
 pub mod config;
 pub mod connectivity;
 pub mod droid_settings;
