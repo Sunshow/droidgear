@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { CircuitBoard, TerminalSquare } from 'lucide-react'
+import { CircuitBoard, MessageSquare, TerminalSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ActionButton } from '@/components/ui/action-button'
 import { useUIStore, type PiSubView } from '@/store/ui-store'
@@ -12,6 +12,11 @@ interface FeatureItem {
 
 const features: FeatureItem[] = [
   { id: 'providers', labelKey: 'pi.features.providers', icon: CircuitBoard },
+  {
+    id: 'sessions',
+    labelKey: 'pi.features.sessions',
+    icon: MessageSquare,
+  },
   {
     id: 'terminal',
     labelKey: 'pi.features.terminal',

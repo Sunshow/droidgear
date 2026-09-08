@@ -17,6 +17,7 @@ use droidgear_core::{
     opencode::OpenCodeProfile,
     paths::{EffectivePath, EffectivePaths},
     pi::PiProfile,
+    pi_sessions::PiSessionSummary,
     sessions::SessionSummary,
     specs::SpecFile,
     trusted_folders::TrustedFolder,
@@ -72,6 +73,7 @@ pub enum Screen {
     FactoryAuth,
     CodexAuth,
     CodexSessions,
+    PiSessions,
 }
 
 #[derive(Debug, Clone)]
@@ -181,6 +183,9 @@ pub enum ConfirmAction {
         path: String,
     },
     CodexSessionDelete {
+        path: String,
+    },
+    PiSessionDelete {
         path: String,
     },
     SpecDelete {
@@ -923,6 +928,8 @@ pub struct App {
 
     pub codex_sessions: Vec<CodexSessionSummary>,
     pub codex_sessions_index: usize,
+    pub pi_sessions: Vec<PiSessionSummary>,
+    pub pi_sessions_index: usize,
 }
 
 /// A navigation group shown in the left sidebar. Groups mirror the GUI's
@@ -1101,6 +1108,8 @@ impl App {
             codex_auth_index: 0,
             codex_sessions: Vec::new(),
             codex_sessions_index: 0,
+            pi_sessions: Vec::new(),
+            pi_sessions_index: 0,
         }
     }
 
@@ -1159,7 +1168,7 @@ impl App {
             },
             NavGroup {
                 label: "Pi",
-                items: &[("Providers", Screen::Pi)],
+                items: &[("Providers", Screen::Pi), ("Sessions", Screen::PiSessions)],
                 system: false,
             },
             NavGroup {
@@ -1606,6 +1615,9 @@ impl App {
         }
         if self.codex_sessions_index >= self.codex_sessions.len() {
             self.codex_sessions_index = self.codex_sessions.len().saturating_sub(1);
+        }
+        if self.pi_sessions_index >= self.pi_sessions.len() {
+            self.pi_sessions_index = self.pi_sessions.len().saturating_sub(1);
         }
         if self.specs_index >= self.specs.len() {
             self.specs_index = self.specs.len().saturating_sub(1);

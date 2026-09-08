@@ -21,6 +21,7 @@ pub mod openclaw;
 pub mod opencode;
 pub mod paths;
 pub mod pi;
+pub mod pi_sessions;
 pub mod sessions;
 pub mod specs;
 pub mod storage;

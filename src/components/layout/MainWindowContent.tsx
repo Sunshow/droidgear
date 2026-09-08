@@ -102,6 +102,11 @@ const PiConfigPage = lazy(() =>
     default: m.PiConfigPage,
   }))
 )
+const PiSessionsPage = lazy(() =>
+  import('@/components/pi/PiSessionsPage').then(m => ({
+    default: m.PiSessionsPage,
+  }))
+)
 const OmpConfigPage = lazy(() =>
   import('@/components/omp/OmpConfigPage').then(m => ({
     default: m.OmpConfigPage,
@@ -235,7 +240,12 @@ export function MainWindowContent({
     }
 
     if (currentView === 'pi') {
-      return piSubView === 'terminal' ? null : <PiConfigPage />
+      return (
+        <>
+          {piSubView === 'providers' && <PiConfigPage />}
+          {piSubView === 'sessions' && <PiSessionsPage />}
+        </>
+      )
     }
 
     if (currentView === 'omp') {

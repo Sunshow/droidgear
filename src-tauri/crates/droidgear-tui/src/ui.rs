@@ -427,6 +427,7 @@ fn draw_main(frame: &mut Frame, app: &app::App, area: Rect) {
         app::Screen::HermesProvider => draw_hermes_provider(frame, app, area),
         app::Screen::Sessions => draw_sessions(frame, app, area),
         app::Screen::CodexSessions => draw_codex_sessions(frame, app, area),
+        app::Screen::PiSessions => draw_pi_sessions(frame, app, area),
         app::Screen::Specs => draw_specs(frame, app, area),
         app::Screen::Channels => draw_channels(frame, app, area),
         app::Screen::ChannelsEdit => draw_channels_edit(frame, app, area),
@@ -2597,6 +2598,48 @@ fn draw_codex_sessions(frame: &mut Frame, app: &app::App, area: Rect) {
     let help = help_paragraph(
         "Up/Down: select  Enter/v: view  p: switch provider  d: delete  r: refresh  q/Esc: back",
     );
+    frame.render_widget(help, chunks[1]);
+}
+
+fn draw_pi_sessions(frame: &mut Frame, app: &app::App, area: Rect) {
+    let t = theme();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
+
+    let mut items: Vec<ListItem> = Vec::new();
+    for session in &app.pi_sessions {
+        let project = session
+            .project
+            .rsplit(['/', '\\'])
+            .next()
+            .filter(|part| !part.is_empty())
+            .unwrap_or("unknown");
+        items.push(ListItem::new(Line::from(vec![
+            Span::raw(session.title.clone()),
+            Span::raw("  "),
+            Span::styled(format!("[{project}]"), t.dim_style()),
+            Span::raw("  "),
+            Span::styled(session.model.clone(), t.key_style()),
+            Span::raw("  "),
+            Span::styled(format!("{} messages", session.message_count), t.dim_style()),
+        ])));
+    }
+    if items.is_empty() {
+        items.push(ListItem::new(Line::from(Span::styled(
+            "No Pi sessions",
+            t.placeholder_style(),
+        ))));
+    }
+
+    let selected = (!app.pi_sessions.is_empty()).then_some(app.pi_sessions_index);
+    let list = List::new(items)
+        .block(block(crumb_title(app, "Pi Sessions")))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, list, chunks[0], selected);
+
+    let help = help_paragraph("Up/Down: select  Enter/v: view  d: delete  r: refresh  q/Esc: back");
     frame.render_widget(help, chunks[1]);
 }
 

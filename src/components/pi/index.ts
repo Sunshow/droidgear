@@ -1,5 +1,6 @@
 export { PiConfigPage } from './PiConfigPage'
 export { PiFeatureList } from './PiFeatureList'
+export { PiSessionsPage } from './PiSessionsPage'
 export { ConfigStatus } from './ConfigStatus'
 export { ProviderCard } from './ProviderCard'
 export { ProviderDialog } from './ProviderDialog'

@@ -4,8 +4,8 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
     use crate::commands::{
         channel, channel_export, claude, claude_settings, codex, codex_auth_profiles,
         codex_sessions, config, connectivity, droid_settings, dsh, env, factory_auth_profiles,
-        hermes, mcp, notifications, omp, openclaw, opencode, paths, pi, preferences, recovery,
-        sessions, specs, updater, window,
+        hermes, mcp, notifications, omp, openclaw, opencode, paths, pi, pi_sessions, preferences,
+        recovery, sessions, specs, updater, window,
     };
 
     Builder::<tauri::Wry>::new().commands(collect_commands![
@@ -154,6 +154,11 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         omp::read_omp_current_config,
         omp::test_omp_provider_connection,
         pi::test_pi_provider_connection,
+        pi_sessions::list_pi_sessions,
+        pi_sessions::get_pi_session_detail,
+        pi_sessions::delete_pi_session,
+        pi_sessions::start_pi_sessions_watcher,
+        pi_sessions::stop_pi_sessions_watcher,
         opencode::list_opencode_profiles,
         opencode::get_opencode_profile,
         opencode::save_opencode_profile,

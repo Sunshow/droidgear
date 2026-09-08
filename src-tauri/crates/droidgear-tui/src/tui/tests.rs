@@ -442,12 +442,17 @@ fn pi_screen_variants_exist() {
     let _pi_profile = app::Screen::PiProfile;
     let _pi_provider = app::Screen::PiProvider;
     let _pi_model = app::Screen::PiModel;
+    let _pi_sessions = app::Screen::PiSessions;
 }
 
 #[test]
 fn pi_is_in_pi_nav_group() {
     let group = app::App::group_of_screen(app::Screen::Pi).expect("Pi should be a nav item");
     assert_eq!(app::App::nav_groups()[group].label, "Pi");
+    assert!(app::App::nav_groups()[group]
+        .items
+        .iter()
+        .any(|(label, screen)| *label == "Sessions" && *screen == app::Screen::PiSessions));
 }
 
 #[test]
@@ -464,6 +469,8 @@ fn pi_app_state_initializes_correctly() {
     assert_eq!(app.pi_provider_field_index, 0);
     assert_eq!(app.pi_model_index, 0);
     assert_eq!(app.pi_model_field_index, 0);
+    assert!(app.pi_sessions.is_empty());
+    assert_eq!(app.pi_sessions_index, 0);
 }
 
 #[test]
@@ -510,9 +517,40 @@ fn pi_provider_t_key_routes_through_test_action() {
 }
 
 #[test]
+fn pi_sessions_key_routes_view_and_delete_actions() {
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.pi_sessions = vec![droidgear_core::pi_sessions::PiSessionSummary {
+        id: "session".to_string(),
+        title: "Session".to_string(),
+        project: "/tmp/project".to_string(),
+        model: "model".to_string(),
+        model_provider: "provider".to_string(),
+        modified_at: 0.0,
+        message_count: 1,
+        token_usage: droidgear_core::pi_sessions::PiTokenUsage::default(),
+        path: "/tmp/session.jsonl".to_string(),
+    }];
+
+    let view = super::keys_pi_sessions::handle_pi_sessions_key(&mut app, KeyCode::Enter);
+    assert!(matches!(view, Some(super::Action::ViewPiSession { .. })));
+
+    super::keys_pi_sessions::handle_pi_sessions_key(&mut app, KeyCode::Char('d'));
+    assert!(matches!(
+        app.modal,
+        Some(app::Modal::Confirm {
+            action: app::ConfirmAction::PiSessionDelete { .. },
+            ..
+        })
+    ));
+}
+
+#[test]
 fn pi_confirm_action_variants_exist() {
     let _apply = app::ConfirmAction::PiApply {
         id: "test".to_string(),
+    };
+    let _session_delete = app::ConfirmAction::PiSessionDelete {
+        path: "/tmp/session.jsonl".to_string(),
     };
     let _delete = app::ConfirmAction::PiDelete {
         id: "test".to_string(),
