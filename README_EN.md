@@ -105,7 +105,7 @@ Run the installer directly.
 - **Model Catalog Sync** - Applying DeepSeek V4 / MiMo models automatically syncs per-family catalogs under `~/.codex/model-catalogs/` (with `model_catalog_json` switched per family)
 
 - **Configuration Management** - Load and save auth/config.toml (`~/.codex`)
-- **Management Pages** - MCP servers / sessions / terminal subpages under Codex
+- **Management Pages** - MCP servers / sessions / terminal subpages under Codex (sessions page supports project-grouped browsing, thinking streams with Markdown rendering, deletion and provider reassignment)
 
 ### Hermes Agent Support
 

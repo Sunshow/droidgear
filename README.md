@@ -105,7 +105,7 @@ xattr -cr /Applications/DroidGear.app
 - **模型目录同步** - 应用 DeepSeek V4 / MiMo 模型时自动同步 `~/.codex/model-catalogs/` 下的分族模型目录（`model_catalog_json` 随模型族切换）
 
 - **配置管理** - 认证与 `config.toml` 的加载和保存（`~/.codex`）
-- **管理入口** - 在 Codex 入口下提供 MCP 服务器 / 会话 / 终端 管理子页
+- **管理入口** - 在 Codex 入口下提供 MCP 服务器 / 会话 / 终端 管理子页（会话页支持按项目分组浏览、思考过程与 Markdown 渲染、会话删除及 Provider 归属切换）
 
 ### Hermes Agent 支持
 

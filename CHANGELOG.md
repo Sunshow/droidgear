@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.0
+
+**New Features / 新功能**
+
+- Add Codex Sessions page (GUI + TUI): browse `~/.codex/sessions` rollouts in list or project-grouped views, render messages with thinking streams and Markdown, follow live sessions, hide empty sessions and delete sessions / 新增 Codex 会话页（GUI + TUI）：浏览 `~/.codex/sessions` 会话记录，支持列表/按项目分组视图、思考内容与 Markdown 渲染、实时追踪、隐藏空会话与删除
+- Codex session provider switching: show the owning provider in the session detail header and reassign sessions to any provider aggregated from all configured profiles, keeping the `~/.codex/state_*.sqlite` thread index in sync so `codex resume` lists the session under its new provider / Codex 会话 Provider 切换：会话详情标题显示所属 Provider，可切换为所有已配置 Profile 汇聚出的任一 Provider，并同步 `~/.codex/state_*.sqlite` 线程索引，使 `codex resume` 在新 Provider 下识别该会话
+
 ## v1.2.9
 
 **New Features / 新功能**
