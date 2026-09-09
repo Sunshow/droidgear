@@ -106,6 +106,9 @@ pub fn run() {
         .manage(commands::codex_sessions::CodexSessionsWatcherState(
             Mutex::new(None),
         ))
+        .manage(commands::pi_sessions::PiSessionsWatcherState(Mutex::new(
+            None,
+        )))
         .setup(|app| {
             log::info!("Application starting up");
             log::debug!(

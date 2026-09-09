@@ -191,6 +191,18 @@ pub(super) fn run_action(app: &mut app::App, action: Action) -> anyhow::Result<(
             editor::open_in_pager(temp.path())?;
             Ok(())
         }
+        Action::ViewPiSession { path } => {
+            let detail =
+                droidgear_core::pi_sessions::get_pi_session_detail_for_home(&app.home_dir, &path)
+                    .map_err(anyhow::Error::msg)?;
+            let text = format_pi_session_detail(&detail);
+
+            let mut temp = NamedTempFile::new().context("create temp file")?;
+            temp.write_all(text.as_bytes()).context("write temp file")?;
+            temp.flush().context("flush temp file")?;
+            editor::open_in_pager(temp.path())?;
+            Ok(())
+        }
         Action::EditSpec { path } => {
             let path = PathBuf::from(path);
             editor::open_in_editor(&path)?;
@@ -250,6 +262,49 @@ pub(super) fn format_session_detail(detail: &droidgear_core::sessions::SessionDe
     for m in &detail.messages {
         out.push_str(&format!("[{}] {}\n", m.role, m.timestamp));
         for block in &m.content {
+            if let Some(text) = block.text.as_deref() {
+                out.push_str(text);
+                if !text.ends_with('\n') {
+                    out.push('\n');
+                }
+            }
+            if let Some(thinking) = block.thinking.as_deref() {
+                out.push_str("(thinking)\n");
+                out.push_str(thinking);
+                if !thinking.ends_with('\n') {
+                    out.push('\n');
+                }
+            }
+        }
+        out.push('\n');
+    }
+
+    out
+}
+
+pub(super) fn format_pi_session_detail(
+    detail: &droidgear_core::pi_sessions::PiSessionDetail,
+) -> String {
+    let summary = &detail.summary;
+    let mut out = String::new();
+    out.push_str(&format!("Title: {}\n", summary.title));
+    out.push_str(&format!("Project: {}\n", summary.project));
+    out.push_str(&format!("Model: {}\n", summary.model));
+    out.push_str(&format!("Provider: {}\n", summary.model_provider));
+    out.push_str(&format!("Messages: {}\n", summary.message_count));
+    out.push('\n');
+
+    for message in &detail.messages {
+        let branch = if message.is_active_branch {
+            "active"
+        } else {
+            "other branch"
+        };
+        out.push_str(&format!(
+            "[{} | {}] {}\n",
+            message.role, branch, message.timestamp
+        ));
+        for block in &message.content {
             if let Some(text) = block.text.as_deref() {
                 out.push_str(text);
                 if !text.ends_with('\n') {

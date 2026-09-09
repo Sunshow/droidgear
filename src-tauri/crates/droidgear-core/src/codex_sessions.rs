@@ -352,10 +352,8 @@ fn scan_head_meta(lines: &[String]) -> (String, String, String, String) {
                         .to_string();
                 }
             }
-            Some("turn_context") => {
-                if model.is_empty() {
-                    model = json["payload"]["model"].as_str().unwrap_or("").to_string();
-                }
+            Some("turn_context") if model.is_empty() => {
+                model = json["payload"]["model"].as_str().unwrap_or("").to_string();
             }
             _ => {}
         }

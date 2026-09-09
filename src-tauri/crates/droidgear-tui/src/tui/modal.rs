@@ -2078,6 +2078,11 @@ pub(super) fn run_confirm_action(
                 .map_err(anyhow::Error::msg)?;
             Ok(())
         }
+        app::ConfirmAction::PiSessionDelete { path } => {
+            droidgear_core::pi_sessions::delete_pi_session_for_home(&app.home_dir, &path)
+                .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
         app::ConfirmAction::SpecDelete { path } => {
             droidgear_core::specs::delete_spec_for_home(&app.home_dir, &path)
                 .map_err(anyhow::Error::msg)?;

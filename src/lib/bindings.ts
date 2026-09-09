@@ -1615,6 +1615,46 @@ async testPiProviderConnection(providerId: string, config: PiProviderConfig) : P
     else return { status: "error", error: e  as any };
 }
 },
+async listPiSessions() : Promise<Result<PiSessionSummary[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_pi_sessions") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getPiSessionDetail(sessionPath: string) : Promise<Result<PiSessionDetail, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_pi_session_detail", { sessionPath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async deletePiSession(sessionPath: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_pi_session", { sessionPath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async startPiSessionsWatcher() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("start_pi_sessions_watcher") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async stopPiSessionsWatcher() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("stop_pi_sessions_watcher") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 /**
  * List all OpenCode profiles
  */
@@ -3330,6 +3370,10 @@ export type PiProviderConfig = { baseUrl?: string | null; api?: string | null; a
  * Result of validating a provider through Pi's own CLI runtime.
  */
 export type PiProviderTestResult = { success: boolean; providerId: string; modelId: string; latencyMs: number; responseText?: string | null; error?: string | null }
+export type PiSessionDetail = { summary: PiSessionSummary; messages: PiSessionMessage[] }
+export type PiSessionMessage = { id: string; role: string; content: ContentBlock[]; timestamp: string; isActiveBranch: boolean }
+export type PiSessionSummary = { id: string; title: string; project: string; model: string; modelProvider: string; modifiedAt: number; messageCount: number; tokenUsage: PiTokenUsage; path: string }
+export type PiTokenUsage = { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheCreationTokens: number; reasoningTokens: number; totalTokens: number; cost: number }
 export type PortableUpdateInfo = { version: string; body: string | null; pubDate: string | null; url: string; signature: string; sha256: string; releaseUrl: string }
 /**
  * Provider types supported by Factory BYOK

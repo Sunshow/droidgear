@@ -35,6 +35,7 @@ mod keys_openclaw;
 mod keys_opencode;
 mod keys_paths;
 mod keys_pi;
+mod keys_pi_sessions;
 mod keys_sessions;
 mod keys_specs;
 mod keys_trusted_folders;
@@ -79,6 +80,7 @@ use keys_opencode::{
 };
 use keys_paths::handle_paths_key;
 use keys_pi::{handle_pi_key, handle_pi_model_key, handle_pi_profile_key, handle_pi_provider_key};
+use keys_pi_sessions::handle_pi_sessions_key;
 use keys_sessions::handle_sessions_key;
 use keys_specs::handle_specs_key;
 use keys_trusted_folders::handle_trusted_folders_key;
@@ -164,6 +166,9 @@ enum Action {
         path: String,
     },
     ViewCodexSession {
+        path: String,
+    },
+    ViewPiSession {
         path: String,
     },
     EditSpec {
@@ -308,6 +313,7 @@ fn refresh_screen_data(app: &mut app::App) {
         }
         app::Screen::Sessions => refresh_sessions(app),
         app::Screen::CodexSessions => refresh_codex_sessions(app),
+        app::Screen::PiSessions => refresh_pi_sessions(app),
         app::Screen::Specs => refresh_specs(app),
         app::Screen::Channels => refresh_channels(app),
         app::Screen::ChannelsEdit => {}
