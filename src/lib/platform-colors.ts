@@ -3,6 +3,8 @@
  * Used by both KeyList (platform) and ModelCard (provider)
  */
 
+import type { Provider } from '@/lib/bindings'
+
 export const platformColors: Record<string, string> = {
   anthropic:
     'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
@@ -11,6 +13,7 @@ export const platformColors: Record<string, string> = {
     'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
   antigravity: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200',
   grok: 'bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200',
+  deepseek: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
 }
 
 // Provider colors map to platform colors where applicable
@@ -26,4 +29,11 @@ export const providerLabels: Record<string, string> = {
   anthropic: 'Anthropic',
   openai: 'OpenAI',
   'generic-chat-completion-api': 'Generic',
+}
+
+/** i18n keys for provider labels (translate at the call site) */
+export const providerI18nKeys: Record<Provider, string> = {
+  anthropic: 'models.providerAnthropic',
+  openai: 'models.providerOpenAI',
+  'generic-chat-completion-api': 'models.providerGeneric',
 }

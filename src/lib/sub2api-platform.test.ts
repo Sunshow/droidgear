@@ -5,6 +5,9 @@ import {
   inferProviderFromPlatformAndModel,
   getBaseUrlForProvider,
   getBaseUrlForSub2Api,
+  isMultiProtocolPlatform,
+  MULTI_PROTOCOL_PROVIDERS,
+  DEFAULT_MULTI_PROTOCOL_PROVIDER,
 } from './sub2api-platform'
 
 describe('sub2api platform mapping', () => {
@@ -244,5 +247,54 @@ describe('getBaseUrlForSub2Api', () => {
         'antigravity'
       )
     ).toBe('https://api.example.com/antigravity/v1beta')
+  })
+
+  it('keeps the bare url for every deepseek protocol', () => {
+    for (const provider of MULTI_PROTOCOL_PROVIDERS) {
+      expect(
+        getBaseUrlForSub2Api(provider, 'https://api.example.com', 'deepseek')
+      ).toBe('https://api.example.com')
+    }
+  })
+})
+
+describe('deepseek platform', () => {
+  it('maps platform to openai by default', () => {
+    expect(
+      inferProviderFromPlatformAndModel('deepseek', 'deepseek-v4-pro')
+    ).toBe('openai')
+    // platform binding wins over the model name
+    expect(inferProviderFromPlatformAndModel('deepseek', 'claude-opus-4')).toBe(
+      'openai'
+    )
+    expect(inferProviderFromPlatformAndModel('DeepSeek', 'some-model')).toBe(
+      'openai'
+    )
+  })
+
+  it('returns openai provider with a bare base url', () => {
+    expect(
+      getProviderConfigFromPlatform('deepseek', 'https://api.example.com')
+    ).toEqual({
+      provider: 'openai',
+      baseUrl: 'https://api.example.com',
+    })
+  })
+
+  it('exposes the three selectable protocols with openai first', () => {
+    expect(MULTI_PROTOCOL_PROVIDERS).toEqual([
+      'openai',
+      'anthropic',
+      'generic-chat-completion-api',
+    ])
+    expect(DEFAULT_MULTI_PROTOCOL_PROVIDER).toBe('openai')
+  })
+
+  it('detects multi-protocol platforms case-insensitively', () => {
+    expect(isMultiProtocolPlatform('deepseek')).toBe(true)
+    expect(isMultiProtocolPlatform('DeepSeek')).toBe(true)
+    expect(isMultiProtocolPlatform('openai')).toBe(false)
+    expect(isMultiProtocolPlatform(null)).toBe(false)
+    expect(isMultiProtocolPlatform(undefined)).toBe(false)
   })
 })

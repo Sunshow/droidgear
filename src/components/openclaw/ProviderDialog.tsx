@@ -34,6 +34,7 @@ import {
 import { ChannelModelPickerDialog } from '@/components/channels/ChannelModelPickerDialog'
 import type { ChannelProviderContext } from '@/components/channels'
 import { findModelByIdOrAlias } from '@/lib/model-registry'
+import { providerToClientApiType } from '@/lib/model-protocol'
 import { trimToNull } from '@/lib/utils'
 
 interface ProviderDialogProps {
@@ -178,8 +179,9 @@ function ProviderForm({
       setProviderId(context.channelName)
     }
     setApiKey(context.apiKey)
-    const resolvedApi =
-      context.platform === 'anthropic'
+    const resolvedApi = context.provider
+      ? providerToClientApiType(context.provider)
+      : context.platform === 'anthropic'
         ? 'anthropic-messages'
         : context.platform === 'openai'
           ? 'openai-responses'

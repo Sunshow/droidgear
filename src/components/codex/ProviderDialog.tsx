@@ -30,6 +30,7 @@ import type {
 import { ChannelModelPickerDialog } from '@/components/channels/ChannelModelPickerDialog'
 import type { ChannelProviderContext } from '@/components/channels'
 import { inferModelProtocol } from '@/lib/model-protocol'
+import { isMultiProtocolPlatform } from '@/lib/sub2api-platform'
 import { trimToNull } from '@/lib/utils'
 import {
   clampEffortToSupported,
@@ -232,8 +233,16 @@ function ProviderForm({
         context.baseUrl
       )
 
-      // Anthropic uses Chat Completions wire format; others use Responses API
-      const inferredWireApi = protocol === 'anthropic' ? 'chat' : 'responses'
+      // Anthropic uses Chat Completions wire format; others use Responses API.
+      // For explicitly picked protocols (multi-protocol platforms) only the
+      // OpenAI option means the Responses API.
+      const inferredWireApi = context.provider
+        ? context.provider === 'openai'
+          ? 'responses'
+          : 'chat'
+        : protocol === 'anthropic'
+          ? 'chat'
+          : 'responses'
 
       setProviderId(sanitizedId)
       setName(context.channelName)
@@ -513,7 +522,9 @@ function ProviderForm({
         }}
         onSelectWithContext={handleImportFromChannel}
         showBatchConfig={false}
-        platformFilter={p => p === null || p === 'openai'}
+        platformFilter={p =>
+          p === null || p === 'openai' || isMultiProtocolPlatform(p)
+        }
       />
     </>
   )

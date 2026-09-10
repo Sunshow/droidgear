@@ -25,6 +25,7 @@ import {
 import { useDshStore } from '@/store/dsh-store'
 import { commands, type DshModel, type DshProviderConfig } from '@/lib/bindings'
 import { findModelByIdOrAlias, getSupportedEfforts } from '@/lib/model-registry'
+import { providerToClientApiType } from '@/lib/model-protocol'
 import { ChannelModelPickerDialog } from '@/components/channels/ChannelModelPickerDialog'
 import type { ChannelProviderContext } from '@/components/channels'
 import type { CustomModel } from '@/lib/bindings'
@@ -305,7 +306,11 @@ export function ProviderDialog({
     const envName = envNameForProviderId(sanitizedId)
     setApiKeyEnv(envName)
     setApiKeyValue(context.apiKey)
-    setApi(inferApiType(context.baseUrl, context.platform))
+    setApi(
+      context.provider
+        ? providerToClientApiType(context.provider)
+        : inferApiType(context.baseUrl, context.platform)
+    )
     setModels(
       selectedModels.map(model => ({
         id: model.model,

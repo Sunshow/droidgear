@@ -24,6 +24,9 @@ import {
 import {
   inferProviderFromPlatformAndModel,
   getBaseUrlForSub2Api,
+  isMultiProtocolPlatform,
+  MULTI_PROTOCOL_PROVIDERS,
+  DEFAULT_MULTI_PROTOCOL_PROVIDER,
 } from '@/lib/sub2api-platform'
 import {
   inferProviderForNewApi,
@@ -33,6 +36,7 @@ import {
   containsRegexSpecialChars,
   getDefaultMaxOutputTokens,
 } from '@/lib/utils'
+import { providerI18nKeys } from '@/lib/platform-colors'
 
 export interface ChannelProviderContext {
   channelName: string
@@ -40,6 +44,11 @@ export interface ChannelProviderContext {
   apiKey: string
   platform: string | null
   channelType: ChannelType
+  /**
+   * 用户显式选择的协议（仅当渠道平台支持多种协议时有值）。
+   * 未设置时应按 platform/channelType 推断。
+   */
+  provider?: Provider
 }
 
 interface ChannelModelPickerProps {
@@ -75,6 +84,10 @@ export function ChannelModelPicker({
   const [isFetchingModels, setIsFetchingModels] = useState(false)
   const [modelError, setModelError] = useState<string | null>(null)
   const [filterText, setFilterText] = useState('')
+  // Protocol chosen by the user for platforms that support several protocols
+  const [protocolProvider, setProtocolProvider] = useState<Provider>(
+    DEFAULT_MULTI_PROTOCOL_PROVIDER
+  )
 
   // Selection state
   const [selectedModelIds, setSelectedModelIds] = useState<Set<string>>(
@@ -113,6 +126,7 @@ export function ChannelModelPicker({
     setSelectedModelIds(new Set())
     setSingleSelectedId('')
     setModelError(null)
+    setProtocolProvider(DEFAULT_MULTI_PROTOCOL_PROVIDER)
 
     const channel = enabledChannels.find(ch => ch.id === channelId)
     if (channel && !keys[channelId]) {
@@ -126,6 +140,7 @@ export function ChannelModelPicker({
     setSelectedModelIds(new Set())
     setSingleSelectedId('')
     setModelError(null)
+    setProtocolProvider(DEFAULT_MULTI_PROTOCOL_PROVIDER)
 
     const key = channelKeys.find(k => String(k.id) === keyId)
     if (!key || !selectedChannel) return
@@ -148,8 +163,12 @@ export function ChannelModelPicker({
     }
   }
 
+  const supportsMultiProtocol = isMultiProtocolPlatform(selectedKey?.platform)
+
   const inferProvider = (modelId: string): Provider => {
     if (!selectedChannel || !selectedKey) return 'generic-chat-completion-api'
+    // 支持多种协议的平台（如 sub2api 的 deepseek）使用用户选择的协议
+    if (supportsMultiProtocol) return protocolProvider
     // CLI Proxy API, General, and New API use the same logic
     if (
       selectedChannel.type === 'new-api' ||
@@ -219,6 +238,7 @@ export function ChannelModelPicker({
       apiKey: selectedKey.key,
       platform: selectedKey.platform,
       channelType: selectedChannel.type,
+      provider: supportsMultiProtocol ? protocolProvider : undefined,
     }
   }
 
@@ -332,6 +352,31 @@ export function ChannelModelPicker({
               {t('channels.noKeysAvailable')}
             </p>
           )}
+        </div>
+      )}
+
+      {/* Protocol Select — platforms supporting several protocols (e.g. sub2api deepseek) */}
+      {selectedKeyId && supportsMultiProtocol && (
+        <div className="space-y-2">
+          <Label>{t('models.protocol')}</Label>
+          <Select
+            value={protocolProvider}
+            onValueChange={(value: Provider) => setProtocolProvider(value)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MULTI_PROTOCOL_PROVIDERS.map(provider => (
+                <SelectItem key={provider} value={provider}>
+                  {t(providerI18nKeys[provider])}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-sm text-muted-foreground">
+            {t('models.protocolHint')}
+          </p>
         </div>
       )}
 

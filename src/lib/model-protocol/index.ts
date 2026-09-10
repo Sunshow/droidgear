@@ -1,4 +1,4 @@
-import type { ChannelType } from '@/lib/bindings'
+import type { ChannelType, Provider } from '@/lib/bindings'
 import type {
   ModelProtocol,
   ModelProtocolInfo,
@@ -76,3 +76,46 @@ export {
   protocolToOpenCodeNpm,
   normalizeBaseUrlForOpenCode,
 } from './opencode-npm'
+
+/**
+ * 用户显式选择的 Provider 对应的模型协议
+ *
+ * 仅用于多协议平台（例如 sub2api 的 deepseek 分组）：
+ * - openai → OpenAI Responses / Chat Completions
+ * - anthropic → Anthropic Messages
+ * - generic-chat-completion-api → 通用兼容
+ */
+export function providerToModelProtocol(provider: Provider): ModelProtocol {
+  switch (provider) {
+    case 'anthropic':
+      return 'anthropic'
+    case 'generic-chat-completion-api':
+      return 'openai-compatible'
+    case 'openai':
+    default:
+      return 'openai'
+  }
+}
+
+/** 客户端 API 类型（openclaw / dsh 使用的命名） */
+export type ClientApiType =
+  | 'anthropic-messages'
+  | 'openai-responses'
+  | 'openai-completions'
+
+/**
+ * 用户显式选择的 Provider 对应的客户端 API 类型
+ *
+ * 仅多协议平台会传入显式 Provider；未选择时调用方仍使用自身的推断逻辑。
+ */
+export function providerToClientApiType(provider: Provider): ClientApiType {
+  switch (provider) {
+    case 'anthropic':
+      return 'anthropic-messages'
+    case 'generic-chat-completion-api':
+      return 'openai-completions'
+    case 'openai':
+    default:
+      return 'openai-responses'
+  }
+}

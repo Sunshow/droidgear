@@ -816,6 +816,22 @@ async fn fetch_sub2api_tokens(
     Ok(tokens)
 }
 
+/// Candidate model-listing URLs for a platform, tried in order.
+///
+/// DeepSeek 官方在裸路径提供 `/models`，而 sub2api 等网关把同一接口挂在 `/v1` 下，
+/// 因此 deepseek 平台两个都尝试。
+fn model_endpoint_urls(trimmed_base: &str, platform: Option<&str>) -> Vec<String> {
+    match platform {
+        Some("gemini") => vec![format!("{trimmed_base}/v1beta/models")],
+        Some("openai") => vec![format!("{trimmed_base}/v1/models")],
+        Some("deepseek") => vec![
+            format!("{trimmed_base}/v1/models"),
+            format!("{trimmed_base}/models"),
+        ],
+        _ => vec![format!("{trimmed_base}/v1/models")],
+    }
+}
+
 /// Fetch models using an API key (for quick model addition from channels)
 pub async fn fetch_models_by_api_key(
     base_url: &str,
@@ -862,43 +878,59 @@ pub async fn fetch_models_by_api_key(
         return Ok(parse_openai_models(&data));
     }
 
-    let (url, parser): (String, fn(&Value) -> Vec<ModelInfo>) = match platform {
-        Some("gemini") => (format!("{trimmed_base}/v1beta/models"), parse_gemini_models),
-        Some("openai") => (format!("{trimmed_base}/v1/models"), parse_openai_models),
-        Some("deepseek") => (format!("{trimmed_base}/models"), parse_openai_models),
-        _ => (format!("{trimmed_base}/v1/models"), parse_openai_models),
+    // Candidate URLs are tried in order; the first successful response wins.
+    let urls = model_endpoint_urls(trimmed_base, platform);
+    let parser: fn(&Value) -> Vec<ModelInfo> = match platform {
+        Some("gemini") => parse_gemini_models,
+        _ => parse_openai_models,
     };
-    log::debug!("Channel: fetching models from {url} (platform={platform:?})");
 
-    let response = client
-        .get(&url)
-        .header("Authorization", format!("Bearer {api_key}"))
-        .send()
-        .await
-        .map_err(|e| format!("Request failed: {e}"))?;
+    let mut last_error = String::from("No model endpoint available");
+    for url in &urls {
+        log::debug!("Channel: fetching models from {url} (platform={platform:?})");
 
-    let status = response.status();
-    if !status.is_success() {
-        let body = response.text().await.unwrap_or_default();
-        log::warn!("Channel: API error, url={url} status={status} body={body}");
-        return Err(format!("API error {status}: {body}"));
+        let response = client
+            .get(url)
+            .header("Authorization", format!("Bearer {api_key}"))
+            .send()
+            .await
+            .map_err(|e| format!("Request failed: {e}"))?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            log::warn!("Channel: API error, url={url} status={status} body={body}");
+            last_error = format!("API error {status}: {body}");
+
+            // 仅在候选端点不存在时回退（401/403 等说明端点存在但鉴权失败）
+            let endpoint_missing = status == reqwest::StatusCode::NOT_FOUND
+                || status == reqwest::StatusCode::METHOD_NOT_ALLOWED;
+            if !endpoint_missing {
+                return Err(last_error);
+            }
+            continue;
+        }
+
+        let body = response
+            .text()
+            .await
+            .map_err(|e| format!("Failed to read response body: {e}"))?;
+        let data: Value = serde_json::from_str(&body).map_err(|e| {
+            let truncated = if body.len() > 500 {
+                format!("{}...", &body[..500])
+            } else {
+                body.clone()
+            };
+            log::warn!(
+                "Channel: failed to parse response, url={url} status={status} body={truncated}"
+            );
+            format!("Failed to parse response: {e}")
+        })?;
+
+        return Ok(parser(&data));
     }
 
-    let body = response
-        .text()
-        .await
-        .map_err(|e| format!("Failed to read response body: {e}"))?;
-    let data: Value = serde_json::from_str(&body).map_err(|e| {
-        let truncated = if body.len() > 500 {
-            format!("{}...", &body[..500])
-        } else {
-            body.clone()
-        };
-        log::warn!("Channel: failed to parse response, url={url} status={status} body={truncated}");
-        format!("Failed to parse response: {e}")
-    })?;
-
-    Ok(parser(&data))
+    Err(last_error)
 }
 
 pub fn fetch_models_by_api_key_blocking(
@@ -955,4 +987,41 @@ fn parse_gemini_models(data: &Value) -> Vec<ModelInfo> {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_model_endpoint_urls_sub2api_deepseek_falls_back_to_bare_path() {
+        // sub2api 的 deepseek 分组在 /v1 下提供模型列表
+        assert_eq!(
+            model_endpoint_urls("https://api.example.com", Some("deepseek")),
+            vec![
+                "https://api.example.com/v1/models".to_string(),
+                "https://api.example.com/models".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_model_endpoint_urls_per_platform() {
+        assert_eq!(
+            model_endpoint_urls("https://api.example.com", Some("gemini")),
+            vec!["https://api.example.com/v1beta/models".to_string()]
+        );
+        assert_eq!(
+            model_endpoint_urls("https://api.example.com", Some("openai")),
+            vec!["https://api.example.com/v1/models".to_string()]
+        );
+        assert_eq!(
+            model_endpoint_urls("https://api.example.com", None),
+            vec!["https://api.example.com/v1/models".to_string()]
+        );
+        assert_eq!(
+            model_endpoint_urls("https://api.example.com", Some("unknown")),
+            vec!["https://api.example.com/v1/models".to_string()]
+        );
+    }
 }

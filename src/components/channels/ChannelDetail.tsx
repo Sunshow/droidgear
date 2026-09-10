@@ -3,6 +3,14 @@ import { useTranslation } from 'react-i18next'
 import { Pencil, Trash2, AlertCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,11 +43,15 @@ import {
 import {
   inferProviderFromPlatformAndModel,
   getBaseUrlForSub2Api,
+  isMultiProtocolPlatform,
+  MULTI_PROTOCOL_PROVIDERS,
+  DEFAULT_MULTI_PROTOCOL_PROVIDER,
 } from '@/lib/sub2api-platform'
 import {
   inferProviderForNewApi,
   getBaseUrlForNewApi,
 } from '@/lib/newapi-platform'
+import { providerI18nKeys } from '@/lib/platform-colors'
 import { getDefaultMaxOutputTokens } from '@/lib/utils'
 import { BatchModelSelector } from '@/components/models/BatchModelSelector'
 import { isBatchValid, type BatchModelConfig } from '@/lib/batch-model-utils'
@@ -83,6 +95,10 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
   const [suffix, setSuffix] = useState('')
   const [batchMaxTokens, setBatchMaxTokens] = useState('')
   const [batchNoImageSupport, setBatchNoImageSupport] = useState(false)
+  // Protocol chosen by the user for platforms that support several protocols
+  const [protocolProvider, setProtocolProvider] = useState<Provider>(
+    DEFAULT_MULTI_PROTOCOL_PROVIDER
+  )
 
   useEffect(() => {
     loadModels()
@@ -94,7 +110,11 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
     setDeleteDialogOpen(false)
   }
 
+  const supportsMultiProtocol = isMultiProtocolPlatform(selectedKey?.platform)
+
   const inferProvider = (modelId: string): Provider => {
+    // 支持多种协议的平台（如 sub2api 的 deepseek）使用用户选择的协议
+    if (supportsMultiProtocol) return protocolProvider
     // CLI Proxy API, General, New API, Ollama, and DeepSeek use the same logic
     if (
       channel.type === 'new-api' ||
@@ -108,6 +128,18 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
     return inferProviderFromPlatformAndModel(selectedKey?.platform, modelId)
   }
 
+  const handleProtocolChange = (provider: Provider) => {
+    setProtocolProvider(provider)
+    // Apply to every already selected model; per-model overrides remain possible
+    setSelectedModels(prev => {
+      const next = new Map(prev)
+      for (const [modelId, config] of next) {
+        next.set(modelId, { ...config, provider })
+      }
+      return next
+    })
+  }
+
   const handleSelectKey = async (apiKey: ChannelToken) => {
     setSelectedKey(apiKey)
     setModelDialogOpen(true)
@@ -118,6 +150,7 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
     setSuffix('')
     setBatchMaxTokens('')
     setBatchNoImageSupport(false)
+    setProtocolProvider(DEFAULT_MULTI_PROTOCOL_PROVIDER)
 
     const result = await commands.fetchModelsByApiKey(
       channel.baseUrl,
@@ -352,26 +385,54 @@ export function ChannelDetail({ channel, onEdit }: ChannelDetailProps) {
                 <p>{t('models.noModelsAvailable')}</p>
               </div>
             ) : (
-              <BatchModelSelector
-                models={availableModels}
-                apiKey={selectedKey?.key ?? ''}
-                existingModels={existingModels}
-                defaultProvider="anthropic"
-                inferProvider={inferProvider}
-                prefix={prefix}
-                suffix={suffix}
-                batchMaxTokens={batchMaxTokens}
-                batchNoImageSupport={batchNoImageSupport}
-                selectedModels={selectedModels}
-                onPrefixChange={setPrefix}
-                onSuffixChange={setSuffix}
-                onBatchMaxTokensChange={setBatchMaxTokens}
-                onBatchNoImageSupportChange={setBatchNoImageSupport}
-                onToggleModel={handleToggleModel}
-                onConfigChange={handleConfigChange}
-                onSelectAll={handleSelectAll}
-                onDeselectAll={handleDeselectAll}
-              />
+              <div className="space-y-4">
+                {/* Protocol Select — platforms supporting several protocols
+                    (e.g. sub2api deepseek). Per-model override stays available. */}
+                {supportsMultiProtocol && (
+                  <div className="space-y-2">
+                    <Label>{t('models.protocol')}</Label>
+                    <Select
+                      value={protocolProvider}
+                      onValueChange={handleProtocolChange}
+                    >
+                      <SelectTrigger className="w-[240px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MULTI_PROTOCOL_PROVIDERS.map(provider => (
+                          <SelectItem key={provider} value={provider}>
+                            {t(providerI18nKeys[provider])}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-sm text-muted-foreground">
+                      {t('models.protocolHint')}
+                    </p>
+                  </div>
+                )}
+
+                <BatchModelSelector
+                  models={availableModels}
+                  apiKey={selectedKey?.key ?? ''}
+                  existingModels={existingModels}
+                  defaultProvider="anthropic"
+                  inferProvider={inferProvider}
+                  prefix={prefix}
+                  suffix={suffix}
+                  batchMaxTokens={batchMaxTokens}
+                  batchNoImageSupport={batchNoImageSupport}
+                  selectedModels={selectedModels}
+                  onPrefixChange={setPrefix}
+                  onSuffixChange={setSuffix}
+                  onBatchMaxTokensChange={setBatchMaxTokens}
+                  onBatchNoImageSupportChange={setBatchNoImageSupport}
+                  onToggleModel={handleToggleModel}
+                  onConfigChange={handleConfigChange}
+                  onSelectAll={handleSelectAll}
+                  onDeselectAll={handleDeselectAll}
+                />
+              </div>
             )}
           </ResizableDialogBody>
 

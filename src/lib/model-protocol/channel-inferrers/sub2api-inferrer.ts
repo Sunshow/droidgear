@@ -8,7 +8,9 @@ import type {
  * Sub2API 推断器
  *
  * Sub2API 的 key 自带 platform 字段，可以直接推断协议类型。
- * 特殊情况：antigravity 平台同时支持 Claude 和 Gemini，需要根据模型名称判断。
+ * 特殊情况：
+ * - antigravity 平台同时支持 Claude 和 Gemini，需要根据模型名称判断
+ * - deepseek 平台同时支持三种协议（用户可自选），默认使用 OpenAI
  */
 export class Sub2ApiInferrer implements ChannelInferrer {
   inferFromChannel(context: ChannelInferenceContext): ModelProtocol | null {
@@ -17,6 +19,9 @@ export class Sub2ApiInferrer implements ChannelInferrer {
     if (platform === 'openai') return 'openai'
     if (platform === 'anthropic' || platform === 'grok') return 'anthropic'
     if (platform === 'gemini') return 'google-ai'
+
+    // deepseek 支持三种协议，未显式选择时默认 OpenAI
+    if (platform === 'deepseek') return 'openai'
 
     // antigravity 需要根据模型名称判断，返回 null 让模型推断处理
     if (platform === 'antigravity') return null

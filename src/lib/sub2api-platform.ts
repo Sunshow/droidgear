@@ -6,6 +6,32 @@ export interface ProviderConfig {
 }
 
 /**
+ * Sub2API 平台中同时支持多种 API 协议的类型。
+ * 这些平台的协议由用户在添加模型时选择，而不是自动推断。
+ */
+const MULTI_PROTOCOL_PLATFORMS = new Set(['deepseek'])
+
+/**
+ * 多协议平台可选协议（与 Provider 一一对应，第一项为默认值）。
+ * - OpenAI：Responses / Chat Completions
+ * - Anthropic
+ * - 通用兼容
+ */
+export const MULTI_PROTOCOL_PROVIDERS: Provider[] = [
+  'openai',
+  'anthropic',
+  'generic-chat-completion-api',
+]
+
+/** 多协议平台的默认协议（OpenAI） */
+export const DEFAULT_MULTI_PROTOCOL_PROVIDER: Provider = 'openai'
+
+/** 该平台是否支持多种 API 协议（需要用户选择） */
+export const isMultiProtocolPlatform = (
+  platform: string | null | undefined
+): boolean => !!platform && MULTI_PROTOCOL_PLATFORMS.has(platform.toLowerCase())
+
+/**
  * Infer the provider type based on platform and model ID.
  * Priority: platform binding > model name prefix matching > generic
  */
@@ -20,6 +46,8 @@ export const inferProviderFromPlatformAndModel = (
   if (platformLower === 'anthropic' || platformLower === 'grok')
     return 'anthropic'
   if (platformLower === 'gemini') return 'generic-chat-completion-api'
+  // deepseek 平台同时支持三种协议，默认使用 OpenAI
+  if (platformLower === 'deepseek') return 'openai'
   if (platformLower === 'antigravity') {
     // Antigravity supports both Claude and Gemini, infer from model name
     const lower = modelId.toLowerCase()
@@ -74,6 +102,7 @@ export const getBaseUrlForSub2Api = (
       return normalizeBaseUrl(baseUrl, '/antigravity/v1beta')
     }
   }
+  // deepseek 等平台的三种协议共用同一个 Base URL（无需 /v1、/v1beta 后缀）
   return baseUrl
 }
 
@@ -105,6 +134,11 @@ export const getProviderConfigFromPlatform = (
       provider: 'generic-chat-completion-api',
       baseUrl: normalizeBaseUrl(baseUrl, '/v1beta'),
     }
+  }
+
+  // deepseek 平台支持三种协议，默认 OpenAI；三种协议共用裸 Base URL
+  if (platformLower === 'deepseek') {
+    return { provider: 'openai', baseUrl }
   }
 
   return { provider: 'generic-chat-completion-api', baseUrl }

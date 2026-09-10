@@ -623,6 +623,8 @@
   "models.providerAnthropic": "Anthropic",
   "models.providerOpenAI": "OpenAI",
   "models.providerGeneric": "通用（OpenAI 兼容）",
+  "models.protocol": "API 协议",
+  "models.protocolHint": "该平台支持多种 API 协议，默认使用 OpenAI（Responses）",
   "models.apiUrl": "API 地址",
   "models.apiKey": "API 密钥",
   "models.fetchModels": "获取模型",

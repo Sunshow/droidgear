@@ -33,6 +33,7 @@ import { ChannelModelPickerDialog } from '@/components/channels/ChannelModelPick
 import type { ChannelProviderContext } from '@/components/channels'
 import {
   inferModelProtocol,
+  providerToModelProtocol,
   protocolToOpenCodeNpm,
   normalizeBaseUrlForOpenCode,
 } from '@/lib/model-protocol'
@@ -135,14 +136,17 @@ export function ProviderDialog({
       // When adding new provider, pre-fill all fields
       const sanitizedId = sanitizeProviderId(context.channelName)
 
-      // Infer protocol from channel context (use first model ID for better inference)
+      // Infer protocol from channel context (use first model ID for better
+      // inference); an explicitly picked protocol wins
       const firstModelId = selectedModels[0]?.model
-      const protocol = inferModelProtocol(
-        context.channelType,
-        context.platform,
-        context.baseUrl,
-        firstModelId
-      )
+      const protocol = context.provider
+        ? providerToModelProtocol(context.provider)
+        : inferModelProtocol(
+            context.channelType,
+            context.platform,
+            context.baseUrl,
+            firstModelId
+          )
 
       // Map protocol to npm package
       const npmPackage = protocolToOpenCodeNpm(protocol)

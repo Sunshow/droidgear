@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { inferModelProtocol, inferModelProtocolInfo } from './index'
+import {
+  inferModelProtocol,
+  inferModelProtocolInfo,
+  providerToModelProtocol,
+  providerToClientApiType,
+} from './index'
 
 describe('inferModelProtocol', () => {
   describe('sub-2-api channel', () => {
@@ -217,5 +222,25 @@ describe('inferModelProtocolInfo', () => {
     )
     expect(info.protocol).toBe('google-ai')
     expect(info.baseUrl).toBe('https://api.example.com/antigravity/v1beta')
+  })
+})
+
+describe('providerToModelProtocol', () => {
+  it('maps the three selectable providers to protocols', () => {
+    expect(providerToModelProtocol('openai')).toBe('openai')
+    expect(providerToModelProtocol('anthropic')).toBe('anthropic')
+    expect(providerToModelProtocol('generic-chat-completion-api')).toBe(
+      'openai-compatible'
+    )
+  })
+})
+
+describe('providerToClientApiType', () => {
+  it('maps providers to openclaw / dsh api types', () => {
+    expect(providerToClientApiType('openai')).toBe('openai-responses')
+    expect(providerToClientApiType('anthropic')).toBe('anthropic-messages')
+    expect(providerToClientApiType('generic-chat-completion-api')).toBe(
+      'openai-completions'
+    )
   })
 })

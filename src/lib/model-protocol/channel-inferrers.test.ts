@@ -49,6 +49,16 @@ describe('Sub2ApiInferrer', () => {
       ).toBe('google-ai')
     })
 
+    it('defaults to openai for deepseek platform', () => {
+      expect(
+        inferrer.inferFromChannel({
+          channelType: 'sub-2-api',
+          platform: 'deepseek',
+          baseUrl: 'https://api.example.com',
+        })
+      ).toBe('openai')
+    })
+
     it('returns null for antigravity (needs model inference)', () => {
       expect(
         inferrer.inferFromChannel({
@@ -150,6 +160,22 @@ describe('Sub2ApiInferrer', () => {
           'antigravity'
         )
       ).toBe('https://api.example.com/antigravity')
+    })
+
+    it('keeps the bare baseUrl for every deepseek protocol', () => {
+      expect(
+        inferrer.getBaseUrl('openai', 'https://api.example.com', 'deepseek')
+      ).toBe('https://api.example.com')
+      expect(
+        inferrer.getBaseUrl('anthropic', 'https://api.example.com', 'deepseek')
+      ).toBe('https://api.example.com')
+      expect(
+        inferrer.getBaseUrl(
+          'openai-compatible',
+          'https://api.example.com',
+          'deepseek'
+        )
+      ).toBe('https://api.example.com')
     })
   })
 })

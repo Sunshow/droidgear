@@ -623,6 +623,8 @@
   "models.providerAnthropic": "Anthropic",
   "models.providerOpenAI": "OpenAI",
   "models.providerGeneric": "Generic (OpenAI Compatible)",
+  "models.protocol": "API Protocol",
+  "models.protocolHint": "This platform supports multiple API protocols; OpenAI (Responses) is used by default",
   "models.apiUrl": "API URL",
   "models.apiKey": "API Key",
   "models.fetchModels": "Fetch Models",
