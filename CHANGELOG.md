@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.3.1
+
+**New Features / 新功能**
+
+- Add Pi session history page (GUI + TUI): browse recorded Pi sessions in list or project-grouped views, render messages with thinking blocks, follow live sessions, hide empty sessions and delete sessions / 新增 Pi 会话历史页（GUI + TUI）：浏览 Pi 会话记录，支持列表/按项目分组视图、思考内容渲染、实时追踪、隐藏空会话与删除会话
+- Codex provider context window and auto-compact presets: set `model_context_window` and `model_auto_compact_token_limit` per provider with preset choices, shown on the provider card (GUI + TUI) / Codex Provider 上下文窗口与自动压缩预设：按 Provider 设置 `model_context_window` 与 `model_auto_compact_token_limit` 并提供预设选项，Provider 卡片同步展示（GUI + TUI）
+- Support the sub2api DeepSeek platform: choose the OpenAI (default), Anthropic or generic compatible protocol when adding models from a channel or importing from a channel, and carry the choice into the Codex / OpenCode / Dsh / OpenClaw imports / 支持 sub2api 的 DeepSeek 平台：从渠道添加模型或从渠道导入时可选择 OpenAI（默认）、Anthropic、通用兼容协议，选择结果会带入 Codex / OpenCode / Dsh / OpenClaw 的导入
+- Register deepseek-v4.1-flash with the deepseek-flash alias: 1M context, 384K output, image input, and the official thinking-mode effort encoding for the OpenAI and Anthropic formats, plus the matching DeepSeek Codex model catalog entry / 注册 deepseek-v4.1-flash（别名 deepseek-flash）：1M 上下文、384K 输出、图片输入，并按官方文档配置 OpenAI 与 Anthropic 两种格式的思考强度编码，同时补充对应的 Codex 模型目录条目
+
+**Bug Fixes / 问题修复**
+
+- Fix npm audit vulnerabilities / 修复 npm audit 安全漏洞
+
 ## v1.3.0
 
 **New Features / 新功能**
