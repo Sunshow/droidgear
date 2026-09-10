@@ -455,6 +455,37 @@ pub(super) fn handle_codex_provider_key(app: &mut app::App, code: KeyCode) -> Op
                 });
             }
             4 => {
+                app.modal = Some(app::Modal::Input {
+                    title: "Provider context window (tokens, empty = not set)".to_string(),
+                    value: config
+                        .model_context_window
+                        .map(|v| v.to_string())
+                        .unwrap_or_default(),
+                    cursor: usize::MAX,
+                    is_secret: false,
+                    action: app::InputAction::CodexSetProviderContextWindow {
+                        profile_id,
+                        provider_id,
+                    },
+                });
+            }
+            5 => {
+                app.modal = Some(app::Modal::Input {
+                    title: "Provider auto-compact token limit (tokens, empty = not set)"
+                        .to_string(),
+                    value: config
+                        .model_auto_compact_token_limit
+                        .map(|v| v.to_string())
+                        .unwrap_or_default(),
+                    cursor: usize::MAX,
+                    is_secret: false,
+                    action: app::InputAction::CodexSetProviderAutoCompactLimit {
+                        profile_id,
+                        provider_id,
+                    },
+                });
+            }
+            6 => {
                 let options = vec![
                     "(none)".to_string(),
                     "max".to_string(),
@@ -479,7 +510,7 @@ pub(super) fn handle_codex_provider_key(app: &mut app::App, code: KeyCode) -> Op
                     },
                 });
             }
-            5 => {
+            7 => {
                 app.modal = Some(app::Modal::Input {
                     title: "Provider API key".to_string(),
                     value: config.api_key.clone().unwrap_or_default(),

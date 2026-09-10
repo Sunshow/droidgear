@@ -67,6 +67,14 @@ pub struct CodexProviderConfig {
     pub model: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_reasoning_effort: Option<String>,
+    /// DroidGear-only: written to config.toml top-level
+    /// `model_context_window` while this provider is active.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_context_window: Option<u32>,
+    /// DroidGear-only: written to config.toml top-level
+    /// `model_auto_compact_token_limit` while this provider is active.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_auto_compact_token_limit: Option<u32>,
     /// Provider API key. Written to config.toml as `experimental_bearer_token`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api_key: Option<String>,
@@ -393,6 +401,20 @@ pub(crate) fn resolved_api_key(
         .filter(|value| !value.is_empty())
 }
 
+/// Effective `model_context_window` for the active provider, or `None` to
+/// leave the key unset (Codex falls back to the model's own context window).
+pub(crate) fn resolved_model_context_window(provider: Option<&CodexProviderConfig>) -> Option<u32> {
+    provider.and_then(|p| p.model_context_window)
+}
+
+/// Effective `model_auto_compact_token_limit` for the active provider, or
+/// `None` to leave the key unset (Codex derives its own default).
+pub(crate) fn resolved_model_auto_compact_token_limit(
+    provider: Option<&CodexProviderConfig>,
+) -> Option<u32> {
+    provider.and_then(|p| p.model_auto_compact_token_limit)
+}
+
 pub(crate) fn apply_profile_to_config_map(
     config: &mut toml::map::Map<String, toml::Value>,
     profile: &CodexProfile,
@@ -421,6 +443,32 @@ pub(crate) fn apply_profile_to_config_map(
         config.remove("model_reasoning_effort");
     }
 
+    // Context window overrides live at config.toml top level; remove them
+    // when unset so a previously applied value never leaks into the next
+    // profile.
+    match resolved_model_context_window(active_provider) {
+        Some(window) => {
+            config.insert(
+                "model_context_window".to_string(),
+                toml::Value::Integer(i64::from(window)),
+            );
+        }
+        None => {
+            config.remove("model_context_window");
+        }
+    }
+    match resolved_model_auto_compact_token_limit(active_provider) {
+        Some(limit) => {
+            config.insert(
+                "model_auto_compact_token_limit".to_string(),
+                toml::Value::Integer(i64::from(limit)),
+            );
+        }
+        None => {
+            config.remove("model_auto_compact_token_limit");
+        }
+    }
+
     // Official OpenAI mode should not inject custom model_providers into live config.
     config.remove("model_providers");
     if !is_openai_provider {
@@ -437,6 +485,8 @@ pub(crate) fn apply_profile_to_config_map(
                 query_params: None,
                 model: None,
                 model_reasoning_effort: None,
+                model_context_window: None,
+                model_auto_compact_token_limit: None,
                 api_key: resolved_api_key(profile, None),
             };
             providers_table.insert(
@@ -569,6 +619,8 @@ fn toml_to_provider_config(value: &toml::Value) -> Result<CodexProviderConfig, S
         query_params,
         model: None,
         model_reasoning_effort: None,
+        model_context_window: None,
+        model_auto_compact_token_limit: None,
         api_key,
     })
 }
@@ -781,6 +833,8 @@ pub fn create_default_codex_profile_for_home(home_dir: &Path) -> Result<CodexPro
             query_params: None,
             model: Some("gpt-5.2".to_string()),
             model_reasoning_effort: Some("high".to_string()),
+            model_context_window: None,
+            model_auto_compact_token_limit: None,
             api_key: Some(String::new()),
         },
     );
@@ -976,11 +1030,25 @@ pub fn read_codex_current_config_for_home(home_dir: &Path) -> Result<CodexCurren
     let config_path = codex_config_path_for_home(home_dir)?;
     let auth_path = codex_auth_path_for_home(home_dir)?;
 
-    let (providers, model_provider, model, model_reasoning_effort) = if config_path.exists() {
+    let (
+        providers,
+        model_provider,
+        model,
+        model_reasoning_effort,
+        model_context_window,
+        model_auto_compact_token_limit,
+    ) = if config_path.exists() {
         let s = std::fs::read_to_string(&config_path)
             .map_err(|e| format!("Failed to read config.toml: {e}"))?;
         if s.trim().is_empty() {
-            (HashMap::new(), "openai".to_string(), String::new(), None)
+            (
+                HashMap::new(),
+                "openai".to_string(),
+                String::new(),
+                None,
+                None,
+                None,
+            )
         } else {
             let config: toml::map::Map<String, toml::Value> =
                 toml::from_str(&s).map_err(|e| format!("Failed to parse config.toml: {e}"))?;
@@ -1015,10 +1083,34 @@ pub fn read_codex_current_config_for_home(home_dir: &Path) -> Result<CodexCurren
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
 
-            (providers, model_provider, model, model_reasoning_effort)
+            let model_context_window = config
+                .get("model_context_window")
+                .and_then(|v| v.as_integer())
+                .and_then(|v| u32::try_from(v).ok());
+
+            let model_auto_compact_token_limit = config
+                .get("model_auto_compact_token_limit")
+                .and_then(|v| v.as_integer())
+                .and_then(|v| u32::try_from(v).ok());
+
+            (
+                providers,
+                model_provider,
+                model,
+                model_reasoning_effort,
+                model_context_window,
+                model_auto_compact_token_limit,
+            )
         }
     } else {
-        (HashMap::new(), "openai".to_string(), String::new(), None)
+        (
+            HashMap::new(),
+            "openai".to_string(),
+            String::new(),
+            None,
+            None,
+            None,
+        )
     };
 
     let mut providers = providers;
@@ -1028,6 +1120,12 @@ pub fn read_codex_current_config_for_home(home_dir: &Path) -> Result<CodexCurren
         }
         if provider.model_reasoning_effort.is_none() {
             provider.model_reasoning_effort = model_reasoning_effort.clone();
+        }
+        if provider.model_context_window.is_none() {
+            provider.model_context_window = model_context_window;
+        }
+        if provider.model_auto_compact_token_limit.is_none() {
+            provider.model_auto_compact_token_limit = model_auto_compact_token_limit;
         }
     }
 
@@ -1122,9 +1220,10 @@ pub fn read_codex_current_config() -> Result<CodexCurrentConfig, String> {
 mod tests {
     use super::{
         apply_codex_profile_for_home, apply_profile_to_config_map, catalog_for_model,
-        provider_config_to_toml, resolve_active_provider, resolve_codex_profile_selector_for_home,
-        save_codex_profile_for_home, save_codex_profile_for_home_and_apply_if_active,
-        sync_models_json_for_home, CodexProfile, CodexProviderConfig, ModelCatalog,
+        provider_config_to_toml, read_codex_current_config_for_home, resolve_active_provider,
+        resolve_codex_profile_selector_for_home, save_codex_profile_for_home,
+        save_codex_profile_for_home_and_apply_if_active, sync_models_json_for_home, CodexProfile,
+        CodexProviderConfig, ModelCatalog,
     };
     use std::collections::HashMap;
     use tempfile::TempDir;
@@ -1189,6 +1288,8 @@ mod tests {
                 query_params: None,
                 model: Some("gpt-custom".to_string()),
                 model_reasoning_effort: None,
+                model_context_window: None,
+                model_auto_compact_token_limit: None,
                 api_key: None,
             },
         );
@@ -1227,6 +1328,8 @@ mod tests {
                 query_params: None,
                 model: Some("gpt-custom".to_string()),
                 model_reasoning_effort: None,
+                model_context_window: None,
+                model_auto_compact_token_limit: None,
                 api_key: None,
             },
         );
@@ -1264,6 +1367,121 @@ mod tests {
     }
 
     #[test]
+    fn apply_profile_to_config_map_writes_context_window_overrides() {
+        let mut providers = HashMap::new();
+        providers.insert(
+            "custom".to_string(),
+            CodexProviderConfig {
+                name: Some("Custom".to_string()),
+                base_url: None,
+                wire_api: Some("responses".to_string()),
+                requires_openai_auth: Some(false),
+                env_key: None,
+                env_key_instructions: None,
+                http_headers: None,
+                query_params: None,
+                model: Some("gpt-5.6-sol".to_string()),
+                model_reasoning_effort: None,
+                model_context_window: Some(1_000_000),
+                model_auto_compact_token_limit: Some(900_000),
+                api_key: None,
+            },
+        );
+        let profile = CodexProfile {
+            id: "p1".to_string(),
+            name: "P1".to_string(),
+            description: None,
+            created_at: String::new(),
+            updated_at: String::new(),
+            providers,
+            model_provider: "custom".to_string(),
+            model: "gpt-5.6-sol".to_string(),
+            model_reasoning_effort: None,
+            api_key: None,
+            auth_profile_name: None,
+        };
+
+        let temp = TempDir::new().unwrap();
+        let mut config = toml::map::Map::new();
+        // Stale values must be replaced by the profile's overrides.
+        config.insert(
+            "model_context_window".to_string(),
+            toml::Value::Integer(200_000),
+        );
+        config.insert(
+            "model_auto_compact_token_limit".to_string(),
+            toml::Value::Integer(100_000),
+        );
+        apply_profile_to_config_map(&mut config, &profile, temp.path()).unwrap();
+
+        assert_eq!(
+            config
+                .get("model_context_window")
+                .and_then(|v| v.as_integer()),
+            Some(1_000_000)
+        );
+        assert_eq!(
+            config
+                .get("model_auto_compact_token_limit")
+                .and_then(|v| v.as_integer()),
+            Some(900_000)
+        );
+    }
+
+    #[test]
+    fn apply_profile_to_config_map_removes_stale_context_window_overrides() {
+        // Context window keys live at config.toml top level; applying a
+        // profile without them must remove any previously applied values.
+        let mut providers = HashMap::new();
+        providers.insert(
+            "custom".to_string(),
+            CodexProviderConfig {
+                name: Some("Custom".to_string()),
+                base_url: None,
+                wire_api: Some("responses".to_string()),
+                requires_openai_auth: Some(false),
+                env_key: None,
+                env_key_instructions: None,
+                http_headers: None,
+                query_params: None,
+                model: Some("gpt-5.6-sol".to_string()),
+                model_reasoning_effort: None,
+                model_context_window: None,
+                model_auto_compact_token_limit: None,
+                api_key: None,
+            },
+        );
+        let profile = CodexProfile {
+            id: "p1".to_string(),
+            name: "P1".to_string(),
+            description: None,
+            created_at: String::new(),
+            updated_at: String::new(),
+            providers,
+            model_provider: "custom".to_string(),
+            model: "gpt-5.6-sol".to_string(),
+            model_reasoning_effort: None,
+            api_key: None,
+            auth_profile_name: None,
+        };
+
+        let temp = TempDir::new().unwrap();
+        let mut config = toml::map::Map::new();
+        config.insert(
+            "model_context_window".to_string(),
+            toml::Value::Integer(1_000_000),
+        );
+        config.insert(
+            "model_auto_compact_token_limit".to_string(),
+            toml::Value::Integer(900_000),
+        );
+        apply_profile_to_config_map(&mut config, &profile, temp.path()).unwrap();
+
+        assert!(!config.contains_key("model_context_window"));
+        assert!(!config.contains_key("model_auto_compact_token_limit"));
+    }
+
+    #[test]
     fn provider_config_to_toml_defaults_empty_name_to_provider_id() {
         // Codex rejects providers whose name is empty; a missing or blank
         // display name must fall back to the provider id.
@@ -1279,6 +1497,8 @@ mod tests {
                 query_params: None,
                 model: None,
                 model_reasoning_effort: None,
+                model_context_window: None,
+                model_auto_compact_token_limit: None,
                 api_key: None,
             };
             let table = provider_config_to_toml("custom", &config).unwrap();
@@ -1303,6 +1523,8 @@ mod tests {
             query_params: None,
             model: None,
             model_reasoning_effort: None,
+            model_context_window: None,
+            model_auto_compact_token_limit: None,
             api_key: None,
         };
         let table = provider_config_to_toml("custom", &config).unwrap();
@@ -1330,6 +1552,8 @@ mod tests {
             query_params: None,
             model: None,
             model_reasoning_effort: None,
+            model_context_window: None,
+            model_auto_compact_token_limit: None,
             api_key: Some("  sk-test  ".to_string()),
         };
         let table = provider_config_to_toml("custom", &config).unwrap();
@@ -1357,6 +1581,8 @@ mod tests {
             query_params: None,
             model: None,
             model_reasoning_effort: None,
+            model_context_window: None,
+            model_auto_compact_token_limit: None,
             api_key: Some("   ".to_string()),
         };
         let table = provider_config_to_toml("custom", &config).unwrap();
@@ -1463,6 +1689,8 @@ mod tests {
                 query_params: None,
                 model: Some(model.to_string()),
                 model_reasoning_effort: None,
+                model_context_window: None,
+                model_auto_compact_token_limit: None,
                 api_key: None,
             },
         );
@@ -1595,5 +1823,35 @@ mod tests {
             !config.contains("gpt-5.2"),
             "non-active profile saves must not rewrite config.toml"
         );
+    }
+
+    #[test]
+    fn read_codex_current_config_backfills_context_window_into_active_provider() {
+        let temp = TempDir::new().unwrap();
+        let home = temp.path();
+        let codex_dir = home.join(".codex");
+        std::fs::create_dir_all(&codex_dir).unwrap();
+        std::fs::write(
+            codex_dir.join("config.toml"),
+            r#"model_provider = "custom"
+model = "gpt-5.6-sol"
+model_context_window = 1000000
+model_auto_compact_token_limit = 900000
+
+[model_providers.custom]
+name = "Custom"
+base_url = "https://api.example.com/v1"
+wire_api = "responses"
+"#,
+        )
+        .unwrap();
+
+        let current = read_codex_current_config_for_home(home).unwrap();
+
+        assert_eq!(current.model_provider, "custom");
+        assert_eq!(current.model, "gpt-5.6-sol");
+        let provider = current.providers.get("custom").unwrap();
+        assert_eq!(provider.model_context_window, Some(1_000_000));
+        assert_eq!(provider.model_auto_compact_token_limit, Some(900_000));
     }
 }

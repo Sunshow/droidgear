@@ -930,6 +930,87 @@ fn preview_codex_temporary_run_lists_secret_keys_without_secret_values() {
 }
 
 #[test]
+fn codex_set_provider_context_window_links_auto_compact_preset() {
+    let temp = TempDir::new().unwrap();
+    let mut providers = HashMap::new();
+    providers.insert(
+        "custom".to_string(),
+        droidgear_core::codex::CodexProviderConfig {
+            name: Some("Custom".to_string()),
+            base_url: None,
+            wire_api: Some("responses".to_string()),
+            requires_openai_auth: Some(false),
+            env_key: None,
+            env_key_instructions: None,
+            http_headers: None,
+            query_params: None,
+            model: Some("gpt-5.6-sol".to_string()),
+            model_reasoning_effort: None,
+            model_context_window: None,
+            model_auto_compact_token_limit: None,
+            api_key: None,
+        },
+    );
+    droidgear_core::codex::save_codex_profile_for_home(
+        temp.path(),
+        droidgear_core::codex::CodexProfile {
+            id: "profile-a".to_string(),
+            name: "Alpha".to_string(),
+            description: None,
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            updated_at: "2026-01-01T00:00:00Z".to_string(),
+            providers,
+            model_provider: "custom".to_string(),
+            model: "gpt-5.6-sol".to_string(),
+            model_reasoning_effort: None,
+            api_key: None,
+            auth_profile_name: None,
+        },
+    )
+    .unwrap();
+
+    let set_context_window = |app: &mut app::App, value: &str| {
+        modal::run_input_action(
+            app,
+            app::InputAction::CodexSetProviderContextWindow {
+                profile_id: "profile-a".to_string(),
+                provider_id: "custom".to_string(),
+            },
+            value.to_string(),
+        )
+        .unwrap();
+    };
+    let get_provider = |home: &Path| {
+        droidgear_core::codex::get_codex_profile_for_home(home, "profile-a")
+            .unwrap()
+            .providers
+            .get("custom")
+            .cloned()
+            .unwrap()
+    };
+
+    let mut app = app::App::new(temp.path().to_path_buf());
+
+    // 272K tier links the 250K auto-compact preset.
+    set_context_window(&mut app, "272000");
+    let provider = get_provider(temp.path());
+    assert_eq!(provider.model_context_window, Some(272_000));
+    assert_eq!(provider.model_auto_compact_token_limit, Some(250_000));
+
+    // 1M tier links the 900K auto-compact preset.
+    set_context_window(&mut app, "1000000");
+    let provider = get_provider(temp.path());
+    assert_eq!(provider.model_context_window, Some(1_000_000));
+    assert_eq!(provider.model_auto_compact_token_limit, Some(900_000));
+
+    // A non-preset window keeps the previously picked compact limit.
+    set_context_window(&mut app, "300000");
+    let provider = get_provider(temp.path());
+    assert_eq!(provider.model_context_window, Some(300_000));
+    assert_eq!(provider.model_auto_compact_token_limit, Some(900_000));
+}
+
+#[test]
 fn list_claude_temporary_run_targets_lists_index_name_and_id() {
     let temp = TempDir::new().unwrap();
     let settings_dir = temp.path().join(".droidgear").join("claude-settings");

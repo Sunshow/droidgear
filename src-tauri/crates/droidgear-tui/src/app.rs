@@ -317,6 +317,14 @@ pub enum InputAction {
         profile_id: String,
         provider_id: String,
     },
+    CodexSetProviderContextWindow {
+        profile_id: String,
+        provider_id: String,
+    },
+    CodexSetProviderAutoCompactLimit {
+        profile_id: String,
+        provider_id: String,
+    },
     OpenCodeCreateProfile,
     OpenCodeDuplicate {
         id: String,
@@ -1436,7 +1444,7 @@ impl App {
             self.codex_detail_provider_index =
                 self.codex_detail_provider_ids.len().saturating_sub(1);
         }
-        let codex_provider_fields_count = 6;
+        let codex_provider_fields_count = 8;
         if self.codex_provider_field_index >= codex_provider_fields_count {
             self.codex_provider_field_index = codex_provider_fields_count.saturating_sub(1);
         }

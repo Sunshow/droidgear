@@ -57,6 +57,18 @@ export function ProviderCard({
               {t('codex.provider.model')}: {config.model}
             </div>
           )}
+          {config.modelContextWindow != null && (
+            <div className="text-xs">
+              {t('codex.provider.modelContextWindow')}:{' '}
+              {config.modelContextWindow.toLocaleString()}
+            </div>
+          )}
+          {config.modelAutoCompactTokenLimit != null && (
+            <div className="text-xs">
+              {t('codex.provider.modelAutoCompactTokenLimit')}:{' '}
+              {config.modelAutoCompactTokenLimit.toLocaleString()}
+            </div>
+          )}
           <div className="flex items-center gap-2 flex-wrap">
             {config.wireApi && (
               <Badge variant="outline" className="text-xs">

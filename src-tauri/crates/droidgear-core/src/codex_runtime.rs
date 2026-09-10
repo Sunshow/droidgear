@@ -518,6 +518,8 @@ mod tests {
                 )])),
                 model: Some("gpt-5.5".to_string()),
                 model_reasoning_effort: Some("high".to_string()),
+                model_context_window: None,
+                model_auto_compact_token_limit: None,
                 api_key: Some("sk-provider".to_string()),
             },
         );

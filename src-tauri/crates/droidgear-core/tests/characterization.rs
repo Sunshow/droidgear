@@ -75,6 +75,8 @@ base_url = "https://api.openai.com/v1"
             query_params: None,
             model: Some("gpt-5.2".to_string()),
             model_reasoning_effort: Some("high".to_string()),
+            model_context_window: None,
+            model_auto_compact_token_limit: None,
             api_key: Some("sk-test".to_string()),
         },
     );
@@ -773,6 +775,8 @@ model = "existing-live-model"
             query_params: None,
             model: Some("gpt-5.5".to_string()),
             model_reasoning_effort: Some("high".to_string()),
+            model_context_window: None,
+            model_auto_compact_token_limit: None,
             api_key: Some("sk-temp".to_string()),
         },
     );

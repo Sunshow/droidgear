@@ -1204,6 +1204,8 @@ mod tests {
                 query_params: None,
                 model: None,
                 model_reasoning_effort: None,
+                model_context_window: None,
+                model_auto_compact_token_limit: None,
                 api_key: None,
             },
         );
@@ -1220,6 +1222,8 @@ mod tests {
                 query_params: None,
                 model: None,
                 model_reasoning_effort: None,
+                model_context_window: None,
+                model_auto_compact_token_limit: None,
                 api_key: None,
             },
         );

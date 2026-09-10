@@ -2472,6 +2472,20 @@ fn draw_codex_provider(frame: &mut Frame, app: &app::App, area: Rect) {
             "Model",
             not_set_if_blank(config.model.as_deref().unwrap_or("")),
         ),
+        (
+            "Context Window",
+            config
+                .model_context_window
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| "(not set)".to_string()),
+        ),
+        (
+            "Auto Compact",
+            config
+                .model_auto_compact_token_limit
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| "(not set)".to_string()),
+        ),
         ("Reasoning Effort", effort.to_string()),
         (
             "API Key",

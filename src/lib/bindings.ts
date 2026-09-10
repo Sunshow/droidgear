@@ -2836,6 +2836,16 @@ authProfileName?: string | null }
  */
 export type CodexProviderConfig = { name?: string | null; baseUrl?: string | null; wireApi?: string | null; requiresOpenaiAuth?: boolean | null; envKey?: string | null; envKeyInstructions?: string | null; httpHeaders?: Partial<{ [key in string]: string }> | null; queryParams?: Partial<{ [key in string]: string }> | null; model?: string | null; modelReasoningEffort?: string | null; 
 /**
+ * DroidGear-only: written to config.toml top-level
+ * `model_context_window` while this provider is active.
+ */
+modelContextWindow?: number | null; 
+/**
+ * DroidGear-only: written to config.toml top-level
+ * `model_auto_compact_token_limit` while this provider is active.
+ */
+modelAutoCompactTokenLimit?: number | null; 
+/**
  * Provider API key. Written to config.toml as `experimental_bearer_token`.
  */
 apiKey?: string | null }

@@ -2521,6 +2521,8 @@ pub(super) fn run_input_action(
                     query_params: None,
                     model: Some("gpt-5.2".to_string()),
                     model_reasoning_effort: Some("high".to_string()),
+                    model_context_window: None,
+                    model_auto_compact_token_limit: None,
                     api_key: Some(String::new()),
                 },
             );
@@ -2657,6 +2659,8 @@ pub(super) fn run_input_action(
                     query_params: None,
                     model: None,
                     model_reasoning_effort: Some("high".to_string()),
+                    model_context_window: None,
+                    model_auto_compact_token_limit: None,
                     api_key: None,
                 },
             );
@@ -2741,6 +2745,72 @@ pub(super) fn run_input_action(
                 return Err(anyhow::Error::msg("Provider not found"));
             };
             provider.model = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::CodexSetProviderContextWindow {
+            profile_id,
+            provider_id,
+        } => {
+            let value = if trimmed.is_empty() {
+                None
+            } else {
+                Some(
+                    trimmed
+                        .parse::<u32>()
+                        .map_err(|_| anyhow::Error::msg("Invalid context window"))?,
+                )
+            };
+            let mut profile =
+                droidgear_core::codex::get_codex_profile_for_home(&app.home_dir, &profile_id)
+                    .map_err(anyhow::Error::msg)?;
+            let Some(provider) = profile.providers.get_mut(&provider_id) else {
+                return Err(anyhow::Error::msg("Provider not found"));
+            };
+            provider.model_context_window = value;
+            // Linked tier: entering a preset context window also selects the
+            // matching auto-compact preset (still editable on its own).
+            let linked_compact = match provider.model_context_window {
+                Some(272_000) => Some(250_000),
+                Some(1_000_000) => Some(900_000),
+                _ => None,
+            };
+            if let Some(limit) = linked_compact {
+                provider.model_auto_compact_token_limit = Some(limit);
+            }
+            droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                &app.home_dir,
+                profile,
+            )
+            .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::CodexSetProviderAutoCompactLimit {
+            profile_id,
+            provider_id,
+        } => {
+            let value = if trimmed.is_empty() {
+                None
+            } else {
+                Some(
+                    trimmed
+                        .parse::<u32>()
+                        .map_err(|_| anyhow::Error::msg("Invalid auto-compact token limit"))?,
+                )
+            };
+            let mut profile =
+                droidgear_core::codex::get_codex_profile_for_home(&app.home_dir, &profile_id)
+                    .map_err(anyhow::Error::msg)?;
+            let Some(provider) = profile.providers.get_mut(&provider_id) else {
+                return Err(anyhow::Error::msg("Provider not found"));
+            };
+            provider.model_auto_compact_token_limit = value;
             droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
                 &app.home_dir,
                 profile,

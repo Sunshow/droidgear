@@ -41,6 +41,46 @@ const WIRE_API_OPTIONS = [
   { value: 'responses', label: 'Responses API' },
 ]
 
+/**
+ * Quick-select presets for the model context window (tokens). Picking a
+ * preset also selects the linked auto-compact preset; the user can still
+ * re-pick the auto-compact tier afterwards.
+ */
+const CONTEXT_WINDOW_PRESETS = [
+  { value: '272000', label: '272K (272,000)', autoCompact: '250000' },
+  { value: '1000000', label: '1M (1,000,000)', autoCompact: '900000' },
+]
+
+/** Quick-select presets for the auto-compact token limit. */
+const AUTO_COMPACT_PRESETS = [
+  { value: '250000', label: '250K (250,000)' },
+  { value: '900000', label: '900K (900,000)' },
+]
+
+/** Sentinel for "not set" (config keys are omitted). */
+const UNSET_VALUE = '__unset__'
+/** Sentinel for a free-form numeric value. */
+const CUSTOM_VALUE = '__custom__'
+
+function tokenLimitSelectValue(
+  raw: string,
+  presets: { value: string }[]
+): string {
+  if (!raw) return UNSET_VALUE
+  return presets.some(preset => preset.value === raw) ? raw : CUSTOM_VALUE
+}
+
+function parseTokenLimit(raw: string): number | null {
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+  const value = Number(trimmed)
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : null
+}
+
+function sanitizeTokenLimitInput(raw: string): string {
+  return raw.replace(/\D+/g, '')
+}
+
 /** Codex-specific fallback: includes `minimal`, which is not in the shared registry type. */
 const CODEX_FALLBACK_EFFORTS = [
   'none',
@@ -105,6 +145,16 @@ function ProviderForm({
   const [baseUrl, setBaseUrl] = useState(existingConfig?.baseUrl ?? '')
   const [wireApi, setWireApi] = useState(existingConfig?.wireApi ?? 'responses')
   const [model, setModel] = useState(existingConfig?.model ?? '')
+  const [modelContextWindow, setModelContextWindow] = useState(
+    existingConfig?.modelContextWindow != null
+      ? String(existingConfig.modelContextWindow)
+      : ''
+  )
+  const [modelAutoCompactTokenLimit, setModelAutoCompactTokenLimit] = useState(
+    existingConfig?.modelAutoCompactTokenLimit != null
+      ? String(existingConfig.modelAutoCompactTokenLimit)
+      : ''
+  )
   const [modelReasoningEffort, setModelReasoningEffort] = useState(() => {
     const initialModel = existingConfig?.model ?? ''
     const options = effortsForModel(initialModel)
@@ -133,6 +183,32 @@ function ProviderForm({
     setModelReasoningEffort(
       toStoredEffort(clampEffortToSupported(current, options))
     )
+  }
+
+  const contextWindowSelectValue = tokenLimitSelectValue(
+    modelContextWindow,
+    CONTEXT_WINDOW_PRESETS
+  )
+  const autoCompactSelectValue = tokenLimitSelectValue(
+    modelAutoCompactTokenLimit,
+    AUTO_COMPACT_PRESETS
+  )
+
+  const handleContextWindowSelect = (value: string) => {
+    if (value === UNSET_VALUE || value === CUSTOM_VALUE) {
+      if (value === UNSET_VALUE) setModelContextWindow('')
+      return
+    }
+    const preset = CONTEXT_WINDOW_PRESETS.find(option => option.value === value)
+    setModelContextWindow(value)
+    // Linked tier: preset context windows select the matching auto-compact
+    // preset; the user may re-pick the auto-compact tier afterwards.
+    if (preset) setModelAutoCompactTokenLimit(preset.autoCompact)
+  }
+
+  const handleAutoCompactSelect = (value: string) => {
+    if (value === UNSET_VALUE) setModelAutoCompactTokenLimit('')
+    else if (value !== CUSTOM_VALUE) setModelAutoCompactTokenLimit(value)
   }
 
   const sanitizeProviderId = (name: string): string => {
@@ -187,6 +263,8 @@ function ProviderForm({
       queryParams: null,
       model: trimToNull(model),
       modelReasoningEffort: resolvedEffort || null,
+      modelContextWindow: parseTokenLimit(modelContextWindow),
+      modelAutoCompactTokenLimit: parseTokenLimit(modelAutoCompactTokenLimit),
       apiKey: trimToNull(apiKey),
     }
 
@@ -309,6 +387,83 @@ function ProviderForm({
             />
           </div>
 
+          {/* Context Window */}
+          <div className="space-y-2">
+            <Label>{t('codex.provider.modelContextWindow')}</Label>
+            <Select
+              value={contextWindowSelectValue}
+              onValueChange={handleContextWindowSelect}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={UNSET_VALUE}>
+                  {t('codex.provider.notSet')}
+                </SelectItem>
+                {CONTEXT_WINDOW_PRESETS.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+                <SelectItem value={CUSTOM_VALUE}>
+                  {t('codex.provider.custom')}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            {contextWindowSelectValue === CUSTOM_VALUE && (
+              <Input
+                value={modelContextWindow}
+                onChange={e =>
+                  setModelContextWindow(sanitizeTokenLimitInput(e.target.value))
+                }
+                placeholder={t('codex.provider.tokenLimitPlaceholder')}
+                inputMode="numeric"
+              />
+            )}
+          </div>
+
+          {/* Auto-Compact Token Limit */}
+          <div className="space-y-2">
+            <Label>{t('codex.provider.modelAutoCompactTokenLimit')}</Label>
+            <Select
+              value={autoCompactSelectValue}
+              onValueChange={handleAutoCompactSelect}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={UNSET_VALUE}>
+                  {t('codex.provider.notSet')}
+                </SelectItem>
+                {AUTO_COMPACT_PRESETS.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+                <SelectItem value={CUSTOM_VALUE}>
+                  {t('codex.provider.custom')}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            {autoCompactSelectValue === CUSTOM_VALUE && (
+              <Input
+                value={modelAutoCompactTokenLimit}
+                onChange={e =>
+                  setModelAutoCompactTokenLimit(
+                    sanitizeTokenLimitInput(e.target.value)
+                  )
+                }
+                placeholder={t('codex.provider.tokenLimitPlaceholder')}
+                inputMode="numeric"
+              />
+            )}
+            <p className="text-xs text-muted-foreground">
+              {t('codex.provider.contextWindowHint')}
+            </p>
+          </div>
+
           {/* Reasoning Effort */}
           <div className="space-y-2">
             <Label>{t('codex.provider.reasoningEffort')}</Label>
@@ -375,7 +530,7 @@ export function ProviderDialog({
     <ResizableDialog open={open} onOpenChange={onOpenChange}>
       <ResizableDialogContent
         defaultWidth={500}
-        defaultHeight={520}
+        defaultHeight={680}
         minWidth={400}
         minHeight={380}
         onCloseAutoFocus={e => e.preventDefault()}
