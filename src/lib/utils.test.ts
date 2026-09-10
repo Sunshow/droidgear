@@ -91,6 +91,9 @@ describe('supportsMaxEffort', () => {
   it('applies to registry whitelist models with max effort', () => {
     expect(supportsMaxEffort('deepseek-v4-pro')).toBe(true)
     expect(supportsMaxEffort('deepseek-v4-flash-vision-exp')).toBe(true)
+    expect(supportsMaxEffort('deepseek-v4.1-flash')).toBe(true)
+    // deepseek-flash is an alias of deepseek-v4.1-flash
+    expect(supportsMaxEffort('deepseek-flash')).toBe(true)
     expect(supportsMaxEffort('gpt-5.6')).toBe(true)
     expect(supportsMaxEffort('gpt-5.6-luna')).toBe(true)
     expect(supportsMaxEffort('gpt-6-astra')).toBe(true)
@@ -133,6 +136,9 @@ describe('supportsXhighEffort', () => {
     expect(supportsXhighEffort('deepseek-v4-pro')).toBe(false)
     // deepseek-v4-flash-vision-exp whitelist: ["none", "low", "high", "max"] — no xhigh
     expect(supportsXhighEffort('deepseek-v4-flash-vision-exp')).toBe(false)
+    // deepseek-v4.1-flash whitelist: ["none", "low", "high", "max"] — no xhigh
+    expect(supportsXhighEffort('deepseek-v4.1-flash')).toBe(false)
+    expect(supportsXhighEffort('deepseek-flash')).toBe(false)
     // kimi-k3 whitelist: ["none", "low", "high", "max"] — no xhigh
     expect(supportsXhighEffort('kimi-k3')).toBe(false)
   })
@@ -197,6 +203,9 @@ describe('getDefaultMaxOutputTokens', () => {
     expect(getDefaultMaxOutputTokens('deepseek-v4-flash-vision-exp')).toBe(
       384000
     )
+    expect(getDefaultMaxOutputTokens('deepseek-v4.1-flash')).toBe(384000)
+    // alias resolves to the same registry entry
+    expect(getDefaultMaxOutputTokens('deepseek-flash')).toBe(384000)
   })
 
   it('falls back to generic rules for unregistered IDs', () => {

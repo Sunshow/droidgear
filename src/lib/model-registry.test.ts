@@ -72,6 +72,16 @@ describe('model-registry capability coverage', () => {
       medium: null,
       max: 'max',
     })
+    // DeepSeek maps the requested effort per the official thinking-mode table:
+    // minimal → low, medium → high, xhigh → high, max → max.
+    expect(findModelByIdOrAlias('deepseek-flash')?.thinkingLevelMap).toEqual({
+      minimal: 'low',
+      low: 'low',
+      medium: 'high',
+      high: 'high',
+      xhigh: 'high',
+      max: 'max',
+    })
     expect(
       findModelByIdOrAlias('gpt-4o-mini')?.thinkingLevelMap
     ).toBeUndefined()
@@ -135,6 +145,19 @@ describe('getSupportedEfforts', () => {
     expect(
       getSupportedEfforts('deepseek-v4-flash-vision-exp', 'openai')
     ).toEqual(['none', 'low', 'high', 'max'])
+    expect(getSupportedEfforts('deepseek-v4.1-flash', 'openai')).toEqual([
+      'none',
+      'low',
+      'high',
+      'max',
+    ])
+    // the recommended model name resolves to the same entry
+    expect(getSupportedEfforts('deepseek-flash', 'openai')).toEqual([
+      'none',
+      'low',
+      'high',
+      'max',
+    ])
   })
 
   it('returns kimi-k3 efforts with max but no medium', () => {
@@ -289,6 +312,49 @@ describe('getEffortEncoding profiles', () => {
     })
   })
 
+  it('encodes deepseek-v4.1-flash per the official thinking-mode docs', () => {
+    // OpenAI format: thinking.type toggle + reasoning_effort
+    expect(getEffortEncoding('deepseek-v4.1-flash', 'openai', 'none')).toEqual({
+      thinking: { type: 'disabled' },
+    })
+    expect(getEffortEncoding('deepseek-v4.1-flash', 'openai', 'low')).toEqual({
+      thinking: { type: 'enabled' },
+      reasoning_effort: 'low',
+    })
+    expect(getEffortEncoding('deepseek-v4.1-flash', 'openai', 'high')).toEqual({
+      thinking: { type: 'enabled' },
+      reasoning_effort: 'high',
+    })
+    expect(getEffortEncoding('deepseek-v4.1-flash', 'openai', 'max')).toEqual({
+      thinking: { type: 'enabled' },
+      reasoning_effort: 'max',
+    })
+    // Anthropic format: thinking.type toggle + output_config.effort
+    expect(
+      getEffortEncoding('deepseek-v4.1-flash', 'anthropic', 'none')
+    ).toEqual({
+      thinking: { type: 'disabled' },
+    })
+    expect(
+      getEffortEncoding('deepseek-v4.1-flash', 'anthropic', 'low')
+    ).toEqual({
+      thinking: { type: 'enabled' },
+      output_config: { effort: 'low' },
+    })
+    expect(
+      getEffortEncoding('deepseek-v4.1-flash', 'anthropic', 'max')
+    ).toEqual({
+      thinking: { type: 'enabled' },
+      output_config: { effort: 'max' },
+    })
+    // deepseek-flash is the recommended model name for the same entry
+    expect(getEffortEncoding('deepseek-flash', 'openai', 'high')).toEqual({
+      thinking: { type: 'enabled' },
+      reasoning_effort: 'high',
+    })
+    expect(hasCustomEffortEncoding('deepseek-flash', 'openai')).toBe(true)
+  })
+
   it('returns null for unknown model ids', () => {
     expect(
       getEffortEncoding('totally-unknown-model', 'openai', 'high')
@@ -307,6 +373,23 @@ describe('aliases resolve reasoning config', () => {
     const entry = findModelByIdOrAlias('gpt-5.6-luna-pro')
     expect(entry?.id).toBe('gpt-5.6-luna')
     expect(getSupportedEfforts('gpt-5.6-luna-pro', 'openai')).toContain('xhigh')
+  })
+
+  it('resolves deepseek-flash to deepseek-v4.1-flash', () => {
+    expect(findModelByIdOrAlias('deepseek-flash')?.id).toBe(
+      'deepseek-v4.1-flash'
+    )
+    expect(findModelByIdOrAlias('deepseek-v4-1-flash')?.id).toBe(
+      'deepseek-v4.1-flash'
+    )
+    expect(findModelByIdOrAlias('deepseek-flash')).toMatchObject({
+      name: 'DeepSeek V4.1 Flash',
+      platform: 'openai-completions',
+      reasoning: true,
+      input: ['text', 'image'],
+      contextWindow: 1000000,
+      maxOutputTokens: 384000,
+    })
   })
 })
 

@@ -733,6 +733,101 @@
     }
   },
   {
+    "id": "deepseek-v4.1-flash",
+    "name": "DeepSeek V4.1 Flash",
+    "aliases": ["deepseek-flash", "deepseek-v4-1-flash"],
+    "platform": "openai-completions",
+    "reasoning": true,
+    "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": "low",
+      "low": "low",
+      "medium": "high",
+      "high": "high",
+      "xhigh": "high",
+      "max": "max"
+    },
+    "contextWindow": 1000000,
+    "maxOutputTokens": 384000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "high", "max"],
+      "encoding": {
+        "openai": {
+          "none": {
+            "extraArgsFragment": {
+              "thinking": {
+                "type": "disabled"
+              }
+            }
+          },
+          "low": {
+            "extraArgsFragment": {
+              "thinking": {
+                "type": "enabled"
+              },
+              "reasoning_effort": "low"
+            }
+          },
+          "high": {
+            "extraArgsFragment": {
+              "thinking": {
+                "type": "enabled"
+              },
+              "reasoning_effort": "high"
+            }
+          },
+          "max": {
+            "extraArgsFragment": {
+              "thinking": {
+                "type": "enabled"
+              },
+              "reasoning_effort": "max"
+            }
+          }
+        },
+        "anthropic": {
+          "none": {
+            "extraArgsFragment": {
+              "thinking": {
+                "type": "disabled"
+              }
+            }
+          },
+          "low": {
+            "extraArgsFragment": {
+              "thinking": {
+                "type": "enabled"
+              },
+              "output_config": {
+                "effort": "low"
+              }
+            }
+          },
+          "high": {
+            "extraArgsFragment": {
+              "thinking": {
+                "type": "enabled"
+              },
+              "output_config": {
+                "effort": "high"
+              }
+            }
+          },
+          "max": {
+            "extraArgsFragment": {
+              "thinking": {
+                "type": "enabled"
+              },
+              "output_config": {
+                "effort": "max"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
     "id": "doubao-seed-2.0-lite",
     "name": "Doubao Seed 2.0 Lite",
     "aliases": [],
