@@ -125,7 +125,7 @@
     "@types/react-dom": "^19.2.3",
     "@typescript/native-preview": "^7.0.0-dev.20260421.2",
     "@vitejs/plugin-react": "^6.0.1",
-    "@vitest/coverage-v8": "^4.1.0",
+    "@vitest/coverage-v8": "^4.1.11",
     "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
@@ -144,11 +144,13 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.1",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "uuid": "^14.0.0",
-    "@babel/plugin-proposal-private-methods": "npm:@babel/plugin-transform-private-methods@^7.25.0"
+    "@babel/plugin-proposal-private-methods": "npm:@babel/plugin-transform-private-methods@^7.25.0",
+    "js-yaml": "^4.3.2",
+    "smol-toml": "^1.7.1"
   },
   "allowScripts": {
     "@ast-grep/cli@0.40.3": true
