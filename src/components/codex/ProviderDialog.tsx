@@ -30,7 +30,10 @@ import type {
 import { ChannelModelPickerDialog } from '@/components/channels/ChannelModelPickerDialog'
 import type { ChannelProviderContext } from '@/components/channels'
 import { inferModelProtocol } from '@/lib/model-protocol'
-import { isMultiProtocolPlatform } from '@/lib/sub2api-platform'
+import {
+  ensureOpenAICompatibleV1,
+  isMultiProtocolPlatform,
+} from '@/lib/sub2api-platform'
 import { trimToNull } from '@/lib/utils'
 import {
   clampEffortToSupported,
@@ -246,7 +249,12 @@ function ProviderForm({
 
       setProviderId(sanitizedId)
       setName(context.channelName)
-      setBaseUrl(context.baseUrl)
+      // 通用兼容模式走 OpenAI 兼容端点，Base URL 必须带 /v1
+      setBaseUrl(
+        context.provider === 'generic-chat-completion-api'
+          ? ensureOpenAICompatibleV1(context.baseUrl)
+          : context.baseUrl
+      )
       setApiKey(context.apiKey)
       setWireApi(inferredWireApi)
 

@@ -162,18 +162,29 @@ describe('Sub2ApiInferrer', () => {
       ).toBe('https://api.example.com/antigravity')
     })
 
-    it('keeps the bare baseUrl for every deepseek protocol', () => {
+    it('keeps the bare baseUrl for openai and anthropic on deepseek', () => {
       expect(
         inferrer.getBaseUrl('openai', 'https://api.example.com', 'deepseek')
       ).toBe('https://api.example.com')
       expect(
         inferrer.getBaseUrl('anthropic', 'https://api.example.com', 'deepseek')
       ).toBe('https://api.example.com')
+    })
+
+    it('appends /v1 for openai-compatible on deepseek', () => {
       expect(
         inferrer.getBaseUrl(
           'openai-compatible',
           'https://api.example.com',
           'deepseek'
+        )
+      ).toBe('https://api.example.com/v1')
+      // 其他平台不受影响
+      expect(
+        inferrer.getBaseUrl(
+          'openai-compatible',
+          'https://api.example.com',
+          'openai'
         )
       ).toBe('https://api.example.com')
     })

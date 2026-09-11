@@ -37,6 +37,7 @@ import {
   protocolToOpenCodeNpm,
   normalizeBaseUrlForOpenCode,
 } from '@/lib/model-protocol'
+import { ensureOpenAICompatibleV1 } from '@/lib/sub2api-platform'
 import { trimToNull } from '@/lib/utils'
 import { ModelItem } from './ModelItem'
 import { ModelEditDialog } from './ModelEditDialog'
@@ -156,10 +157,15 @@ export function ProviderDialog({
         protocol,
         context.baseUrl
       )
+      // 通用兼容模式走 OpenAI 兼容端点，Base URL 必须带 /v1
+      const baseUrl =
+        context.provider === 'generic-chat-completion-api'
+          ? ensureOpenAICompatibleV1(normalizedBaseUrl)
+          : normalizedBaseUrl
 
       setProviderId(sanitizedId)
       setName(context.channelName)
-      setBaseURL(normalizedBaseUrl)
+      setBaseURL(baseUrl)
       setApiKey(context.apiKey)
       setNpm(npmPackage)
     }

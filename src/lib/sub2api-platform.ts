@@ -102,7 +102,14 @@ export const getBaseUrlForSub2Api = (
       return normalizeBaseUrl(baseUrl, '/antigravity/v1beta')
     }
   }
-  // deepseek 等平台的三种协议共用同一个 Base URL（无需 /v1、/v1beta 后缀）
+  // 多协议平台（如 sub2api 的 deepseek）：OpenAI（Responses）与 Anthropic
+  // 共用裸 Base URL；通用兼容模式走 OpenAI 兼容端点，必须带 /v1 后缀
+  if (
+    isMultiProtocolPlatform(platform) &&
+    provider === 'generic-chat-completion-api'
+  ) {
+    return normalizeBaseUrl(baseUrl, '/v1')
+  }
   return baseUrl
 }
 
@@ -110,6 +117,16 @@ export const normalizeBaseUrl = (baseUrl: string, suffix: string): string => {
   const trimmed = baseUrl.replace(/\/+$/, '')
   if (!suffix) return trimmed
   return trimmed.endsWith(suffix) ? trimmed : `${trimmed}${suffix}`
+}
+
+/**
+ * 为 OpenAI 兼容端点补齐 /v1 后缀。
+ * 已包含 /vN 版本路径（如 /v1、/v1beta）或为空时不追加。
+ */
+export const ensureOpenAICompatibleV1 = (baseUrl: string): string => {
+  const trimmed = baseUrl.trim()
+  if (!trimmed || /\/v\d/.test(trimmed)) return trimmed
+  return `${trimmed.replace(/\/+$/, '')}/v1`
 }
 
 export const getProviderConfigFromPlatform = (
@@ -136,7 +153,8 @@ export const getProviderConfigFromPlatform = (
     }
   }
 
-  // deepseek 平台支持三种协议，默认 OpenAI；三种协议共用裸 Base URL
+  // deepseek 平台默认 OpenAI（Responses），使用裸 Base URL；
+  // 通用兼容模式需要 /v1 后缀（见 getBaseUrlForSub2Api）
   if (platformLower === 'deepseek') {
     return { provider: 'openai', baseUrl }
   }

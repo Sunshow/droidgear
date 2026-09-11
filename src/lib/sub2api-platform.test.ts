@@ -8,6 +8,7 @@ import {
   isMultiProtocolPlatform,
   MULTI_PROTOCOL_PROVIDERS,
   DEFAULT_MULTI_PROTOCOL_PROVIDER,
+  ensureOpenAICompatibleV1,
 } from './sub2api-platform'
 
 describe('sub2api platform mapping', () => {
@@ -249,12 +250,46 @@ describe('getBaseUrlForSub2Api', () => {
     ).toBe('https://api.example.com/antigravity/v1beta')
   })
 
-  it('keeps the bare url for every deepseek protocol', () => {
-    for (const provider of MULTI_PROTOCOL_PROVIDERS) {
-      expect(
-        getBaseUrlForSub2Api(provider, 'https://api.example.com', 'deepseek')
-      ).toBe('https://api.example.com')
-    }
+  it('keeps the bare url for openai and anthropic on deepseek', () => {
+    expect(
+      getBaseUrlForSub2Api('openai', 'https://api.example.com', 'deepseek')
+    ).toBe('https://api.example.com')
+    expect(
+      getBaseUrlForSub2Api('anthropic', 'https://api.example.com', 'deepseek')
+    ).toBe('https://api.example.com')
+  })
+
+  it('appends /v1 for the generic protocol on deepseek', () => {
+    expect(
+      getBaseUrlForSub2Api(
+        'generic-chat-completion-api',
+        'https://api.example.com',
+        'deepseek'
+      )
+    ).toBe('https://api.example.com/v1')
+    // 尾斜杠与已有后缀都不会重复追加
+    expect(
+      getBaseUrlForSub2Api(
+        'generic-chat-completion-api',
+        'https://api.example.com/',
+        'deepseek'
+      )
+    ).toBe('https://api.example.com/v1')
+    expect(
+      getBaseUrlForSub2Api(
+        'generic-chat-completion-api',
+        'https://api.example.com/v1',
+        'deepseek'
+      )
+    ).toBe('https://api.example.com/v1')
+    // 其他平台不受影响
+    expect(
+      getBaseUrlForSub2Api(
+        'generic-chat-completion-api',
+        'https://api.example.com',
+        'openai'
+      )
+    ).toBe('https://api.example.com')
   })
 })
 
@@ -296,5 +331,27 @@ describe('deepseek platform', () => {
     expect(isMultiProtocolPlatform('openai')).toBe(false)
     expect(isMultiProtocolPlatform(null)).toBe(false)
     expect(isMultiProtocolPlatform(undefined)).toBe(false)
+  })
+})
+
+describe('ensureOpenAICompatibleV1', () => {
+  it('appends /v1 for OpenAI-compatible endpoints', () => {
+    expect(ensureOpenAICompatibleV1('https://api.example.com')).toBe(
+      'https://api.example.com/v1'
+    )
+    expect(ensureOpenAICompatibleV1('https://api.example.com/')).toBe(
+      'https://api.example.com/v1'
+    )
+  })
+
+  it('keeps existing version paths and empty input', () => {
+    expect(ensureOpenAICompatibleV1('https://api.example.com/v1')).toBe(
+      'https://api.example.com/v1'
+    )
+    expect(ensureOpenAICompatibleV1('https://api.example.com/v1beta')).toBe(
+      'https://api.example.com/v1beta'
+    )
+    expect(ensureOpenAICompatibleV1('')).toBe('')
+    expect(ensureOpenAICompatibleV1('   ')).toBe('')
   })
 })

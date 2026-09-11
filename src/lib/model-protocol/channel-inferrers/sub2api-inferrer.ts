@@ -3,6 +3,7 @@ import type {
   ChannelInferenceContext,
   ModelProtocol,
 } from '../types'
+import { isMultiProtocolPlatform } from '@/lib/sub2api-platform'
 
 /**
  * Sub2API 推断器
@@ -62,7 +63,13 @@ export class Sub2ApiInferrer implements ChannelInferrer {
       }
     }
 
-    // Sub2API 不需要额外的路径转换
+    // 多协议平台（如 deepseek）的通用兼容协议走 OpenAI 兼容端点，
+    // 需要 /v1 后缀；OpenAI 与 Anthropic 协议使用裸 Base URL
+    if (isMultiProtocolPlatform(platform) && protocol === 'openai-compatible') {
+      return normalizeBaseUrl(baseUrl, '/v1')
+    }
+
+    // 其他情况不需要额外的路径转换
     return baseUrl
   }
 }
