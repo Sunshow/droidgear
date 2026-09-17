@@ -30,7 +30,7 @@ vi.mock('@tauri-apps/plugin-dialog', () => ({
   open: openMock,
 }))
 
-import { render, screen, waitFor } from '@/test/test-utils'
+import { render, screen, waitFor, within } from '@/test/test-utils'
 import { commands } from '@/lib/tauri-bindings'
 import { useModelStore } from '@/store/model-store'
 import { useUIStore } from '@/store/ui-store'
@@ -67,10 +67,26 @@ describe('DroidFeatureList', () => {
           isGlobal: true,
           isActive: true,
           exists: true,
+          isExternal: false,
         },
       ],
     })
     vi.mocked(commands.launchDroid).mockResolvedValue({
+      status: 'ok',
+      data: null,
+    })
+    vi.mocked(commands.linkDroidSettingsFile).mockResolvedValue({
+      status: 'ok',
+      data: {
+        name: 'team-settings',
+        path: '/home/user/configs/team-settings.json',
+        isGlobal: false,
+        isActive: true,
+        exists: true,
+        isExternal: true,
+      },
+    })
+    vi.mocked(commands.unlinkDroidSettingsFile).mockResolvedValue({
       status: 'ok',
       data: null,
     })
@@ -252,5 +268,139 @@ describe('DroidFeatureList', () => {
       expect(toastMock.error).toHaveBeenCalledWith('Something went wrong')
     })
     expect(writeTextMock).not.toHaveBeenCalled()
+  })
+
+  it('links a local JSON file as the active settings file', async () => {
+    openMock.mockResolvedValue('/home/user/configs/team-settings.json')
+    const user = userEvent.setup()
+    render(<DroidFeatureList />)
+
+    const linkButton = await screen.findByTitle('Link local JSON file')
+    await user.click(linkButton)
+
+    await waitFor(() => {
+      expect(commands.linkDroidSettingsFile).toHaveBeenCalledWith(
+        '/home/user/configs/team-settings.json'
+      )
+    })
+    expect(toastMock.success).toHaveBeenCalledWith(
+      "Linked 'team-settings' and set it as the active settings file"
+    )
+    await waitFor(() => {
+      expect(commands.listDroidSettingsFiles).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  it('does not link a file when the picker is cancelled', async () => {
+    openMock.mockResolvedValue(null)
+    const user = userEvent.setup()
+    render(<DroidFeatureList />)
+
+    const linkButton = await screen.findByTitle('Link local JSON file')
+    await user.click(linkButton)
+
+    await waitFor(() => {
+      expect(openMock).toHaveBeenCalledTimes(1)
+    })
+    expect(commands.linkDroidSettingsFile).not.toHaveBeenCalled()
+  })
+
+  it('surfaces link errors as an error toast', async () => {
+    openMock.mockResolvedValue('/home/user/configs/broken.json')
+    vi.mocked(commands.linkDroidSettingsFile).mockResolvedValue({
+      status: 'error',
+      error: 'Settings file is not valid JSON',
+    })
+    const user = userEvent.setup()
+    render(<DroidFeatureList />)
+
+    const linkButton = await screen.findByTitle('Link local JSON file')
+    await user.click(linkButton)
+
+    await waitFor(() => {
+      expect(toastMock.error).toHaveBeenCalledWith(
+        'Settings file is not valid JSON'
+      )
+    })
+    expect(toastMock.success).not.toHaveBeenCalled()
+  })
+
+  it('unlinks an active external settings file without deleting it on disk', async () => {
+    vi.mocked(commands.listDroidSettingsFiles).mockResolvedValue({
+      status: 'ok',
+      data: [
+        {
+          name: 'Global',
+          path: '/home/user/.factory/settings.json',
+          isGlobal: true,
+          isActive: false,
+          exists: true,
+          isExternal: false,
+        },
+        {
+          name: 'team-settings',
+          path: '/home/user/configs/team-settings.json',
+          isGlobal: false,
+          isActive: true,
+          exists: true,
+          isExternal: true,
+        },
+      ],
+    })
+    const user = userEvent.setup()
+    render(<DroidFeatureList />)
+
+    const unlinkButton = await screen.findByTitle('Unlink')
+    await user.click(unlinkButton)
+
+    const dialog = await screen.findByRole('alertdialog')
+    expect(
+      within(dialog).getByText(/The file on disk will not be deleted/)
+    ).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Unlink' }))
+
+    await waitFor(() => {
+      expect(commands.unlinkDroidSettingsFile).toHaveBeenCalledWith(
+        '/home/user/configs/team-settings.json'
+      )
+    })
+    expect(commands.deleteDroidSettingsFile).not.toHaveBeenCalled()
+  })
+
+  it('switches to a linked external settings file by its path', async () => {
+    vi.mocked(commands.listDroidSettingsFiles).mockResolvedValue({
+      status: 'ok',
+      data: [
+        {
+          name: 'Global',
+          path: '/home/user/.factory/settings.json',
+          isGlobal: true,
+          isActive: true,
+          exists: true,
+          isExternal: false,
+        },
+        {
+          name: 'team-settings',
+          path: '/home/user/configs/team-settings.json',
+          isGlobal: false,
+          isActive: false,
+          exists: true,
+          isExternal: true,
+        },
+      ],
+    })
+    const user = userEvent.setup()
+    render(<DroidFeatureList />)
+
+    const trigger = await screen.findByRole('button', { name: /Global/ })
+    await user.click(trigger)
+    const item = await screen.findByRole('menuitem', { name: /team-settings/ })
+    await user.click(item)
+
+    await waitFor(() => {
+      expect(commands.setActiveDroidSettingsFile).toHaveBeenCalledWith(
+        '/home/user/configs/team-settings.json'
+      )
+    })
   })
 })

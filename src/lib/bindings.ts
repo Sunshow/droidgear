@@ -2292,6 +2292,31 @@ async deleteDroidSettingsFile(name: string) : Promise<Result<null, string>> {
 }
 },
 /**
+ * Links a local JSON file as a settings profile by reference (never copied).
+ * The file becomes the active settings file and is passed to Droid's native
+ * `--settings` flag when launching.
+ */
+async linkDroidSettingsFile(path: string) : Promise<Result<SettingsFileInfo, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("link_droid_settings_file", { path }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Removes the registration of a linked external settings file. The file on
+ * disk is never touched.
+ */
+async unlinkDroidSettingsFile(path: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("unlink_droid_settings_file", { path }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Gets the launch command for Droid with the active settings file.
  * Returns [command_string, settings_path].
  */
@@ -3504,7 +3529,11 @@ isActive: boolean;
 /**
  * Whether the file exists on disk
  */
-exists: boolean }
+exists: boolean; 
+/**
+ * Whether this is a linked external file kept at its original location
+ */
+isExternal: boolean }
 /**
  * Spec file metadata
  */

@@ -608,7 +608,7 @@ fn draw_droid_settings_files(frame: &mut Frame, app: &app::App, area: Rect) {
         .wrap(Wrap { trim: false });
     frame.render_widget(p, chunks[0]);
 
-    let help = help_paragraph("Enter: set active  r: refresh  q/Esc: back");
+    let help = help_paragraph("Enter: set active  i: link local JSON  r: refresh  q/Esc: back");
     frame.render_widget(help, chunks[1]);
 }
 

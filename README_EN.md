@@ -54,6 +54,7 @@ Run the installer directly.
 ### Droid Configuration Management
 
 - **Multi-Settings Files** - Manage and switch between multiple Factory Droid configuration files (settings.json)
+- **Link Local Settings** - Link a local JSON file as a launch settings profile (`--settings`); the file stays at its original location (GUI and TUI)
 - **Trusted Folders** - View and manage Droid trusted folders in GUI and TUI
 - **Terminal Preferences** - Set terminal preferences independently for each configuration file
 - **Panel Refresh** - Automatically refresh relevant panels when switching configuration files

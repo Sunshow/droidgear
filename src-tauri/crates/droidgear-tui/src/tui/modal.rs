@@ -4864,6 +4864,30 @@ pub(super) fn run_input_action(
             app.set_toast("Renamed", false);
             Ok(())
         }
+        app::InputAction::DroidSettingsLink => {
+            if trimmed.is_empty() {
+                return Err(anyhow::Error::msg("Path is required"));
+            }
+            let path = if let Some(rest) = trimmed.strip_prefix("~/") {
+                app.home_dir.join(rest).to_string_lossy().to_string()
+            } else {
+                trimmed.to_string()
+            };
+            let info = droidgear_core::droid_settings_files::link_settings_file_for_home(
+                &app.home_dir,
+                &path,
+            )
+            .map_err(anyhow::Error::msg)?;
+            refresh_droid_settings_files(app);
+            app.set_toast(
+                format!(
+                    "Linked '{}' and set it as the active settings file",
+                    info.name
+                ),
+                false,
+            );
+            Ok(())
+        }
         app::InputAction::CodexAuthSaveProfile => {
             if trimmed.is_empty() {
                 return Err(anyhow::Error::msg("Profile ID is required"));

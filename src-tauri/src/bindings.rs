@@ -219,6 +219,8 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         droid_settings::set_active_droid_settings_file,
         droid_settings::create_droid_settings_file,
         droid_settings::delete_droid_settings_file,
+        droid_settings::link_droid_settings_file,
+        droid_settings::unlink_droid_settings_file,
         droid_settings::get_droid_launch_command,
         droid_settings::launch_droid,
         droid_settings::list_droid_trusted_folders,

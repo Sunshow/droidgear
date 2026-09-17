@@ -232,8 +232,11 @@ pub(super) fn run_action(app: &mut app::App, action: Action) -> anyhow::Result<(
             Ok(())
         }
         Action::SetActiveSettingsFile { name } => {
-            droidgear_core::droid_settings_files::set_active_settings_file(name)
-                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            droidgear_core::droid_settings_files::set_active_settings_file_for_home(
+                &app.home_dir,
+                name,
+            )
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
             refresh_droid_settings_files(app);
             Ok(())
         }

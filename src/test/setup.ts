@@ -201,6 +201,7 @@ vi.mock('@/lib/tauri-bindings', () => ({
           isGlobal: true,
           isActive: true,
           exists: true,
+          isExternal: false,
         },
       ],
     }),
@@ -212,6 +213,7 @@ vi.mock('@/lib/tauri-bindings', () => ({
         isGlobal: true,
         isActive: true,
         exists: true,
+        isExternal: false,
       },
     }),
     setActiveDroidSettingsFile: vi
@@ -221,6 +223,20 @@ vi.mock('@/lib/tauri-bindings', () => ({
       .fn()
       .mockResolvedValue({ status: 'ok', data: null }),
     deleteDroidSettingsFile: vi
+      .fn()
+      .mockResolvedValue({ status: 'ok', data: null }),
+    linkDroidSettingsFile: vi.fn().mockResolvedValue({
+      status: 'ok',
+      data: {
+        name: 'team-settings',
+        path: '/home/user/configs/team-settings.json',
+        isGlobal: false,
+        isActive: true,
+        exists: true,
+        isExternal: true,
+      },
+    }),
+    unlinkDroidSettingsFile: vi
       .fn()
       .mockResolvedValue({ status: 'ok', data: null }),
     getDroidLaunchCommand: vi

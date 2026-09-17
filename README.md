@@ -54,6 +54,7 @@ xattr -cr /Applications/DroidGear.app
 ### Droid 配置管理
 
 - **多配置文件** - 支持管理和切换多个 Factory Droid 配置文件（settings.json）
+- **关联本地配置** - 关联本地 JSON 文件作为启动配置（`--settings`），文件保留在原位置（GUI 与 TUI）
 - **信任文件夹** - 在 GUI 与 TUI 中查看和管理 Droid 信任文件夹
 - **终端偏好** - 为每个配置文件独立设置终端偏好
 - **面板刷新** - 切换配置文件时自动刷新相关面板

@@ -1354,3 +1354,43 @@ fn nav_picker_filter_narrows_options_and_enter_resolves_by_label() {
     assert!(app.modal.is_none());
     assert!(app.modal_filter.is_empty());
 }
+
+#[test]
+fn droid_settings_link_key_opens_input_and_links_local_json_file() {
+    let temp = TempDir::new().unwrap();
+    write_file(&temp.path().join(".factory/settings.json"), "{}");
+    let external = temp.path().join("team-settings.json");
+    write_file(&external, r#"{"customModels":[]}"#);
+
+    let mut app = app::App::new(temp.path().to_path_buf());
+    app.screen = app::Screen::DroidSettingsFiles;
+
+    super::keys_droid_settings::handle_droid_settings_files_key(&mut app, KeyCode::Char('i'));
+    assert!(matches!(
+        app.modal.as_ref(),
+        Some(app::Modal::Input {
+            action: app::InputAction::DroidSettingsLink,
+            ..
+        })
+    ));
+
+    modal::run_input_action(
+        &mut app,
+        app::InputAction::DroidSettingsLink,
+        external.to_string_lossy().to_string(),
+    )
+    .unwrap();
+
+    let files =
+        droidgear_core::droid_settings_files::list_settings_files_for_home(temp.path()).unwrap();
+    assert!(files
+        .iter()
+        .any(|f| f.is_external && f.is_active && f.name == "team-settings"));
+
+    // The source file stays untouched at its original location.
+    assert!(external.exists());
+    assert_eq!(
+        std::fs::read_to_string(&external).unwrap(),
+        r#"{"customModels":[]}"#
+    );
+}

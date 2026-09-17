@@ -50,6 +50,23 @@ pub async fn delete_droid_settings_file(name: String) -> Result<(), String> {
     droid_settings_files::delete_settings_file(name)
 }
 
+/// Links a local JSON file as a settings profile by reference (never copied).
+/// The file becomes the active settings file and is passed to Droid's native
+/// `--settings` flag when launching.
+#[tauri::command]
+#[specta::specta]
+pub async fn link_droid_settings_file(path: String) -> Result<SettingsFileInfo, String> {
+    droid_settings_files::link_settings_file(&path)
+}
+
+/// Removes the registration of a linked external settings file. The file on
+/// disk is never touched.
+#[tauri::command]
+#[specta::specta]
+pub async fn unlink_droid_settings_file(path: String) -> Result<(), String> {
+    droid_settings_files::unlink_settings_file(&path)
+}
+
 /// Gets the launch command for Droid with the active settings file.
 /// Returns [command_string, settings_path].
 #[tauri::command]

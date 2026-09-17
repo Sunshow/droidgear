@@ -16,6 +16,7 @@ import {
   Play,
   KeyRound,
   ChevronDown,
+  Link2,
 } from 'lucide-react'
 import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 import { open } from '@tauri-apps/plugin-dialog'
@@ -143,7 +144,7 @@ export function DroidFeatureList() {
   const handleSwitchFile = async (file: SettingsFileInfo) => {
     if (file.isActive) return
     const result = await commands.setActiveDroidSettingsFile(
-      file.isGlobal ? null : file.name
+      file.isGlobal ? null : file.isExternal ? file.path : file.name
     )
     if (result.status === 'ok') {
       await fetchSettingsFiles()
@@ -172,10 +173,33 @@ export function DroidFeatureList() {
 
   const handleDeleteFile = async () => {
     if (!fileToDelete) return
-    const result = await commands.deleteDroidSettingsFile(fileToDelete.name)
+    const result = fileToDelete.isExternal
+      ? await commands.unlinkDroidSettingsFile(fileToDelete.path)
+      : await commands.deleteDroidSettingsFile(fileToDelete.name)
     if (result.status === 'ok') {
       setDeleteFileDialogOpen(false)
       setFileToDelete(null)
+      await fetchSettingsFiles()
+      incrementDroidRefreshKey()
+    } else {
+      toast.error(result.error)
+    }
+  }
+
+  const handleLinkFile = async () => {
+    const selected = await open({
+      multiple: false,
+      directory: false,
+      title: t('droid.settingsFile.linkSelectTitle'),
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    })
+    if (typeof selected !== 'string') return
+
+    const result = await commands.linkDroidSettingsFile(selected)
+    if (result.status === 'ok') {
+      toast.success(
+        t('droid.settingsFile.linkSuccess', { name: result.data.name })
+      )
       await fetchSettingsFiles()
       incrementDroidRefreshKey()
     } else {
@@ -281,7 +305,11 @@ export function DroidFeatureList() {
                   variant="ghost"
                   size="sm"
                   className="flex-1 justify-start text-xs h-7"
+                  title={activeFile.isExternal ? activeFile.path : undefined}
                 >
+                  {activeFile.isExternal && (
+                    <Link2 className="h-3 w-3 mr-1 shrink-0" />
+                  )}
                   <span className="truncate">
                     {activeFile.isGlobal
                       ? t('droid.settingsFile.global')
@@ -293,9 +321,13 @@ export function DroidFeatureList() {
               <DropdownMenuContent align="start" className="min-w-40">
                 {settingsFiles.map(file => (
                   <ActionDropdownMenuItem
-                    key={file.name}
+                    key={file.isExternal ? file.path : file.name}
                     onClick={() => handleSwitchFile(file)}
+                    title={file.isExternal ? file.path : undefined}
                   >
+                    {file.isExternal && (
+                      <Link2 className="h-3 w-3 mr-1 shrink-0 text-muted-foreground" />
+                    )}
                     <span className="truncate flex-1">
                       {file.isGlobal
                         ? t('droid.settingsFile.global')
@@ -325,6 +357,16 @@ export function DroidFeatureList() {
               <Plus className="h-3.5 w-3.5" />
             </ActionButton>
 
+            <ActionButton
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0"
+              onClick={handleLinkFile}
+              title={t('droid.settingsFile.link')}
+            >
+              <Link2 className="h-3.5 w-3.5" />
+            </ActionButton>
+
             {!activeFile.isGlobal && (
               <ActionButton
                 variant="ghost"
@@ -334,7 +376,11 @@ export function DroidFeatureList() {
                   setFileToDelete(activeFile)
                   setDeleteFileDialogOpen(true)
                 }}
-                title={t('droid.settingsFile.delete')}
+                title={
+                  activeFile.isExternal
+                    ? t('droid.settingsFile.unlink')
+                    : t('droid.settingsFile.delete')
+                }
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </ActionButton>
@@ -444,7 +490,7 @@ export function DroidFeatureList() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Settings File Dialog */}
+      {/* Delete / Unlink Settings File Dialog */}
       <AlertDialog
         open={deleteFileDialogOpen}
         onOpenChange={setDeleteFileDialogOpen}
@@ -452,18 +498,26 @@ export function DroidFeatureList() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t('droid.settingsFile.deleteTitle')}
+              {fileToDelete?.isExternal
+                ? t('droid.settingsFile.unlinkTitle')
+                : t('droid.settingsFile.deleteTitle')}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {t('droid.settingsFile.deleteConfirm', {
-                name: fileToDelete?.name ?? '',
-              })}
+              {fileToDelete?.isExternal
+                ? t('droid.settingsFile.unlinkConfirm', {
+                    name: fileToDelete?.path ?? '',
+                  })
+                : t('droid.settingsFile.deleteConfirm', {
+                    name: fileToDelete?.name ?? '',
+                  })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <Button variant="destructive" onClick={handleDeleteFile}>
-              {t('common.delete')}
+              {fileToDelete?.isExternal
+                ? t('droid.settingsFile.unlink')
+                : t('common.delete')}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

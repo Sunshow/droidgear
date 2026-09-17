@@ -8,7 +8,7 @@ pub(super) fn refresh_paths(app: &mut app::App) {
 }
 
 pub(super) fn refresh_droid_settings_files(app: &mut app::App) {
-    match droidgear_core::droid_settings_files::list_settings_files() {
+    match droidgear_core::droid_settings_files::list_settings_files_for_home(&app.home_dir) {
         Ok(files) => {
             app.droid_settings_files = files;
             if app.droid_settings_files_index >= app.droid_settings_files.len() {

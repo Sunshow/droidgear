@@ -611,6 +611,7 @@ pub enum InputAction {
     FactoryAuthRename {
         name: String,
     },
+    DroidSettingsLink,
     CodexAuthSaveProfile,
     CodexAuthRename {
         name: String,
