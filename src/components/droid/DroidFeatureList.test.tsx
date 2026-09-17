@@ -205,7 +205,10 @@ describe('DroidFeatureList', () => {
     })
     vi.mocked(commands.getDroidLaunchCommand).mockResolvedValue({
       status: 'ok',
-      data: ['droid --settings "/tmp/runtime/droid/temporary-run.json"', ''],
+      data: [
+        'droid --settings "/home/user/.droidgear/droid-settings/my-profile.json"',
+        '',
+      ],
     })
 
     render(<DroidFeatureList />)
@@ -218,11 +221,11 @@ describe('DroidFeatureList', () => {
     await waitFor(() => {
       expect(commands.getDroidLaunchCommand).toHaveBeenCalledTimes(1)
       expect(writeTextMock).toHaveBeenCalledWith(
-        'droid --settings "/tmp/runtime/droid/temporary-run.json"'
+        'droid --settings "/home/user/.droidgear/droid-settings/my-profile.json"'
       )
     })
     expect(toastMock.info).toHaveBeenCalledWith(
-      'Command copied to clipboard: droid --settings "/tmp/runtime/droid/temporary-run.json"'
+      'Command copied to clipboard: droid --settings "/home/user/.droidgear/droid-settings/my-profile.json"'
     )
     expect(toastMock.error).not.toHaveBeenCalled()
   })

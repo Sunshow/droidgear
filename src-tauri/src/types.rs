@@ -48,7 +48,7 @@ pub struct AppPreferences {
     /// If None, defaults to platform-appropriate default
     #[serde(default)]
     pub preferred_terminal: Option<String>,
-    /// Droid temporary-run runtime policy.
+    /// Droid launch runtime policy (env hygiene for launched droid sessions).
     #[serde(default)]
     pub droid_run: Option<DroidRunPreferences>,
 }

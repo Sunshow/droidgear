@@ -56,7 +56,7 @@ fn droid_settings_dir() -> Result<PathBuf, String> {
     Ok(droidgear_dir()?.join(DROID_SETTINGS_DIR))
 }
 
-fn global_settings_path_for_home(home_dir: &Path) -> PathBuf {
+pub fn global_settings_path_for_home(home_dir: &Path) -> PathBuf {
     home_dir.join(".factory").join("settings.json")
 }
 

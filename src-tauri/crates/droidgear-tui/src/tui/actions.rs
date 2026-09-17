@@ -33,12 +33,12 @@ pub(super) fn run_action(app: &mut app::App, action: Action) -> anyhow::Result<(
             Ok(())
         }
         Action::PreviewDroidRun { settings_path } => {
-            let preview = preview_droid_temporary_run(&app.home_dir, Path::new(&settings_path))?;
+            let preview = preview_droid_run(&app.home_dir, Path::new(&settings_path))?;
             open_text_in_pager(&preview)?;
             Ok(())
         }
         Action::RunDroidRun { settings_path } => {
-            run_droid_temporary_run(&app.home_dir, Path::new(&settings_path))?;
+            run_droid_run(&app.home_dir, Path::new(&settings_path))?;
             app.should_quit = true;
             Ok(())
         }

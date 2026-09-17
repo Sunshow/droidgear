@@ -48,11 +48,11 @@ mod tests;
 
 pub use utils::list_claude_temporary_run_targets;
 pub use utils::list_codex_temporary_run_targets;
-pub use utils::list_droid_temporary_run_targets;
+pub use utils::list_droid_run_targets;
 pub use utils::preview_claude_temporary_run_from_file;
 pub use utils::run_claude_temporary_run_from_file;
 pub use utils::run_codex_temporary_run_for_selector;
-pub use utils::run_droid_temporary_run_for_settings_name;
+pub use utils::run_droid_run_for_settings_name;
 
 use actions::{read_to_string_if_exists, run_action};
 use keys_channels::{handle_channels_edit_key, handle_channels_key};
@@ -88,9 +88,9 @@ use modal::handle_modal_key;
 use refresh::*;
 use utils::{
     apply_factory_reasoning, factory_model_id, factory_reasoning_effort, factory_reasoning_format,
-    insert_char_at, preview_codex_apply, preview_codex_temporary_run, preview_droid_temporary_run,
+    insert_char_at, preview_codex_apply, preview_codex_temporary_run, preview_droid_run,
     preview_openclaw_apply, preview_opencode_apply, remove_char_at, run_codex_temporary_run,
-    run_droid_temporary_run,
+    run_droid_run,
 };
 
 type UiTerminal = Terminal<CrosstermBackend<io::Stdout>>;

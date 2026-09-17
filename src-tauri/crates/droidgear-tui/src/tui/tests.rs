@@ -1,7 +1,7 @@
 use super::*;
 use crate::tui::utils::{
     format_claude_temporary_run_preview, load_droid_run_preferences_from_path,
-    preview_codex_temporary_run, preview_droid_temporary_run,
+    preview_codex_temporary_run, preview_droid_run,
 };
 use crossterm::event::KeyCode;
 use std::collections::HashMap;
@@ -813,7 +813,7 @@ fn load_droid_run_preferences_from_path_reads_nested_policy() {
 }
 
 #[test]
-fn preview_droid_temporary_run_uses_selected_settings_path_without_dumping_contents() {
+fn preview_droid_run_uses_selected_settings_path_without_dumping_contents() {
     let temp = TempDir::new().unwrap();
     let settings_path = temp.path().join(".droidgear/droid-settings/profile-a.json");
     write_file(
@@ -821,9 +821,9 @@ fn preview_droid_temporary_run_uses_selected_settings_path_without_dumping_conte
         r#"{"apiKey":"sk-droid-secret","model":"demo"}"#,
     );
 
-    let preview = preview_droid_temporary_run(temp.path(), &settings_path).unwrap();
+    let preview = preview_droid_run(temp.path(), &settings_path).unwrap();
 
-    assert!(preview.contains("Droid temporary run preview"));
+    assert!(preview.contains("Droid run preview"));
     assert!(preview.contains(settings_path.to_string_lossy().as_ref()));
     assert!(preview.contains("FACTORY_DROID_AUTO_UPDATE_ENABLED=0"));
     assert!(preview.contains("ANTHROPIC_AUTH_TOKEN"));
@@ -831,7 +831,7 @@ fn preview_droid_temporary_run_uses_selected_settings_path_without_dumping_conte
 }
 
 #[test]
-fn list_droid_temporary_run_targets_lists_global_and_custom_names() {
+fn list_droid_run_targets_lists_global_and_custom_names() {
     let temp = TempDir::new().unwrap();
     write_file(&temp.path().join(".factory/settings.json"), "{}");
     write_file(
@@ -844,7 +844,7 @@ fn list_droid_temporary_run_targets_lists_global_and_custom_names() {
     )
     .unwrap();
 
-    let output = list_droid_temporary_run_targets(temp.path()).unwrap();
+    let output = list_droid_run_targets(temp.path()).unwrap();
 
     assert!(output.contains("Available Droid run targets:"));
     assert!(output.contains(" global"));

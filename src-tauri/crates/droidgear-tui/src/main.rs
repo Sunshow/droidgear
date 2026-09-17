@@ -123,13 +123,13 @@ fn main() -> anyhow::Result<()> {
                     if settings_name.is_some() {
                         bail!("`--list` cannot be combined with a Droid target");
                     }
-                    println!("{}", tui::list_droid_temporary_run_targets(&home_dir)?);
+                    println!("{}", tui::list_droid_run_targets(&home_dir)?);
                     Ok(())
                 } else {
                     let settings_name = settings_name.context(
                         "Missing Droid target. Use `droidgear-tui run droid --list` to inspect available settings names.",
                     )?;
-                    tui::run_droid_temporary_run_for_settings_name(&home_dir, &settings_name)
+                    tui::run_droid_run_for_settings_name(&home_dir, &settings_name)
                 }
             }
         },

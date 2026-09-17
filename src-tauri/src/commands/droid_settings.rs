@@ -71,10 +71,7 @@ pub async fn launch_droid(app: tauri::AppHandle, cwd: Option<String>) -> Result<
     let droid_run = prefs.droid_run.unwrap_or_default();
 
     let home_dir = dirs::home_dir().ok_or_else(|| "Failed to get home directory".to_string())?;
-    if let Err(error) = droid_runtime::cleanup_stale_temp_settings_for_home(&home_dir) {
-        log::warn!("Failed to clean up stale Droid temporary settings files: {error}");
-    }
-    let plan = droid_runtime::build_temporary_run_plan_for_home(&home_dir, &droid_run)?;
+    let plan = droid_runtime::build_run_plan_for_home(&home_dir, &droid_run)?;
     let mut spec = build_droid_launch_spec(&plan);
     spec.cwd = cwd.map(std::path::PathBuf::from);
 
@@ -109,7 +106,7 @@ pub async fn remove_droid_trusted_folders(paths: Vec<String>) -> Result<(), Stri
     droidgear_core::trusted_folders::remove_trusted_folders(paths)
 }
 
-fn build_droid_launch_spec(plan: &droid_runtime::DroidTemporaryRunPlan) -> LaunchSpec {
+fn build_droid_launch_spec(plan: &droid_runtime::DroidRunPlan) -> LaunchSpec {
     LaunchSpec {
         program: plan.program.clone(),
         args: plan.args.clone(),
@@ -126,23 +123,25 @@ fn build_droid_launch_spec(plan: &droid_runtime::DroidTemporaryRunPlan) -> Launc
 mod tests {
     use super::build_droid_launch_spec;
     use crate::utils::preferences::load_preferences_from_path;
-    use droidgear_core::droid_runtime::{DroidRunPreferences, DroidTemporaryRunPlan};
+    use droidgear_core::droid_runtime::{DroidRunPlan, DroidRunPreferences};
     use std::path::PathBuf;
 
     #[test]
-    fn build_droid_launch_spec_preserves_temp_run_args_and_env() {
-        let spec = build_droid_launch_spec(&DroidTemporaryRunPlan {
+    fn build_droid_launch_spec_preserves_run_args_and_env() {
+        let spec = build_droid_launch_spec(&DroidRunPlan {
             program: "droid".to_string(),
             args: vec![
                 "--settings".to_string(),
-                "/tmp/runtime/droid/temporary-run.json".to_string(),
+                "/home/user/.droidgear/droid-settings/profile-a.json".to_string(),
             ],
             env: vec![(
                 "FACTORY_DROID_AUTO_UPDATE_ENABLED".to_string(),
                 "0".to_string(),
             )],
             unset_env: vec!["ANTHROPIC_AUTH_TOKEN".to_string()],
-            temp_settings_path: PathBuf::from("/tmp/runtime/droid/temporary-run.json"),
+            settings_path: Some(PathBuf::from(
+                "/home/user/.droidgear/droid-settings/profile-a.json",
+            )),
         });
 
         assert_eq!(spec.program, "droid");
@@ -150,7 +149,7 @@ mod tests {
             spec.args,
             vec![
                 "--settings".to_string(),
-                "/tmp/runtime/droid/temporary-run.json".to_string()
+                "/home/user/.droidgear/droid-settings/profile-a.json".to_string()
             ]
         );
         assert_eq!(

@@ -201,14 +201,12 @@ pub(super) fn format_diff_report(
     out
 }
 
-pub(super) fn build_droid_temporary_run_plan(
+pub(super) fn build_droid_run_plan(
     home_dir: &Path,
     settings_path: &Path,
-) -> anyhow::Result<droidgear_core::droid_runtime::DroidTemporaryRunPlan> {
+) -> anyhow::Result<droidgear_core::droid_runtime::DroidRunPlan> {
     let prefs = load_droid_run_preferences()?;
-    droidgear_core::droid_runtime::cleanup_stale_temp_settings_for_home(home_dir)
-        .map_err(anyhow::Error::msg)?;
-    droidgear_core::droid_runtime::build_temporary_run_plan_from_settings_path_for_home(
+    droidgear_core::droid_runtime::build_run_plan_from_settings_path_for_home(
         home_dir,
         settings_path,
         &prefs,
@@ -217,22 +215,18 @@ pub(super) fn build_droid_temporary_run_plan(
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
-pub(super) fn preview_droid_temporary_run(
-    home_dir: &Path,
-    settings_path: &Path,
-) -> anyhow::Result<String> {
-    let plan = build_droid_temporary_run_plan(home_dir, settings_path)?;
+pub(super) fn preview_droid_run(home_dir: &Path, settings_path: &Path) -> anyhow::Result<String> {
+    let plan = build_droid_run_plan(home_dir, settings_path)?;
 
     let mut out = String::new();
-    out.push_str("Droid temporary run preview\n\n");
+    out.push_str("Droid run preview\n\n");
     out.push_str(&format!(
         "Source settings path:\n  {}\n\n",
         settings_path.display()
     ));
-    out.push_str(&format!(
-        "Temporary settings path:\n  {}\n\n",
-        plan.temp_settings_path.display()
-    ));
+    if plan.settings_path.is_none() {
+        out.push_str("Global settings file — launched as plain `droid` (no --settings flag).\n\n");
+    }
     out.push_str("Program:\n");
     out.push_str(&format!("  {}\n\n", plan.program));
     out.push_str("Args:\n");
@@ -247,8 +241,8 @@ pub(super) fn preview_droid_temporary_run(
     Ok(out)
 }
 
-pub(super) fn run_droid_temporary_run(home_dir: &Path, settings_path: &Path) -> anyhow::Result<()> {
-    let plan = build_droid_temporary_run_plan(home_dir, settings_path)?;
+pub(super) fn run_droid_run(home_dir: &Path, settings_path: &Path) -> anyhow::Result<()> {
+    let plan = build_droid_run_plan(home_dir, settings_path)?;
     start_command_in_foreground(
         &plan.program,
         &plan.args,
@@ -259,20 +253,17 @@ pub(super) fn run_droid_temporary_run(home_dir: &Path, settings_path: &Path) -> 
     )
 }
 
-pub fn run_droid_temporary_run_for_settings_name(
-    home_dir: &Path,
-    settings_name: &str,
-) -> anyhow::Result<()> {
+pub fn run_droid_run_for_settings_name(home_dir: &Path, settings_name: &str) -> anyhow::Result<()> {
     sanitize_terminal_for_direct_exec()?;
     let settings_path = droidgear_core::droid_settings_files::get_settings_path_by_name_for_home(
         home_dir,
         settings_name,
     )
     .map_err(anyhow::Error::msg)?;
-    run_droid_temporary_run(home_dir, &settings_path)
+    run_droid_run(home_dir, &settings_path)
 }
 
-pub fn list_droid_temporary_run_targets(home_dir: &Path) -> anyhow::Result<String> {
+pub fn list_droid_run_targets(home_dir: &Path) -> anyhow::Result<String> {
     let files = droidgear_core::droid_settings_files::list_settings_files_for_home(home_dir)
         .map_err(anyhow::Error::msg)?;
 

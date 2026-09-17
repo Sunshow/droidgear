@@ -705,7 +705,7 @@ fn claude_temporary_run_plan_writes_overlay_tombstones_without_mutating_live_set
 }
 
 #[test]
-fn droid_temporary_run_plan_uses_active_settings_file_without_mutating_it() {
+fn droid_run_plan_uses_active_settings_file_directly_without_mutating_it() {
     let temp = TempDir::new().unwrap();
     let home = home_dir(&temp);
 
@@ -719,7 +719,7 @@ fn droid_temporary_run_plan_uses_active_settings_file_without_mutating_it() {
         .unwrap();
 
     let before_settings = read_to_string(&settings_path);
-    let plan = droid_runtime::build_temporary_run_plan_for_home(
+    let plan = droid_runtime::build_run_plan_for_home(
         home,
         &droid_runtime::DroidRunPreferences::default(),
     )
@@ -727,7 +727,8 @@ fn droid_temporary_run_plan_uses_active_settings_file_without_mutating_it() {
 
     assert_eq!(plan.program, "droid");
     assert_eq!(plan.args[0], "--settings");
-    assert_eq!(plan.args[1], plan.temp_settings_path.to_string_lossy());
+    assert_eq!(plan.args[1], settings_path.to_string_lossy());
+    assert_eq!(plan.settings_path, Some(settings_path.clone()));
     assert_eq!(
         plan.env,
         vec![(
@@ -736,7 +737,9 @@ fn droid_temporary_run_plan_uses_active_settings_file_without_mutating_it() {
         )]
     );
     assert_eq!(plan.unset_env, vec!["ANTHROPIC_AUTH_TOKEN".to_string()]);
-    assert_eq!(read_to_string(&plan.temp_settings_path), before_settings);
+    // The profile file is passed through directly: no temp snapshot is
+    // created and the file contents stay untouched.
+    assert!(!home.join(".droidgear/runtime").exists());
     assert_eq!(read_to_string(&settings_path), before_settings);
 }
 

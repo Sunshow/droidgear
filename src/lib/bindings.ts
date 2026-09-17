@@ -2633,7 +2633,7 @@ disable_auto_update?: boolean | null;
  */
 preferred_terminal?: string | null; 
 /**
- * Droid temporary-run runtime policy.
+ * Droid launch runtime policy (env hygiene for launched droid sessions).
  */
 droid_run?: DroidRunPreferences | null }
 export type AuthProfile = { name: string; label: string; createdAt: string }
