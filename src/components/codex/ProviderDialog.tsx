@@ -33,6 +33,7 @@ import { inferModelProtocol } from '@/lib/model-protocol'
 import {
   ensureOpenAICompatibleV1,
   isMultiProtocolPlatform,
+  needsOpenAICompatibleV1,
 } from '@/lib/sub2api-platform'
 import { trimToNull } from '@/lib/utils'
 import {
@@ -249,9 +250,13 @@ function ProviderForm({
 
       setProviderId(sanitizedId)
       setName(context.channelName)
-      // 通用兼容模式走 OpenAI 兼容端点，Base URL 必须带 /v1
+      // 通用兼容模式与 sub2api 渠道的 chat/completions 端点都必须带 /v1
       setBaseUrl(
-        context.provider === 'generic-chat-completion-api'
+        needsOpenAICompatibleV1(
+          context.channelType,
+          context.provider,
+          inferredWireApi === 'chat'
+        )
           ? ensureOpenAICompatibleV1(context.baseUrl)
           : context.baseUrl
       )

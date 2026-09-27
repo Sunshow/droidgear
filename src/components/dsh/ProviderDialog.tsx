@@ -26,7 +26,10 @@ import { useDshStore } from '@/store/dsh-store'
 import { commands, type DshModel, type DshProviderConfig } from '@/lib/bindings'
 import { findModelByIdOrAlias, getSupportedEfforts } from '@/lib/model-registry'
 import { providerToClientApiType } from '@/lib/model-protocol'
-import { ensureOpenAICompatibleV1 } from '@/lib/sub2api-platform'
+import {
+  ensureOpenAICompatibleV1,
+  needsOpenAICompatibleV1,
+} from '@/lib/sub2api-platform'
 import { ChannelModelPickerDialog } from '@/components/channels/ChannelModelPickerDialog'
 import type { ChannelProviderContext } from '@/components/channels'
 import type { CustomModel } from '@/lib/bindings'
@@ -301,22 +304,25 @@ export function ProviderDialog({
     context: ChannelProviderContext
   ) => {
     const sanitizedId = sanitizeProviderId(context.channelName)
+    const apiType = context.provider
+      ? providerToClientApiType(context.provider)
+      : inferApiType(context.baseUrl, context.platform)
     setProviderId(sanitizedId)
     setDisplayName(context.channelName)
-    // 通用兼容模式走 OpenAI 兼容端点，Base URL 必须带 /v1
+    // 通用兼容模式，以及 sub2api 渠道的 openai-completions 端点，都必须带 /v1
     setBaseUrl(
-      context.provider === 'generic-chat-completion-api'
+      needsOpenAICompatibleV1(
+        context.channelType,
+        context.provider,
+        apiType === 'openai-completions'
+      )
         ? ensureOpenAICompatibleV1(context.baseUrl)
         : context.baseUrl
     )
     const envName = envNameForProviderId(sanitizedId)
     setApiKeyEnv(envName)
     setApiKeyValue(context.apiKey)
-    setApi(
-      context.provider
-        ? providerToClientApiType(context.provider)
-        : inferApiType(context.baseUrl, context.platform)
-    )
+    setApi(apiType)
     setModels(
       selectedModels.map(model => ({
         id: model.model,

@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { ensureOpenAICompatibleV1 } from '@/lib/sub2api-platform'
 import { useOpenClawStore } from '@/store/openclaw-store'
 import {
   commands,
@@ -188,15 +189,11 @@ function ProviderForm({
           : 'openai-completions'
     setApi(resolvedApi)
 
-    // Auto-append /v1 for openai-completions if not already present
-    let importedBaseUrl = context.baseUrl
-    if (
-      resolvedApi === 'openai-completions' &&
-      importedBaseUrl.trim() &&
-      !/\/v\d/.test(importedBaseUrl.trim())
-    ) {
-      importedBaseUrl = importedBaseUrl.trim().replace(/\/+$/, '') + '/v1'
-    }
+    // openai-completions 走 OpenAI 兼容端点，Base URL 必须带 /v1
+    const importedBaseUrl =
+      resolvedApi === 'openai-completions'
+        ? ensureOpenAICompatibleV1(context.baseUrl)
+        : context.baseUrl
     setBaseUrl(importedBaseUrl)
 
     // Import models

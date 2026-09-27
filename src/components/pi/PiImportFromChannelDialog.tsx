@@ -31,12 +31,17 @@ import {
 } from '@/components/ui/table'
 import { useChannelStore } from '@/store/channel-store'
 import { isApiKeyAuthChannel } from '@/lib/channel-utils'
-import { normalizeBaseUrl } from '@/lib/sub2api-platform'
+import {
+  ensureOpenAICompatibleV1,
+  needsOpenAICompatibleV1,
+  normalizeBaseUrl,
+} from '@/lib/sub2api-platform'
 import { enrichPiModelFromRegistry } from '@/lib/pi-model-metadata'
 import {
   commands,
   type Channel,
   type ChannelToken,
+  type ChannelType,
   type ModelInfo,
   type PiModel,
 } from '@/lib/bindings'
@@ -158,9 +163,22 @@ export function PiImportFromChannelDialog({
   }, [selectedChannelId, selectedChannel, keysMap, fetchKeys])
 
   const normalizeBaseUrlForPi = (
+    channelType: ChannelType,
     url: string,
     platform: string | null | undefined
   ): string => {
+    // sub2api 渠道走 chat/completions 时必须带 /v1
+    // （antigravity 有独立的路径规则，不在此列）
+    if (
+      platform !== 'antigravity' &&
+      needsOpenAICompatibleV1(
+        channelType,
+        undefined,
+        inferPiApiType(platform) === 'openai-completions'
+      )
+    ) {
+      return ensureOpenAICompatibleV1(url)
+    }
     // Only append /v1 for OpenAI-compatible platforms
     if (!platform || platform === 'openai') return normalizeBaseUrl(url, '/v1')
     // Anthropic, Gemini, etc. use their own base URL as-is
@@ -199,7 +217,13 @@ export function PiImportFromChannelDialog({
           return
         }
         setResolvedApiKey(result.data)
-        setResolvedBaseUrl(normalizeBaseUrlForPi(selectedChannel.baseUrl, null))
+        setResolvedBaseUrl(
+          normalizeBaseUrlForPi(
+            selectedChannel.type,
+            selectedChannel.baseUrl,
+            null
+          )
+        )
         setResolvedPlatform(null)
         setProviderId(computeDefaultProviderId(selectedChannel))
         setIsResolvingKey(false)
@@ -220,7 +244,9 @@ export function PiImportFromChannelDialog({
     const rawBaseUrl = selectedChannel.baseUrl
 
     setResolvedApiKey(apiKey)
-    setResolvedBaseUrl(normalizeBaseUrlForPi(rawBaseUrl, token.platform))
+    setResolvedBaseUrl(
+      normalizeBaseUrlForPi(selectedChannel.type, rawBaseUrl, token.platform)
+    )
     setResolvedPlatform(token.platform ?? null)
     setProviderId(computeDefaultProviderId(selectedChannel, token.name))
 

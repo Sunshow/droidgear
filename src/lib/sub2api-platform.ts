@@ -1,4 +1,4 @@
-import type { Provider } from '@/lib/bindings'
+import type { ChannelType, Provider } from '@/lib/bindings'
 
 export interface ProviderConfig {
   provider: Provider
@@ -102,12 +102,9 @@ export const getBaseUrlForSub2Api = (
       return normalizeBaseUrl(baseUrl, '/antigravity/v1beta')
     }
   }
-  // 多协议平台（如 sub2api 的 deepseek）：OpenAI（Responses）与 Anthropic
-  // 共用裸 Base URL；通用兼容模式走 OpenAI 兼容端点，必须带 /v1 后缀
-  if (
-    isMultiProtocolPlatform(platform) &&
-    provider === 'generic-chat-completion-api'
-  ) {
+  // OpenAI（Responses）与 Anthropic 共用裸 Base URL；通用兼容模式走
+  // OpenAI Chat Completions 端点，无论平台是否多协议都必须带 /v1 后缀
+  if (provider === 'generic-chat-completion-api') {
     return normalizeBaseUrl(baseUrl, '/v1')
   }
   return baseUrl
@@ -127,6 +124,26 @@ export const ensureOpenAICompatibleV1 = (baseUrl: string): string => {
   const trimmed = baseUrl.trim()
   if (!trimmed || /\/v\d/.test(trimmed)) return trimmed
   return `${trimmed.replace(/\/+$/, '')}/v1`
+}
+
+/**
+ * 渠道导入客户端后，Base URL 是否必须补 `/v1`（OpenAI 兼容端点）。
+ *
+ * - 通用兼容模式（`generic-chat-completion-api`）始终走 OpenAI 兼容端点
+ * - sub2api 渠道走 OpenAI Chat Completions（`/chat/completions`）时，
+ *   其兼容端点在 `/v1` 下，同样需要补后缀
+ *
+ * @param channelType 来源渠道类型
+ * @param provider 渠道模型映射的协议（仅多协议平台有值）
+ * @param usesChatCompletions 目标客户端协议是否为 OpenAI Chat Completions
+ */
+export const needsOpenAICompatibleV1 = (
+  channelType: ChannelType | null | undefined,
+  provider: Provider | undefined,
+  usesChatCompletions: boolean
+): boolean => {
+  if (provider === 'generic-chat-completion-api') return true
+  return channelType === 'sub-2-api' && usesChatCompletions
 }
 
 export const getProviderConfigFromPlatform = (

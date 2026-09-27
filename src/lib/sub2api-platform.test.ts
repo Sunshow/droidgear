@@ -9,6 +9,7 @@ import {
   MULTI_PROTOCOL_PROVIDERS,
   DEFAULT_MULTI_PROTOCOL_PROVIDER,
   ensureOpenAICompatibleV1,
+  needsOpenAICompatibleV1,
 } from './sub2api-platform'
 
 describe('sub2api platform mapping', () => {
@@ -221,13 +222,21 @@ describe('getBaseUrlForSub2Api', () => {
     )
   })
 
-  it('preserves url for generic provider', () => {
+  it('appends /v1 for generic provider on every platform', () => {
+    // 通用兼容模式走 OpenAI Chat Completions 端点，必须带 /v1
     expect(
       getBaseUrlForSub2Api(
         'generic-chat-completion-api',
         'https://api.example.com'
       )
-    ).toBe('https://api.example.com')
+    ).toBe('https://api.example.com/v1')
+    expect(
+      getBaseUrlForSub2Api(
+        'generic-chat-completion-api',
+        'https://api.example.com',
+        'openai'
+      )
+    ).toBe('https://api.example.com/v1')
   })
 
   it('handles antigravity platform for anthropic provider', () => {
@@ -282,14 +291,14 @@ describe('getBaseUrlForSub2Api', () => {
         'deepseek'
       )
     ).toBe('https://api.example.com/v1')
-    // 其他平台不受影响
+    // 非多协议平台同样补 /v1（协议决定，而不是平台）
     expect(
       getBaseUrlForSub2Api(
         'generic-chat-completion-api',
         'https://api.example.com',
         'openai'
       )
-    ).toBe('https://api.example.com')
+    ).toBe('https://api.example.com/v1')
   })
 })
 
@@ -353,5 +362,34 @@ describe('ensureOpenAICompatibleV1', () => {
     )
     expect(ensureOpenAICompatibleV1('')).toBe('')
     expect(ensureOpenAICompatibleV1('   ')).toBe('')
+  })
+})
+
+describe('needsOpenAICompatibleV1', () => {
+  it('requires /v1 for the generic compatible mode on any channel type', () => {
+    expect(
+      needsOpenAICompatibleV1('new-api', 'generic-chat-completion-api', true)
+    ).toBe(true)
+    expect(
+      needsOpenAICompatibleV1('sub-2-api', 'generic-chat-completion-api', true)
+    ).toBe(true)
+    expect(
+      needsOpenAICompatibleV1(null, 'generic-chat-completion-api', true)
+    ).toBe(true)
+  })
+
+  it('requires /v1 for sub2api channels on chat completions', () => {
+    // 非多协议平台的 sub2api 渠道不携带 provider，协议由平台推断
+    expect(needsOpenAICompatibleV1('sub-2-api', undefined, true)).toBe(true)
+  })
+
+  it('leaves other protocols and channel types untouched', () => {
+    expect(needsOpenAICompatibleV1('sub-2-api', undefined, false)).toBe(false)
+    expect(needsOpenAICompatibleV1('new-api', undefined, true)).toBe(false)
+    expect(needsOpenAICompatibleV1('cli-proxy-api', undefined, true)).toBe(
+      false
+    )
+    expect(needsOpenAICompatibleV1('general', undefined, true)).toBe(false)
+    expect(needsOpenAICompatibleV1(null, undefined, true)).toBe(false)
   })
 })
