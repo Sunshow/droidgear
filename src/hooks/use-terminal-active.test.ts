@@ -14,7 +14,7 @@ describe('useTerminalActive', () => {
     useUIStore.getState().setHermesSubView('model')
     useUIStore.getState().setPiSubView('providers')
     useUIStore.getState().setOmpSubView('config')
-    useUIStore.getState().setDshSubView('providers')
+    useUIStore.getState().setDshSubView('desktop')
   })
 
   it('is false on a regular Droid sub-view', () => {

@@ -18,13 +18,21 @@ import { ConfigStatus } from './ConfigStatus'
 import { ProviderCard } from './ProviderCard'
 import { ProviderDialog } from './ProviderDialog'
 
-export function DshConfigPage() {
+/** Official DSH runtime profile managed by this page. */
+export type DshPageProfile = 'desktop' | 'web'
+
+interface DshConfigPageProps {
+  profile: DshPageProfile
+}
+
+export function DshConfigPage({ profile }: DshConfigPageProps) {
   const { t } = useTranslation()
   const providers = useDshStore(state => state.providers)
   const isLoading = useDshStore(state => state.isLoading)
   const error = useDshStore(state => state.error)
   const configStatus = useDshStore(state => state.configStatus)
 
+  const setProfile = useDshStore(state => state.setProfile)
   const loadProviders = useDshStore(state => state.loadProviders)
   const loadCredentials = useDshStore(state => state.loadCredentials)
   const loadConfigStatus = useDshStore(state => state.loadConfigStatus)
@@ -38,10 +46,22 @@ export function DshConfigPage() {
   const [deleteProviderId, setDeleteProviderId] = useState<string | null>(null)
 
   useEffect(() => {
+    setProfile(profile)
     loadProviders()
     loadCredentials()
     loadConfigStatus()
-  }, [loadProviders, loadCredentials, loadConfigStatus])
+  }, [profile, setProfile, loadProviders, loadCredentials, loadConfigStatus])
+
+  const refresh = () => {
+    setProfile(profile)
+    loadProviders()
+    loadCredentials()
+    loadConfigStatus()
+  }
+
+  const title = t(
+    profile === 'desktop' ? 'dsh.profile.desktop' : 'dsh.profile.web'
+  )
 
   const handleAddProvider = () => {
     setEditingProviderId(null)
@@ -68,17 +88,22 @@ export function DshConfigPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-2 p-4 border-b">
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-semibold">{t('dsh.title')}</h1>
+          <h1 className="text-xl font-semibold">{title}</h1>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Button
             variant="outline"
+            size="sm"
+            onClick={handleAddProvider}
+            disabled={isLoading}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {t('dsh.provider.add')}
+          </Button>
+          <Button
+            variant="outline"
             size="icon"
-            onClick={() => {
-              loadProviders()
-              loadCredentials()
-              loadConfigStatus()
-            }}
+            onClick={refresh}
             disabled={isLoading}
             title={t('common.refresh')}
           >
@@ -105,39 +130,23 @@ export function DshConfigPage() {
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto p-4 space-y-4">
-        {/* Providers Section */}
-        <div className="space-y-3 p-4 border rounded-lg">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-medium">{t('dsh.providers.title')}</h2>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAddProvider}
-              disabled={isLoading}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {t('dsh.provider.add')}
-            </Button>
+        {providerEntries.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            {t('dsh.provider.noProviders')}
           </div>
-
-          {providerEntries.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              {t('dsh.provider.noProviders')}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {providerEntries.map(([providerId, config]) => (
-                <ProviderCard
-                  key={providerId}
-                  providerId={providerId}
-                  config={config ?? undefined}
-                  onEdit={() => handleEditProvider(providerId)}
-                  onDelete={() => setDeleteProviderId(providerId)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        ) : (
+          <div className="space-y-2">
+            {providerEntries.map(([providerId, config]) => (
+              <ProviderCard
+                key={providerId}
+                providerId={providerId}
+                config={config ?? undefined}
+                onEdit={() => handleEditProvider(providerId)}
+                onDelete={() => setDeleteProviderId(providerId)}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Config Status */}
         <ConfigStatus status={configStatus} />

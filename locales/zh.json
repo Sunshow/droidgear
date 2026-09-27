@@ -1464,13 +1464,11 @@
   "omp.liveConfig.providers": "提供商",
   "omp.liveConfig.models": "个模型",
 
-  "dsh.title": "Dsh 配置",
-
-  "dsh.features.providers": "提供商",
+  "dsh.features.desktop": "桌面",
+  "dsh.features.web": "Web",
   "dsh.features.terminal": "终端",
   "dsh.features.hint": "管理 DeepSeek Harness LLM 提供商 (settings.yaml)。",
 
-  "dsh.providers.title": "提供商",
   "dsh.providers.modelsCount": "{{count}} 个模型",
 
   "dsh.provider.add": "添加提供商",
@@ -1518,8 +1516,12 @@
   "dsh.provider.modelIdConflict": "模型 ID 重复",
 
   "dsh.configStatus.title": "配置状态",
-  "dsh.configStatus.settings": "settings.yaml",
+  "dsh.configStatus.settings": "配置文件",
   "dsh.configStatus.credentials": ".credentials.yaml",
+  "dsh.configStatus.legacy": "旧版配置",
+  "dsh.configStatus.legacyHint": "旧版 settings.yaml 将在新版 DSH 启动时被一次性导入到激活的 profile（并被改名为 settings.yaml.imported）；导入前其 providers 仍参与合并读取。",
+  "dsh.profile.desktop": "桌面",
+  "dsh.profile.web": "Web",
 
   "connectivity.title": "连接性",
   "connectivity.summary": "概览",

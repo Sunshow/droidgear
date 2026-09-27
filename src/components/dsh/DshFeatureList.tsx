@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { CircuitBoard, TerminalSquare } from 'lucide-react'
+import { Globe, Monitor, TerminalSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ActionButton } from '@/components/ui/action-button'
 import { useUIStore, type DshSubView } from '@/store/ui-store'
@@ -10,8 +10,10 @@ interface FeatureItem {
   icon: React.ElementType
 }
 
+/** Official DSH runtime profiles, each with its own page (no switching). */
 const features: FeatureItem[] = [
-  { id: 'providers', labelKey: 'dsh.features.providers', icon: CircuitBoard },
+  { id: 'desktop', labelKey: 'dsh.features.desktop', icon: Monitor },
+  { id: 'web', labelKey: 'dsh.features.web', icon: Globe },
   {
     id: 'terminal',
     labelKey: 'dsh.features.terminal',

@@ -632,15 +632,18 @@ fn omp_screen_variants_exist() {
 
 #[test]
 fn dsh_screen_variants_exist() {
-    let _dsh = app::Screen::Dsh;
+    let _dsh_desktop = app::Screen::DshDesktop;
+    let _dsh_web = app::Screen::DshWeb;
     let _dsh_provider = app::Screen::DshProvider;
     let _dsh_model = app::Screen::DshModel;
 }
 
 #[test]
 fn dsh_is_in_dsh_nav_group() {
-    let group = app::App::group_of_screen(app::Screen::Dsh).expect("Dsh should be a nav item");
-    assert_eq!(app::App::nav_groups()[group].label, "Dsh");
+    for screen in [app::Screen::DshDesktop, app::Screen::DshWeb] {
+        let group = app::App::group_of_screen(screen).expect("Dsh screens should be nav items");
+        assert_eq!(app::App::nav_groups()[group].label, "Dsh");
+    }
 }
 
 #[test]
@@ -1145,7 +1148,8 @@ fn nav_groups_cover_all_screens_exactly_once() {
         app::Screen::CodexAuth,
         app::Screen::OpenClawSubagents,
         app::Screen::OpenClawHelpers,
-        app::Screen::Dsh,
+        app::Screen::DshDesktop,
+        app::Screen::DshWeb,
     ];
     for screen in screens {
         let group = app::App::group_of_screen(screen)

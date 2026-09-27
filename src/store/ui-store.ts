@@ -44,7 +44,7 @@ export type ClaudeSubView = 'settings' | 'terminal'
 export type HermesSubView = 'model' | 'terminal'
 export type PiSubView = 'providers' | 'sessions' | 'terminal'
 export type OmpSubView = 'config' | 'terminal'
-export type DshSubView = 'providers' | 'terminal'
+export type DshSubView = 'desktop' | 'web' | 'terminal'
 export type ChannelsSubView = 'detail' | 'export-templates'
 
 export interface PendingUpdate {
@@ -124,7 +124,7 @@ export const useUIStore = create<UIState>()(
         hermesSubView: 'model',
         piSubView: 'providers',
         ompSubView: 'config',
-        dshSubView: 'providers',
+        dshSubView: 'desktop',
         channelsSubView: 'detail',
         lastSpecExportPath: null,
         pendingUpdate: null,

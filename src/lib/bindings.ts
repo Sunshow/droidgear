@@ -1920,44 +1920,62 @@ async saveOpenclawSubagents(subagents: OpenClawSubAgent[]) : Promise<Result<null
 }
 },
 /**
- * Read the current Dsh providers from `~/.dsh/settings.yaml`.
+ * List the Dsh profiles under `~/.dsh/profiles/`.
  */
-async readDshCurrentConfig() : Promise<Result<DshCurrentConfig, string>> {
+async listDshProfiles() : Promise<Result<DshProfile[], string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("read_dsh_current_config") };
+    return { status: "ok", data: await TAURI_INVOKE("list_dsh_profiles") };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
 },
 /**
- * Insert or update one provider in `llm-pi-ai.providers`.
+ * Read the effective Dsh providers. Without a profile the default
+ * resolution is used (official `desktop` > `web` > legacy
+ * `settings.yaml`).
  */
-async saveDshProvider(providerId: string, config: DshProviderConfig) : Promise<Result<null, string>> {
+async readDshCurrentConfig(profile: string | null) : Promise<Result<DshCurrentConfig, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("save_dsh_provider", { providerId, config }) };
+    return { status: "ok", data: await TAURI_INVOKE("read_dsh_current_config", { profile }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
 },
 /**
- * Remove one provider from `llm-pi-ai.providers`.
+ * Insert or update one provider in the target profile's `llm-pi-ai`
+ * patch entry (`cordis.patch.yml`), or in the legacy `settings.yaml` when
+ * no profile exists.
  */
-async deleteDshProvider(providerId: string) : Promise<Result<null, string>> {
+async saveDshProvider(profile: string | null, providerId: string, config: DshProviderConfig) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("delete_dsh_provider", { providerId }) };
+    return { status: "ok", data: await TAURI_INVOKE("save_dsh_provider", { profile, providerId, config }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
 },
 /**
- * Get the status of `~/.dsh/settings.yaml`.
+ * Remove one provider from the target profile's `llm-pi-ai` patch entry
+ * (`cordis.patch.yml`), or from the legacy `settings.yaml` when no profile
+ * exists.
  */
-async getDshConfigStatus() : Promise<Result<DshConfigStatus, string>> {
+async deleteDshProvider(profile: string | null, providerId: string) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("get_dsh_config_status") };
+    return { status: "ok", data: await TAURI_INVOKE("delete_dsh_provider", { profile, providerId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get the Dsh configuration file status for a profile (or the legacy
+ * `settings.yaml` layout when no profile exists).
+ */
+async getDshConfigStatus(profile: string | null) : Promise<Result<DshConfigStatus, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_dsh_config_status", { profile }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -3007,9 +3025,24 @@ export type DroidRunPreferences = { disableAutoUpdateEnv?: boolean | null; unset
  */
 export type DshCompatConfig = { supportsDeveloperRole?: boolean | null }
 /**
- * Dsh settings.yaml file status.
+ * Dsh configuration file status.
  */
-export type DshConfigStatus = { configExists: boolean; configPath: string; credentialsExists: boolean; credentialsPath: string }
+export type DshConfigStatus = { 
+/**
+ * Resolved profile name (`None` when no profile exists and the legacy
+ * `settings.yaml` layout is used).
+ */
+profileName: string | null; configExists: boolean; 
+/**
+ * Effective file DroidGear writes providers into: the profile's
+ * `cordis.patch.yml`, or the legacy `settings.yaml` without a profile.
+ */
+configPath: string; 
+/**
+ * Whether the legacy `~/.dsh/settings.yaml` still exists (modern Dsh
+ * imports it once and renames it to `settings.yaml.imported`).
+ */
+legacyExists: boolean; legacyPath: string; credentialsExists: boolean; credentialsPath: string }
 /**
  * Credentials read from `~/.dsh/.credentials.yaml` (version + env refs).
  */
@@ -3019,7 +3052,7 @@ export type DshCredentials = { version?: number;
  */
 refs?: Partial<{ [key in string]: string }> }
 /**
- * Current Dsh configuration read from `~/.dsh/settings.yaml`.
+ * Current Dsh configuration (the merged provider map across config layers).
  */
 export type DshCurrentConfig = { providers?: Partial<{ [key in string]: DshProviderConfig }> }
 /**
@@ -3030,6 +3063,22 @@ export type DshModel = { id: string; name?: string | null; contextWindow?: numbe
  * Reasoning effort mapping, e.g. `{"off": null, "high": "high"}`.
  */
 reasoningEfforts?: Partial<{ [key in string]: string | null }> | null }
+/**
+ * One Dsh profile directory under `~/.dsh/profiles/`.
+ */
+export type DshProfile = { 
+/**
+ * Profile name (directory name under `~/.dsh/profiles/`).
+ */
+name: string; 
+/**
+ * Absolute profile directory.
+ */
+dir: string; 
+/**
+ * Absolute path of the profile's user patch layer (`cordis.patch.yml`).
+ */
+patchPath: string }
 /**
  * Dsh provider configuration (one entry of `llm-pi-ai.providers`).
  */

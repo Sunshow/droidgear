@@ -49,12 +49,12 @@ pub(super) fn handle_dsh_key(app: &mut app::App, code: KeyCode) -> Option<Action
 
 pub(super) fn handle_dsh_provider_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
     let Some(provider_id) = app.dsh_provider_id.clone() else {
-        app.screen = app::Screen::Dsh;
+        app.screen = app.dsh_list_screen();
         return None;
     };
     let Some(config) = app.dsh_current_provider().cloned() else {
         app.set_toast("Provider not found", true);
-        app.screen = app::Screen::Dsh;
+        app.screen = app.dsh_list_screen();
         return None;
     };
 
@@ -211,12 +211,12 @@ pub(super) fn handle_dsh_provider_key(app: &mut app::App, code: KeyCode) -> Opti
 
 pub(super) fn handle_dsh_model_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
     let Some(provider_id) = app.dsh_provider_id.clone() else {
-        app.screen = app::Screen::Dsh;
+        app.screen = app.dsh_list_screen();
         return None;
     };
     let Some(config) = app.dsh_current_provider() else {
         app.set_toast("Provider not found", true);
-        app.screen = app::Screen::Dsh;
+        app.screen = app.dsh_list_screen();
         return None;
     };
     let model_index = app.dsh_model_index;
@@ -310,8 +310,11 @@ pub(super) fn dsh_toggle_supports_developer_role(
     app: &mut app::App,
     provider_id: &str,
 ) -> anyhow::Result<()> {
-    let mut config = droidgear_core::dsh::read_dsh_current_config_for_home(&app.home_dir)
-        .map_err(anyhow::Error::msg)?;
+    let mut config = droidgear_core::dsh::read_dsh_current_config_for_profile(
+        &app.home_dir,
+        app.dsh_active_profile.as_deref(),
+    )
+    .map_err(anyhow::Error::msg)?;
     let Some(provider) = config.providers.get_mut(provider_id) else {
         return Err(anyhow::Error::msg("Provider not found"));
     };
@@ -327,7 +330,12 @@ pub(super) fn dsh_toggle_supports_developer_role(
         .unwrap_or(false);
     let compat = provider.compat.get_or_insert_with(Default::default);
     compat.supports_developer_role = Some(!current);
-    droidgear_core::dsh::save_dsh_provider_for_home(&app.home_dir, provider_id, provider)
-        .map_err(anyhow::Error::msg)?;
+    droidgear_core::dsh::save_dsh_provider_for_profile(
+        &app.home_dir,
+        app.dsh_active_profile.as_deref(),
+        provider_id,
+        provider,
+    )
+    .map_err(anyhow::Error::msg)?;
     Ok(())
 }

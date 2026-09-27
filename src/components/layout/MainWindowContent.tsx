@@ -253,7 +253,9 @@ export function MainWindowContent({
     }
 
     if (currentView === 'dsh') {
-      return dshSubView === 'terminal' ? null : <DshConfigPage />
+      return dshSubView === 'terminal' ? null : (
+        <DshConfigPage profile={dshSubView} />
+      )
     }
 
     if (currentView === 'openclaw') {

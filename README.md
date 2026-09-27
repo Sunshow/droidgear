@@ -125,7 +125,7 @@ xattr -cr /Applications/DroidGear.app
 
 ### Dsh（DeepSeek Harness）支持
 
-- **Provider 配置管理** - 管理 `~/.dsh/settings.yaml` 的 `llm-pi-ai.providers`（displayName、baseURL、apiKeyEnv、api、compat、模型列表），保留文件其余段落与未知字段
+- **Provider 配置管理** - 管理新版 DSH 多 Profile 的 `cordis.patch.yml` 中 `llm-pi-ai.providers`（displayName、baseURL、apiKeyEnv、api、compat、模型列表）：支持官方 desktop / web 两种运行时 profile（默认 desktop），写入时保留其余 patch 条目与 `!!js` 表达式；无 profile 时回退到旧版 `~/.dsh/settings.yaml`，读取时按 旧版 settings.yaml → profile patch → home patch 顺序合并
 - **密钥值管理** - 在 `~/.dsh/.credentials.yaml` 中配置 API 密钥值（0600 权限），与 `apiKeyEnv` 环境变量名联动
 - **渠道导入** - 从渠道导入 Provider（自动填充 ID、Base URL、密钥与 API 类型）
 - **模型拉取** - 配置 URL 与密钥后从服务商 API 拉取模型列表，多选添加

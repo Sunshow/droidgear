@@ -105,8 +105,11 @@ pub(super) fn run_action(app: &mut app::App, action: Action) -> anyhow::Result<(
             Ok(())
         }
         Action::FetchDshModels { provider_id } => {
-            let config = droidgear_core::dsh::read_dsh_current_config_for_home(&app.home_dir)
-                .map_err(anyhow::Error::msg)?;
+            let config = droidgear_core::dsh::read_dsh_current_config_for_profile(
+                &app.home_dir,
+                app.dsh_active_profile.as_deref(),
+            )
+            .map_err(anyhow::Error::msg)?;
             let Some(provider) = config.providers.get(&provider_id) else {
                 return Err(anyhow::anyhow!("Provider not found"));
             };

@@ -183,6 +183,7 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         openclaw::read_openclaw_current_config,
         openclaw::read_openclaw_subagents,
         openclaw::save_openclaw_subagents,
+        dsh::list_dsh_profiles,
         dsh::read_dsh_current_config,
         dsh::save_dsh_provider,
         dsh::delete_dsh_provider,

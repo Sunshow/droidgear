@@ -352,7 +352,12 @@ pub(super) fn refresh_omp_detail(app: &mut app::App) {
 }
 
 pub(super) fn refresh_dsh(app: &mut app::App) {
-    match droidgear_core::dsh::read_dsh_current_config_for_home(&app.home_dir) {
+    // The active profile follows the desktop/web screen the user opened; the
+    // profile is set when the screen is entered from the feature list.
+    match droidgear_core::dsh::read_dsh_current_config_for_profile(
+        &app.home_dir,
+        app.dsh_active_profile.as_deref(),
+    ) {
         Ok(config) => {
             let mut providers: Vec<(String, droidgear_core::dsh::DshProviderConfig)> =
                 config.providers.into_iter().collect();

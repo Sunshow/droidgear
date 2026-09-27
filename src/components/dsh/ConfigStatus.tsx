@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { CheckCircle, XCircle, FileText } from 'lucide-react'
+import { CheckCircle, XCircle, FileText, Info } from 'lucide-react'
 import type { DshConfigStatus } from '@/lib/bindings'
 
 interface ConfigStatusProps {
@@ -11,12 +11,25 @@ export function ConfigStatus({ status }: ConfigStatusProps) {
 
   if (!status) return null
 
+  const settingsLabel = status.profileName
+    ? `${t('dsh.configStatus.settings')} (${status.profileName})`
+    : t('dsh.configStatus.settings')
+
   const rows = [
     {
-      label: t('dsh.configStatus.settings'),
+      label: settingsLabel,
       path: status.configPath,
       exists: status.configExists,
     },
+    ...(status.legacyExists
+      ? [
+          {
+            label: t('dsh.configStatus.legacy'),
+            path: status.legacyPath,
+            exists: true,
+          },
+        ]
+      : []),
     {
       label: t('dsh.configStatus.credentials'),
       path: status.credentialsPath,
@@ -33,7 +46,7 @@ export function ConfigStatus({ status }: ConfigStatusProps) {
         {rows.map(row => (
           <div key={row.label} className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-            <span className="text-xs text-muted-foreground shrink-0 w-24">
+            <span className="text-xs text-muted-foreground shrink-0 w-32">
               {row.label}
             </span>
             <code className="flex-1 truncate text-xs bg-muted px-1 py-0.5 rounded select-all cursor-text">
@@ -57,6 +70,12 @@ export function ConfigStatus({ status }: ConfigStatusProps) {
           </div>
         ))}
       </div>
+      {status.legacyExists && (
+        <div className="flex items-start gap-2 text-xs text-muted-foreground">
+          <Info className="h-4 w-4 shrink-0 mt-0.5" />
+          <span>{t('dsh.configStatus.legacyHint')}</span>
+        </div>
+      )}
     </div>
   )
 }

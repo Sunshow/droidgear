@@ -1464,13 +1464,11 @@
   "omp.liveConfig.providers": "Providers",
   "omp.liveConfig.models": "models",
 
-  "dsh.title": "Dsh Configuration",
-
-  "dsh.features.providers": "Providers",
+  "dsh.features.desktop": "Desktop",
+  "dsh.features.web": "Web",
   "dsh.features.terminal": "Terminal",
   "dsh.features.hint": "Manage DeepSeek Harness LLM providers (settings.yaml).",
 
-  "dsh.providers.title": "Providers",
   "dsh.providers.modelsCount": "{{count}} model(s)",
 
   "dsh.provider.add": "Add Provider",
@@ -1518,8 +1516,12 @@
   "dsh.provider.modelIdConflict": "Duplicate model ID",
 
   "dsh.configStatus.title": "Config Status",
-  "dsh.configStatus.settings": "settings.yaml",
+  "dsh.configStatus.settings": "Config file",
   "dsh.configStatus.credentials": ".credentials.yaml",
+  "dsh.configStatus.legacy": "Legacy settings",
+  "dsh.configStatus.legacyHint": "The legacy settings.yaml is imported once into the active profile on the next modern DSH start (and renamed to settings.yaml.imported); until then its providers still participate in merged reads.",
+  "dsh.profile.desktop": "Desktop",
+  "dsh.profile.web": "Web",
 
   "connectivity.title": "Connectivity",
   "connectivity.summary": "Summary",

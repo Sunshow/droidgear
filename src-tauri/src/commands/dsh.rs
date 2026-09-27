@@ -3,38 +3,56 @@
 //! Core logic lives in `droidgear-core`.
 
 pub use droidgear_core::dsh::{
-    DshConfigStatus, DshCredentials, DshCurrentConfig, DshModel, DshProviderConfig,
+    DshConfigStatus, DshCredentials, DshCurrentConfig, DshModel, DshProfile, DshProviderConfig,
 };
 
-/// Read the current Dsh providers from `~/.dsh/settings.yaml`.
+/// List the Dsh profiles under `~/.dsh/profiles/`.
 #[tauri::command]
 #[specta::specta]
-pub async fn read_dsh_current_config() -> Result<DshCurrentConfig, String> {
-    droidgear_core::dsh::read_dsh_current_config()
+pub async fn list_dsh_profiles() -> Result<Vec<DshProfile>, String> {
+    droidgear_core::dsh::list_dsh_profiles()
 }
 
-/// Insert or update one provider in `llm-pi-ai.providers`.
+/// Read the effective Dsh providers. Without a profile the default
+/// resolution is used (official `desktop` > `web` > legacy
+/// `settings.yaml`).
+#[tauri::command]
+#[specta::specta]
+pub async fn read_dsh_current_config(profile: Option<String>) -> Result<DshCurrentConfig, String> {
+    droidgear_core::dsh::read_dsh_current_config_with_profile(profile)
+}
+
+/// Insert or update one provider in the target profile's `llm-pi-ai`
+/// patch entry (`cordis.patch.yml`), or in the legacy `settings.yaml` when
+/// no profile exists.
 #[tauri::command]
 #[specta::specta]
 pub async fn save_dsh_provider(
+    profile: Option<String>,
     provider_id: String,
     config: DshProviderConfig,
 ) -> Result<(), String> {
-    droidgear_core::dsh::save_dsh_provider(&provider_id, &config)
+    droidgear_core::dsh::save_dsh_provider_with_profile(profile, &provider_id, &config)
 }
 
-/// Remove one provider from `llm-pi-ai.providers`.
+/// Remove one provider from the target profile's `llm-pi-ai` patch entry
+/// (`cordis.patch.yml`), or from the legacy `settings.yaml` when no profile
+/// exists.
 #[tauri::command]
 #[specta::specta]
-pub async fn delete_dsh_provider(provider_id: String) -> Result<(), String> {
-    droidgear_core::dsh::delete_dsh_provider(&provider_id)
+pub async fn delete_dsh_provider(
+    profile: Option<String>,
+    provider_id: String,
+) -> Result<(), String> {
+    droidgear_core::dsh::delete_dsh_provider_with_profile(profile, &provider_id)
 }
 
-/// Get the status of `~/.dsh/settings.yaml`.
+/// Get the Dsh configuration file status for a profile (or the legacy
+/// `settings.yaml` layout when no profile exists).
 #[tauri::command]
 #[specta::specta]
-pub async fn get_dsh_config_status() -> Result<DshConfigStatus, String> {
-    droidgear_core::dsh::get_dsh_config_status()
+pub async fn get_dsh_config_status(profile: Option<String>) -> Result<DshConfigStatus, String> {
+    droidgear_core::dsh::get_dsh_config_status_with_profile(profile)
 }
 
 /// Read env-var → API key refs from `~/.dsh/.credentials.yaml`.

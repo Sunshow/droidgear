@@ -9,10 +9,15 @@ import {
 interface DshState {
   providers: Partial<Record<string, DshProviderConfig>>
   credentials: Partial<Record<string, string>>
+  /** Official runtime profile the current page manages (`desktop` | `web`);
+   * `null` only when no official profile exists (legacy layout). Set by the
+   * page on mount — there is no profile switching UI. */
+  profile: string | null
   isLoading: boolean
   error: string | null
   configStatus: DshConfigStatus | null
 
+  setProfile: (profile: string | null) => void
   loadProviders: () => Promise<void>
   loadCredentials: () => Promise<void>
   loadConfigStatus: () => Promise<void>
@@ -28,9 +33,12 @@ export const useDshStore = create<DshState>()(
     (set, get) => ({
       providers: {},
       credentials: {},
+      profile: null,
       isLoading: false,
       error: null,
       configStatus: null,
+
+      setProfile: profile => set({ profile }, undefined, 'dsh/setProfile'),
 
       loadProviders: async () => {
         set(
@@ -39,7 +47,7 @@ export const useDshStore = create<DshState>()(
           'dsh/loadProviders/start'
         )
         try {
-          const result = await commands.readDshCurrentConfig()
+          const result = await commands.readDshCurrentConfig(get().profile)
           if (result.status === 'ok') {
             set(
               { providers: result.data.providers, isLoading: false },
@@ -64,7 +72,7 @@ export const useDshStore = create<DshState>()(
 
       loadConfigStatus: async () => {
         try {
-          const result = await commands.getDshConfigStatus()
+          const result = await commands.getDshConfigStatus(get().profile)
           if (result.status === 'ok') {
             set(
               { configStatus: result.data },
@@ -120,7 +128,7 @@ export const useDshStore = create<DshState>()(
       },
 
       saveProvider: async (id, config) => {
-        const result = await commands.saveDshProvider(id, config)
+        const result = await commands.saveDshProvider(get().profile, id, config)
         if (result.status !== 'ok') {
           set({ error: result.error }, undefined, 'dsh/saveProvider/error')
           throw new Error(result.error)
@@ -134,7 +142,7 @@ export const useDshStore = create<DshState>()(
       },
 
       deleteProvider: async id => {
-        const result = await commands.deleteDshProvider(id)
+        const result = await commands.deleteDshProvider(get().profile, id)
         if (result.status !== 'ok') {
           set({ error: result.error }, undefined, 'dsh/deleteProvider/error')
           return

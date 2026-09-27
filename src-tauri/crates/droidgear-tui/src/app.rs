@@ -59,7 +59,8 @@ pub enum Screen {
     PiModel,
     Omp,
     OmpProfile,
-    Dsh,
+    DshDesktop,
+    DshWeb,
     DshProvider,
     DshModel,
     Hermes,
@@ -867,6 +868,9 @@ pub struct App {
 
     pub dsh_providers: Vec<(String, DshProviderConfig)>,
     pub dsh_credentials: std::collections::HashMap<String, String>,
+    /// Official profile this screen manages; set when the desktop/web page
+    /// is opened from the feature list.
+    pub dsh_active_profile: Option<String>,
     pub dsh_index: usize,
     pub dsh_provider_id: Option<String>,
     pub dsh_provider_field_index: usize,
@@ -1060,6 +1064,7 @@ impl App {
             omp_detail_field_index: 0,
             dsh_providers: Vec::new(),
             dsh_credentials: std::collections::HashMap::new(),
+            dsh_active_profile: None,
             dsh_index: 0,
             dsh_provider_id: None,
             dsh_provider_field_index: 0,
@@ -1187,7 +1192,7 @@ impl App {
             },
             NavGroup {
                 label: "Dsh",
-                items: &[("Providers", Screen::Dsh)],
+                items: &[("Desktop", Screen::DshDesktop), ("Web", Screen::DshWeb)],
                 system: false,
             },
             NavGroup {
@@ -1224,6 +1229,16 @@ impl App {
     }
 
     /// Index of the group containing `screen`, if it is a nav item.
+    /// The Dsh providers screen matching the active profile; detail screens
+    /// navigate back to it.
+    pub fn dsh_list_screen(&self) -> Screen {
+        if self.dsh_active_profile.as_deref() == Some("web") {
+            Screen::DshWeb
+        } else {
+            Screen::DshDesktop
+        }
+    }
+
     pub fn group_of_screen(screen: Screen) -> Option<usize> {
         Self::nav_groups()
             .iter()
@@ -1258,7 +1273,13 @@ impl App {
                         Screen::Main
                     };
                 } else {
-                    self.screen = Self::parent_screen(self.screen);
+                    self.screen = match self.screen {
+                        // Detail screens return to the desktop/web page that
+                        // opened them.
+                        Screen::DshProvider => self.dsh_list_screen(),
+                        Screen::DshModel => Screen::DshProvider,
+                        screen => Self::parent_screen(screen),
+                    };
                 }
             }
         }
@@ -1286,8 +1307,6 @@ impl App {
             Screen::PiProvider => Screen::PiProfile,
             Screen::PiModel => Screen::PiProvider,
             Screen::OmpProfile => Screen::Omp,
-            Screen::DshProvider => Screen::Dsh,
-            Screen::DshModel => Screen::DshProvider,
             Screen::HermesProfile => Screen::Hermes,
             Screen::HermesProvider => Screen::HermesProfile,
             Screen::ChannelsEdit => Screen::Channels,

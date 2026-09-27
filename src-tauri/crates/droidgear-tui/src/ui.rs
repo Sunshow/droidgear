@@ -419,7 +419,7 @@ fn draw_main(frame: &mut Frame, app: &app::App, area: Rect) {
         app::Screen::PiModel => draw_pi_model(frame, app, area),
         app::Screen::Omp => draw_omp_profiles(frame, app, area),
         app::Screen::OmpProfile => draw_omp_profile(frame, app, area),
-        app::Screen::Dsh => draw_dsh_providers(frame, app, area),
+        app::Screen::DshDesktop | app::Screen::DshWeb => draw_dsh_providers(frame, app, area),
         app::Screen::DshProvider => draw_dsh_provider(frame, app, area),
         app::Screen::DshModel => draw_dsh_model(frame, app, area),
         app::Screen::Hermes => draw_hermes_profiles(frame, app, area),
@@ -3521,9 +3521,13 @@ fn draw_dsh_providers(frame: &mut Frame, app: &app::App, area: Rect) {
         .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
         .split(area);
 
+    let profile_label = match app.dsh_active_profile.as_deref() {
+        Some(name) => format!("Dsh Providers [profile: {name}]"),
+        None => "Dsh Providers [legacy settings.yaml]".to_string(),
+    };
     let highlight = (!app.dsh_providers.is_empty()).then_some(app.dsh_index);
     let list = List::new(items)
-        .block(block("Dsh Providers"))
+        .block(block(profile_label.as_str()))
         .highlight_style(t.selected_row_style());
     render_list(frame, list, chunks[0], highlight);
 

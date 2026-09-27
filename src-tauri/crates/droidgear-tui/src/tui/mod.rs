@@ -303,7 +303,10 @@ fn refresh_screen_data(app: &mut app::App) {
             refresh_omp(app);
             refresh_omp_detail(app);
         }
-        app::Screen::Dsh | app::Screen::DshProvider | app::Screen::DshModel => {
+        app::Screen::DshDesktop
+        | app::Screen::DshWeb
+        | app::Screen::DshProvider
+        | app::Screen::DshModel => {
             refresh_dsh(app);
         }
         app::Screen::Hermes => refresh_hermes(app),

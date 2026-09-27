@@ -125,7 +125,7 @@ Run the installer directly.
 
 ### Dsh (DeepSeek Harness) Support
 
-- **Provider Configuration** - Manage `llm-pi-ai.providers` in `~/.dsh/settings.yaml` (displayName, baseURL, apiKeyEnv, api, compat, model list), preserving the rest of the file and unknown fields
+- **Provider Configuration** - Manage `llm-pi-ai.providers` in the modern multi-profile DSH `cordis.patch.yml` (displayName, baseURL, apiKeyEnv, api, compat, model list): supports the official `desktop` / `web` runtime profiles (default `desktop`), preserves other patch entries and `!!js` expressions on write; falls back to the legacy `~/.dsh/settings.yaml` without a profile, and merges legacy → profile patch → home patch on read
 - **API Key Values** - Configure API key values in `~/.dsh/.credentials.yaml` (0600 permissions), linked to the `apiKeyEnv` variable name
 - **Channel Import** - Import providers from channels (auto-fills ID, base URL, key, and API type)
 - **Model Fetching** - Fetch the model list from the provider API after configuring the URL and key, with multi-select before adding

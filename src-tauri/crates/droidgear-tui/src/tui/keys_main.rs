@@ -41,7 +41,7 @@ pub(super) fn handle_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
         app::Screen::PiSessions => handle_pi_sessions_key(app, code),
         app::Screen::Omp => handle_omp_key(app, code),
         app::Screen::OmpProfile => handle_omp_profile_key(app, code),
-        app::Screen::Dsh => handle_dsh_key(app, code),
+        app::Screen::DshDesktop | app::Screen::DshWeb => handle_dsh_key(app, code),
         app::Screen::DshProvider => handle_dsh_provider_key(app, code),
         app::Screen::DshModel => handle_dsh_model_key(app, code),
         app::Screen::Hermes => handle_hermes_key(app, code),
@@ -87,12 +87,22 @@ fn open_selected_group(app: &mut app::App) {
         app.feature_index = 0;
     } else {
         app.screen = group.items[0].1;
+        set_dsh_profile_for_screen(app);
         app.clear_toast();
         refresh_screen_data(app);
     }
 }
 
 /// Enter on the selected feature inside the current group.
+/// Keep the active Dsh profile in sync with the screen that was opened.
+fn set_dsh_profile_for_screen(app: &mut app::App) {
+    match app.screen {
+        app::Screen::DshDesktop => app.dsh_active_profile = Some("desktop".to_string()),
+        app::Screen::DshWeb => app.dsh_active_profile = Some("web".to_string()),
+        _ => {}
+    }
+}
+
 fn open_selected_feature(app: &mut app::App) {
     let Some(group) = app::App::nav_groups().get(app.nav_index) else {
         return;
@@ -101,6 +111,7 @@ fn open_selected_feature(app: &mut app::App) {
         return;
     };
     app.screen = *screen;
+    set_dsh_profile_for_screen(app);
     app.clear_toast();
     refresh_screen_data(app);
 }
