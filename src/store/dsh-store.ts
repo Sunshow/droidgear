@@ -138,7 +138,9 @@ export const useDshStore = create<DshState>()(
           undefined,
           'dsh/saveProvider/success'
         )
+        // 重新读取，展示后端补齐（注册表元数据、协议兼容处理）后的结果
         await get().loadConfigStatus()
+        await get().loadProviders()
       },
 
       deleteProvider: async id => {

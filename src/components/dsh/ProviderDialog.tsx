@@ -23,6 +23,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useDshStore } from '@/store/dsh-store'
+import {
+  draftFromChannelModel,
+  draftToModel,
+  modelToDraft,
+  type DshModelDraft as ModelDraft,
+} from './model-draft'
 import { commands, type DshModel, type DshProviderConfig } from '@/lib/bindings'
 import { findModelByIdOrAlias, getSupportedEfforts } from '@/lib/model-registry'
 import { providerToClientApiType } from '@/lib/model-protocol'
@@ -57,15 +63,6 @@ interface ProviderDialogProps {
   editingProviderId: string | null
 }
 
-interface ModelDraft {
-  id: string
-  name: string
-  contextWindow: string
-  maxTokens: string
-  /** Original model, kept so reasoningEfforts/extra fields survive edits. */
-  base: DshModel | null
-}
-
 function formatReasoningEfforts(
   efforts: Partial<Record<string, string | null>> | null | undefined
 ): string {
@@ -85,28 +82,6 @@ function reasoningEffortsLabel(model: DshModel | null, id: string): string {
   }
   const entry = findModelByIdOrAlias(id)
   return formatReasoningEfforts(entry?.thinkingLevelMap)
-}
-
-function modelToDraft(model: DshModel): ModelDraft {
-  return {
-    id: model.id,
-    name: model.name ?? '',
-    contextWindow: model.contextWindow?.toString() ?? '',
-    maxTokens: model.maxTokens?.toString() ?? '',
-    base: model,
-  }
-}
-
-function draftToModel(draft: ModelDraft): DshModel {
-  const contextWindow = draft.contextWindow.trim()
-  const maxTokens = draft.maxTokens.trim()
-  return {
-    ...(draft.base ?? {}),
-    id: draft.id.trim(),
-    name: draft.name.trim() || null,
-    contextWindow: contextWindow ? Number(contextWindow) : null,
-    maxTokens: maxTokens ? Number(maxTokens) : null,
-  }
 }
 
 function sanitizeProviderId(name: string): string {
@@ -323,15 +298,8 @@ export function ProviderDialog({
     setApiKeyEnv(envName)
     setApiKeyValue(context.apiKey)
     setApi(apiType)
-    setModels(
-      selectedModels.map(model => ({
-        id: model.model,
-        name: model.displayName ?? '',
-        contextWindow: '',
-        maxTokens: model.maxOutputTokens?.toString() ?? '',
-        base: null,
-      }))
-    )
+    // 用内置注册表补齐上下文窗口等元数据，和保存时的后端填充保持一致
+    setModels(selectedModels.map(draftFromChannelModel))
   }
 
   const handleSave = async () => {
