@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.3.2
+
+**New Features / 新功能**
+
+- Dsh (DeepSeek Harness) multi-profile support: manage the official `desktop` / `web` runtime profiles, each as its own page in the sidebar and TUI menu instead of a profile switcher; providers are read from the profile's `cordis.patch.yml` merged with the legacy `settings.yaml` and the home-level `cordis.patch.yml`, and writes update only the `llm-pi-ai` entry while preserving every other patch entry and `!!js` expressions / Dsh（DeepSeek Harness）多 Profile 支持：管理官方 desktop / web 运行时 Profile，在侧边栏与 TUI 菜单中各自独立成页（不再有 Profile 切换器）；Provider 从 Profile 的 `cordis.patch.yml` 叠加旧版 `settings.yaml` 与 home 级 `cordis.patch.yml` 合并读取，写入时只更新 `llm-pi-ai` 条目并保留其余 patch 条目与 `!!js` 表达式
+- Link local JSON files as Droid launch settings, passing the selected profile files directly to the native `--settings` flag / 支持将本地 JSON 文件关联为 Droid 启动设置，把选中的 Profile 文件直接传给原生 `--settings` 参数
+
+**Bug Fixes / 问题修复**
+
+- Fix the `/v1` suffix for sub2api channels on Chat Completions endpoints: the generic compatible protocol now requires `/v1` when adding models from a channel, and every client protocol that talks OpenAI Chat Completions (Dsh, Codex `chat` wire API, OpenCode `@ai-sdk/openai-compatible`, Pi, OpenClaw, Droid custom models) gets `/v1` on import, while Responses / Anthropic / Gemini protocols keep their own base URL / 修复 sub2api 渠道在 Chat Completions 端点上的 `/v1` 后缀：从渠道添加模型时通用兼容协议强制带 `/v1`；凡是走 OpenAI Chat Completions 的客户端导入协议（Dsh、Codex 的 `chat` wire API、OpenCode 的 `@ai-sdk/openai-compatible`、Pi、OpenClaw 与 Droid 自定义模型）都会补上 `/v1`，Responses / Anthropic / Gemini 协议保持各自的 Base URL
+- Dsh channel imports fill model metadata again: context window and max tokens are taken from the built-in registry when importing from a channel, and the provider list reflects the saved values after saving / 修复 Dsh 从渠道导入模型不再填充元数据：从渠道导入时即按内置注册表补齐上下文窗口与最大 Token，保存后 Provider 列表展示已写入的配置
+
 ## v1.3.1
 
 **New Features / 新功能**
