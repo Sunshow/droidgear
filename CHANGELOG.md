@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.3
+
+**New Features / 新功能**
+
+- GitHub Copilot BYOK support: a new Copilot section in the sidebar and TUI manages BYOK profiles for OpenAI and Anthropic providers (with channel import and official subscription mode), plus a standalone `copilot-local` launcher that runs the GitHub Copilot CLI with a profile's environment and an explicit `--model` argument / 新增 GitHub Copilot BYOK 支持：侧边栏与 TUI 新增 Copilot 区块，管理 OpenAI / Anthropic 提供商的 BYOK 配置（支持渠道导入与官方订阅模式），并提供独立的 `copilot-local` 启动器，以配置的环境变量与显式 `--model` 参数启动 GitHub Copilot CLI
+
+**Bug Fixes / 问题修复**
+
+- Prevent terminal I/O from blocking window dragging: the bundled pty plugin now reports write-backpressure status instead of polling IO, and the titlebar drag region is marked `deep` so dragging works over the embedded terminal / 修复终端 IO 阻塞窗口拖拽：内置 pty 插件改为上报写入背压状态（不再轮询 IO），并将标题栏拖拽区域标记为 `deep`，使嵌入式终端上方可正常拖拽窗口
+
 ## v1.3.2
 
 **New Features / 新功能**

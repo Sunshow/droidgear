@@ -131,6 +131,14 @@ Run the installer directly.
 - **Model Fetching** - Fetch the model list from the provider API after configuring the URL and key, with multi-select before adding
 - **Registry Auto-Adaptation** - Auto-fill model name, context window, max tokens, and reasoning efforts from the registry by model ID
 
+### GitHub Copilot Support
+
+- **BYOK Profile Management** - Manage GitHub Copilot BYOK profiles (OpenAI / Anthropic providers, model, and token limits) with create, duplicate, delete, apply, and load-applied operations
+- **Channel Import** - Import providers and models from channels, normalizing base URLs automatically (add `/v1` for OpenAI, strip `/v1` for Anthropic)
+- **Official Subscription Mode** - Clear BYOK overrides and use the Copilot CLI's existing login or auth token
+- **Temporary Run** - Launch Copilot with the selected profile in one click (process-scoped environment variables plus an explicit `--model` argument)
+- **Standalone Launcher** - Ships `copilot-local.sh` / `copilot-local.cmd` launchers to run Copilot with an exported profile without the GUI
+
 ### Other Features
 
 - **Auto Update** - Version check, auto update notification and download progress
@@ -181,6 +189,7 @@ The TUI version supports the following configuration management features:
 - **Hermes Profiles**: Configuration management and apply
 - **Pi Profiles**: Provider/Model configuration management and apply
 - **Dsh Providers**: `llm-pi-ai.providers` configuration and credential value management (with channel import and model fetching)
+- **Copilot Profiles**: BYOK profile configuration and apply (with channel import and temporary run)
 - **Sessions**: Session browsing and management
 - **Paths**: Path override configuration (for server environments)
 - **Channels**: Proxy platform and credential management

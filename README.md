@@ -131,6 +131,14 @@ xattr -cr /Applications/DroidGear.app
 - **模型拉取** - 配置 URL 与密钥后从服务商 API 拉取模型列表，多选添加
 - **注册表自动适配** - 按模型 ID 自动填充名称、上下文窗口、最大 Token 与推理强度（reasoningEfforts）
 
+### GitHub Copilot 支持
+
+- **BYOK Profile 管理** - 管理 GitHub Copilot BYOK 配置（OpenAI / Anthropic 提供商、模型与 Token 限制），支持创建、复制、删除、应用与加载已应用配置
+- **渠道导入** - 从渠道导入 Provider 与模型，自动规范 Base URL（OpenAI 补 `/v1`、Anthropic 去 `/v1`）
+- **官方订阅模式** - 清除 BYOK 覆盖，使用 Copilot CLI 现有登录或认证 Token
+- **临时运行** - 一键以所选配置启动 Copilot（进程级环境变量 + 显式 `--model` 参数）
+- **独立启动器** - 附带 `copilot-local.sh` / `copilot-local.cmd` 启动器，无需 GUI 即可用已导出的配置启动 Copilot
+
 ### 其他功能
 
 - **自动更新** - 版本检查、自动更新提示和下载进度显示
@@ -180,6 +188,7 @@ TUI 版本支持以下配置管理功能：
 - **Hermes Profile**：配置管理与应用
 - **Pi Profile**：Provider/Model 配置管理与应用
 - **Dsh Provider**：`llm-pi-ai.providers` 配置管理与凭据值管理（含渠道导入、模型拉取）
+- **Copilot Profile**：BYOK Profile 配置管理与应用（含渠道导入、临时运行）
 - **Sessions**：会话浏览与管理
 - **Paths**：路径覆盖配置（适配服务器环境）
 - **Channels**：代理平台与凭据管理
