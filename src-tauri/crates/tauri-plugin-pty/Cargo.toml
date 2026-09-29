@@ -1,0 +1,25 @@
+[package]
+name = "tauri-plugin-pty"
+version = "0.2.1"
+authors = ["Tnze"]
+description = "Pseudo Terminal (PTY) plugin for Tauri"
+keywords = ["tauri-plugin"]
+license = "MIT"
+edition = "2021"
+rust-version = "1.77.2"
+exclude = ["/examples"]
+links = "tauri-plugin-pty"
+publish = false
+
+[dependencies]
+portable-pty = { version = "0.9.0", features = ["serde_support"] }
+serde = "1.0"
+serde_json = "1.0"
+tauri = { version = "^2" }
+
+[build-dependencies]
+tauri-plugin = { version = "^2", features = ["build"] }
+
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
+tokio = { version = "1", features = ["rt-multi-thread"] }

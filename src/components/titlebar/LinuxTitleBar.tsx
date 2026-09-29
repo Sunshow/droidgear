@@ -22,7 +22,7 @@ interface LinuxTitleBarProps {
 export function LinuxTitleBar({ className, title }: LinuxTitleBarProps) {
   return (
     <div
-      data-tauri-drag-region
+      data-tauri-drag-region="deep"
       className={cn(
         'relative flex h-8 w-full shrink-0 items-center justify-between border-b bg-background',
         className

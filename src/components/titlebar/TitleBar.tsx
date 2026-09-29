@@ -50,7 +50,7 @@ export function TitleBar({ className, title, forcePlatform }: TitleBarProps) {
   if (platform === 'windows') {
     return (
       <div
-        data-tauri-drag-region
+        data-tauri-drag-region="deep"
         className={cn(
           'relative flex h-8 w-full shrink-0 items-center justify-between border-b bg-background',
           className
@@ -76,7 +76,7 @@ export function TitleBar({ className, title, forcePlatform }: TitleBarProps) {
   // macOS (default): traffic lights on the left
   return (
     <div
-      data-tauri-drag-region
+      data-tauri-drag-region="deep"
       className={cn(
         'relative flex h-8 w-full shrink-0 items-center justify-between border-b bg-background',
         className

@@ -42,7 +42,7 @@ dirs = "5"
 notify = { version = "6", default-features = false, features = ["macos_fsevent"] }
 chrono = "0.4"
 json_comments = "0.2"
-tauri-plugin-pty = "0.2.0"
+tauri-plugin-pty = { path = "crates/tauri-plugin-pty" }
 toml = "0.8"
 semver = "1"
 sha2 = "0.10"
@@ -70,5 +70,5 @@ panic = "abort"          # Don't include panic unwinding code
 strip = true             # Remove debug symbols
 
 [workspace]
-members = ["crates/droidgear-core", "crates/droidgear-tui"]
+members = ["crates/droidgear-core", "crates/droidgear-tui", "crates/tauri-plugin-pty"]
 resolver = "2"
