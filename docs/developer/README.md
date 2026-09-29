@@ -25,6 +25,8 @@ Technical documentation for building and extending this app. These docs describe
 | [Claude Code Profiles](./claude-code-profile-design.md) | Product and runtime design for Claude Code profiles       |
 | [Temporary Tool Runs](./temporary-tool-run-design.md)   | Design for launching tools with ephemeral config overlays |
 
+- [GitHub Copilot BYOK](./copilot-byok.md) — Profiles, local configuration, and temporary launchers
+
 ## UI & UX
 
 | Document                                   | Description                                 |

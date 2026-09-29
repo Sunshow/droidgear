@@ -1241,6 +1241,108 @@ async launchCodex(id: string, cwd: string | null) : Promise<Result<null, string>
     else return { status: "error", error: e  as any };
 }
 },
+async listCopilotProfiles() : Promise<Result<CopilotProfile[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_copilot_profiles") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getCopilotProfile(id: string) : Promise<Result<CopilotProfile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_copilot_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async saveCopilotProfile(profile: CopilotProfile) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_copilot_profile", { profile }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async prepareCopilotChannelImport(profile: CopilotProfile, selection: CopilotChannelSelection) : Promise<Result<CopilotProfile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("prepare_copilot_channel_import", { profile, selection }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async deleteCopilotProfile(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_copilot_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async duplicateCopilotProfile(id: string, newName: string) : Promise<Result<CopilotProfile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("duplicate_copilot_profile", { id, newName }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async createDefaultCopilotProfile() : Promise<Result<CopilotProfile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("create_default_copilot_profile") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getActiveCopilotProfileId() : Promise<Result<string | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_active_copilot_profile_id") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async applyCopilotProfile(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("apply_copilot_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getCopilotConfigStatus() : Promise<Result<CopilotConfigStatus, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_copilot_config_status") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async readCopilotCurrentConfig() : Promise<Result<CopilotCurrentConfig, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("read_copilot_current_config") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Launch Copilot with the selected profile's environment overlay.
+ * The live profile file is not changed by this command.  The terminal
+ * launcher writes the API key into a short-lived secure wrapper when needed,
+ * then removes that wrapper after Copilot exits.
+ */
+async launchCopilot(id: string, cwd: string | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("launch_copilot", { id, cwd }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 /**
  * List all Hermes profiles
  */
@@ -2971,6 +3073,10 @@ export type ConnectivitySummary = { totalModels: number; availableModels: number
  * Message content block
  */
 export type ContentBlock = { type: string; text?: string | null; thinking?: string | null }
+export type CopilotChannelSelection = { channelType: ChannelType; baseUrl: string; apiKey: string; platform: string | null; provider: Provider | null; model: string; maxOutputTokens: number | null }
+export type CopilotConfigStatus = { configExists: boolean; configPath: string }
+export type CopilotCurrentConfig = { isByok: boolean; baseUrl?: string | null; providerType?: string | null; apiKey?: string | null; model?: string | null; maxPromptTokens?: number | null; maxOutputTokens?: number | null }
+export type CopilotProfile = { id: string; name: string; description?: string | null; createdAt: string; updatedAt: string; useOfficialAuth: boolean; baseUrl?: string | null; providerType?: string | null; apiKey?: string | null; model?: string | null; maxPromptTokens?: number | null; maxOutputTokens?: number | null }
 /**
  * Custom model configuration
  */

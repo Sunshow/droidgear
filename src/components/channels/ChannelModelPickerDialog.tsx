@@ -54,6 +54,7 @@ export function ChannelModelPickerDialog({
   return (
     <ResizableDialog open={open} onOpenChange={onOpenChange}>
       <ResizableDialogContent
+        onCloseAutoFocus={event => event.preventDefault()}
         defaultWidth={600}
         defaultHeight={mode === 'multiple' && showBatchConfig ? 700 : 550}
         minWidth={500}

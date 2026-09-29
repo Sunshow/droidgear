@@ -111,6 +111,26 @@ pub(super) fn refresh_codex(app: &mut app::App) {
     }
 }
 
+pub(super) fn refresh_copilot(app: &mut app::App) {
+    match droidgear_core::copilot::list_copilot_profiles_for_home(&app.home_dir) {
+        Ok(list) => app.copilot_profiles = list,
+        Err(e) => app.set_toast(e, true),
+    }
+
+    if app.copilot_profiles.is_empty() {
+        if let Ok(profile) =
+            droidgear_core::copilot::create_default_copilot_profile_for_home(&app.home_dir)
+        {
+            app.copilot_profiles = vec![profile];
+        }
+    }
+
+    match droidgear_core::copilot::get_active_copilot_profile_id_for_home(&app.home_dir) {
+        Ok(id) => app.copilot_active_id = id,
+        Err(e) => app.set_toast(e, true),
+    }
+}
+
 pub(super) fn refresh_codex_detail(app: &mut app::App) {
     let Some(id) = app.codex_detail_id.clone() else {
         app.codex_detail = None;

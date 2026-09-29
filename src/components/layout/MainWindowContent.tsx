@@ -112,6 +112,11 @@ const OmpConfigPage = lazy(() =>
     default: m.OmpConfigPage,
   }))
 )
+const CopilotConfigPage = lazy(() =>
+  import('@/components/copilot/CopilotConfigPage').then(m => ({
+    default: m.CopilotConfigPage,
+  }))
+)
 const DshConfigPage = lazy(() =>
   import('@/components/dsh/DshConfigPage').then(m => ({
     default: m.DshConfigPage,
@@ -164,6 +169,7 @@ export function MainWindowContent({
   const hermesSubView = useUIStore(state => state.hermesSubView)
   const piSubView = useUIStore(state => state.piSubView)
   const ompSubView = useUIStore(state => state.ompSubView)
+  const copilotSubView = useUIStore(state => state.copilotSubView)
   const dshSubView = useUIStore(state => state.dshSubView)
   const channelsSubView = useUIStore(state => state.channelsSubView)
   const terminalActive = useTerminalActive()
@@ -250,6 +256,10 @@ export function MainWindowContent({
 
     if (currentView === 'omp') {
       return ompSubView === 'terminal' ? null : <OmpConfigPage />
+    }
+
+    if (currentView === 'copilot') {
+      return copilotSubView === 'terminal' ? null : <CopilotConfigPage />
     }
 
     if (currentView === 'dsh') {

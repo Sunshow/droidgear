@@ -12,6 +12,15 @@ pub(super) fn run_action(app: &mut app::App, action: Action) -> anyhow::Result<(
             app.set_toast("Saved", false);
             Ok(())
         }
+        Action::EditCopilotProfile { id } => {
+            let profile = droidgear_core::copilot::get_copilot_profile_for_home(&app.home_dir, &id)
+                .map_err(anyhow::Error::msg)?;
+            let edited = edit_json_in_editor(&profile)?;
+            droidgear_core::copilot::save_copilot_profile_for_home(&app.home_dir, edited)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
         Action::EditOpenCodeProfile { id } => {
             let profile =
                 droidgear_core::opencode::get_opencode_profile_for_home(&app.home_dir, &id)
@@ -67,6 +76,11 @@ pub(super) fn run_action(app: &mut app::App, action: Action) -> anyhow::Result<(
         }
         Action::RunCodexRun { id } => {
             run_codex_temporary_run(&app.home_dir, &id)?;
+            app.should_quit = true;
+            Ok(())
+        }
+        Action::RunCopilotRun { id } => {
+            run_copilot_temporary_run(&app.home_dir, &id)?;
             app.should_quit = true;
             Ok(())
         }

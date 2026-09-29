@@ -3,9 +3,9 @@ use tauri_specta::{collect_commands, Builder};
 pub fn generate_bindings() -> Builder<tauri::Wry> {
     use crate::commands::{
         channel, channel_export, claude, claude_settings, codex, codex_auth_profiles,
-        codex_sessions, config, connectivity, droid_settings, dsh, env, factory_auth_profiles,
-        hermes, mcp, notifications, omp, openclaw, opencode, paths, pi, pi_sessions, preferences,
-        recovery, sessions, specs, updater, window,
+        codex_sessions, config, connectivity, copilot, droid_settings, dsh, env,
+        factory_auth_profiles, hermes, mcp, notifications, omp, openclaw, opencode, paths, pi,
+        pi_sessions, preferences, recovery, sessions, specs, updater, window,
     };
 
     Builder::<tauri::Wry>::new().commands(collect_commands![
@@ -120,6 +120,18 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         codex::get_codex_temporary_run_plan,
         codex::prepare_codex_in_app_run,
         codex::launch_codex,
+        copilot::list_copilot_profiles,
+        copilot::get_copilot_profile,
+        copilot::save_copilot_profile,
+        copilot::prepare_copilot_channel_import,
+        copilot::delete_copilot_profile,
+        copilot::duplicate_copilot_profile,
+        copilot::create_default_copilot_profile,
+        copilot::get_active_copilot_profile_id,
+        copilot::apply_copilot_profile,
+        copilot::get_copilot_config_status,
+        copilot::read_copilot_current_config,
+        copilot::launch_copilot,
         hermes::list_hermes_profiles,
         hermes::get_hermes_profile,
         hermes::save_hermes_profile,

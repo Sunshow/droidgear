@@ -37,6 +37,12 @@ enum RunTarget {
         list: bool,
         profile: Option<String>,
     },
+    /// Run a Copilot profile by index, exact name, or profile id
+    Copilot {
+        #[arg(long)]
+        list: bool,
+        profile: Option<String>,
+    },
     /// Run a Claude settings file by name (use `global` for ~/.claude/settings.json)
     Claude {
         #[arg(long)]
@@ -113,6 +119,20 @@ fn main() -> anyhow::Result<()> {
                         "Missing Claude settings file name. Use `droidgear-tui run claude --list` to inspect available files.",
                     )?;
                     tui::run_claude_temporary_run_from_file(&home_dir, &name, false)
+                }
+            }
+            RunTarget::Copilot { list, profile } => {
+                if list {
+                    if profile.is_some() {
+                        bail!("`--list` cannot be combined with a Copilot target");
+                    }
+                    println!("{}", tui::list_copilot_temporary_run_targets(&home_dir)?);
+                    Ok(())
+                } else {
+                    let profile = profile.context(
+                        "Missing Copilot target. Use `droidgear-tui run copilot --list` to inspect available profiles.",
+                    )?;
+                    tui::run_copilot_temporary_run_for_selector(&home_dir, &profile)
                 }
             }
             RunTarget::Droid {
@@ -193,6 +213,43 @@ mod tests {
                 assert_eq!(settings_name.as_deref(), Some("global"));
             }
             _ => panic!("expected droid run subcommand"),
+        }
+    }
+
+    #[test]
+    fn cli_parses_copilot_run_subcommand() {
+        let cli = Cli::parse_from([
+            "droidgear-tui",
+            "run",
+            "copilot",
+            "profile-a",
+            "--home",
+            "/tmp/demo-home",
+        ]);
+
+        match cli.command {
+            Some(Command::Run {
+                target: RunTarget::Copilot { list, profile },
+            }) => {
+                assert!(!list);
+                assert_eq!(profile.as_deref(), Some("profile-a"));
+            }
+            _ => panic!("expected copilot run subcommand"),
+        }
+    }
+
+    #[test]
+    fn cli_parses_copilot_list_subcommand() {
+        let cli = Cli::parse_from(["droidgear-tui", "run", "copilot", "--list"]);
+
+        match cli.command {
+            Some(Command::Run {
+                target: RunTarget::Copilot { list, profile },
+            }) => {
+                assert!(list);
+                assert!(profile.is_none());
+            }
+            _ => panic!("expected copilot list subcommand"),
         }
     }
 

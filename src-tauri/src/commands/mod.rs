@@ -12,6 +12,7 @@ pub mod codex_auth_profiles;
 pub mod codex_sessions;
 pub mod config;
 pub mod connectivity;
+pub mod copilot;
 pub mod droid_settings;
 pub mod dsh;
 pub mod env;

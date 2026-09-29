@@ -35,3 +35,6 @@ openspec/
 .opencode/
 .factory/
 .reasonix/
+
+# Optional local Copilot launcher credentials
+/config.env

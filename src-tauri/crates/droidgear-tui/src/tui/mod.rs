@@ -17,11 +17,13 @@ use std::time::Duration;
 use tempfile::{NamedTempFile, TempDir};
 
 mod actions;
+mod copilot_import;
 mod keys_channels;
 mod keys_claude;
 mod keys_codex;
 mod keys_codex_auth;
 mod keys_codex_sessions;
+mod keys_copilot;
 mod keys_droid_settings;
 mod keys_dsh;
 mod keys_factory;
@@ -48,10 +50,12 @@ mod tests;
 
 pub use utils::list_claude_temporary_run_targets;
 pub use utils::list_codex_temporary_run_targets;
+pub use utils::list_copilot_temporary_run_targets;
 pub use utils::list_droid_run_targets;
 pub use utils::preview_claude_temporary_run_from_file;
 pub use utils::run_claude_temporary_run_from_file;
 pub use utils::run_codex_temporary_run_for_selector;
+pub use utils::run_copilot_temporary_run_for_selector;
 pub use utils::run_droid_run_for_settings_name;
 
 use actions::{read_to_string_if_exists, run_action};
@@ -59,6 +63,7 @@ use keys_channels::{handle_channels_edit_key, handle_channels_key};
 use keys_claude::{handle_claude_key, handle_claude_settings_detail_key};
 use keys_codex::{handle_codex_key, handle_codex_profile_key, handle_codex_provider_key};
 use keys_codex_sessions::handle_codex_sessions_key;
+use keys_copilot::handle_copilot_key;
 use keys_droid_settings::handle_droid_settings_files_key;
 use keys_dsh::{handle_dsh_key, handle_dsh_model_key, handle_dsh_provider_key};
 use keys_factory::{handle_factory_key, handle_factory_model_key, normalize_factory_models};
@@ -90,7 +95,7 @@ use utils::{
     apply_factory_reasoning, factory_model_id, factory_reasoning_effort, factory_reasoning_format,
     insert_char_at, preview_codex_apply, preview_codex_temporary_run, preview_droid_run,
     preview_openclaw_apply, preview_opencode_apply, remove_char_at, run_codex_temporary_run,
-    run_droid_run,
+    run_copilot_temporary_run, run_droid_run,
 };
 
 type UiTerminal = Terminal<CrosstermBackend<io::Stdout>>;
@@ -121,6 +126,9 @@ enum Action {
     EditCodexProfile {
         id: String,
     },
+    EditCopilotProfile {
+        id: String,
+    },
     EditOpenCodeProfile {
         id: String,
     },
@@ -147,6 +155,9 @@ enum Action {
         id: String,
     },
     RunCodexRun {
+        id: String,
+    },
+    RunCopilotRun {
         id: String,
     },
     PreviewOpenCodeApply {
@@ -316,6 +327,7 @@ fn refresh_screen_data(app: &mut app::App) {
         }
         app::Screen::Sessions => refresh_sessions(app),
         app::Screen::CodexSessions => refresh_codex_sessions(app),
+        app::Screen::Copilot => refresh_copilot(app),
         app::Screen::PiSessions => refresh_pi_sessions(app),
         app::Screen::Specs => refresh_specs(app),
         app::Screen::Channels => refresh_channels(app),

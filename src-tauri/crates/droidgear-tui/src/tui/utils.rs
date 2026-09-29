@@ -438,6 +438,69 @@ pub fn run_codex_temporary_run_for_selector(home_dir: &Path, selector: &str) -> 
     run_codex_temporary_run(home_dir, &profile.id)
 }
 
+pub(super) fn run_copilot_temporary_run(home_dir: &Path, profile_id: &str) -> anyhow::Result<()> {
+    let profile = droidgear_core::copilot::get_copilot_profile_for_home(home_dir, profile_id)
+        .map_err(anyhow::Error::msg)?;
+    let plan =
+        droidgear_core::copilot_runtime::build_run_plan(&profile).map_err(anyhow::Error::msg)?;
+
+    start_command_in_foreground(
+        &plan.program,
+        &plan.args,
+        &plan.env,
+        &plan.secret_env,
+        &plan.unset_env,
+        None,
+    )
+}
+
+pub fn list_copilot_temporary_run_targets(home_dir: &Path) -> anyhow::Result<String> {
+    let profiles = droidgear_core::copilot::list_copilot_profiles_for_home(home_dir)
+        .map_err(anyhow::Error::msg)?;
+    let active_profile_id =
+        droidgear_core::copilot::get_active_copilot_profile_id_for_home(home_dir)
+            .map_err(anyhow::Error::msg)?;
+
+    let mut out = String::from("Available Copilot run targets:\n");
+    if profiles.is_empty() {
+        out.push_str("(none)\n\nUse the Copilot TUI/GUI to create a profile first.");
+        return Ok(out);
+    }
+
+    for (index, profile) in profiles.iter().enumerate() {
+        let marker = if active_profile_id.as_deref() == Some(profile.id.as_str()) {
+            "*"
+        } else {
+            " "
+        };
+        let mode = if profile.use_official_auth {
+            "official"
+        } else {
+            "BYOK"
+        };
+        out.push_str(&format!(
+            "{marker} {}. {} ({mode}) [id: {}]\n",
+            index + 1,
+            profile.name,
+            profile.id
+        ));
+    }
+    out.push_str("Use `droidgear-tui run copilot <index|name|id>`.\n");
+    out.push_str("`*` marks the currently active profile.");
+    Ok(out)
+}
+
+pub fn run_copilot_temporary_run_for_selector(
+    home_dir: &Path,
+    selector: &str,
+) -> anyhow::Result<()> {
+    sanitize_terminal_for_direct_exec()?;
+    let profile =
+        droidgear_core::copilot::resolve_copilot_profile_selector_for_home(home_dir, selector)
+            .map_err(anyhow::Error::msg)?;
+    run_copilot_temporary_run(home_dir, &profile.id)
+}
+
 pub(super) fn format_claude_temporary_run_preview(
     preview: &droidgear_core::claude_runtime::ClaudeTemporaryRunDebugPreview,
 ) -> String {

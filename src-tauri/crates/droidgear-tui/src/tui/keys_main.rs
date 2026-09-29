@@ -55,6 +55,7 @@ pub(super) fn handle_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
         app::Screen::FactoryAuth => keys_factory_auth::handle_factory_auth_key(app, code),
         app::Screen::CodexAuth => keys_codex_auth::handle_codex_auth_key(app, code),
         app::Screen::CodexSessions => handle_codex_sessions_key(app, code),
+        app::Screen::Copilot => handle_copilot_key(app, code),
     }
 }
 

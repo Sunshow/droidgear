@@ -11,6 +11,7 @@ type NavigationView =
   | 'hermes'
   | 'pi'
   | 'omp'
+  | 'copilot'
   | 'dsh'
 type ToolView =
   | 'droid'
@@ -21,6 +22,7 @@ type ToolView =
   | 'hermes'
   | 'pi'
   | 'omp'
+  | 'copilot'
   | 'dsh'
 export type DroidSubView =
   | 'models'
@@ -44,6 +46,7 @@ export type ClaudeSubView = 'settings' | 'terminal'
 export type HermesSubView = 'model' | 'terminal'
 export type PiSubView = 'providers' | 'sessions' | 'terminal'
 export type OmpSubView = 'config' | 'terminal'
+export type CopilotSubView = 'profiles' | 'terminal'
 export type DshSubView = 'desktop' | 'web' | 'terminal'
 export type ChannelsSubView = 'detail' | 'export-templates'
 
@@ -69,6 +72,7 @@ interface UIState {
   hermesSubView: HermesSubView
   piSubView: PiSubView
   ompSubView: OmpSubView
+  copilotSubView: CopilotSubView
   dshSubView: DshSubView
   channelsSubView: ChannelsSubView
   lastSpecExportPath: string | null
@@ -95,6 +99,7 @@ interface UIState {
   setHermesSubView: (view: HermesSubView) => void
   setPiSubView: (view: PiSubView) => void
   setOmpSubView: (view: OmpSubView) => void
+  setCopilotSubView: (view: CopilotSubView) => void
   setDshSubView: (view: DshSubView) => void
   setChannelsSubView: (view: ChannelsSubView) => void
   setLastSpecExportPath: (path: string) => void
@@ -124,6 +129,7 @@ export const useUIStore = create<UIState>()(
         hermesSubView: 'model',
         piSubView: 'providers',
         ompSubView: 'config',
+        copilotSubView: 'profiles',
         dshSubView: 'desktop',
         channelsSubView: 'detail',
         lastSpecExportPath: null,
@@ -198,6 +204,7 @@ export const useUIStore = create<UIState>()(
                 view === 'hermes' ||
                 view === 'pi' ||
                 view === 'omp' ||
+                view === 'copilot' ||
                 view === 'dsh'
                   ? view
                   : state.lastToolView,
@@ -229,6 +236,9 @@ export const useUIStore = create<UIState>()(
 
         setOmpSubView: view =>
           set({ ompSubView: view }, undefined, 'setOmpSubView'),
+
+        setCopilotSubView: view =>
+          set({ copilotSubView: view }, undefined, 'setCopilotSubView'),
 
         setDshSubView: view =>
           set({ dshSubView: view }, undefined, 'setDshSubView'),

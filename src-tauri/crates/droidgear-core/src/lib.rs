@@ -8,6 +8,8 @@ pub mod codex_auth_profiles;
 pub mod codex_runtime;
 pub mod codex_sessions;
 pub mod connectivity;
+pub mod copilot;
+pub mod copilot_runtime;
 pub mod droid_runtime;
 pub mod droid_settings_files;
 pub mod dsh;

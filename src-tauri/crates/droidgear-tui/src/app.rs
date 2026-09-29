@@ -1,15 +1,16 @@
 use std::{collections::HashSet, path::PathBuf};
 
 use droidgear_core::{
-    channel::Channel,
+    channel::{Channel, ChannelToken},
     claude_settings_files::ClaudeSettingsFileInfo,
     codex::CodexProfile,
     codex_auth_profiles::CodexAuthProfile,
     codex_sessions::CodexSessionSummary,
+    copilot::{CopilotChannelSelection, CopilotProfile},
     droid_settings_files::SettingsFileInfo,
     dsh::DshProviderConfig,
     factory_auth_profiles::AuthProfile,
-    factory_settings::{CustomModel, MissionModelSettings},
+    factory_settings::{CustomModel, MissionModelSettings, ModelInfo},
     hermes::HermesProfile,
     mcp::McpServer,
     omp::OmpProfile,
@@ -74,6 +75,7 @@ pub enum Screen {
     FactoryAuth,
     CodexAuth,
     CodexSessions,
+    Copilot,
     PiSessions,
 }
 
@@ -131,6 +133,12 @@ pub enum ConfirmAction {
         id: String,
     },
     CodexDelete {
+        id: String,
+    },
+    CopilotApply {
+        id: String,
+    },
+    CopilotDelete {
         id: String,
     },
     CodexDeleteProvider {
@@ -284,6 +292,14 @@ pub enum InputAction {
     },
     TrustedFolderAdd,
     CodexCreateProfile,
+    CopilotCreateProfile,
+    CopilotDuplicate {
+        id: String,
+    },
+    CopilotImportApiKey {
+        profile_id: String,
+        channel: Channel,
+    },
     CodexDuplicate {
         id: String,
     },
@@ -622,6 +638,24 @@ pub enum InputAction {
 #[derive(Debug, Clone)]
 pub enum SelectAction {
     GoToNav,
+    CopilotImportChannel {
+        profile_id: String,
+        channels: Vec<Channel>,
+    },
+    CopilotImportToken {
+        profile_id: String,
+        channel: Channel,
+        tokens: Vec<ChannelToken>,
+    },
+    CopilotImportProtocol {
+        profile_id: String,
+        selection: CopilotChannelSelection,
+    },
+    CopilotImportModel {
+        profile_id: String,
+        selection: CopilotChannelSelection,
+        models: Vec<ModelInfo>,
+    },
     ClaudeSettingsSetReasoningEffort,
     ClaudeSettingsSetThinkingMode,
     ClaudeSettingsSetPermissionsDefaultMode,
@@ -941,6 +975,9 @@ pub struct App {
 
     pub codex_sessions: Vec<CodexSessionSummary>,
     pub codex_sessions_index: usize,
+    pub copilot_profiles: Vec<CopilotProfile>,
+    pub copilot_active_id: Option<String>,
+    pub copilot_index: usize,
     pub pi_sessions: Vec<PiSessionSummary>,
     pub pi_sessions_index: usize,
 }
@@ -1122,6 +1159,9 @@ impl App {
             codex_auth_index: 0,
             codex_sessions: Vec::new(),
             codex_sessions_index: 0,
+            copilot_profiles: Vec::new(),
+            copilot_active_id: None,
+            copilot_index: 0,
             pi_sessions: Vec::new(),
             pi_sessions_index: 0,
         }
@@ -1188,6 +1228,11 @@ impl App {
             NavGroup {
                 label: "OMP",
                 items: &[("Profiles", Screen::Omp)],
+                system: false,
+            },
+            NavGroup {
+                label: "Copilot",
+                items: &[("Profiles", Screen::Copilot)],
                 system: false,
             },
             NavGroup {
@@ -1402,6 +1447,9 @@ impl App {
         }
         if self.claude_index >= self.claude_files.len() {
             self.claude_index = self.claude_files.len().saturating_sub(1);
+        }
+        if self.copilot_index >= self.copilot_profiles.len() {
+            self.copilot_index = self.copilot_profiles.len().saturating_sub(1);
         }
         if self.trusted_folders_index >= self.trusted_folders.len() {
             self.trusted_folders_index = self.trusted_folders.len().saturating_sub(1);

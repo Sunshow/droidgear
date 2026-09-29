@@ -281,10 +281,51 @@ pub(super) fn handle_modal_key(app: &mut app::App, code: KeyCode, modal: app::Mo
 pub(super) fn run_select_action(
     app: &mut app::App,
     action: app::SelectAction,
-    _index: usize,
+    index: usize,
     selected: Option<String>,
 ) -> anyhow::Result<()> {
     match action {
+        app::SelectAction::CopilotImportChannel {
+            profile_id,
+            channels,
+        } => {
+            if let Some(channel) = channels.get(index).filter(|_| selected.is_some()) {
+                super::copilot_import::select_channel(app, profile_id, channel.clone())?;
+            }
+            Ok(())
+        }
+        app::SelectAction::CopilotImportToken {
+            profile_id,
+            channel,
+            tokens,
+        } => {
+            if let Some(token) = tokens.get(index).filter(|_| selected.is_some()) {
+                super::copilot_import::select_token(app, profile_id, channel, token.clone())?;
+            }
+            Ok(())
+        }
+        app::SelectAction::CopilotImportProtocol {
+            profile_id,
+            mut selection,
+        } => {
+            selection.provider = match selected.as_deref() {
+                Some("OpenAI") => Some(droidgear_core::factory_settings::Provider::Openai),
+                Some("Anthropic") => Some(droidgear_core::factory_settings::Provider::Anthropic),
+                _ => return Ok(()),
+            };
+            super::copilot_import::fetch_models(app, profile_id, selection)
+        }
+        app::SelectAction::CopilotImportModel {
+            profile_id,
+            mut selection,
+            models,
+        } => {
+            if let Some(model) = models.get(index).filter(|_| selected.is_some()) {
+                selection.model = model.id.clone();
+                super::copilot_import::save_import(app, &profile_id, selection)?;
+            }
+            Ok(())
+        }
         app::SelectAction::GoToNav => {
             // Resolve by label: with the type-to-filter the selected index
             // indexes the filtered list, but labels are globally unique.
@@ -1900,6 +1941,17 @@ pub(super) fn run_confirm_action(
             super::keys_claude::exit_claude_detail(app);
             Ok(())
         }
+        app::ConfirmAction::CopilotApply { id } => {
+            droidgear_core::copilot::apply_copilot_profile_for_home(&app.home_dir, &id)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Applied to config.env; restart Copilot to use it", false);
+            Ok(())
+        }
+        app::ConfirmAction::CopilotDelete { id } => {
+            droidgear_core::copilot::delete_copilot_profile_for_home(&app.home_dir, &id)
+                .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
         app::ConfirmAction::CodexApply { id } => {
             droidgear_core::codex::apply_codex_profile_for_home(&app.home_dir, &id)
                 .map_err(anyhow::Error::msg)?;
@@ -2529,6 +2581,54 @@ pub(super) fn run_input_action(
             )
             .map_err(anyhow::Error::msg)?;
             claude_import_fetch_models(app, &channel, trimmed);
+            Ok(())
+        }
+        app::InputAction::CopilotImportApiKey {
+            profile_id,
+            channel,
+        } => super::copilot_import::enter_api_key(app, profile_id, channel, value),
+        app::InputAction::CopilotCreateProfile => {
+            let profile = droidgear_core::copilot::CopilotProfile {
+                id: uuid::Uuid::new_v4().to_string(),
+                name: trimmed.to_string(),
+                description: None,
+                created_at: String::new(),
+                updated_at: String::new(),
+                use_official_auth: false,
+                base_url: None,
+                provider_type: Some("openai".to_string()),
+                api_key: None,
+                model: None,
+                max_prompt_tokens: None,
+                max_output_tokens: None,
+            };
+            droidgear_core::copilot::save_copilot_profile_for_home(&app.home_dir, profile.clone())
+                .map_err(anyhow::Error::msg)?;
+            refresh_copilot(app);
+            app.copilot_index = app
+                .copilot_profiles
+                .iter()
+                .position(|item| item.id == profile.id)
+                .unwrap_or(0);
+            app.set_toast(
+                "Created; press e to edit provider and model settings",
+                false,
+            );
+            Ok(())
+        }
+        app::InputAction::CopilotDuplicate { id } => {
+            let profile = droidgear_core::copilot::duplicate_copilot_profile_for_home(
+                &app.home_dir,
+                &id,
+                trimmed,
+            )
+            .map_err(anyhow::Error::msg)?;
+            refresh_copilot(app);
+            app.copilot_index = app
+                .copilot_profiles
+                .iter()
+                .position(|item| item.id == profile.id)
+                .unwrap_or(0);
             Ok(())
         }
         app::InputAction::CodexCreateProfile => {

@@ -427,6 +427,7 @@ fn draw_main(frame: &mut Frame, app: &app::App, area: Rect) {
         app::Screen::HermesProvider => draw_hermes_provider(frame, app, area),
         app::Screen::Sessions => draw_sessions(frame, app, area),
         app::Screen::CodexSessions => draw_codex_sessions(frame, app, area),
+        app::Screen::Copilot => draw_copilot_profiles(frame, app, area),
         app::Screen::PiSessions => draw_pi_sessions(frame, app, area),
         app::Screen::Specs => draw_specs(frame, app, area),
         app::Screen::Channels => draw_channels(frame, app, area),
@@ -1131,6 +1132,20 @@ fn draw_codex_profiles(frame: &mut Frame, app: &app::App, area: Rect) {
         active,
         selected_index,
         "Up/Down: select  Enter/e: open  E: raw edit  p: preview  a: apply  n: new  c: copy  d: delete  r: refresh  q/Esc: back",
+    );
+}
+
+fn draw_copilot_profiles(frame: &mut Frame, app: &app::App, area: Rect) {
+    draw_profile_list(
+        frame,
+        area,
+        &crumb_title(app, "Copilot Profiles"),
+        app.copilot_profiles
+            .iter()
+            .map(|profile| (profile.name.as_str(), profile.id.as_str())),
+        app.copilot_active_id.as_deref(),
+        app.copilot_index,
+        "Enter/t: run  e: edit JSON  i: import channel  n: new  c: copy  d: delete  a: apply  l: load config  r: refresh  q/Esc: back",
     );
 }
 

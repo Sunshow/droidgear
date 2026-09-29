@@ -11,6 +11,7 @@ import {
   Cog,
   Cpu,
   CircuitBoard,
+  BotMessageSquare,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ActionButton } from '@/components/ui/action-button'
@@ -44,6 +45,7 @@ import { OpenClawFeatureList } from '@/components/openclaw/OpenClawFeatureList'
 import { HermesFeatureList } from '@/components/hermes/HermesFeatureList'
 import { PiFeatureList } from '@/components/pi/PiFeatureList'
 import { OmpFeatureList } from '@/components/omp/OmpFeatureList'
+import { CopilotFeatureList } from '@/components/copilot/CopilotFeatureList'
 import { DshFeatureList } from '@/components/dsh/DshFeatureList'
 import { useUIStore } from '@/store/ui-store'
 import { useChannelStore } from '@/store/channel-store'
@@ -61,6 +63,7 @@ type NavigationView =
   | 'hermes'
   | 'pi'
   | 'omp'
+  | 'copilot'
   | 'dsh'
 
 interface LeftSideBarProps {
@@ -124,6 +127,11 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
         <>
           <CircuitBoard className="h-4 w-4 mr-2" />
           {t('sidebar.omp')}
+        </>
+      ) : lastToolView === 'copilot' ? (
+        <>
+          <BotMessageSquare className="h-4 w-4 mr-2" />
+          {t('sidebar.copilot')}
         </>
       ) : lastToolView === 'dsh' ? (
         <>
@@ -345,6 +353,18 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
               </ActionDropdownMenuItem>
               <ActionDropdownMenuItem
                 onClick={() => {
+                  handleViewChange('copilot')
+                  setDropdownOpen(false)
+                }}
+              >
+                <BotMessageSquare className="mr-2 h-4 w-4" />
+                {t('sidebar.copilot')}
+                {lastToolView === 'copilot' && (
+                  <Check className="ml-auto h-4 w-4" />
+                )}
+              </ActionDropdownMenuItem>
+              <ActionDropdownMenuItem
+                onClick={() => {
                   handleViewChange('dsh')
                   setDropdownOpen(false)
                 }}
@@ -378,6 +398,8 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
           <PiFeatureList />
         ) : currentView === 'omp' ? (
           <OmpFeatureList />
+        ) : currentView === 'copilot' ? (
+          <CopilotFeatureList />
         ) : currentView === 'dsh' ? (
           <DshFeatureList />
         ) : (

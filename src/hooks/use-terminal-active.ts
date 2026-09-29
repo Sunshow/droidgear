@@ -4,7 +4,7 @@ import { useUIStore } from '@/store/ui-store'
  * Whether the shared in-app terminal page is the active view.
  *
  * The terminal page is reachable from every tool panel (Droid, OpenCode,
- * Codex, Claude, OpenClaw, Hermes, Pi, Omp, Dsh). Each tool's sidebar has a
+ * Codex, Claude, OpenClaw, Hermes, Pi, Omp, Copilot, Dsh). Each tool's sidebar has a
  * "Terminal" entry that selects its `terminal` sub-view.
  */
 export function useTerminalActive(): boolean {
@@ -17,6 +17,7 @@ export function useTerminalActive(): boolean {
   const hermesSubView = useUIStore(state => state.hermesSubView)
   const piSubView = useUIStore(state => state.piSubView)
   const ompSubView = useUIStore(state => state.ompSubView)
+  const copilotSubView = useUIStore(state => state.copilotSubView)
   const dshSubView = useUIStore(state => state.dshSubView)
 
   switch (currentView) {
@@ -36,6 +37,8 @@ export function useTerminalActive(): boolean {
       return piSubView === 'terminal'
     case 'omp':
       return ompSubView === 'terminal'
+    case 'copilot':
+      return copilotSubView === 'terminal'
     case 'dsh':
       return dshSubView === 'terminal'
     default:
