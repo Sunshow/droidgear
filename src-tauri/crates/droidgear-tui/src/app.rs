@@ -1504,7 +1504,7 @@ impl App {
         if self.codex_index >= self.codex_profiles.len() {
             self.codex_index = self.codex_profiles.len().saturating_sub(1);
         }
-        let codex_fields_count = 6;
+        let codex_fields_count = 8;
         if self.codex_detail_field_index >= codex_fields_count {
             self.codex_detail_field_index = codex_fields_count.saturating_sub(1);
         }

@@ -350,6 +350,17 @@ pub(super) fn handle_codex_profile_key(app: &mut app::App, code: KeyCode) -> Opt
                         action: app::InputAction::CodexSetProfileApiKey { id: profile_id },
                     });
                 }
+                7 => {
+                    let mut updated = profile.clone();
+                    updated.api_key_model_discovery = !updated.api_key_model_discovery;
+                    match droidgear_core::codex::save_codex_profile_for_home_and_apply_if_active(
+                        &app.home_dir,
+                        updated,
+                    ) {
+                        Ok(()) => refresh_codex_detail(app),
+                        Err(e) => app.set_toast(e, true),
+                    }
+                }
                 _ => {}
             },
             app::CodexDetailFocus::Providers => {

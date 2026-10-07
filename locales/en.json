@@ -821,6 +821,7 @@
   "codex.profile.description": "Description",
   "codex.profile.descriptionPlaceholder": "Optional description",
   "codex.profile.modelProvider": "Model Provider",
+  "codex.profile.apiKeyModelDiscovery": "Discover models with API key",
   "codex.profile.modelProviderCustom": "custom",
   "codex.profile.modelProviderOpenai": "openai",
   "codex.profile.modelProviderHint": "Select openai to use an official ChatGPT subscription.",

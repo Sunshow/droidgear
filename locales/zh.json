@@ -821,6 +821,7 @@
   "codex.profile.description": "描述",
   "codex.profile.descriptionPlaceholder": "可选描述",
   "codex.profile.modelProvider": "Model Provider",
+  "codex.profile.apiKeyModelDiscovery": "使用 API Key 发现模型",
   "codex.profile.modelProviderCustom": "custom",
   "codex.profile.modelProviderOpenai": "openai",
   "codex.profile.modelProviderHint": "使用官方订阅请选择 openai。",

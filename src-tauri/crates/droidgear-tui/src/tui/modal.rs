@@ -2674,6 +2674,7 @@ pub(super) fn run_input_action(
                 model: "gpt-5.2".to_string(),
                 model_reasoning_effort: Some("high".to_string()),
                 api_key: Some(String::new()),
+                api_key_model_discovery: false,
                 auth_profile_name: None,
             };
 

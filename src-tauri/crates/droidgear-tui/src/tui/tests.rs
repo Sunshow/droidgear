@@ -871,6 +871,7 @@ fn list_codex_temporary_run_targets_lists_index_name_and_id() {
             model: "gpt-5".to_string(),
             model_reasoning_effort: None,
             api_key: None,
+            api_key_model_discovery: false,
             auth_profile_name: None,
         },
     )
@@ -888,6 +889,7 @@ fn list_codex_temporary_run_targets_lists_index_name_and_id() {
             model: "gpt-5".to_string(),
             model_reasoning_effort: None,
             api_key: None,
+            api_key_model_discovery: false,
             auth_profile_name: None,
         },
     )
@@ -918,6 +920,7 @@ fn preview_codex_temporary_run_lists_secret_keys_without_secret_values() {
             model: "gpt-5".to_string(),
             model_reasoning_effort: None,
             api_key: Some("sk-secret".to_string()),
+            api_key_model_discovery: false,
             auth_profile_name: None,
         },
     )
@@ -967,6 +970,7 @@ fn codex_set_provider_context_window_links_auto_compact_preset() {
             model: "gpt-5.6-sol".to_string(),
             model_reasoning_effort: None,
             api_key: None,
+            api_key_model_discovery: false,
             auth_profile_name: None,
         },
     )

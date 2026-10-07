@@ -14,6 +14,7 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { commands } from '@/lib/bindings'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -77,6 +78,9 @@ export function CodexConfigPage() {
   const updateProfileModel = useCodexStore(state => state.updateProfileModel)
   const updateProfileReasoningEffort = useCodexStore(
     state => state.updateProfileReasoningEffort
+  )
+  const updateApiKeyModelDiscovery = useCodexStore(
+    state => state.updateApiKeyModelDiscovery
   )
   const deleteProvider = useCodexStore(state => state.deleteProvider)
   const setActiveProvider = useCodexStore(state => state.setActiveProvider)
@@ -471,6 +475,18 @@ export function CodexConfigPage() {
                     {t('codex.profile.modelProviderLogoutHint')}
                   </p>
                 )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="codex-api-key-model-discovery"
+                  checked={currentProfile.apiKeyModelDiscovery ?? false}
+                  onCheckedChange={checked =>
+                    updateApiKeyModelDiscovery(checked === true)
+                  }
+                />
+                <Label htmlFor="codex-api-key-model-discovery">
+                  {t('codex.profile.apiKeyModelDiscovery')}
+                </Label>
               </div>
             </>
           )}

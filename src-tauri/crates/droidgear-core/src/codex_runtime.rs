@@ -535,6 +535,7 @@ mod tests {
             model: "fallback-model".to_string(),
             model_reasoning_effort: Some("medium".to_string()),
             api_key: Some("sk-profile".to_string()),
+            api_key_model_discovery: false,
             auth_profile_name: None,
         }
     }
@@ -855,6 +856,7 @@ env_key = "OLD_API_KEY"
             model: "gpt-5".to_string(),
             model_reasoning_effort: None,
             api_key: None,
+            api_key_model_discovery: false,
             auth_profile_name: None,
         };
 

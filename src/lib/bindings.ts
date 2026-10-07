@@ -2955,7 +2955,7 @@ export type CodexContentBlock = { type: string; text?: string | null; thinking?:
 /**
  * 当前 Codex Live 配置（从 `~/.codex/*` 读取）
  */
-export type CodexCurrentConfig = { providers?: Partial<{ [key in string]: CodexProviderConfig }>; modelProvider: string; model: string; modelReasoningEffort?: string | null; apiKey?: string | null }
+export type CodexCurrentConfig = { providers?: Partial<{ [key in string]: CodexProviderConfig }>; modelProvider: string; model: string; modelReasoningEffort?: string | null; apiKeyModelDiscovery?: boolean; apiKey?: string | null }
 /**
  * One-shot plan for launching Codex inside the app PTY terminal.
  * 
@@ -2975,7 +2975,7 @@ export type CodexProfile = { id: string; name: string; description?: string | nu
 /**
  * Saved Codex auth profile name to restore on apply (openai mode only).
  */
-authProfileName?: string | null }
+authProfileName?: string | null; apiKeyModelDiscovery?: boolean }
 /**
  * Codex Provider 配置（对应 config.toml 中的 [model_providers.<id>]）
  */

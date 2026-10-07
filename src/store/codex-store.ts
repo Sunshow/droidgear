@@ -32,6 +32,7 @@ interface CodexState {
   updateAuthProfileName: (name: string | null) => Promise<void>
   updateProfileModel: (model: string) => Promise<void>
   updateProfileReasoningEffort: (effort: string | null) => Promise<void>
+  updateApiKeyModelDiscovery: (enabled: boolean) => Promise<void>
 
   // Provider management
   addProvider: (id: string, config: CodexProviderConfig) => Promise<void>
@@ -157,6 +158,7 @@ export const useCodexStore = create<CodexState>()(
           modelProvider: 'custom',
           model: '',
           modelReasoningEffort: null,
+          apiKeyModelDiscovery: false,
           apiKey: '',
           authProfileName: null,
         }
@@ -262,6 +264,7 @@ export const useCodexStore = create<CodexState>()(
           modelProvider: live.modelProvider,
           model: live.model,
           modelReasoningEffort: live.modelReasoningEffort ?? null,
+          apiKeyModelDiscovery: live.apiKeyModelDiscovery ?? false,
           apiKey: live.apiKey ?? null,
           updatedAt: new Date().toISOString(),
         }
@@ -370,6 +373,22 @@ export const useCodexStore = create<CodexState>()(
           { currentProfile: updated },
           undefined,
           'codex/updateProfileReasoningEffort'
+        )
+        await get().saveProfile()
+      },
+
+      updateApiKeyModelDiscovery: async enabled => {
+        const { currentProfile } = get()
+        if (!currentProfile) return
+        const updated = {
+          ...currentProfile,
+          apiKeyModelDiscovery: enabled,
+          updatedAt: new Date().toISOString(),
+        }
+        set(
+          { currentProfile: updated },
+          undefined,
+          'codex/updateApiKeyModelDiscovery'
         )
         await get().saveProfile()
       },

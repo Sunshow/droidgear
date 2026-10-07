@@ -178,6 +178,7 @@ pub(super) fn codex_load_from_live_config(
     profile.model_provider = live.model_provider;
     profile.model = live.model;
     profile.model_reasoning_effort = live.model_reasoning_effort;
+    profile.api_key_model_discovery = live.api_key_model_discovery;
     profile.api_key = live.api_key;
     droidgear_core::codex::save_codex_profile_for_home(&app.home_dir, profile)
         .map_err(anyhow::Error::msg)?;

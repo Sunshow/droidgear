@@ -103,6 +103,8 @@ pub struct CodexProfile {
     /// Saved Codex auth profile name to restore on apply (openai mode only).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub auth_profile_name: Option<String>,
+    #[serde(default)]
+    pub api_key_model_discovery: bool,
 }
 
 /// Codex Live 配置状态
@@ -125,6 +127,8 @@ pub struct CodexCurrentConfig {
     pub model: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_reasoning_effort: Option<String>,
+    #[serde(default)]
+    pub api_key_model_discovery: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api_key: Option<String>,
 }
@@ -444,6 +448,16 @@ pub(crate) fn apply_profile_to_config_map(
     } else {
         config.remove("model_reasoning_effort");
     }
+
+    let features = config
+        .entry("features".to_string())
+        .or_insert_with(|| toml::Value::Table(toml::map::Map::new()))
+        .as_table_mut()
+        .ok_or("Codex features config must be a table")?;
+    features.insert(
+        "api_key_model_discovery".to_string(),
+        toml::Value::Boolean(profile.api_key_model_discovery),
+    );
 
     // Context window overrides live at config.toml top level; remove them
     // when unset so a previously applied value never leaks into the next
@@ -852,6 +866,7 @@ pub fn create_default_codex_profile_for_home(home_dir: &Path) -> Result<CodexPro
         model: "gpt-5.2".to_string(),
         model_reasoning_effort: Some("high".to_string()),
         api_key: Some(String::new()),
+        api_key_model_discovery: false,
         auth_profile_name: None,
     };
 
@@ -1039,6 +1054,7 @@ pub fn read_codex_current_config_for_home(home_dir: &Path) -> Result<CodexCurren
         model_reasoning_effort,
         model_context_window,
         model_auto_compact_token_limit,
+        api_key_model_discovery,
     ) = if config_path.exists() {
         let s = std::fs::read_to_string(&config_path)
             .map_err(|e| format!("Failed to read config.toml: {e}"))?;
@@ -1050,6 +1066,7 @@ pub fn read_codex_current_config_for_home(home_dir: &Path) -> Result<CodexCurren
                 None,
                 None,
                 None,
+                false,
             )
         } else {
             let config: toml::map::Map<String, toml::Value> =
@@ -1095,6 +1112,12 @@ pub fn read_codex_current_config_for_home(home_dir: &Path) -> Result<CodexCurren
                 .and_then(|v| v.as_integer())
                 .and_then(|v| u32::try_from(v).ok());
 
+            let api_key_model_discovery = config
+                .get("features")
+                .and_then(|v| v.get("api_key_model_discovery"))
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+
             (
                 providers,
                 model_provider,
@@ -1102,6 +1125,7 @@ pub fn read_codex_current_config_for_home(home_dir: &Path) -> Result<CodexCurren
                 model_reasoning_effort,
                 model_context_window,
                 model_auto_compact_token_limit,
+                api_key_model_discovery,
             )
         }
     } else {
@@ -1112,6 +1136,7 @@ pub fn read_codex_current_config_for_home(home_dir: &Path) -> Result<CodexCurren
             None,
             None,
             None,
+            false,
         )
     };
 
@@ -1158,6 +1183,7 @@ pub fn read_codex_current_config_for_home(home_dir: &Path) -> Result<CodexCurren
         model_provider,
         model,
         model_reasoning_effort,
+        api_key_model_discovery,
         api_key,
     })
 }
@@ -1222,7 +1248,8 @@ pub fn read_codex_current_config() -> Result<CodexCurrentConfig, String> {
 mod tests {
     use super::{
         apply_codex_profile_for_home, apply_profile_to_config_map, catalog_for_model,
-        provider_config_to_toml, read_codex_current_config_for_home, resolve_active_provider,
+        codex_config_path_for_home, get_codex_profile_for_home, provider_config_to_toml,
+        read_codex_current_config_for_home, resolve_active_provider,
         resolve_codex_profile_selector_for_home, save_codex_profile_for_home,
         save_codex_profile_for_home_and_apply_if_active, sync_models_json_for_home, CodexProfile,
         CodexProviderConfig, ModelCatalog,
@@ -1242,6 +1269,7 @@ mod tests {
             model: "gpt-5".to_string(),
             model_reasoning_effort: None,
             api_key: None,
+            api_key_model_discovery: false,
             auth_profile_name: None,
         }
     }
@@ -1306,6 +1334,7 @@ mod tests {
             model: "gpt-5".to_string(),
             model_reasoning_effort: None,
             api_key: None,
+            api_key_model_discovery: false,
             auth_profile_name: None,
         };
 
@@ -1346,6 +1375,7 @@ mod tests {
             model: "gpt-5.4".to_string(),
             model_reasoning_effort: Some("high".to_string()),
             api_key: None,
+            api_key_model_discovery: false,
             auth_profile_name: None,
         };
 
@@ -1400,6 +1430,7 @@ mod tests {
             model: "gpt-5.6-sol".to_string(),
             model_reasoning_effort: None,
             api_key: None,
+            api_key_model_discovery: false,
             auth_profile_name: None,
         };
 
@@ -1464,6 +1495,7 @@ mod tests {
             model: "gpt-5.6-sol".to_string(),
             model_reasoning_effort: None,
             api_key: None,
+            api_key_model_discovery: false,
             auth_profile_name: None,
         };
 
@@ -1716,6 +1748,7 @@ mod tests {
             model: "gpt-5".to_string(),
             model_reasoning_effort: None,
             api_key: None,
+            api_key_model_discovery: false,
             auth_profile_name: None,
         }
     }
@@ -1834,6 +1867,42 @@ mod tests {
             !config.contains("gpt-5.2"),
             "non-active profile saves must not rewrite config.toml"
         );
+    }
+
+    #[test]
+    fn api_key_model_discovery_round_trips_without_replacing_other_features() {
+        let temp = TempDir::new().unwrap();
+        let home = temp.path();
+        let config_path = codex_config_path_for_home(home).unwrap();
+        std::fs::write(&config_path, "[features]\nshell_snapshot = true\n").unwrap();
+        assert!(
+            !read_codex_current_config_for_home(home)
+                .unwrap()
+                .api_key_model_discovery
+        );
+
+        let mut profile = sample_profile("discovery", "Model discovery");
+        for enabled in [true, false] {
+            profile.api_key_model_discovery = enabled;
+            save_codex_profile_for_home(home, profile.clone()).unwrap();
+            let saved = get_codex_profile_for_home(home, &profile.id).unwrap();
+            assert_eq!(saved.api_key_model_discovery, enabled);
+
+            apply_codex_profile_for_home(home, &profile.id).unwrap();
+            let config_text = std::fs::read_to_string(&config_path).unwrap();
+            let config: toml::Value = toml::from_str(&config_text).unwrap();
+            assert_eq!(
+                config["features"]["api_key_model_discovery"].as_bool(),
+                Some(enabled)
+            );
+            assert_eq!(config["features"]["shell_snapshot"].as_bool(), Some(true));
+            assert_eq!(
+                read_codex_current_config_for_home(home)
+                    .unwrap()
+                    .api_key_model_discovery,
+                enabled
+            );
+        }
     }
 
     #[test]

@@ -92,6 +92,7 @@ base_url = "https://api.openai.com/v1"
         model: "fallback-model".to_string(),
         model_reasoning_effort: Some("medium".to_string()),
         api_key: Some("sk-profile-level".to_string()),
+        api_key_model_discovery: false,
         auth_profile_name: None,
     };
     let profile_json = serde_json::to_string_pretty(&profile).unwrap();
@@ -277,6 +278,7 @@ fn codex_apply_can_remove_openai_api_key_without_destroying_official_auth() {
         model: "gpt-5.2".to_string(),
         model_reasoning_effort: None,
         api_key: None,
+        api_key_model_discovery: false,
         auth_profile_name: None,
     };
     write_file(
@@ -324,6 +326,7 @@ fn codex_apply_openai_mode_deletes_auth_json_when_only_api_key_exists() {
         model_reasoning_effort: None,
         // Residual key must be ignored in openai mode.
         api_key: Some("sk-residual".to_string()),
+        api_key_model_discovery: false,
         auth_profile_name: None,
     };
     write_file(
@@ -368,6 +371,7 @@ fn codex_apply_openai_mode_preserves_auth_mode_session() {
         model: "gpt-5.2".to_string(),
         model_reasoning_effort: None,
         api_key: Some("sk-ignored".to_string()),
+        api_key_model_discovery: false,
         auth_profile_name: None,
     };
     write_file(
@@ -456,6 +460,7 @@ model = ""
         model: String::new(),
         model_reasoning_effort: None,
         api_key: Some("sk-ignored".to_string()),
+        api_key_model_discovery: false,
         auth_profile_name: Some("sub1".to_string()),
     };
     write_file(
@@ -795,6 +800,7 @@ model = "existing-live-model"
         model: "fallback".to_string(),
         model_reasoning_effort: Some("medium".to_string()),
         api_key: Some("sk-profile".to_string()),
+        api_key_model_discovery: false,
         auth_profile_name: None,
     };
     write_file(

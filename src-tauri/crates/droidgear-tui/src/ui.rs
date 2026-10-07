@@ -2340,6 +2340,14 @@ fn draw_codex_profile(frame: &mut Frame, app: &app::App, area: Rect) {
                 "(not set)".to_string()
             },
         ),
+        (
+            "Discover models with API key",
+            if profile.api_key_model_discovery {
+                "[x]".to_string()
+            } else {
+                "[ ]".to_string()
+            },
+        ),
     ];
 
     for (i, (label, value)) in fields.into_iter().enumerate() {
