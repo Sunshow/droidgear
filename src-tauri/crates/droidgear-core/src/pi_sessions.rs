@@ -497,6 +497,7 @@ pub fn delete_pi_session(session_path: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::slashes;
     use tempfile::TempDir;
 
     fn write_session(home: &Path) -> PathBuf {
@@ -535,7 +536,9 @@ mod tests {
         assert_eq!(session.token_usage.output_tokens, 7.0);
         assert_eq!(session.token_usage.total_tokens, 24.0);
         assert_eq!(session.token_usage.cost, 0.04);
-        assert_eq!(session.path, path.to_string_lossy());
+        // The discovered session path uses native separators while the
+        // fixture keeps the literal `/` from its join argument.
+        assert_eq!(slashes(&session.path), slashes(&path.to_string_lossy()));
     }
 
     #[test]

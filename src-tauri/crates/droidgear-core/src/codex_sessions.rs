@@ -901,6 +901,7 @@ mod tests {
         list_codex_session_providers_for_home, list_codex_sessions_for_home,
         set_codex_session_provider_for_home,
     };
+    use crate::test_support::slashes;
     use std::fs;
     use std::io::Write;
     use tempfile::TempDir;
@@ -988,7 +989,9 @@ mod tests {
         assert_eq!(s.token_usage.cache_creation_tokens, 5.0);
         assert_eq!(s.token_usage.reasoning_tokens, 30.0);
         assert_eq!(s.token_usage.total_tokens, 165.0);
-        assert_eq!(s.path, fixture.session_path());
+        // The discovered session path uses native separators while the
+        // fixture keeps the literal `/` from its join argument.
+        assert_eq!(slashes(&s.path), slashes(&fixture.session_path()));
         assert!(s.modified_at > 0.0);
     }
 
