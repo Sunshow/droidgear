@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.3.4
+
+**New Features / 新功能**
+
+- Codex profiles can enable API key model discovery: a checkbox on the Codex config page and in the TUI writes `features.api_key_model_discovery` in `config.toml` without touching the other feature flags / Codex Profile 支持启用 API Key 模型发现：Codex 配置页与 TUI 新增复选框，向 `config.toml` 写入 `features.api_key_model_discovery`，不影响其他 feature 开关
+
+**Bug Fixes / 问题修复**
+
+- Fix GUI terminal text selection and add mouse copy/paste: canceling the wrapper pointer event no longer swallows the mousedown xterm.js uses to start a selection, left click copies the current selection and right click pastes the clipboard (both skipped while the running app has mouse tracking enabled) / 修复 GUI 终端文本选择并新增鼠标复制粘贴：取消终端容器的 pointer 事件不再吞掉 xterm.js 用于开始选择的 mousedown，左键点击复制当前选区、右键点击粘贴剪贴板（运行中的应用开启鼠标跟踪时两者均跳过）
+- Fix Windows test startup: droidgear-core test path assertions are separator-agnostic, and the tauri-plugin-pty test binaries embed a Common-Controls v6 manifest so they start instead of failing on a missing TaskDialogIndirect / 修复 Windows 测试启动：droidgear-core 测试的路径断言不再依赖路径分隔符，tauri-plugin-pty 测试二进制内嵌 Common-Controls v6 清单，避免因缺少 TaskDialogIndirect 而无法启动
+
 ## v1.3.3
 
 **New Features / 新功能**
