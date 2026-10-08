@@ -732,7 +732,12 @@ fn droid_run_plan_uses_active_settings_file_directly_without_mutating_it() {
 
     assert_eq!(plan.program, "droid");
     assert_eq!(plan.args[0], "--settings");
-    assert_eq!(plan.args[1], settings_path.to_string_lossy());
+    // The plan resolves the path with native separators while the fixture
+    // keeps the literal `/` from its join argument; compare normalized.
+    assert_eq!(
+        plan.args[1].replace('\\', "/"),
+        settings_path.to_string_lossy().replace('\\', "/")
+    );
     assert_eq!(plan.settings_path, Some(settings_path.clone()));
     assert_eq!(
         plan.env,

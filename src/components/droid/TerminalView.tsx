@@ -432,6 +432,57 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
       }
       container.addEventListener('mousedown', handleMouseDown)
 
+      // Mouse shortcuts following classic terminal conventions: a left click
+      // (press and release without dragging) copies the active selection, and
+      // a right click pastes the clipboard. Both are skipped while the running
+      // app has mouse tracking enabled so TUI mouse input keeps working.
+      let pressSelection = ''
+      let pressX = 0
+      let pressY = 0
+
+      // Capture phase: xterm resets the selection on left mousedown, so the
+      // selection has to be read before its own handlers run.
+      const handleMouseDownCapture = (e: MouseEvent) => {
+        if (terminal.modes.mouseTrackingMode !== 'none') return
+        if (e.button === 0) {
+          pressSelection = terminal.getSelection()
+          pressX = e.clientX
+          pressY = e.clientY
+          return
+        }
+        if (e.button === 2) {
+          e.preventDefault()
+          readText()
+            .then(text => {
+              if (text) pty.write(text)
+            })
+            .catch(() => {
+              // Ignore clipboard errors
+            })
+        }
+      }
+
+      const handleMouseUpCopy = (e: MouseEvent) => {
+        if (terminal.modes.mouseTrackingMode !== 'none') return
+        if (e.button !== 0) return
+        const isClick =
+          Math.abs(e.clientX - pressX) < 4 && Math.abs(e.clientY - pressY) < 4
+        if (isClick && pressSelection) {
+          writeText(pressSelection).catch(() => {
+            // Ignore clipboard errors
+          })
+        }
+        pressSelection = ''
+      }
+
+      const handleContextMenu = (e: MouseEvent) => {
+        e.preventDefault()
+      }
+
+      container.addEventListener('mousedown', handleMouseDownCapture, true)
+      container.addEventListener('mouseup', handleMouseUpCopy)
+      container.addEventListener('contextmenu', handleContextMenu)
+
       // Initial resize after a short delay
       setTimeout(() => {
         if (fitAddonRef.current && ptyRef.current) {
@@ -466,6 +517,9 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
         disposeWebkitInputFix?.()
         resizeObserver.disconnect()
         container.removeEventListener('mousedown', handleMouseDown)
+        container.removeEventListener('mousedown', handleMouseDownCapture, true)
+        container.removeEventListener('mouseup', handleMouseUpCopy)
+        container.removeEventListener('contextmenu', handleContextMenu)
         selectionDisposable.dispose()
         osc9Disposable.dispose()
         pty.kill()
@@ -488,9 +542,16 @@ export const TerminalView = forwardRef<TerminalViewRef, TerminalViewProps>(
       <div
         ref={containerRef}
         className="h-full w-full"
-        onPointerDown={e => {
-          e.preventDefault()
+        onPointerDown={() => {
           terminalRef.current?.focus()
+        }}
+        onMouseDown={e => {
+          // Cancel only the mousedown default (native focus steal when
+          // clicking the wrapper padding). Never cancel pointerdown here:
+          // canceling it suppresses the compatibility mousedown that
+          // xterm.js listens for to start a selection, which made
+          // select/copy impossible in the GUI.
+          e.preventDefault()
         }}
         style={{
           padding: '8px 8px 16px 8px',

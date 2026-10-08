@@ -113,6 +113,7 @@ mod tests {
         build_run_plan_for_home, build_run_plan_from_settings_path_for_home, DroidRunPreferences,
     };
     use crate::droid_settings_files;
+    use crate::test_support::slashes;
     use std::path::Path;
     use tempfile::TempDir;
 
@@ -146,12 +147,19 @@ mod tests {
         let plan = build_run_plan_for_home(home(&temp), &DroidRunPreferences::default()).unwrap();
 
         assert_eq!(plan.program, "droid");
+        // The plan resolves the active path with native separators while the
+        // fixture keeps the literal `/` from its join argument; compare with
+        // separators normalized so the assertion holds on Windows too.
+        let expected_args = vec![
+            "--settings".to_string(),
+            active_settings_path.to_string_lossy().to_string(),
+        ];
         assert_eq!(
-            plan.args,
-            vec![
-                "--settings".to_string(),
-                active_settings_path.to_string_lossy().to_string()
-            ]
+            plan.args.iter().map(|arg| slashes(arg)).collect::<Vec<_>>(),
+            expected_args
+                .iter()
+                .map(|arg| slashes(arg))
+                .collect::<Vec<_>>()
         );
         assert_eq!(plan.settings_path, Some(active_settings_path.clone()));
         assert_eq!(

@@ -32,3 +32,14 @@ pub mod trusted_folders;
 pub fn core_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
+
+/// Helpers shared by this crate's unit tests.
+#[cfg(test)]
+pub(crate) mod test_support {
+    /// Rewrites `\` separators to `/` so path assertions comparing
+    /// production-built paths (native separators) with fixtures that embed
+    /// literal `/` in `join` arguments behave identically on every platform.
+    pub(crate) fn slashes(path: impl AsRef<str>) -> String {
+        path.as_ref().replace('\\', "/")
+    }
+}
