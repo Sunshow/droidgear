@@ -109,6 +109,30 @@
     }
   },
   {
+    "id": "claude-haiku-5-5",
+    "name": "Claude Haiku 5.5",
+    "aliases": ["claude-haiku-5.5"],
+    "platform": "anthropic-messages",
+    "reasoning": true,
+    "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh",
+      "max": "max"
+    },
+    "contextWindow": 1000000,
+    "maxOutputTokens": 128000,
+    "strictSampling": true,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-adaptive",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
     "id": "claude-opus-4",
     "name": "Claude Opus 4",
     "aliases": ["claude-opus-4-20250514"],
@@ -266,6 +290,30 @@
     }
   },
   {
+    "id": "claude-opus-5-5",
+    "name": "Claude Opus 5.5",
+    "aliases": ["claude-opus-5.5"],
+    "platform": "anthropic-messages",
+    "reasoning": true,
+    "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh",
+      "max": "max"
+    },
+    "contextWindow": 1000000,
+    "maxOutputTokens": 128000,
+    "strictSampling": true,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-adaptive",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
     "id": "claude-sonnet-4",
     "name": "Claude Sonnet 4",
     "aliases": ["claude-sonnet-4-20250514"],
@@ -333,6 +381,30 @@
     "id": "claude-sonnet-5",
     "name": "Claude Sonnet 5",
     "aliases": ["claude-sonnet.5"],
+    "platform": "anthropic-messages",
+    "reasoning": true,
+    "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh",
+      "max": "max"
+    },
+    "contextWindow": 1000000,
+    "maxOutputTokens": 128000,
+    "strictSampling": true,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-adaptive",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
+    "id": "claude-sonnet-5-5",
+    "name": "Claude Sonnet 5.5",
+    "aliases": ["claude-sonnet-5.5"],
     "platform": "anthropic-messages",
     "reasoning": true,
     "input": ["text", "image"],
@@ -1927,6 +1999,78 @@
     "strictSampling": true
   },
   {
+    "id": "gpt-6-luna",
+    "name": "GPT-6 Luna",
+    "aliases": [],
+    "platform": "openai-responses",
+    "reasoning": true,
+    "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh",
+      "max": "max"
+    },
+    "contextWindow": 1050000,
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    },
+    "strictSampling": true
+  },
+  {
+    "id": "gpt-6-sol",
+    "name": "GPT-6 Sol",
+    "aliases": [],
+    "platform": "openai-responses",
+    "reasoning": true,
+    "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh",
+      "max": "max"
+    },
+    "contextWindow": 1050000,
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    },
+    "strictSampling": true
+  },
+  {
+    "id": "gpt-6.1-sol",
+    "name": "GPT-6.1 Sol",
+    "aliases": [],
+    "platform": "openai-responses",
+    "reasoning": true,
+    "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh",
+      "max": "max"
+    },
+    "contextWindow": 1050000,
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    },
+    "strictSampling": true
+  },
+  {
     "id": "gpt-oss-120b",
     "name": "GPT OSS 120B",
     "aliases": [],
@@ -2011,6 +2155,28 @@
     "id": "grok-4.6",
     "name": "Grok 4.6",
     "aliases": ["grok-4-6"],
+    "platform": "openai-completions",
+    "reasoning": true,
+    "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh"
+    },
+    "contextWindow": 500000,
+    "maxOutputTokens": 500000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
+    "id": "grok-4.7",
+    "name": "Grok 4.7",
+    "aliases": ["grok-4-7"],
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text", "image"],
@@ -2245,6 +2411,48 @@
     "platform": "openai-completions",
     "reasoning": true,
     "input": ["text"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
+    "contextWindow": 1048576,
+    "maxOutputTokens": 131072,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
+    "id": "mimo-v2.6-flash",
+    "name": "MiMo V2.6 Flash",
+    "aliases": [],
+    "platform": "openai-completions",
+    "reasoning": true,
+    "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
+    "contextWindow": 1048576,
+    "maxOutputTokens": 131072,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
+    "id": "mimo-v2.6-pro",
+    "name": "MiMo V2.6 Pro",
+    "aliases": [],
+    "platform": "openai-completions",
+    "reasoning": true,
+    "input": ["text", "image"],
     "thinkingLevelMap": {
       "minimal": null
     },
