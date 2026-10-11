@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.3.5
+
+**New Features / 新功能**
+
+- Register the Claude 5.5 family and recent vendor models: `claude-opus-5-5`, `claude-sonnet-5-5`, and `claude-haiku-5-5` (1M context, 128K output), plus `gpt-6-luna`, `gpt-6-sol`, `gpt-6.1-sol`, `grok-4.7`, `mimo-v2.6-pro`, and `mimo-v2.6-flash`. Official Droid names gain Opus 5.5 and Sonnet 5.5, and registry metadata is synced (context windows, max output, reasoning efforts) / 注册 Claude 5.5 系列与近期厂商模型：`claude-opus-5-5`、`claude-sonnet-5-5`、`claude-haiku-5-5`（1M 上下文、128K 输出），以及 `gpt-6-luna`、`gpt-6-sol`、`gpt-6.1-sol`、`grok-4.7`、`mimo-v2.6-pro`、`mimo-v2.6-flash`。官方 Droid 模型名新增 Opus 5.5 与 Sonnet 5.5，并同步注册表中的上下文窗口、最大输出与推理力度
+- Claude model picker (GUI + TUI): fetch model IDs from the configured provider with the bearer token and pick the main or small model, while still allowing a manual ID. Channel model discovery strips a duplicated `/v1`, sends Anthropic `x-api-key` headers, and keeps display names / Claude 模型选择（GUI + TUI）：用已配置 Provider 的 Bearer Token 拉取模型 ID，主模型与 Small 模型可从列表选择，仍可手动输入。渠道拉模型时去掉重复的 `/v1`，Anthropic 请求附带 `x-api-key`，并保留显示名称
+- Claude small-model default: leaving the small model empty keeps `ANTHROPIC_DEFAULT_HAIKU_MODEL` unset so Claude Code uses its own default (Haiku 5.5). Mirroring the main model is now explicit / Claude Small 模型默认行为：留空时不再写入 `ANTHROPIC_DEFAULT_HAIKU_MODEL`，由 Claude Code 使用自身默认模型（Haiku 5.5）。跟随主模型改为显式开启
+
+**Bug Fixes / 问题修复**
+
+- Fix missing terminal glyphs in installed builds. Tauri's CSP nonce on inline styles was blocking the `<style>` tags xterm.js injects, so Nerd Font and Powerline glyphs rendered as boxes. Splash CSS now lives in `public/loader.css` / 修复安装版终端字形丢失：Tauri 给内联样式盖上 CSP nonce 后，xterm.js 运行时注入的 `<style>` 被拦截，Nerd Font / Powerline 字形显示为方框。启动画面样式改为外链 `public/loader.css`
+
 ## v1.3.4
 
 **New Features / 新功能**
