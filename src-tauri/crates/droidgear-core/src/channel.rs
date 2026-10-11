@@ -821,14 +821,17 @@ async fn fetch_sub2api_tokens(
 /// DeepSeek 官方在裸路径提供 `/models`，而 sub2api 等网关把同一接口挂在 `/v1` 下，
 /// 因此 deepseek 平台两个都尝试。
 fn model_endpoint_urls(trimmed_base: &str, platform: Option<&str>) -> Vec<String> {
+    let base_without_version =
+        |suffix: &str| trimmed_base.strip_suffix(suffix).unwrap_or(trimmed_base);
+
     match platform {
-        Some("gemini") => vec![format!("{trimmed_base}/v1beta/models")],
-        Some("openai") => vec![format!("{trimmed_base}/v1/models")],
+        Some("gemini") => vec![format!("{}/v1beta/models", base_without_version("/v1beta"))],
+        Some("openai") => vec![format!("{}/v1/models", base_without_version("/v1"))],
         Some("deepseek") => vec![
-            format!("{trimmed_base}/v1/models"),
-            format!("{trimmed_base}/models"),
+            format!("{}/v1/models", base_without_version("/v1")),
+            format!("{}/models", base_without_version("/v1")),
         ],
-        _ => vec![format!("{trimmed_base}/v1/models")],
+        _ => vec![format!("{}/v1/models", base_without_version("/v1"))],
     }
 }
 
@@ -839,7 +842,10 @@ pub async fn fetch_models_by_api_key(
     platform: Option<&str>,
 ) -> Result<Vec<ModelInfo>, String> {
     let trimmed_base = base_url.trim_end_matches('/');
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
 
     if platform == Some("antigravity") {
         let claude_url = format!("{trimmed_base}/antigravity/v1/models");
@@ -889,9 +895,18 @@ pub async fn fetch_models_by_api_key(
     for url in &urls {
         log::debug!("Channel: fetching models from {url} (platform={platform:?})");
 
-        let response = client
+        let mut request = client
             .get(url)
-            .header("Authorization", format!("Bearer {api_key}"))
+            .header("Authorization", format!("Bearer {api_key}"));
+        if platform == Some("anthropic") {
+            // Anthropic's native model endpoint uses x-api-key. Keep the
+            // Bearer header as well so Anthropic-compatible gateways that
+            // expose an OpenAI-style /v1/models endpoint continue to work.
+            request = request
+                .header("x-api-key", api_key)
+                .header("anthropic-version", "2023-06-01");
+        }
+        let response = request
             .send()
             .await
             .map_err(|e| format!("Request failed: {e}"))?;
@@ -960,7 +975,12 @@ fn parse_openai_models(data: &Value) -> Vec<ModelInfo> {
             arr.iter()
                 .filter_map(|m| {
                     let id = m.get("id")?.as_str()?.to_string();
-                    Some(ModelInfo { id, name: None })
+                    let name = m
+                        .get("display_name")
+                        .or_else(|| m.get("name"))
+                        .and_then(|name| name.as_str())
+                        .map(String::from);
+                    Some(ModelInfo { id, name })
                 })
                 .collect()
         })
@@ -1022,6 +1042,21 @@ mod tests {
         assert_eq!(
             model_endpoint_urls("https://api.example.com", Some("unknown")),
             vec!["https://api.example.com/v1/models".to_string()]
+        );
+        assert_eq!(
+            model_endpoint_urls("https://api.example.com/v1", Some("openai")),
+            vec!["https://api.example.com/v1/models".to_string()]
+        );
+        assert_eq!(
+            model_endpoint_urls("https://api.example.com/v1", Some("deepseek")),
+            vec![
+                "https://api.example.com/v1/models".to_string(),
+                "https://api.example.com/models".to_string(),
+            ]
+        );
+        assert_eq!(
+            model_endpoint_urls("https://api.example.com/v1beta", Some("gemini")),
+            vec!["https://api.example.com/v1beta/models".to_string()]
         );
     }
 }

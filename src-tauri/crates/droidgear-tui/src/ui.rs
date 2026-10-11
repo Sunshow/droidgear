@@ -1203,7 +1203,10 @@ fn draw_claude_settings_detail(frame: &mut Frame, app: &app::App, area: Rect) {
     let token_set = !bearer_token.is_empty() && bearer_token != "(not set)";
     let model = env_str("ANTHROPIC_MODEL");
     let small_model = env_str("ANTHROPIC_DEFAULT_HAIKU_MODEL");
-    let mirror = small_model.is_empty() || small_model == "(not set)";
+    let mirror = model != "(not set)"
+        && small_model != "(not set)"
+        && !model.is_empty()
+        && model == small_model;
 
     let context_1m = model.ends_with("[1m]");
 
@@ -1274,7 +1277,9 @@ fn draw_claude_settings_detail(frame: &mut Frame, app: &app::App, area: Rect) {
         (
             "Small Model",
             if mirror {
-                "(none - uses main)".to_string()
+                "(uses main)".to_string()
+            } else if small_model == "(not set)" || small_model.is_empty() {
+                "(default: claude-haiku-5-5)".to_string()
             } else {
                 small_model
             },

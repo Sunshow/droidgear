@@ -178,19 +178,18 @@ export function setThinkingMode(
 }
 
 /**
- * Mirroring is ON when the small model is not explicitly configured.
- *
- * This matches Claude Code's native behaviour: when
- * `ANTHROPIC_DEFAULT_HAIKU_MODEL` is unset, the small model follows the main
- * model at runtime. Explicitly setting a small model value (even one equal to
- * the main model) exits mirroring.
+ * Mirroring is ON only when the small model is explicitly set to the main
+ * model. Leaving `ANTHROPIC_DEFAULT_HAIKU_MODEL` unset lets Claude Code use
+ * its own default small model (currently Claude Haiku 5.5).
  *
  * Kept in sync with the TUI (`keys_claude.rs` toggle + `ui.rs` detail view).
  */
 export function isSmallModelMirroringMain(
   doc: ClaudeSettingsDoc | null | undefined
 ): boolean {
-  return !getEnvString(doc, CLAUDE_SMALL_MODEL_ENV)
+  const main = getEnvString(doc, CLAUDE_MODEL_ENV)
+  const small = getEnvString(doc, CLAUDE_SMALL_MODEL_ENV)
+  return Boolean(main && small && main === small)
 }
 
 export function setSmallModelMirroring(
@@ -199,16 +198,15 @@ export function setSmallModelMirroring(
   mainModel: string | null
 ): void {
   if (mirror) {
-    // Enable mirroring: remove the explicit small model so Claude Code
-    // follows the main model. Mirrors the TUI toggle behaviour.
-    setEnvString(draft, CLAUDE_SMALL_MODEL_ENV, null)
-  } else {
-    // Disable mirroring: snapshot the main model into the small model field
-    // so the user has a concrete value to edit. No-op without a main model
-    // (mirrors the TUI toggle, which also cannot write a snapshot then).
+    // Enable mirroring with an explicit value. An unset small model means
+    // Claude Code should use its own default Haiku model.
     if (mainModel) {
       setEnvString(draft, CLAUDE_SMALL_MODEL_ENV, mainModel)
     }
+  } else {
+    // Disable mirroring: clear the explicit value so Claude Code uses its
+    // default small model.
+    setEnvString(draft, CLAUDE_SMALL_MODEL_ENV, null)
   }
 }
 

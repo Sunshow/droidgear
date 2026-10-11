@@ -149,15 +149,15 @@ describe('thinking mode', () => {
 })
 
 describe('small model mirroring', () => {
-  it('returns true when nothing is configured (unset small follows main)', () => {
-    expect(isSmallModelMirroringMain({})).toBe(true)
+  it('returns false when nothing is configured (unset small uses the default)', () => {
+    expect(isSmallModelMirroringMain({})).toBe(false)
   })
 
-  it('returns true when main is set but small model is not', () => {
+  it('returns false when main is set but small model is not', () => {
     const doc: ClaudeSettingsDoc = {
       env: { [CLAUDE_MODEL_ENV]: 'claude-sonnet-4-5' },
     }
-    expect(isSmallModelMirroringMain(doc)).toBe(true)
+    expect(isSmallModelMirroringMain(doc)).toBe(false)
   })
 
   it('returns false when small model is explicitly set and differs from main', () => {
@@ -170,16 +170,14 @@ describe('small model mirroring', () => {
     expect(isSmallModelMirroringMain(doc)).toBe(false)
   })
 
-  it('returns false when small model is explicitly set to the same value as main', () => {
-    // Explicit beats implicit: an explicit small model (even when equal to
-    // main) exits mirroring. Matches the TUI semantics.
+  it('returns true when small model is explicitly set to the same value as main', () => {
     const doc: ClaudeSettingsDoc = {
       env: {
         [CLAUDE_MODEL_ENV]: 'claude-sonnet-4-5',
         [CLAUDE_SMALL_MODEL_ENV]: 'claude-sonnet-4-5',
       },
     }
-    expect(isSmallModelMirroringMain(doc)).toBe(false)
+    expect(isSmallModelMirroringMain(doc)).toBe(true)
   })
 
   it('returns false when only small model is set', () => {
@@ -189,7 +187,7 @@ describe('small model mirroring', () => {
     expect(isSmallModelMirroringMain(doc)).toBe(false)
   })
 
-  it('mirroring on removes the explicit small model (follows main)', () => {
+  it('mirroring on writes the main model as the explicit small model', () => {
     const draft: ClaudeSettingsDoc = {
       env: {
         [CLAUDE_MODEL_ENV]: 'claude-sonnet-4-5',
@@ -198,33 +196,24 @@ describe('small model mirroring', () => {
     }
     setSmallModelMirroring(draft, true, 'claude-sonnet-4-5')
     const env = draft.env as Record<string, unknown>
-    expect(env[CLAUDE_SMALL_MODEL_ENV]).toBeUndefined()
-    expect(env[CLAUDE_MODEL_ENV]).toBe('claude-sonnet-4-5')
-  })
-
-  it('mirroring on prunes an empty env object when small was the last key', () => {
-    const draft: ClaudeSettingsDoc = {
-      env: { [CLAUDE_SMALL_MODEL_ENV]: 'claude-haiku-4' },
-    }
-    setSmallModelMirroring(draft, true, null)
-    expect(draft.env).toBeUndefined()
-  })
-
-  it('mirroring off snapshots the main model into the small model field', () => {
-    const draft: ClaudeSettingsDoc = {
-      env: {
-        [CLAUDE_MODEL_ENV]: 'claude-sonnet-4-5',
-      },
-    }
-    setSmallModelMirroring(draft, false, 'claude-sonnet-4-5')
-    const env = draft.env as Record<string, unknown>
     expect(env[CLAUDE_SMALL_MODEL_ENV]).toBe('claude-sonnet-4-5')
     expect(env[CLAUDE_MODEL_ENV]).toBe('claude-sonnet-4-5')
   })
 
-  it('mirroring off with no main model is a no-op', () => {
-    // Cannot write a snapshot without a main model; mirrors the TUI toggle
-    // behaviour (and keeps the GUI checkbox from snapping back).
+  it('disabling mirroring removes the explicit small model', () => {
+    const draft: ClaudeSettingsDoc = {
+      env: {
+        [CLAUDE_MODEL_ENV]: 'claude-sonnet-4-5',
+        [CLAUDE_SMALL_MODEL_ENV]: 'claude-haiku-4',
+      },
+    }
+    setSmallModelMirroring(draft, false, 'claude-sonnet-4-5')
+    const env = draft.env as Record<string, unknown>
+    expect(env[CLAUDE_SMALL_MODEL_ENV]).toBeUndefined()
+    expect(env[CLAUDE_MODEL_ENV]).toBe('claude-sonnet-4-5')
+  })
+
+  it('clearing mirroring with no main model still leaves no small model', () => {
     const draft: ClaudeSettingsDoc = {}
     setSmallModelMirroring(draft, false, null)
     expect(draft.env).toBeUndefined()

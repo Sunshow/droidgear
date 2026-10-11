@@ -1603,7 +1603,7 @@ agent-default-model:
         let model = &config.providers["test"].models[0];
         assert_eq!(model.name.as_deref(), Some("DeepSeek V4 Pro"));
         assert_eq!(model.context_window, Some(1000000));
-        assert_eq!(model.max_tokens, Some(384000));
+        assert_eq!(model.max_tokens, Some(393216));
         let efforts = model.reasoning_efforts.as_ref().unwrap();
         assert_eq!(efforts.get("off"), Some(&None));
         assert_eq!(efforts.get("high"), Some(&Some("high".to_string())));

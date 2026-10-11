@@ -656,6 +656,9 @@ pub enum SelectAction {
         selection: CopilotChannelSelection,
         models: Vec<ModelInfo>,
     },
+    ClaudeSettingsSetModel {
+        field_index: usize,
+    },
     ClaudeSettingsSetReasoningEffort,
     ClaudeSettingsSetThinkingMode,
     ClaudeSettingsSetPermissionsDefaultMode,

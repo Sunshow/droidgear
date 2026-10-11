@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import type { JsonValue } from '@/lib/bindings'
+import { commands, type JsonValue, type ModelInfo } from '@/lib/bindings'
 import {
   CLAUDE_AUTH_TOKEN_ENV,
   CLAUDE_BASE_URL_ENV,
@@ -457,7 +457,11 @@ function ProviderSection({ json, patchJson }: SectionProps) {
       setEnvString(draft, CLAUDE_BASE_URL_ENV, result.baseUrl)
       setEnvString(draft, CLAUDE_AUTH_TOKEN_ENV, result.apiKey)
       if (result.defaultModel) {
+        const wasMirroring = isSmallModelMirroringMain(draft)
         setEnvString(draft, CLAUDE_MODEL_ENV, result.defaultModel)
+        if (wasMirroring) {
+          setEnvString(draft, CLAUDE_SMALL_MODEL_ENV, result.defaultModel)
+        }
       }
       // Remove stale top-level model to avoid confusion with the env var.
       syncTopLevelModel(draft)
@@ -541,51 +545,131 @@ function ModelSection({ json, patchJson }: SectionProps) {
   const mirror = isSmallModelMirroringMain(json)
   const smallModelDisplay = mirror ? model : smallModel
   const context1M = hasModel1MContext(json)
+  const baseUrl = getEnvString(json, CLAUDE_BASE_URL_ENV) ?? ''
+  const bearerToken = getEnvString(json, CLAUDE_AUTH_TOKEN_ENV) ?? ''
+  const credentialsKey = `${baseUrl}\u0000${bearerToken}`
+  const [availableModels, setAvailableModels] = useState<ModelInfo[]>([])
+  const [loadedCredentials, setLoadedCredentials] = useState<string | null>(
+    null
+  )
+  const [isFetchingModels, setIsFetchingModels] = useState(false)
+  const [modelFetchError, setModelFetchError] = useState<string | null>(null)
+
+  const modelOptions =
+    loadedCredentials === credentialsKey ? availableModels : []
+
+  const fetchModels = async () => {
+    if (!bearerToken) {
+      setAvailableModels([])
+      setLoadedCredentials(credentialsKey)
+      setModelFetchError(t('claude.model.fetchModelsMissingCredentials'))
+      return
+    }
+
+    setIsFetchingModels(true)
+    setModelFetchError(null)
+    setAvailableModels([])
+    setLoadedCredentials(null)
+    try {
+      const result = await commands.fetchModelsByApiKey(
+        baseUrl || 'https://api.anthropic.com',
+        bearerToken,
+        'anthropic'
+      )
+      if (result.status === 'ok') {
+        const uniqueModels = Array.from(
+          new Map(
+            result.data
+              .filter(modelInfo => modelInfo.id.trim().length > 0)
+              .map(modelInfo => [modelInfo.id, modelInfo])
+          ).values()
+        ).sort((left, right) => left.id.localeCompare(right.id))
+        setAvailableModels(uniqueModels)
+        setLoadedCredentials(credentialsKey)
+      } else {
+        setLoadedCredentials(credentialsKey)
+        setModelFetchError(result.error)
+      }
+    } catch (error) {
+      setLoadedCredentials(credentialsKey)
+      setModelFetchError(String(error))
+    } finally {
+      setIsFetchingModels(false)
+    }
+  }
 
   return (
     <section className="space-y-4 pt-4 border-t">
-      <div>
-        <h2 className="text-base font-medium">{t('claude.model.title')}</h2>
-        <p className="text-xs text-muted-foreground mt-1">
-          {t('claude.model.hint')}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-base font-medium">{t('claude.model.title')}</h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            {t('claude.model.hint')}
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          onClick={fetchModels}
+          disabled={!bearerToken || isFetchingModels}
+          title={t('claude.model.fetchModelsHint')}
+        >
+          {isFetchingModels ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <CloudDownload className="h-4 w-4 mr-2" />
+          )}
+          {t('claude.model.fetchModels')}
+        </Button>
       </div>
 
+      {modelFetchError && (
+        <div className="flex items-center gap-2 text-xs text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>{modelFetchError}</span>
+        </div>
+      )}
+
+      {modelOptions.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {t('claude.model.fetchModelsResult', {
+            count: modelOptions.length,
+          })}
+        </p>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="claude-model-name">{t('claude.model.name')}</Label>
-          <Input
-            id="claude-model-name"
-            value={model}
-            onChange={e => {
-              const next = e.target.value || null
-              patchJson(draft => {
-                setEnvString(draft, CLAUDE_MODEL_ENV, next)
-              })
-            }}
-            placeholder={t('claude.model.namePlaceholder')}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="claude-small-model-name">
-            {t('claude.model.smallModel')}
-          </Label>
-          <Input
-            id="claude-small-model-name"
-            value={smallModelDisplay}
-            disabled={mirror}
-            onChange={e =>
-              patchJson(draft =>
-                setEnvString(
-                  draft,
-                  CLAUDE_SMALL_MODEL_ENV,
-                  e.target.value || null
-                )
-              )
-            }
-            placeholder={t('claude.model.smallModelPlaceholder')}
-          />
-        </div>
+        <ModelField
+          id="claude-model-name"
+          label={t('claude.model.name')}
+          value={model}
+          placeholder={t('claude.model.namePlaceholder')}
+          models={modelOptions}
+          onChange={next =>
+            patchJson(draft => {
+              const wasMirroring = isSmallModelMirroringMain(draft)
+              setEnvString(draft, CLAUDE_MODEL_ENV, next || null)
+              if (wasMirroring) {
+                setEnvString(draft, CLAUDE_SMALL_MODEL_ENV, next || null)
+              }
+            })
+          }
+        />
+        <ModelField
+          id="claude-small-model-name"
+          label={t('claude.model.smallModel')}
+          value={smallModelDisplay}
+          placeholder={t('claude.model.smallModelPlaceholder')}
+          models={modelOptions}
+          disabled={mirror}
+          onChange={next =>
+            patchJson(draft =>
+              setEnvString(draft, CLAUDE_SMALL_MODEL_ENV, next || null)
+            )
+          }
+        />
       </div>
 
       <div className="flex items-start gap-3 rounded-md border p-3">
@@ -638,6 +722,71 @@ function ModelSection({ json, patchJson }: SectionProps) {
         </div>
       </div>
     </section>
+  )
+}
+
+interface ModelFieldProps {
+  id: string
+  label: string
+  value: string
+  placeholder: string
+  models: readonly ModelInfo[]
+  disabled?: boolean
+  onChange: (value: string) => void
+}
+
+function ModelField({
+  id,
+  label,
+  value,
+  placeholder,
+  models,
+  disabled = false,
+  onChange,
+}: ModelFieldProps) {
+  const { t } = useTranslation()
+  const selectedModel = models.some(modelInfo => modelInfo.id === value)
+    ? value
+    : ''
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <div className="flex gap-2">
+        <Input
+          id={id}
+          value={value}
+          disabled={disabled}
+          onChange={event => onChange(event.target.value)}
+          placeholder={placeholder}
+          className="min-w-0 flex-1"
+        />
+        <Select
+          value={selectedModel}
+          onValueChange={onChange}
+          disabled={disabled || models.length === 0}
+        >
+          <SelectTrigger
+            className="w-36 shrink-0"
+            aria-label={t('claude.model.selectFetchedModel')}
+          >
+            <SelectValue placeholder={t('claude.model.selectFetchedModel')} />
+          </SelectTrigger>
+          <SelectContent className="max-h-60">
+            {models.map(modelInfo => (
+              <SelectItem key={modelInfo.id} value={modelInfo.id}>
+                <span className="font-mono text-xs">{modelInfo.id}</span>
+                {modelInfo.name && modelInfo.name !== modelInfo.id && (
+                  <span className="ml-2 text-muted-foreground text-xs">
+                    {modelInfo.name}
+                  </span>
+                )}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
   )
 }
 

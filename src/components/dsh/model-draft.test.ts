@@ -26,7 +26,7 @@ describe('draftFromChannelModel', () => {
     ]) {
       const draft = draftFromChannelModel(channelModel({ model: id }))
       expect(draft.contextWindow).toBe('1000000')
-      expect(draft.maxTokens).toBe('384000')
+      expect(draft.maxTokens).toBe('393216')
     }
   })
 

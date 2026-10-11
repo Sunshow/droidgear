@@ -340,6 +340,52 @@ pub(super) fn run_select_action(
             }
             Ok(())
         }
+        app::SelectAction::ClaudeSettingsSetModel { field_index } => {
+            let Some(selected) = selected else {
+                return Ok(());
+            };
+            if !matches!(field_index, 2 | 4) || selected.trim().is_empty() {
+                return Ok(());
+            }
+            let Some(ref mut json) = app.claude_detail_json else {
+                return Ok(());
+            };
+            let obj = json.as_object_mut().unwrap();
+            let env = obj
+                .entry("env".to_string())
+                .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
+            if let Some(env_obj) = env.as_object_mut() {
+                if field_index == 2 {
+                    let was_mirroring = env_obj
+                        .get("ANTHROPIC_MODEL")
+                        .and_then(|value| value.as_str())
+                        .zip(
+                            env_obj
+                                .get("ANTHROPIC_DEFAULT_HAIKU_MODEL")
+                                .and_then(|value| value.as_str()),
+                        )
+                        .is_some_and(|(main, small)| !main.is_empty() && main == small);
+                    env_obj.insert(
+                        "ANTHROPIC_MODEL".to_string(),
+                        serde_json::Value::String(selected.clone()),
+                    );
+                    if was_mirroring {
+                        env_obj.insert(
+                            "ANTHROPIC_DEFAULT_HAIKU_MODEL".to_string(),
+                            serde_json::Value::String(selected),
+                        );
+                    }
+                } else {
+                    env_obj.insert(
+                        "ANTHROPIC_DEFAULT_HAIKU_MODEL".to_string(),
+                        serde_json::Value::String(selected),
+                    );
+                }
+            }
+            app.claude_detail_dirty = true;
+            app.set_toast("Model selected — press s to save", false);
+            Ok(())
+        }
         app::SelectAction::ClaudeSettingsSetReasoningEffort => {
             let Some(ref mut json) = app.claude_detail_json else {
                 return Ok(());
@@ -605,6 +651,15 @@ pub(super) fn run_select_action(
                 .entry("env".to_string())
                 .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
             if let Some(env_obj) = env.as_object_mut() {
+                let was_mirroring = env_obj
+                    .get("ANTHROPIC_MODEL")
+                    .and_then(|value| value.as_str())
+                    .zip(
+                        env_obj
+                            .get("ANTHROPIC_DEFAULT_HAIKU_MODEL")
+                            .and_then(|value| value.as_str()),
+                    )
+                    .is_some_and(|(main, small)| !main.is_empty() && main == small);
                 env_obj.insert(
                     "ANTHROPIC_BASE_URL".to_string(),
                     serde_json::Value::String(base_url),
@@ -618,6 +673,12 @@ pub(super) fn run_select_action(
                         "ANTHROPIC_MODEL".to_string(),
                         serde_json::Value::String(selected.to_string()),
                     );
+                    if was_mirroring {
+                        env_obj.insert(
+                            "ANTHROPIC_DEFAULT_HAIKU_MODEL".to_string(),
+                            serde_json::Value::String(selected.to_string()),
+                        );
+                    }
                 }
             }
             app.claude_detail_dirty = true;
@@ -2500,6 +2561,17 @@ pub(super) fn run_input_action(
                 return Ok(());
             };
             let obj = json.as_object_mut().unwrap();
+            let was_mirroring = field_index == 2
+                && obj
+                    .get("env")
+                    .and_then(|env| env.get("ANTHROPIC_MODEL"))
+                    .and_then(|value| value.as_str())
+                    .zip(
+                        obj.get("env")
+                            .and_then(|env| env.get("ANTHROPIC_DEFAULT_HAIKU_MODEL"))
+                            .and_then(|value| value.as_str()),
+                    )
+                    .is_some_and(|(main, small)| !main.is_empty() && main == small);
 
             match field_index {
                 0 | 1 | 2 | 4 => {
@@ -2536,6 +2608,16 @@ pub(super) fn run_input_action(
                                     "ANTHROPIC_MODEL".to_string(),
                                     serde_json::Value::String(trimmed.to_string()),
                                 );
+                            }
+                            if was_mirroring {
+                                if trimmed.is_empty() {
+                                    env_obj.remove("ANTHROPIC_DEFAULT_HAIKU_MODEL");
+                                } else {
+                                    env_obj.insert(
+                                        "ANTHROPIC_DEFAULT_HAIKU_MODEL".to_string(),
+                                        serde_json::Value::String(trimmed.to_string()),
+                                    );
+                                }
                             }
                         }
                         4 => {

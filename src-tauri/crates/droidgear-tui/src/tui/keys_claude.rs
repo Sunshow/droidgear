@@ -272,6 +272,9 @@ pub(super) fn handle_claude_settings_detail_key(
                 action: app::SelectAction::ClaudeSettingsImportChannel,
             });
         }
+        KeyCode::Char('f') => {
+            fetch_claude_models_for_field(app);
+        }
         KeyCode::Enter => {
             // Edit the selected field
             let field_idx = app.claude_detail_field_index;
@@ -361,6 +364,71 @@ pub(super) fn handle_claude_settings_detail_key(
     None
 }
 
+fn fetch_claude_models_for_field(app: &mut app::App) {
+    let field_index = app.claude_detail_field_index;
+    if !matches!(field_index, 2 | 4) {
+        app.set_toast("Select Model or Small Model before fetching", true);
+        return;
+    }
+
+    let Some(json) = app.claude_detail_json.as_ref() else {
+        app.set_toast("Claude settings are not loaded", true);
+        return;
+    };
+    let api_key = get_env_string(json, "ANTHROPIC_AUTH_TOKEN");
+    if api_key.trim().is_empty() {
+        app.set_toast("Bearer token is required to fetch models", true);
+        return;
+    }
+    let base_url = get_env_string(json, "ANTHROPIC_BASE_URL");
+    let base_url = if base_url.trim().is_empty() {
+        "https://api.anthropic.com".to_string()
+    } else {
+        base_url
+    };
+    let current_model = get_claude_field_value(app, field_index);
+
+    let models = match droidgear_core::channel::fetch_models_by_api_key_blocking(
+        &base_url,
+        api_key.trim(),
+        Some("anthropic"),
+    ) {
+        Ok(models) => models,
+        Err(error) => {
+            app.set_toast(format!("Failed to fetch models: {error}"), true);
+            return;
+        }
+    };
+
+    let mut options: Vec<String> = models
+        .into_iter()
+        .map(|model| model.id)
+        .filter(|id| !id.trim().is_empty())
+        .collect();
+    options.sort_unstable();
+    options.dedup();
+    if options.is_empty() {
+        app.set_toast("Provider returned no models", true);
+        return;
+    }
+
+    let index = options
+        .iter()
+        .position(|model| model == &current_model)
+        .unwrap_or(0);
+    let title = if field_index == 2 {
+        "Select main model"
+    } else {
+        "Select small model"
+    };
+    app.modal = Some(app::Modal::Select {
+        title: title.to_string(),
+        options,
+        index,
+        action: app::SelectAction::ClaudeSettingsSetModel { field_index },
+    });
+}
+
 // ---------------------------------------------------------------------------
 // Field helpers
 // ---------------------------------------------------------------------------
@@ -427,35 +495,36 @@ fn toggle_claude_field(app: &mut app::App, idx: usize) {
 
     match idx {
         3 => {
-            // Small model mirror toggle: flip between "mirror" (no explicit
-            // small model) and "explicit copy of main model" (consistent with
-            // the GUI checkbox behaviour).  The user can edit the small model
-            // via field 4 afterwards.
-            let small_set = obj
+            // Small model mirror toggle: an explicit small model equal to the
+            // main model means "use main". Removing the value lets Claude
+            // Code use its default Haiku model.
+            let main = obj
+                .get("env")
+                .and_then(|e| e.get("ANTHROPIC_MODEL"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let small = obj
                 .get("env")
                 .and_then(|e| e.get("ANTHROPIC_DEFAULT_HAIKU_MODEL"))
                 .and_then(|v| v.as_str())
-                .is_some_and(|s| !s.is_empty());
+                .unwrap_or("")
+                .to_string();
+            let mirroring = !main.is_empty() && main == small;
             let env = obj
                 .entry("env".to_string())
                 .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
             if let Some(env_obj) = env.as_object_mut() {
-                if small_set {
-                    // Currently explicit → switch to mirror.
+                if mirroring {
+                    // Currently mirroring → clear the explicit small model.
                     env_obj.remove("ANTHROPIC_DEFAULT_HAIKU_MODEL");
-                } else {
-                    // Currently mirroring → switch to explicit copy of main model.
-                    let main = env_obj
-                        .get("ANTHROPIC_MODEL")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .to_string();
-                    if !main.is_empty() {
-                        env_obj.insert(
-                            "ANTHROPIC_DEFAULT_HAIKU_MODEL".to_string(),
-                            serde_json::Value::String(main),
-                        );
-                    }
+                } else if !main.is_empty() {
+                    // Currently using the default or a different small model
+                    // → copy the main model to enable mirroring.
+                    env_obj.insert(
+                        "ANTHROPIC_DEFAULT_HAIKU_MODEL".to_string(),
+                        serde_json::Value::String(main),
+                    );
                 }
             }
         }
