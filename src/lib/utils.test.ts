@@ -12,10 +12,13 @@ import {
 } from './utils'
 
 describe('isStrictSamplingModel', () => {
-  it('covers Opus 4.7, 4.8, 5 and Fable 5 / 5.1', () => {
+  it('covers Opus 4.7, 4.8, 5, 5.5, Sonnet 5.5, Haiku 5.5 and Fable 5 / 5.1', () => {
     expect(isStrictSamplingModel('claude-opus-4.7')).toBe(true)
     expect(isStrictSamplingModel('claude-opus-4.8')).toBe(true)
     expect(isStrictSamplingModel('claude-opus-5')).toBe(true)
+    expect(isStrictSamplingModel('claude-opus-5-5')).toBe(true)
+    expect(isStrictSamplingModel('claude-sonnet-5-5')).toBe(true)
+    expect(isStrictSamplingModel('claude-haiku-5-5')).toBe(true)
     expect(isStrictSamplingModel('claude-fable-5')).toBe(true)
     expect(isStrictSamplingModel('claude-fable-5-1')).toBe(true)
   })
@@ -23,6 +26,9 @@ describe('isStrictSamplingModel', () => {
   it('flags GPT-5/o-series and Kimi models that reject sampling params', () => {
     expect(isStrictSamplingModel('gpt-5')).toBe(true)
     expect(isStrictSamplingModel('gpt-6-astra')).toBe(true)
+    expect(isStrictSamplingModel('gpt-6-luna')).toBe(true)
+    expect(isStrictSamplingModel('gpt-6-sol')).toBe(true)
+    expect(isStrictSamplingModel('gpt-6.1-sol')).toBe(true)
     expect(isStrictSamplingModel('o3-mini')).toBe(true)
     expect(isStrictSamplingModel('kimi-k2.5')).toBe(true)
     expect(isStrictSamplingModel('kimi-k2.7-code')).toBe(true)
@@ -42,6 +48,8 @@ describe('isStrictSamplingModel', () => {
     expect(isStrictSamplingModel('gpt-5.4-nano')).toBe(false)
     expect(isStrictSamplingModel('claude-opus-4.7-custom-deploy')).toBe(false)
     expect(isStrictSamplingModel('grok-4.6')).toBe(false)
+    expect(isStrictSamplingModel('grok-4.7')).toBe(false)
+    expect(isStrictSamplingModel('mimo-v2.6-pro')).toBe(false)
     expect(isStrictSamplingModel('gemini-3.6-flash')).toBe(false)
     expect(isStrictSamplingModel('gemini-3.7-flash')).toBe(false)
     expect(isStrictSamplingModel('gemini-3.8-flash')).toBe(false)
@@ -51,12 +59,15 @@ describe('isStrictSamplingModel', () => {
 })
 
 describe('isAnthropicAdaptiveThinkingModel', () => {
-  it('matches Opus 4.6 / 4.7 / 4.8 / 5, Sonnet 4.6 / 5, and Fable 5 / 5.1', () => {
+  it('matches Opus 4.6 / 4.7 / 4.8 / 5 / 5.5, Sonnet 4.6 / 5 / 5.5, Haiku 5.5, and Fable 5 / 5.1', () => {
     expect(isAnthropicAdaptiveThinkingModel('claude-opus-4.7')).toBe(true)
     expect(isAnthropicAdaptiveThinkingModel('claude-opus-4-7')).toBe(true)
     expect(isAnthropicAdaptiveThinkingModel('claude-opus-4.8')).toBe(true)
     expect(isAnthropicAdaptiveThinkingModel('claude-opus-4-8')).toBe(true)
     expect(isAnthropicAdaptiveThinkingModel('claude-opus-5')).toBe(true)
+    expect(isAnthropicAdaptiveThinkingModel('claude-opus-5-5')).toBe(true)
+    expect(isAnthropicAdaptiveThinkingModel('claude-sonnet-5-5')).toBe(true)
+    expect(isAnthropicAdaptiveThinkingModel('claude-haiku-5-5')).toBe(true)
     expect(isAnthropicAdaptiveThinkingModel('claude-opus-4.6')).toBe(true)
     expect(isAnthropicAdaptiveThinkingModel('claude-sonnet-4.6')).toBe(true)
     expect(isAnthropicAdaptiveThinkingModel('claude-sonnet-5')).toBe(true)
@@ -86,6 +97,9 @@ describe('supportsMaxEffort', () => {
     expect(supportsMaxEffort('claude-sonnet-4.5')).toBe(true)
     expect(supportsMaxEffort('claude-haiku-4.5')).toBe(true)
     expect(supportsMaxEffort('claude-sonnet-5')).toBe(true)
+    expect(supportsMaxEffort('claude-opus-5-5')).toBe(true)
+    expect(supportsMaxEffort('claude-sonnet-5-5')).toBe(true)
+    expect(supportsMaxEffort('claude-haiku-5-5')).toBe(true)
   })
 
   it('applies to registry whitelist models with max effort', () => {
@@ -97,6 +111,7 @@ describe('supportsMaxEffort', () => {
     expect(supportsMaxEffort('gpt-5.6')).toBe(true)
     expect(supportsMaxEffort('gpt-5.6-luna')).toBe(true)
     expect(supportsMaxEffort('gpt-6-astra')).toBe(true)
+    expect(supportsMaxEffort('gpt-6-luna')).toBe(true)
     expect(supportsMaxEffort('kimi-k3')).toBe(true)
     expect(supportsMaxEffort('claude-fable-5-1')).toBe(true)
   })
@@ -105,6 +120,7 @@ describe('supportsMaxEffort', () => {
     expect(supportsMaxEffort('gpt-5.2')).toBe(false)
     expect(supportsMaxEffort('o3-mini')).toBe(false)
     expect(supportsMaxEffort('gemini-3.8-flash')).toBe(false)
+    expect(supportsMaxEffort('grok-4.7')).toBe(false)
     expect(supportsMaxEffort('qwen3.8-max')).toBe(false)
   })
 })
@@ -128,6 +144,11 @@ describe('supportsXhighEffort', () => {
     expect(supportsXhighEffort('grok-4.6')).toBe(true)
     expect(supportsXhighEffort('gpt-6-astra')).toBe(true)
     expect(supportsXhighEffort('claude-fable-5-1')).toBe(true)
+    expect(supportsXhighEffort('claude-opus-5-5')).toBe(true)
+    expect(supportsXhighEffort('claude-sonnet-5-5')).toBe(true)
+    expect(supportsXhighEffort('claude-haiku-5-5')).toBe(true)
+    expect(supportsXhighEffort('gpt-6.1-sol')).toBe(true)
+    expect(supportsXhighEffort('grok-4.7')).toBe(true)
     expect(supportsXhighEffort('qwen3.8-max')).toBe(true)
   })
 
@@ -182,17 +203,23 @@ describe('getDefaultMaxOutputTokens', () => {
     expect(getDefaultMaxOutputTokens('claude-opus-4.8')).toBe(128000)
     expect(getDefaultMaxOutputTokens('claude-opus-5')).toBe(128000)
     expect(getDefaultMaxOutputTokens('claude-opus-4-8')).toBe(128000)
+    expect(getDefaultMaxOutputTokens('claude-opus-5-5')).toBe(128000)
   })
 
   it('uses registry values for other claude models', () => {
     expect(getDefaultMaxOutputTokens('claude-opus-4.6')).toBe(128000)
     expect(getDefaultMaxOutputTokens('claude-sonnet-4.5')).toBe(64000)
     expect(getDefaultMaxOutputTokens('claude-sonnet-5')).toBe(128000)
+    expect(getDefaultMaxOutputTokens('claude-sonnet-5-5')).toBe(128000)
+    expect(getDefaultMaxOutputTokens('claude-haiku-5-5')).toBe(128000)
   })
 
   it('uses registry values for non-claude models', () => {
     expect(getDefaultMaxOutputTokens('gpt-5.2')).toBe(128000)
     expect(getDefaultMaxOutputTokens('gpt-6-astra')).toBe(128000)
+    expect(getDefaultMaxOutputTokens('gpt-6-sol')).toBe(128000)
+    expect(getDefaultMaxOutputTokens('grok-4.7')).toBe(500000)
+    expect(getDefaultMaxOutputTokens('mimo-v2.6-pro')).toBe(131072)
     expect(getDefaultMaxOutputTokens('gemini-2.5-pro')).toBe(65536)
     expect(getDefaultMaxOutputTokens('kimi-k3')).toBe(131072)
     expect(getDefaultMaxOutputTokens('grok-4.6')).toBe(500000)

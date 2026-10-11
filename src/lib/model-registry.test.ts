@@ -189,6 +189,16 @@ describe('getSupportedEfforts', () => {
     ])
   })
 
+  it('returns grok-4.7 efforts with xhigh but no max', () => {
+    expect(getSupportedEfforts('grok-4.7', 'openai')).toEqual([
+      'none',
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+    ])
+  })
+
   it('returns null for unknown model ids', () => {
     expect(getSupportedEfforts('totally-unknown-model', 'openai')).toBeNull()
   })
@@ -367,6 +377,20 @@ describe('aliases resolve reasoning config', () => {
     const entry = findModelByIdOrAlias('grok-4-5')
     expect(entry?.id).toBe('grok-4.5')
     expect(getModelReasoningConfig('grok-4-5')?.efforts).toContain('high')
+  })
+
+  it('resolves dotted Claude 5.5 aliases', () => {
+    expect(findModelByIdOrAlias('claude-opus-5.5')?.id).toBe('claude-opus-5-5')
+    expect(findModelByIdOrAlias('claude-sonnet-5.5')?.id).toBe(
+      'claude-sonnet-5-5'
+    )
+    expect(findModelByIdOrAlias('claude-haiku-5.5')?.id).toBe(
+      'claude-haiku-5-5'
+    )
+    expect(getEffortEncoding('claude-opus-5.5', 'anthropic', 'xhigh')).toEqual({
+      thinking: { type: 'adaptive' },
+      output_config: { effort: 'xhigh' },
+    })
   })
 
   it('resolves gpt-5.6-luna-pro alias', () => {
