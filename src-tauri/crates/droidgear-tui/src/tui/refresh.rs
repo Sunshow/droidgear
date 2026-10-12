@@ -372,6 +372,17 @@ pub(super) fn refresh_omp_detail(app: &mut app::App) {
     }
 }
 
+pub(super) fn refresh_omp_custom_providers(app: &mut app::App) {
+    match droidgear_core::omp::read_omp_custom_providers_for_home(&app.home_dir) {
+        Ok(config) => {
+            app.omp_custom_providers = config.providers;
+            if app.omp_provider_index >= app.omp_custom_providers.len() {
+                app.omp_provider_index = app.omp_custom_providers.len().saturating_sub(1);
+            }
+        }
+        Err(e) => app.set_toast(e, true),
+    }
+}
 pub(super) fn refresh_dsh(app: &mut app::App) {
     // The active profile follows the desktop/web screen the user opened; the
     // profile is set when the screen is entered from the feature list.

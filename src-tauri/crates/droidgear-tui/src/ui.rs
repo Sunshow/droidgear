@@ -419,6 +419,8 @@ fn draw_main(frame: &mut Frame, app: &app::App, area: Rect) {
         app::Screen::PiModel => draw_pi_model(frame, app, area),
         app::Screen::Omp => draw_omp_profiles(frame, app, area),
         app::Screen::OmpProfile => draw_omp_profile(frame, app, area),
+        app::Screen::OmpProviders => draw_omp_providers(frame, app, area),
+        app::Screen::OmpProvider => draw_omp_provider(frame, app, area),
         app::Screen::DshDesktop | app::Screen::DshWeb => draw_dsh_providers(frame, app, area),
         app::Screen::DshProvider => draw_dsh_provider(frame, app, area),
         app::Screen::DshModel => draw_dsh_model(frame, app, area),
@@ -3804,7 +3806,7 @@ fn draw_omp_profiles(frame: &mut Frame, app: &app::App, area: Rect) {
             .map(|p| (p.name.as_str(), p.id.as_str())),
         active,
         selected_index,
-        "Up/Down: select  Enter/e: open  a: apply  n: new  c: copy  d: delete  r: refresh  q/Esc: back",
+        "Up/Down: select  Enter/e: open  a: apply  n: new  c: copy  d: delete  p: custom providers  r: refresh  q/Esc: back",
     );
 }
 
@@ -3872,6 +3874,81 @@ fn draw_omp_profile(frame: &mut Frame, app: &app::App, area: Rect) {
     let help =
         help_paragraph("Up/Down: move  Enter/e: edit field  a: apply  l: load live  q/Esc: back");
     frame.render_widget(help, chunks[1]);
+}
+
+fn draw_omp_providers(frame: &mut Frame, app: &app::App, area: Rect) {
+    let selected = app.omp_provider_index;
+    draw_profile_list(
+        frame,
+        area,
+        "OMP Custom Providers",
+        app.omp_custom_providers
+            .iter()
+            .map(|p| (p.provider_id.as_str(), p.provider_id.as_str())),
+        None,
+        selected,
+        "Up/Down: select  Enter/e: edit  n: new  d: delete  r: refresh  q/Esc: back",
+    );
+}
+
+fn draw_omp_provider(frame: &mut Frame, app: &app::App, area: Rect) {
+    let t = theme();
+    let Some(id) = app.omp_provider_id.as_deref() else {
+        return;
+    };
+    let Some(entry) = app
+        .omp_custom_providers
+        .iter()
+        .find(|p| p.provider_id == id)
+    else {
+        return;
+    };
+    let c = &entry.config;
+    let fields = vec![
+        ("Base URL", c.base_url.clone().unwrap_or_default()),
+        ("API", c.api.clone().unwrap_or_default()),
+        (
+            "API key",
+            c.api_key
+                .as_ref()
+                .map(|_| "(set)".to_string())
+                .unwrap_or_default(),
+        ),
+        (
+            "Models",
+            c.models
+                .iter()
+                .map(|m| m.id.as_str())
+                .collect::<Vec<_>>()
+                .join(", "),
+        ),
+    ];
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
+    let items: Vec<ListItem> = fields
+        .into_iter()
+        .enumerate()
+        .map(|(i, (label, value))| {
+            let line = if i == app.omp_provider_field_index {
+                Line::from(format!("{label:>14}: {value}"))
+            } else {
+                field_line(label, &value, 14)
+            };
+            ListItem::new(line)
+        })
+        .collect();
+    let list = List::new(items)
+        .block(block(format!("OMP Provider: {id}")))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, list, chunks[0], Some(app.omp_provider_field_index));
+    frame.render_widget(
+        help_paragraph(
+            "Up/Down: move  Enter/e: edit  i: import/update channel  r: refresh  q/Esc: back",
+        ),
+        chunks[1],
+    );
 }
 
 fn draw_hermes_profiles(frame: &mut Frame, app: &app::App, area: Rect) {

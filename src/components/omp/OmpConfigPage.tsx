@@ -1,12 +1,23 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Play, Plus, Copy, Trash2, Download, RefreshCw } from 'lucide-react'
+import {
+  Play,
+  Plus,
+  Copy,
+  Trash2,
+  Download,
+  RefreshCw,
+  CloudDownload,
+  X,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { SecretInput } from '@/components/ui/secret-input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -26,7 +37,13 @@ import { useOmpStore } from '@/store/omp-store'
 import { ConfigStatus } from './ConfigStatus'
 import { ProviderCard } from './ProviderCard'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import type { OmpProfile } from '@/lib/bindings'
+import { ChannelModelPickerDialog } from '@/components/channels/ChannelModelPickerDialog'
+import type {
+  OmpCustomModel,
+  OmpCustomProvider,
+  OmpCustomProviderEntry,
+  OmpProfile,
+} from '@/lib/bindings'
 
 const ROLE_KEYS = ['default', 'smol', 'slow', 'plan', 'commit'] as const
 
@@ -77,6 +94,337 @@ function ProfileFields({
   )
 }
 
+function OmpProviderEditor({
+  open,
+  onOpenChange,
+  entry,
+  onSave,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  entry: OmpCustomProviderEntry | null
+  onSave: (providerId: string, provider: OmpCustomProvider) => Promise<void>
+}) {
+  const { t } = useTranslation()
+  const editing = entry !== null
+  const [providerId, setProviderId] = useState(entry?.providerId ?? '')
+  const [baseUrl, setBaseUrl] = useState(entry?.config.baseUrl ?? '')
+  const [api, setApi] = useState(entry?.config.api ?? 'openai-completions')
+  const [apiKey, setApiKey] = useState(entry?.config.apiKey ?? '')
+  const [auth, setAuth] = useState(entry?.config.auth ?? 'apiKey')
+  const [models, setModels] = useState<OmpCustomModel[]>(
+    entry?.config.models ?? []
+  )
+  const [pickerOpen, setPickerOpen] = useState(false)
+
+  const updateModel = (index: number, patch: Partial<OmpCustomModel>) => {
+    setModels(current =>
+      current.map((model, modelIndex) =>
+        modelIndex === index ? { ...model, ...patch } : model
+      )
+    )
+  }
+
+  const addModel = () => setModels(current => [...current, { id: '' }])
+
+  const importedModels = (
+    selected: {
+      model: string
+      baseUrl: string
+      apiKey: string
+      provider: string
+    }[],
+    context?: { baseUrl: string; apiKey: string; provider?: string }
+  ) => {
+    const importedApi =
+      context?.provider === 'anthropic'
+        ? 'anthropic-messages'
+        : context?.provider === 'openai'
+          ? 'openai-completions'
+          : undefined
+    if (context) {
+      setBaseUrl(context.baseUrl)
+      setApiKey(context.apiKey)
+      setAuth('apiKey')
+      if (importedApi) setApi(importedApi)
+    }
+    setModels(current => {
+      const byId = new Map(current.map(model => [model.id, model]))
+      for (const model of selected) {
+        const previous = byId.get(model.model)
+        byId.set(model.model, {
+          ...previous,
+          id: model.model,
+          name: previous?.name ?? model.model,
+          api: importedApi ?? previous?.api ?? api,
+          baseUrl: model.baseUrl || previous?.baseUrl,
+          reasoning: previous?.reasoning ?? false,
+          input: previous?.input ?? ['text'],
+        })
+      }
+      return Array.from(byId.values())
+    })
+  }
+
+  const handleSave = async () => {
+    const id = providerId.trim()
+    if (!id) return
+    await onSave(id, {
+      ...(entry?.config ?? {}),
+      baseUrl: baseUrl.trim() || undefined,
+      api: api || undefined,
+      apiKey: apiKey.trim() || undefined,
+      auth: auth || undefined,
+      models: models.filter(model => model.id.trim()),
+    })
+    onOpenChange(false)
+  }
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editing ? t('omp.provider.edit') : t('omp.provider.add')}
+            </DialogTitle>
+            <DialogDescription>
+              {t('omp.provider.description')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>{t('omp.provider.id')} *</Label>
+                <Input
+                  value={providerId}
+                  onChange={e => setProviderId(e.target.value)}
+                  disabled={editing}
+                  placeholder="custom-provider"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('omp.provider.baseUrl')}</Label>
+                <Input
+                  value={baseUrl}
+                  onChange={e => setBaseUrl(e.target.value)}
+                  placeholder="https://api.example.com/v1"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label>{t('omp.provider.api')}</Label>
+                <Select value={api} onValueChange={setApi}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="openai-completions">
+                      OpenAI Completions
+                    </SelectItem>
+                    <SelectItem value="openai-responses">
+                      OpenAI Responses
+                    </SelectItem>
+                    <SelectItem value="anthropic-messages">
+                      Anthropic Messages
+                    </SelectItem>
+                    <SelectItem value="google-generative-ai">
+                      Google Generative AI
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>{t('omp.provider.apiKey')}</Label>
+                <SecretInput
+                  value={apiKey}
+                  onChange={e => setApiKey(e.target.value)}
+                  placeholder="${API_KEY}"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('omp.provider.auth')}</Label>
+                <Select value={auth} onValueChange={setAuth}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="apiKey">API key</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="oauth">OAuth</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>{t('omp.provider.models')}</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPickerOpen(true)}
+                  >
+                    <CloudDownload className="h-4 w-4 mr-1" />
+                    {t('omp.provider.importFromChannel')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addModel}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    {t('omp.provider.addModel')}
+                  </Button>
+                </div>
+              </div>
+              {models.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  {t('omp.provider.noModels')}
+                </p>
+              )}
+              <div className="space-y-2">
+                {models.map((model, index) => (
+                  <div
+                    key={`${model.id}-${index}`}
+                    className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end border rounded p-2"
+                  >
+                    <div className="space-y-1">
+                      <Label className="text-xs">
+                        {t('omp.provider.modelId')}
+                      </Label>
+                      <Input
+                        value={model.id}
+                        onChange={e =>
+                          updateModel(index, { id: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">
+                        {t('omp.provider.modelName')}
+                      </Label>
+                      <Input
+                        value={model.name ?? ''}
+                        onChange={e =>
+                          updateModel(index, {
+                            name: e.target.value || undefined,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">
+                        {t('omp.provider.modelBaseUrl')}
+                      </Label>
+                      <Input
+                        value={model.baseUrl ?? ''}
+                        onChange={e =>
+                          updateModel(index, {
+                            baseUrl: e.target.value || undefined,
+                          })
+                        }
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() =>
+                        setModels(current =>
+                          current.filter(
+                            (_, modelIndex) => modelIndex !== index
+                          )
+                        )
+                      }
+                      aria-label={t('common.delete')}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                    <div className="col-span-3 flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={model.reasoning ?? false}
+                          onCheckedChange={checked =>
+                            updateModel(index, { reasoning: !!checked })
+                          }
+                        />
+                        <Label className="text-xs">
+                          {t('omp.provider.reasoning')}
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs">
+                          {t('omp.provider.contextWindow')}
+                        </Label>
+                        <Input
+                          className="w-28 h-8"
+                          type="number"
+                          value={model.contextWindow ?? ''}
+                          onChange={e =>
+                            updateModel(index, {
+                              contextWindow: e.target.value
+                                ? Number(e.target.value)
+                                : undefined,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs">
+                          {t('omp.provider.maxTokens')}
+                        </Label>
+                        <Input
+                          className="w-28 h-8"
+                          type="number"
+                          value={model.maxTokens ?? ''}
+                          onChange={e =>
+                            updateModel(index, {
+                              maxTokens: e.target.value
+                                ? Number(e.target.value)
+                                : undefined,
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleSave} disabled={!providerId.trim()}>
+              {t('common.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <ChannelModelPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        mode="multiple"
+        existingModels={models.map(model => ({
+          model: model.id,
+          baseUrl,
+          apiKey,
+          provider: 'generic-chat-completion-api',
+        }))}
+        onSelect={selected => importedModels(selected)}
+        onSelectWithContext={(selected, context) =>
+          importedModels(selected, context)
+        }
+      />
+    </>
+  )
+}
+
 export function OmpConfigPage() {
   const { t } = useTranslation()
   const profiles = useOmpStore(state => state.profiles)
@@ -84,16 +432,25 @@ export function OmpConfigPage() {
   const currentProfile = useOmpStore(state => state.currentProfile)
   const configStatus = useOmpStore(state => state.configStatus)
   const liveConfig = useOmpStore(state => state.liveConfig)
+  const customProviders = useOmpStore(state => state.customProviders)
   const loadProfiles = useOmpStore(state => state.loadProfiles)
   const loadActiveProfileId = useOmpStore(state => state.loadActiveProfileId)
   const loadConfigStatus = useOmpStore(state => state.loadConfigStatus)
   const loadLiveConfig = useOmpStore(state => state.loadLiveConfig)
+  const loadCustomProviders = useOmpStore(state => state.loadCustomProviders)
+  const saveCustomProvider = useOmpStore(state => state.saveCustomProvider)
+  const deleteCustomProvider = useOmpStore(state => state.deleteCustomProvider)
   const selectProfile = useOmpStore(state => state.selectProfile)
   const createProfile = useOmpStore(state => state.createProfile)
   const saveProfile = useOmpStore(state => state.saveProfile)
   const deleteProfile = useOmpStore(state => state.deleteProfile)
   const duplicateProfile = useOmpStore(state => state.duplicateProfile)
   const applyProfile = useOmpStore(state => state.applyProfile)
+
+  const [providerEditorOpen, setProviderEditorOpen] = useState(false)
+  const [editingProvider, setEditingProvider] =
+    useState<OmpCustomProviderEntry | null>(null)
+  const [providerToDelete, setProviderToDelete] = useState<string | null>(null)
 
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [newProfileName, setNewProfileName] = useState('')
@@ -104,7 +461,37 @@ export function OmpConfigPage() {
     })
     void loadConfigStatus()
     void loadLiveConfig()
-  }, [loadProfiles, loadActiveProfileId, loadConfigStatus, loadLiveConfig])
+    void loadCustomProviders()
+  }, [
+    loadProfiles,
+    loadActiveProfileId,
+    loadConfigStatus,
+    loadLiveConfig,
+    loadCustomProviders,
+  ])
+
+  const openNewProvider = () => {
+    setEditingProvider(null)
+    setProviderEditorOpen(true)
+  }
+
+  const openEditProvider = (entry: OmpCustomProviderEntry) => {
+    setEditingProvider(entry)
+    setProviderEditorOpen(true)
+  }
+
+  const handleDeleteProvider = async () => {
+    if (!providerToDelete) return
+    await deleteCustomProvider(providerToDelete)
+    setProviderToDelete(null)
+  }
+
+  const handleSaveProvider = async (
+    providerId: string,
+    provider: OmpCustomProvider
+  ) => {
+    await saveCustomProvider(providerId, provider)
+  }
 
   const handleProfileChange = (id: string) => {
     selectProfile(id)
@@ -309,34 +696,40 @@ export function OmpConfigPage() {
         )}
 
         {/* Providers */}
-        {liveConfig &&
-          liveConfig.providerModels &&
-          liveConfig.providerModels.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">
-                  {t('omp.providers.title')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <TooltipProvider>
-                  {liveConfig.providerModels.map(pm => {
-                    const cred = liveConfig.credentials?.find(
-                      c => c.provider === pm.providerId
-                    )
-                    return (
-                      <ProviderCard
-                        key={pm.providerId}
-                        providerId={pm.providerId}
-                        modelCount={pm.models.length}
-                        hasApiKey={cred?.hasKey ?? false}
-                      />
-                    )
-                  })}
-                </TooltipProvider>
-              </CardContent>
-            </Card>
-          )}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">
+                {t('omp.providers.title')}
+              </CardTitle>
+              <Button variant="outline" size="sm" onClick={openNewProvider}>
+                <Plus className="h-4 w-4 mr-1" />
+                {t('omp.provider.add')}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <TooltipProvider>
+              {customProviders.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {t('omp.provider.noProviders')}
+                </p>
+              ) : (
+                customProviders.map(entry => (
+                  <ProviderCard
+                    key={entry.providerId}
+                    providerId={entry.providerId}
+                    modelCount={entry.config.models?.length ?? 0}
+                    hasApiKey={Boolean(entry.config.apiKey)}
+                    onEdit={() => openEditProvider(entry)}
+                    onDelete={() => setProviderToDelete(entry.providerId)}
+                    onImport={() => openEditProvider(entry)}
+                  />
+                ))
+              )}
+            </TooltipProvider>
+          </CardContent>
+        </Card>
 
         {/* Live Config Preview */}
         {liveConfig && (
@@ -391,6 +784,36 @@ export function OmpConfigPage() {
               disabled={!newProfileName.trim()}
             >
               {t('common.create')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <OmpProviderEditor
+        key={`${providerEditorOpen}-${editingProvider?.providerId ?? 'new'}`}
+        open={providerEditorOpen}
+        onOpenChange={setProviderEditorOpen}
+        entry={editingProvider}
+        onSave={handleSaveProvider}
+      />
+      <Dialog
+        open={providerToDelete !== null}
+        onOpenChange={open => {
+          if (!open) setProviderToDelete(null)
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('omp.provider.delete')}</DialogTitle>
+            <DialogDescription>
+              {t('omp.provider.deleteDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProviderToDelete(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteProvider}>
+              {t('common.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

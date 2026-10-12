@@ -13,7 +13,7 @@ use droidgear_core::{
     factory_settings::{CustomModel, MissionModelSettings, ModelInfo},
     hermes::HermesProfile,
     mcp::McpServer,
-    omp::OmpProfile,
+    omp::{OmpCustomProviderEntry, OmpProfile},
     openclaw::{OpenClawProfile, OpenClawSubAgent},
     opencode::OpenCodeProfile,
     paths::{EffectivePath, EffectivePaths},
@@ -60,6 +60,8 @@ pub enum Screen {
     PiModel,
     Omp,
     OmpProfile,
+    OmpProviders,
+    OmpProvider,
     DshDesktop,
     DshWeb,
     DshProvider,
@@ -229,6 +231,9 @@ pub enum ConfirmAction {
     },
     OmpDelete {
         id: String,
+    },
+    OmpDeleteCustomProvider {
+        provider_id: String,
     },
     DshDeleteProvider {
         provider_id: String,
@@ -547,6 +552,19 @@ pub enum InputAction {
     OmpUpdateModelRole {
         role: String,
     },
+    OmpCreateCustomProvider,
+    OmpSetCustomProviderBaseUrl {
+        provider_id: String,
+    },
+    OmpSetCustomProviderApi {
+        provider_id: String,
+    },
+    OmpSetCustomProviderApiKey {
+        provider_id: String,
+    },
+    OmpImportCustomProviderApiKey {
+        provider_id: String,
+    },
     DshAddProvider,
     DshAddProviderFromChannel,
     DshSetProviderDisplayName {
@@ -741,6 +759,12 @@ pub enum SelectAction {
         profile_id: String,
         provider_id: String,
     },
+    OmpImportCustomProviderFromChannel {
+        provider_id: String,
+    },
+    OmpImportCustomProviderModels {
+        provider_id: String,
+    },
     DshSetProviderApi {
         provider_id: String,
     },
@@ -902,6 +926,10 @@ pub struct App {
     pub omp_detail_id: Option<String>,
     pub omp_detail: Option<OmpProfile>,
     pub omp_detail_field_index: usize,
+    pub omp_custom_providers: Vec<OmpCustomProviderEntry>,
+    pub omp_provider_index: usize,
+    pub omp_provider_id: Option<String>,
+    pub omp_provider_field_index: usize,
 
     pub dsh_providers: Vec<(String, DshProviderConfig)>,
     pub dsh_credentials: std::collections::HashMap<String, String>,
@@ -1102,6 +1130,10 @@ impl App {
             omp_detail_id: None,
             omp_detail: None,
             omp_detail_field_index: 0,
+            omp_custom_providers: Vec::new(),
+            omp_provider_index: 0,
+            omp_provider_id: None,
+            omp_provider_field_index: 0,
             dsh_providers: Vec::new(),
             dsh_credentials: std::collections::HashMap::new(),
             dsh_active_profile: None,
@@ -1355,6 +1387,8 @@ impl App {
             Screen::PiProvider => Screen::PiProfile,
             Screen::PiModel => Screen::PiProvider,
             Screen::OmpProfile => Screen::Omp,
+            Screen::OmpProviders => Screen::Omp,
+            Screen::OmpProvider => Screen::OmpProviders,
             Screen::HermesProfile => Screen::Hermes,
             Screen::HermesProvider => Screen::HermesProfile,
             Screen::ChannelsEdit => Screen::Channels,
@@ -1688,6 +1722,12 @@ impl App {
         let omp_detail_fields_count = 7;
         if self.omp_detail_field_index >= omp_detail_fields_count {
             self.omp_detail_field_index = omp_detail_fields_count.saturating_sub(1);
+        }
+        if self.omp_provider_index >= self.omp_custom_providers.len() {
+            self.omp_provider_index = self.omp_custom_providers.len().saturating_sub(1);
+        }
+        if self.omp_provider_field_index >= 4 {
+            self.omp_provider_field_index = 3;
         }
         if self.sessions_index >= self.sessions.len() {
             self.sessions_index = self.sessions.len().saturating_sub(1);

@@ -16,6 +16,8 @@
 
 **New Features / 新功能**
 
+- OMP custom providers now read and write the official `~/.omp/agent/models.yml` format, with GUI and TUI CRUD plus channel-based model/provider updates that preserve unrelated providers and unknown fields / OMP 自定义 Provider 现按官方 `~/.omp/agent/models.yml` 格式读写，GUI 与 TUI 支持增删改及按渠道更新模型和 Provider，并保留其他 Provider 与未知字段
+
 - Codex profiles can enable API key model discovery: a checkbox on the Codex config page and in the TUI writes `features.api_key_model_discovery` in `config.toml` without touching the other feature flags / Codex Profile 支持启用 API Key 模型发现：Codex 配置页与 TUI 新增复选框，向 `config.toml` 写入 `features.api_key_model_discovery`，不影响其他 feature 开关
 
 **Bug Fixes / 问题修复**

@@ -5,6 +5,8 @@ import {
   type OmpProfile,
   type OmpConfigStatus,
   type OmpCurrentConfig,
+  type OmpCustomProvider,
+  type OmpCustomProviderEntry,
   type OmpProviderTestResult,
 } from '@/lib/bindings'
 
@@ -16,17 +18,24 @@ interface OmpState {
   error: string | null
   configStatus: OmpConfigStatus | null
   liveConfig: OmpCurrentConfig | null
+  customProviders: OmpCustomProviderEntry[]
 
   loadProfiles: () => Promise<void>
   loadActiveProfileId: () => Promise<void>
   loadConfigStatus: () => Promise<void>
   loadLiveConfig: () => Promise<void>
+  loadCustomProviders: () => Promise<void>
   selectProfile: (id: string) => void
   createProfile: (name: string) => Promise<void>
   saveProfile: () => Promise<void>
   deleteProfile: (id: string) => Promise<void>
   duplicateProfile: (id: string, newName: string) => Promise<void>
   applyProfile: (id: string) => Promise<void>
+  saveCustomProvider: (
+    providerId: string,
+    provider: OmpCustomProvider
+  ) => Promise<void>
+  deleteCustomProvider: (providerId: string) => Promise<void>
   testProvider: (providerId: string) => Promise<OmpProviderTestResult | null>
   setError: (error: string | null) => void
 }
@@ -41,7 +50,7 @@ export const useOmpStore = create<OmpState>()(
       error: null,
       configStatus: null,
       liveConfig: null,
-
+      customProviders: [],
       loadProfiles: async () => {
         set({ isLoading: true }, undefined, 'omp/loadProfiles/start')
         try {
@@ -118,6 +127,61 @@ export const useOmpStore = create<OmpState>()(
         } catch {
           // ignore
         }
+      },
+      loadCustomProviders: async () => {
+        try {
+          const result = await commands.readOmpCustomProviders()
+          if (result.status === 'ok') {
+            set(
+              { customProviders: result.data.providers },
+              undefined,
+              'omp/loadCustomProviders'
+            )
+          } else {
+            set(
+              { error: result.error },
+              undefined,
+              'omp/loadCustomProviders/error'
+            )
+          }
+        } catch (e) {
+          set(
+            { error: String(e) },
+            undefined,
+            'omp/loadCustomProviders/exception'
+          )
+        }
+      },
+
+      saveCustomProvider: async (providerId, provider) => {
+        const result = await commands.saveOmpCustomProvider(
+          providerId,
+          provider
+        )
+        if (result.status !== 'ok') {
+          set(
+            { error: result.error },
+            undefined,
+            'omp/saveCustomProvider/error'
+          )
+          return
+        }
+        await get().loadCustomProviders()
+        await get().loadLiveConfig()
+      },
+
+      deleteCustomProvider: async providerId => {
+        const result = await commands.deleteOmpCustomProvider(providerId)
+        if (result.status !== 'ok') {
+          set(
+            { error: result.error },
+            undefined,
+            'omp/deleteCustomProvider/error'
+          )
+          return
+        }
+        await get().loadCustomProviders()
+        await get().loadLiveConfig()
       },
 
       selectProfile: id => {

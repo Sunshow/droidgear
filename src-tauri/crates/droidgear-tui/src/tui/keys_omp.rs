@@ -75,6 +75,11 @@ pub(super) fn handle_omp_key(app: &mut app::App, code: KeyCode) -> Option<Action
                 action: app::ConfirmAction::OmpTestAll,
             });
         }
+        KeyCode::Char('p') => {
+            refresh_omp_custom_providers(app);
+            app.omp_provider_index = 0;
+            app.screen = app::Screen::OmpProviders;
+        }
         _ => {}
     }
     None
@@ -195,6 +200,118 @@ pub(super) fn handle_omp_profile_key(app: &mut app::App, code: KeyCode) -> Optio
                         role: "commit".to_string(),
                     },
                 });
+            }
+            _ => {}
+        },
+        _ => {}
+    }
+    None
+}
+
+pub(super) fn handle_omp_providers_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
+    match code {
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
+        KeyCode::Up => app.omp_provider_index = app.omp_provider_index.saturating_sub(1),
+        KeyCode::Down => app.omp_provider_index = app.omp_provider_index.saturating_add(1),
+        KeyCode::Char('r') => refresh_omp_custom_providers(app),
+        KeyCode::Char('n') => {
+            app.modal = Some(app::Modal::Input {
+                title: "New OMP provider id".to_string(),
+                value: String::new(),
+                cursor: usize::MAX,
+                is_secret: false,
+                action: app::InputAction::OmpCreateCustomProvider,
+            })
+        }
+        KeyCode::Enter | KeyCode::Char('e') => {
+            if let Some(p) = app.omp_custom_providers.get(app.omp_provider_index) {
+                app.omp_provider_id = Some(p.provider_id.clone());
+                app.omp_provider_field_index = 0;
+                app.screen = app::Screen::OmpProvider;
+            }
+        }
+        KeyCode::Char('d') => {
+            if let Some(p) = app.omp_custom_providers.get(app.omp_provider_index) {
+                app.modal = Some(app::Modal::Confirm {
+                    message: format!("Delete OMP provider '{}' ?", p.provider_id),
+                    action: app::ConfirmAction::OmpDeleteCustomProvider {
+                        provider_id: p.provider_id.clone(),
+                    },
+                });
+            }
+        }
+        _ => {}
+    }
+    None
+}
+
+pub(super) fn handle_omp_provider_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
+    let Some(provider_id) = app.omp_provider_id.clone() else {
+        app.screen = app::Screen::OmpProviders;
+        return None;
+    };
+    let Some(entry) = app
+        .omp_custom_providers
+        .iter()
+        .find(|p| p.provider_id == provider_id)
+    else {
+        app.screen = app::Screen::OmpProviders;
+        return None;
+    };
+    let config = &entry.config;
+    match code {
+        KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
+        KeyCode::Up => {
+            app.omp_provider_field_index = app.omp_provider_field_index.saturating_sub(1)
+        }
+        KeyCode::Down => app.omp_provider_field_index = (app.omp_provider_field_index + 1).min(3),
+        KeyCode::Char('r') => refresh_omp_custom_providers(app),
+        KeyCode::Char('i') => {
+            refresh_channels(app);
+            let options: Vec<String> = app
+                .channels
+                .iter()
+                .filter(|c| c.enabled)
+                .map(|c| format!("{} ({})", c.name, c.base_url))
+                .collect();
+            if options.is_empty() {
+                app.set_toast("No channels configured", true);
+            } else {
+                app.modal = Some(app::Modal::Select {
+                    title: "Import/update from channel".to_string(),
+                    options,
+                    index: 0,
+                    action: app::SelectAction::OmpImportCustomProviderFromChannel { provider_id },
+                });
+            }
+        }
+        KeyCode::Enter | KeyCode::Char('e') => match app.omp_provider_field_index {
+            0 => {
+                app.modal = Some(app::Modal::Input {
+                    title: "Base URL".to_string(),
+                    value: config.base_url.clone().unwrap_or_default(),
+                    cursor: usize::MAX,
+                    is_secret: false,
+                    action: app::InputAction::OmpSetCustomProviderBaseUrl { provider_id },
+                })
+            }
+            1 => {
+                app.modal = Some(app::Modal::Input {
+                    title: "API type".to_string(),
+                    value: config.api.clone().unwrap_or_default(),
+                    cursor: usize::MAX,
+                    is_secret: false,
+                    action: app::InputAction::OmpSetCustomProviderApi { provider_id },
+                })
+            }
+            2 => {
+                app.modal = Some(app::Modal::Input {
+                    title: "API key".to_string(),
+                    value: config.api_key.clone().unwrap_or_default(),
+                    cursor: usize::MAX,
+                    is_secret: true,
+                    action: app::InputAction::OmpSetCustomProviderApiKey { provider_id },
+                })
             }
             _ => {}
         },
