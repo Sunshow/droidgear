@@ -175,6 +175,7 @@ pub enum ConfirmAction {
         provider_id: String,
         model_index: usize,
     },
+    McpAddBaizhi,
     McpToggle {
         name: String,
         disabled: bool,

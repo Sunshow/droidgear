@@ -18,6 +18,13 @@ pub async fn save_mcp_server(server: McpServer) -> Result<(), String> {
     droidgear_core::mcp::save_mcp_server(server)
 }
 
+/// Saves the fixed, disabled Baizhi preset without accepting a key or replacing a name.
+#[tauri::command]
+#[specta::specta]
+pub async fn save_baizhi_preset() -> Result<(), String> {
+    droidgear_core::mcp::save_baizhi_preset()
+}
+
 /// Deletes an MCP server by name
 #[tauri::command]
 #[specta::specta]

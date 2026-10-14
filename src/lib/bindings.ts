@@ -761,6 +761,17 @@ async saveMcpServer(server: McpServer) : Promise<Result<null, string>> {
 }
 },
 /**
+ * Saves the fixed, disabled Baizhi preset without accepting a key or replacing a name.
+ */
+async saveBaizhiPreset() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_baizhi_preset") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Deletes an MCP server by name
  */
 async deleteMcpServer(name: string) : Promise<Result<null, string>> {

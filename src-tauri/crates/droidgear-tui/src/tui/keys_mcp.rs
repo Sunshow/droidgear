@@ -6,6 +6,22 @@ pub(super) fn handle_mcp_key(app: &mut app::App, code: KeyCode) -> Option<Action
         KeyCode::Down => app.mcp_index = app.mcp_index.saturating_add(1),
         KeyCode::Up => app.mcp_index = app.mcp_index.saturating_sub(1),
         KeyCode::Char('r') => refresh_mcp(app),
+        KeyCode::Char('b') => {
+            app.modal = Some(app::Modal::Confirm {
+                message: concat!(
+                    "Add 百智 (Baizhi MCP), disabled?\n",
+                    "HTTP https://agent-toolkit.app.baizhi.cloud/mcp\n",
+                    "Authorization: Bearer ${BAIZHI_API_KEY}\n",
+                    "Saves oauth:false and this literal reference in ordinary JSON.\n",
+                    "Set the key in Factory's launch environment before enabling.\n",
+                    "Separate Baizhi account/fees; tool arguments go to Baizhi.\n",
+                    "Returned data may go to your selected AI model.\n",
+                    "Existing 'baizhi' will not be replaced."
+                )
+                .to_string(),
+                action: app::ConfirmAction::McpAddBaizhi,
+            });
+        }
         KeyCode::Char('n') => {
             app.modal = Some(app::Modal::Input {
                 title: "New MCP server name".to_string(),
@@ -57,6 +73,15 @@ pub(super) fn handle_mcp_key(app: &mut app::App, code: KeyCode) -> Option<Action
         _ => {}
     }
     None
+}
+
+pub(super) fn save_baizhi_preset(app: &mut app::App) -> anyhow::Result<()> {
+    droidgear_core::mcp::save_baizhi_preset_for_home(&app.home_dir).map_err(anyhow::Error::msg)?;
+    app.set_toast(
+        "Baizhi saved disabled; supply BAIZHI_API_KEY to Factory before enabling",
+        false,
+    );
+    Ok(())
 }
 
 pub(super) fn handle_mcp_server_key(app: &mut app::App, code: KeyCode) -> Option<Action> {

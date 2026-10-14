@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Plus, Pencil, Trash2, X, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { Button } from '@/components/ui/button'
+import { ActionButton } from '@/components/ui/action-button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -66,7 +67,26 @@ interface McpPreset {
   variants?: McpPresetVariant[]
 }
 
+function activateBaizhiButton(
+  event: KeyboardEvent<HTMLButtonElement>,
+  action: () => void
+) {
+  if (
+    (event.key === 'Enter' || event.key === ' ') &&
+    !event.repeat &&
+    !event.nativeEvent.isComposing
+  ) {
+    event.preventDefault()
+    action()
+  }
+}
+
 const MCP_PRESETS: McpPreset[] = [
+  {
+    id: 'baizhi',
+    name: '百智工具包（Baizhi MCP）',
+    descriptionKey: 'mcp.presets.baizhi.description',
+  },
   {
     id: 'playwright',
     name: 'Playwright',
@@ -170,6 +190,8 @@ export function McpPage() {
   const [headers, setHeaders] = useState<KeyValuePair[]>([])
 
   // API Key dialog state for presets that require API key
+  const [baizhiDialogOpen, setBaizhiDialogOpen] = useState(false)
+  const [baizhiSaving, setBaizhiSaving] = useState(false)
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false)
   const [apiKeyInput, setApiKeyInput] = useState('')
   const [pendingPreset, setPendingPreset] = useState<McpPreset | null>(null)
@@ -381,6 +403,10 @@ export function McpPage() {
   }
 
   const handleAddPreset = (preset: McpPreset) => {
+    if (preset.id === 'baizhi') {
+      setBaizhiDialogOpen(true)
+      return
+    }
     if (preset.requiresApiKey) {
       setPendingPreset(preset)
       setApiKeyInput('')
@@ -390,6 +416,43 @@ export function McpPage() {
       setApiKeyDialogOpen(true)
     } else {
       savePresetDirectly(preset)
+    }
+  }
+
+  const handleSaveBaizhi = async () => {
+    if (baizhiSaving) return
+    setBaizhiSaving(true)
+    try {
+      // UI feedback for known entries; the brand command also checks raw records.
+      const current = await commands.loadMcpServers()
+      if (current.status === 'error') {
+        toast.error(t('mcp.presets.baizhi.saveFailed'))
+        return
+      }
+      if (current.data.some(server => server.name === 'baizhi')) {
+        setServers(current.data)
+        toast.error(t('mcp.presets.baizhi.alreadyExists'))
+        setBaizhiDialogOpen(false)
+        return
+      }
+      const result = await commands.saveBaizhiPreset()
+      if (result.status === 'error') {
+        toast.error(t('mcp.presets.baizhi.saveFailed'))
+        return
+      }
+      toast.success(t('common.save'))
+      setBaizhiDialogOpen(false)
+      const refreshed = await commands.loadMcpServers()
+      if (refreshed.status === 'ok') {
+        setServers(refreshed.data)
+      } else {
+        toast.error(t('mcp.presets.baizhi.saveFailed'))
+      }
+    } catch {
+      // IPC errors can include configuration details; never display raw contents.
+      toast.error(t('mcp.presets.baizhi.saveFailed'))
+    } finally {
+      setBaizhiSaving(false)
     }
   }
 
@@ -592,32 +655,83 @@ export function McpPage() {
                 <h2 className="text-sm font-medium text-muted-foreground">
                   {t('mcp.presets.title')}
                 </h2>
-                {availablePresets.map(preset => (
-                  <div
-                    key={preset.id}
-                    className="border rounded-lg p-4 flex items-center justify-between"
-                  >
-                    <div>
-                      <p className="font-medium">{preset.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {t(preset.descriptionKey)}
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleAddPreset(preset)}
+                {availablePresets.map(preset => {
+                  const PresetButton =
+                    preset.id === 'baizhi' ? ActionButton : Button
+                  return (
+                    <div
+                      key={preset.id}
+                      className="border rounded-lg p-4 flex items-center justify-between"
                     >
-                      <Plus className="h-4 w-4 mr-1" />
-                      {t('mcp.presets.add')}
-                    </Button>
-                  </div>
-                ))}
+                      <div>
+                        <p className="font-medium">{preset.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {t(preset.descriptionKey)}
+                        </p>
+                      </div>
+                      <PresetButton
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleAddPreset(preset)}
+                        onKeyDown={
+                          preset.id === 'baizhi'
+                            ? event =>
+                                activateBaizhiButton(event, () =>
+                                  handleAddPreset(preset)
+                                )
+                            : undefined
+                        }
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        {t('mcp.presets.add')}
+                      </PresetButton>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
         )}
       </div>
+
+      {/* Baizhi stores a literal environment reference, never an API key. */}
+      <Dialog open={baizhiDialogOpen} onOpenChange={setBaizhiDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>百智工具包（Baizhi MCP）</DialogTitle>
+            <DialogDescription>
+              {t('mcp.presets.baizhi.setup')}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {t('mcp.presets.baizhi.accountAndData')}
+          </p>
+          <code className="text-sm">
+            https://agent-toolkit.app.baizhi.cloud/mcp
+          </code>
+          <code className="text-sm">
+            {'Authorization: Bearer ${BAIZHI_API_KEY}'}
+          </code>
+          <DialogFooter>
+            <ActionButton
+              variant="outline"
+              onClick={() => setBaizhiDialogOpen(false)}
+              onKeyDown={event =>
+                activateBaizhiButton(event, () => setBaizhiDialogOpen(false))
+              }
+            >
+              {t('common.cancel')}
+            </ActionButton>
+            <ActionButton
+              disabled={baizhiSaving}
+              onClick={handleSaveBaizhi}
+              onKeyDown={event => activateBaizhiButton(event, handleSaveBaizhi)}
+            >
+              {t('mcp.presets.baizhi.saveDisabled')}
+            </ActionButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

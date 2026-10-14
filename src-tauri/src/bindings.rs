@@ -77,6 +77,7 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         specs::stop_specs_watcher,
         mcp::load_mcp_servers,
         mcp::save_mcp_server,
+        mcp::save_baizhi_preset,
         mcp::delete_mcp_server,
         mcp::toggle_mcp_server,
         claude::list_claude_profiles,
