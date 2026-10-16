@@ -1,6 +1,15 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Key, KeyRound, LoaderCircle, Wifi, WifiOff } from 'lucide-react'
+import {
+  CloudDownload,
+  Key,
+  KeyRound,
+  LoaderCircle,
+  Pencil,
+  Trash2,
+  Wifi,
+  WifiOff,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -15,12 +24,18 @@ interface ProviderCardProps {
   providerId: string
   modelCount: number
   hasApiKey: boolean
+  onEdit?: () => void
+  onDelete?: () => void
+  onImport?: () => void
 }
 
 export function ProviderCard({
   providerId,
   modelCount,
   hasApiKey,
+  onEdit,
+  onDelete,
+  onImport,
 }: ProviderCardProps) {
   const { t } = useTranslation()
   const testProvider = useOmpStore(state => state.testProvider)
@@ -128,6 +143,39 @@ export function ProviderCard({
         </div>
       </div>
       <div className="flex items-center gap-1 ml-2">
+        {onImport && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onImport}
+            aria-label={t('omp.provider.importFromChannel')}
+            title={t('omp.provider.importFromChannel')}
+          >
+            <CloudDownload className="h-4 w-4" />
+          </Button>
+        )}
+        {onEdit && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onEdit}
+            aria-label={t('omp.provider.edit')}
+            title={t('omp.provider.edit')}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+        )}
+        {onDelete && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onDelete}
+            aria-label={t('omp.provider.delete')}
+            title={t('omp.provider.delete')}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

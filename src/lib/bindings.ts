@@ -1663,7 +1663,7 @@ async setActiveOmpProfileId(id: string) : Promise<Result<null, string>> {
 }
 },
 /**
- * Apply a profile to `~/.omp/agent/models.yml`
+ * Apply model roles to `~/.omp/agent/config.yml`
  */
 async applyOmpProfile(id: string) : Promise<Result<null, string>> {
     try {
@@ -1690,6 +1690,30 @@ async getOmpConfigStatus() : Promise<Result<OmpConfigStatus, string>> {
 async readOmpCurrentConfig() : Promise<Result<OmpCurrentConfig, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("read_omp_current_config") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async readOmpCustomProviders() : Promise<Result<OmpCustomProviders, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("read_omp_custom_providers") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async saveOmpCustomProvider(providerId: string, provider: OmpCustomProvider) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_omp_custom_provider", { providerId, provider }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async deleteOmpCustomProvider(providerId: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_omp_custom_provider", { providerId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -3413,6 +3437,22 @@ export type OmpCredentialStatus = { provider: string; credentialType: string; ha
  */
 export type OmpCurrentConfig = { agentConfig?: OmpAgentConfig; providerModels?: OmpProviderModels[]; credentials?: OmpCredentialStatus[] }
 /**
+ * A model declared in `models.yml`.
+ */
+export type OmpCustomModel = { id: string; name?: string | null; api?: string | null; baseUrl?: string | null; reasoning?: boolean | null; thinking?: OmpThinkingConfig | null; input?: string[] | null; cost?: OmpModelCost | null; contextWindow?: number | null; maxTokens?: number | null; headers?: Partial<{ [key in string]: string }> | null; compat?: JsonValue | null; remoteCompaction?: JsonValue | null }
+/**
+ * A provider declared in `~/.omp/agent/models.yml`.
+ */
+export type OmpCustomProvider = { baseUrl?: string | null; api?: string | null; apiKey?: string | null; auth?: string | null; headers?: Partial<{ [key in string]: string }> | null; authHeader?: boolean | null; models: OmpCustomModel[]; discovery?: JsonValue | null; modelOverrides?: Partial<{ [key in string]: JsonValue }> | null; compat?: JsonValue | null; disableStrictTools?: boolean | null; remoteCompaction?: JsonValue | null; guardrailIdentifier?: string | null; guardrailVersion?: string | null; guardrailTrace?: string | null; transport?: string | null }
+/**
+ * A provider entry with its YAML map key included for frontend/TUI use.
+ */
+export type OmpCustomProviderEntry = { providerId: string; config: OmpCustomProvider }
+/**
+ * Current custom providers loaded from `models.yml`.
+ */
+export type OmpCustomProviders = { providers: OmpCustomProviderEntry[] }
+/**
  * OMP model cost information.
  */
 export type OmpModelCost = { input?: number; output?: number; cacheRead?: number; cacheWrite?: number }
@@ -3443,7 +3483,7 @@ export type OmpTheme = { dark?: string | null; light?: string | null }
 /**
  * OMP thinking/reasoning configuration.
  */
-export type OmpThinkingConfig = { mode?: string | null; efforts?: string[] | null }
+export type OmpThinkingConfig = { mode?: string | null; efforts?: string[] | null; defaultLevel?: string | null }
 /**
  * OpenClaw config status
  */

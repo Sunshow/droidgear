@@ -1,12 +1,8 @@
 //! OMP (Oh My Pi) configuration management (core).
 //!
-//! OMP stores configuration across three locations:
-//! - `~/.omp/agent/config.yml` — agent behavior (modelRoles, theme, etc.)
-//! - `~/.omp/agent/models.db` — SQLite model catalog cache (read-only from DroidGear)
-//! - `~/.omp/agent/agent.db` — SQLite credentials (read-only from DroidGear)
-//!
-//! DroidGear manages model role assignments via `config.yml` and reads the
-//! model catalog and credential status from the SQLite databases.
+//! OMP stores agent behavior in `config.yml` and custom providers in `models.yml`.
+//! DroidGear updates custom providers by ID, while `models.db` (catalog cache)
+//! and `agent.db` (credentials) remain read-only.
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -100,6 +96,109 @@ pub struct OmpThinkingConfig {
     pub mode: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub efforts: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_level: Option<String>,
+    #[serde(flatten)]
+    #[specta(skip)]
+    pub extra: HashMap<String, serde_json::Value>,
+}
+
+/// A model declared in `models.yml`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct OmpCustomModel {
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub api: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking: Option<OmpThinkingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost: Option<OmpModelCost>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context_window: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub headers: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compat: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remote_compaction: Option<serde_json::Value>,
+    #[serde(flatten)]
+    #[specta(skip)]
+    pub extra: HashMap<String, serde_json::Value>,
+}
+
+/// A provider declared in `~/.omp/agent/models.yml`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct OmpCustomProvider {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub api: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub api_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub headers: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth_header: Option<bool>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub models: Vec<OmpCustomModel>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub discovery: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_overrides: Option<HashMap<String, serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compat: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub disable_strict_tools: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remote_compaction: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub guardrail_identifier: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub guardrail_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub guardrail_trace: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transport: Option<String>,
+    #[serde(flatten)]
+    #[specta(skip)]
+    pub extra: HashMap<String, serde_json::Value>,
+}
+
+/// A provider entry with its YAML map key included for frontend/TUI use.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct OmpCustomProviderEntry {
+    pub provider_id: String,
+    pub config: OmpCustomProvider,
+}
+
+/// Current custom providers loaded from `models.yml`.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct OmpCustomProviders {
+    pub providers: Vec<OmpCustomProviderEntry>,
+}
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct OmpModelsConfig {
+    #[serde(default)]
+    providers: HashMap<String, serde_json::Value>,
+    #[serde(flatten)]
+    extra: HashMap<String, serde_json::Value>,
 }
 
 /// A cached model entry from `models.db` (read-only).
@@ -273,6 +372,137 @@ pub fn omp_models_db_path_for_home(home_dir: &Path) -> Result<PathBuf, String> {
 pub fn omp_agent_db_path_for_home(home_dir: &Path) -> Result<PathBuf, String> {
     Ok(omp_config_dir_for_home(home_dir)?.join("agent.db"))
 }
+// ============================================================================
+// models.yml Read/Write — custom providers
+// ============================================================================
+
+pub fn omp_models_yml_path_for_home(home_dir: &Path) -> Result<PathBuf, String> {
+    let dir = omp_config_dir_for_home(home_dir)?;
+    let yml = dir.join("models.yml");
+    let yaml = dir.join("models.yaml");
+    Ok(if !yml.exists() && yaml.exists() {
+        yaml
+    } else {
+        yml
+    })
+}
+
+fn read_models_yml(home_dir: &Path) -> Result<OmpModelsConfig, String> {
+    let mut path = omp_models_yml_path_for_home(home_dir)?;
+    if !path.exists() {
+        path.set_extension("json");
+        if !path.exists() {
+            return Ok(OmpModelsConfig::default());
+        }
+    }
+    let source =
+        std::fs::read_to_string(&path).map_err(|e| format!("Failed to read models.yml: {e}"))?;
+    if source.trim().is_empty() {
+        return Ok(OmpModelsConfig::default());
+    }
+    serde_yaml::from_str(&source).map_err(|e| format!("Invalid models.yml YAML: {e}"))
+}
+
+fn write_models_yml(home_dir: &Path, config: &OmpModelsConfig) -> Result<(), String> {
+    let path = omp_models_yml_path_for_home(home_dir)?;
+    let yaml = serde_yaml::to_string(config)
+        .map_err(|e| format!("Failed to serialize models.yml: {e}"))?;
+    storage::atomic_write(&path, yaml.as_bytes())
+}
+
+pub fn read_omp_custom_providers_for_home(home_dir: &Path) -> Result<OmpCustomProviders, String> {
+    let config = read_models_yml(home_dir)?;
+    let mut providers = config
+        .providers
+        .into_iter()
+        .map(|(provider_id, value)| {
+            let config = serde_json::from_value(value)
+                .map_err(|e| format!("Invalid OMP provider '{provider_id}': {e}"))?;
+            Ok(OmpCustomProviderEntry {
+                provider_id,
+                config,
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    providers.sort_by(|a, b| a.provider_id.cmp(&b.provider_id));
+    Ok(OmpCustomProviders { providers })
+}
+
+fn validate_custom_provider(provider: &OmpCustomProvider) -> Result<(), String> {
+    let present = |value: Option<&str>| value.is_some_and(|s| !s.trim().is_empty());
+    if !matches!(
+        provider.auth.as_deref(),
+        None | Some("apiKey" | "none" | "oauth")
+    ) {
+        return Err("OMP auth must be apiKey, none, or oauth".to_string());
+    }
+    if !provider.models.is_empty() {
+        if !present(provider.base_url.as_deref()) {
+            return Err("OMP declared models require a baseUrl".to_string());
+        }
+        if !matches!(provider.auth.as_deref(), Some("none" | "oauth"))
+            && !present(provider.api_key.as_deref())
+        {
+            return Err("OMP declared models require an apiKey or auth: none/oauth".to_string());
+        }
+    }
+    let mut ids = std::collections::HashSet::new();
+    for model in &provider.models {
+        if model.id.trim().is_empty() || !ids.insert(model.id.as_str()) {
+            return Err("OMP model IDs must be non-empty and unique within a provider".to_string());
+        }
+        if !present(model.api.as_deref()) && !present(provider.api.as_deref()) {
+            return Err(format!("OMP model '{}' requires an API", model.id));
+        }
+        if model.context_window == Some(0) || model.max_tokens == Some(0) {
+            return Err("OMP token limits must be positive".to_string());
+        }
+    }
+    Ok(())
+}
+
+pub fn save_omp_custom_provider_for_home(
+    home_dir: &Path,
+    provider_id: &str,
+    mut provider: OmpCustomProvider,
+) -> Result<(), String> {
+    let provider_id = provider_id.trim();
+    if provider_id.is_empty() {
+        return Err("OMP provider ID cannot be empty".to_string());
+    }
+    validate_custom_provider(&provider)?;
+    let mut config = read_models_yml(home_dir)?;
+    if let Some(old) = config.providers.get(provider_id) {
+        let old: OmpCustomProvider = serde_json::from_value(old.clone())
+            .map_err(|e| format!("Invalid OMP provider '{provider_id}': {e}"))?;
+        for (key, value) in old.extra {
+            provider.extra.entry(key).or_insert(value);
+        }
+        for model in &mut provider.models {
+            if let Some(previous) = old.models.iter().find(|m| m.id == model.id) {
+                for (key, value) in &previous.extra {
+                    model
+                        .extra
+                        .entry(key.clone())
+                        .or_insert_with(|| value.clone());
+                }
+            }
+        }
+    }
+    let value = serde_json::to_value(provider)
+        .map_err(|e| format!("Failed to serialize OMP provider: {e}"))?;
+    config.providers.insert(provider_id.to_string(), value);
+    write_models_yml(home_dir, &config)
+}
+
+pub fn delete_omp_custom_provider_for_home(
+    home_dir: &Path,
+    provider_id: &str,
+) -> Result<(), String> {
+    let mut config = read_models_yml(home_dir)?;
+    config.providers.remove(provider_id);
+    write_models_yml(home_dir, &config)
+}
 
 fn validate_profile_id(id: &str) -> Result<(), String> {
     let ok = id
@@ -435,11 +665,9 @@ fn read_credentials_from_db(path: &Path) -> Result<Vec<OmpCredentialStatus>, Str
     }
 
     let conn = Connection::open(path).map_err(|e| format!("Failed to open agent.db: {e}"))?;
-
     let mut stmt = conn
         .prepare("SELECT provider, credential_type, data FROM auth_credentials")
         .map_err(|e| format!("Failed to query auth_credentials: {e}"))?;
-
     let rows = stmt
         .query_map([], |row| {
             let provider: String = row.get(0)?;
@@ -453,21 +681,14 @@ fn read_credentials_from_db(path: &Path) -> Result<Vec<OmpCredentialStatus>, Str
     for row in rows {
         let (provider, credential_type, data) =
             row.map_err(|e| format!("Failed to read auth_credentials row: {e}"))?;
-        let has_key = !data.trim().is_empty() && data != "null";
         result.push(OmpCredentialStatus {
             provider,
             credential_type,
-            has_key,
+            has_key: !data.trim().is_empty() && data != "null",
         });
     }
-
     Ok(result)
 }
-
-// ============================================================================
-// CRUD (Profiles)
-// ============================================================================
-
 pub fn list_omp_profiles_for_home(home_dir: &Path) -> Result<Vec<OmpProfile>, String> {
     let dir = profiles_dir_for_home(home_dir)?;
     if !dir.exists() {
@@ -645,22 +866,31 @@ const OMP_TEST_TIMEOUT: Duration = Duration::from_secs(30);
 #[cfg(not(test))]
 fn read_api_key_for_provider(home_dir: &Path, provider_id: &str) -> Result<String, String> {
     use rusqlite::Connection;
-
+    if let Ok(custom) = read_omp_custom_providers_for_home(home_dir) {
+        if let Some(entry) = custom
+            .providers
+            .into_iter()
+            .find(|p| p.provider_id == provider_id)
+        {
+            if let Some(key) = entry.config.api_key.filter(|key| !key.trim().is_empty()) {
+                return Ok(key);
+            }
+            if matches!(entry.config.auth.as_deref(), Some("none" | "oauth")) {
+                return Ok(String::new());
+            }
+        }
+    }
     let path = omp_agent_db_path_for_home(home_dir)?;
     if !path.exists() {
         return Err(format!("agent.db not found at {}", path.display()));
     }
-
     let conn = Connection::open(&path).map_err(|e| format!("Failed to open agent.db: {e}"))?;
-
     let mut stmt = conn
         .prepare("SELECT data FROM auth_credentials WHERE provider = ?1")
         .map_err(|e| format!("Failed to query auth_credentials: {e}"))?;
-
     let mut rows = stmt
         .query([provider_id])
         .map_err(|e| format!("Failed to query auth_credentials for '{provider_id}': {e}"))?;
-
     if let Some(row) = rows
         .next()
         .map_err(|e| format!("Failed to read auth_credentials: {e}"))?
@@ -674,7 +904,6 @@ fn read_api_key_for_provider(home_dir: &Path, provider_id: &str) -> Result<Strin
                 "No API key configured for provider '{provider_id}'"
             ));
         }
-        // Data might be JSON like {"type":"api_key","api_key":"sk-..."} or plain key
         if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&data) {
             if let Some(key) = parsed.get("api_key").and_then(|v| v.as_str()) {
                 return Ok(key.to_string());
@@ -682,7 +911,6 @@ fn read_api_key_for_provider(home_dir: &Path, provider_id: &str) -> Result<Strin
         }
         return Ok(data);
     }
-
     Err(format!(
         "No credentials found for provider '{provider_id}' in agent.db"
     ))
@@ -697,22 +925,36 @@ fn read_api_key_for_provider(_home_dir: &Path, _provider_id: &str) -> Result<Str
 fn find_provider_info(home_dir: &Path, provider_id: &str) -> Result<(String, String), String> {
     let models_db_path = omp_models_db_path_for_home(home_dir)?;
     let provider_models = read_model_cache_from_db(&models_db_path)?;
-
-    let pm = provider_models
+    if let Some(pm) = provider_models
         .iter()
         .find(|pm| pm.provider_id == provider_id)
-        .ok_or_else(|| format!("Provider '{provider_id}' not found in models.db"))?;
-
-    let model = pm
+    {
+        let model = pm
+            .models
+            .first()
+            .ok_or_else(|| format!("No models found for provider '{provider_id}' in models.db"))?;
+        let base_url = model
+            .base_url
+            .clone()
+            .unwrap_or_else(|| format!("https://api.{provider_id}.com"));
+        return Ok((base_url, model.id.clone()));
+    }
+    let custom = read_omp_custom_providers_for_home(home_dir)?;
+    let entry = custom
+        .providers
+        .into_iter()
+        .find(|p| p.provider_id == provider_id)
+        .ok_or_else(|| format!("Provider '{provider_id}' not found in models.yml or models.db"))?;
+    let model = entry
+        .config
         .models
         .first()
-        .ok_or_else(|| format!("No models found for provider '{provider_id}' in models.db"))?;
-
+        .ok_or_else(|| format!("No models found for provider '{provider_id}'"))?;
     let base_url = model
         .base_url
         .clone()
-        .unwrap_or_else(|| format!("https://api.{provider_id}.com"));
-
+        .or(entry.config.base_url)
+        .ok_or_else(|| format!("Provider '{provider_id}' has no baseUrl"))?;
     Ok((base_url, model.id.clone()))
 }
 
@@ -826,6 +1068,20 @@ pub fn get_omp_config_status() -> Result<OmpConfigStatus, String> {
 
 pub fn read_omp_current_config() -> Result<OmpCurrentConfig, String> {
     read_omp_current_config_for_home(&system_home_dir()?)
+}
+pub fn read_omp_custom_providers() -> Result<OmpCustomProviders, String> {
+    read_omp_custom_providers_for_home(&system_home_dir()?)
+}
+
+pub fn save_omp_custom_provider(
+    provider_id: &str,
+    provider: OmpCustomProvider,
+) -> Result<(), String> {
+    save_omp_custom_provider_for_home(&system_home_dir()?, provider_id, provider)
+}
+
+pub fn delete_omp_custom_provider(provider_id: &str) -> Result<(), String> {
+    delete_omp_custom_provider_for_home(&system_home_dir()?, provider_id)
 }
 
 // ============================================================================
@@ -1093,5 +1349,35 @@ mod tests {
         assert!(config.agent_config.model_roles.is_none());
         assert!(config.provider_models.is_empty());
         assert!(config.credentials.is_empty());
+    }
+    #[test]
+    fn test_custom_provider_roundtrip_updates_one_provider_and_preserves_fields() {
+        let temp = TempDir::new().unwrap();
+        let home = home(&temp);
+        let path = omp_models_yml_path_for_home(home).unwrap();
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(
+            &path,
+            "providers:\n  keep:\n    baseUrl: https://keep.example/v1\n    models: []\n  update:\n    baseUrl: https://old.example/v1\n    api: openai-completions\n    models:\n      - id: old-model\n        name: Old\n        vendorFlag: true\n",
+        )
+        .unwrap();
+
+        let provider = OmpCustomProvider {
+            base_url: Some("https://new.example/v1".to_string()),
+            api: Some("openai-completions".to_string()),
+            auth: Some("none".to_string()),
+            models: vec![OmpCustomModel {
+                id: "old-model".to_string(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        save_omp_custom_provider_for_home(home, "update", provider).unwrap();
+
+        let text = std::fs::read_to_string(path).unwrap();
+        assert!(text.contains("https://keep.example/v1"));
+        assert!(text.contains("vendorFlag: true"));
+        assert!(text.contains("https://new.example/v1"));
+        assert!(text.contains("old-model"));
     }
 }

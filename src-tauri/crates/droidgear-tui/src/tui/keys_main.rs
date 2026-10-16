@@ -41,6 +41,8 @@ pub(super) fn handle_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
         app::Screen::PiSessions => handle_pi_sessions_key(app, code),
         app::Screen::Omp => handle_omp_key(app, code),
         app::Screen::OmpProfile => handle_omp_profile_key(app, code),
+        app::Screen::OmpProviders => handle_omp_providers_key(app, code),
+        app::Screen::OmpProvider => handle_omp_provider_key(app, code),
         app::Screen::DshDesktop | app::Screen::DshWeb => handle_dsh_key(app, code),
         app::Screen::DshProvider => handle_dsh_provider_key(app, code),
         app::Screen::DshModel => handle_dsh_model_key(app, code),

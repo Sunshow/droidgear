@@ -1861,7 +1861,118 @@ pub(super) fn run_select_action(
                 .map_err(anyhow::Error::msg)?;
             Ok(())
         }
+        app::SelectAction::OmpImportCustomProviderFromChannel { provider_id } => {
+            let Some(selected) = selected else {
+                return Ok(());
+            };
+            let channel = app
+                .channels
+                .iter()
+                .find(|c| c.enabled && format!("{} ({})", c.name, c.base_url) == selected)
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("Channel not found"))?;
+            app.pi_import_pending_channel_id = Some(channel.id.clone());
+            app.pi_import_pending_base_url = Some(channel.base_url.clone());
+            let key =
+                resolve_channel_api_key(app, &channel.id, &channel.channel_type, &channel.base_url);
+            if let Some(key) = key {
+                let models = droidgear_core::channel::fetch_models_by_api_key_blocking(
+                    &channel.base_url,
+                    &key,
+                    None,
+                )
+                .map_err(anyhow::Error::msg)?;
+                app.pi_import_pending_models = Some(models.clone());
+                app.pi_import_pending_api_key = Some(key);
+                let selected_bools = vec![true; models.len()];
+                app.pending_multi_selected = Some(selected_bools.clone());
+                app.modal = Some(app::Modal::MultiSelect {
+                    title: "Select models to import (Tab/c: confirm)".to_string(),
+                    options: models.iter().map(|m| m.id.clone()).collect(),
+                    selected: selected_bools,
+                    index: 0,
+                    action: app::SelectAction::OmpImportCustomProviderModels { provider_id },
+                });
+            } else {
+                app.modal = Some(app::Modal::Input {
+                    title: "API key for import".to_string(),
+                    value: String::new(),
+                    cursor: usize::MAX,
+                    is_secret: true,
+                    action: app::InputAction::OmpImportCustomProviderApiKey { provider_id },
+                });
+            }
+            Ok(())
+        }
+        app::SelectAction::OmpImportCustomProviderModels { provider_id } => {
+            let models = app.pi_import_pending_models.take().unwrap_or_default();
+            let selected = app.pending_multi_selected.take().unwrap_or_default();
+            let base_url = app.pi_import_pending_base_url.take().unwrap_or_default();
+            let api_key = app.pi_import_pending_api_key.take();
+            let current = droidgear_core::omp::read_omp_custom_providers_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            let mut provider = current
+                .providers
+                .into_iter()
+                .find(|p| p.provider_id == provider_id)
+                .map(|p| p.config)
+                .unwrap_or_default();
+            provider.base_url = Some(base_url);
+            provider.api = Some(
+                provider
+                    .api
+                    .unwrap_or_else(|| "openai-completions".to_string()),
+            );
+            if api_key.is_some() {
+                provider.api_key = api_key;
+            }
+            provider.models = models
+                .into_iter()
+                .enumerate()
+                .filter(|(i, _)| *i < selected.len() && selected[*i])
+                .map(|(_, m)| droidgear_core::omp::OmpCustomModel {
+                    id: m.id,
+                    name: m.name,
+                    api: None,
+                    ..Default::default()
+                })
+                .collect();
+            droidgear_core::omp::save_omp_custom_provider_for_home(
+                &app.home_dir,
+                &provider_id,
+                provider,
+            )
+            .map_err(anyhow::Error::msg)?;
+            app.set_toast("Imported from channel", false);
+            Ok(())
+        }
     }
+}
+
+fn omp_open_model_selection(
+    app: &mut app::App,
+    provider_id: String,
+    api_key: String,
+) -> anyhow::Result<()> {
+    let base_url = app
+        .pi_import_pending_base_url
+        .clone()
+        .ok_or_else(|| anyhow::anyhow!("No pending channel import"))?;
+    let models =
+        droidgear_core::channel::fetch_models_by_api_key_blocking(&base_url, &api_key, None)
+            .map_err(anyhow::Error::msg)?;
+    app.pi_import_pending_models = Some(models.clone());
+    app.pi_import_pending_api_key = Some(api_key);
+    let selected = vec![true; models.len()];
+    app.pending_multi_selected = Some(selected.clone());
+    app.modal = Some(app::Modal::MultiSelect {
+        title: "Select models to import (Tab/c: confirm)".to_string(),
+        options: models.iter().map(|m| m.id.clone()).collect(),
+        selected,
+        index: 0,
+        action: app::SelectAction::OmpImportCustomProviderModels { provider_id },
+    });
+    Ok(())
 }
 
 /// Fetches the model list for a channel and opens the model Select for a
@@ -2347,6 +2458,12 @@ pub(super) fn run_confirm_action(
         app::ConfirmAction::OmpDelete { id } => {
             droidgear_core::omp::delete_omp_profile_for_home(&app.home_dir, &id)
                 .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
+        app::ConfirmAction::OmpDeleteCustomProvider { provider_id } => {
+            droidgear_core::omp::delete_omp_custom_provider_for_home(&app.home_dir, &provider_id)
+                .map_err(anyhow::Error::msg)?;
+            refresh_omp_custom_providers(app);
             Ok(())
         }
         app::ConfirmAction::DshDeleteProvider { provider_id } => {
@@ -5131,6 +5248,92 @@ pub(super) fn run_input_action(
             }
             app.set_toast("Saved (in-memory)", false);
             Ok(())
+        }
+        app::InputAction::OmpCreateCustomProvider => {
+            if trimmed.is_empty() {
+                return Err(anyhow::Error::msg("Provider ID is required"));
+            }
+            let existing = droidgear_core::omp::read_omp_custom_providers_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            if existing.providers.iter().any(|p| p.provider_id == trimmed) {
+                return Err(anyhow::Error::msg("Provider already exists"));
+            }
+            droidgear_core::omp::save_omp_custom_provider_for_home(
+                &app.home_dir,
+                trimmed,
+                droidgear_core::omp::OmpCustomProvider::default(),
+            )
+            .map_err(anyhow::Error::msg)?;
+            refresh_omp_custom_providers(app);
+            app.omp_provider_id = Some(trimmed.to_string());
+            app.omp_provider_index = app
+                .omp_custom_providers
+                .iter()
+                .position(|p| p.provider_id == trimmed)
+                .unwrap_or(0);
+            app.omp_provider_field_index = 0;
+            app.screen = app::Screen::OmpProvider;
+            Ok(())
+        }
+        app::InputAction::OmpSetCustomProviderBaseUrl { provider_id } => {
+            let current = droidgear_core::omp::read_omp_custom_providers_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            let mut provider = current
+                .providers
+                .into_iter()
+                .find(|p| p.provider_id == provider_id)
+                .map(|p| p.config)
+                .ok_or_else(|| anyhow::anyhow!("Provider not found"))?;
+            provider.base_url = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            droidgear_core::omp::save_omp_custom_provider_for_home(
+                &app.home_dir,
+                &provider_id,
+                provider,
+            )
+            .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
+        app::InputAction::OmpSetCustomProviderApi { provider_id } => {
+            let current = droidgear_core::omp::read_omp_custom_providers_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            let mut provider = current
+                .providers
+                .into_iter()
+                .find(|p| p.provider_id == provider_id)
+                .map(|p| p.config)
+                .ok_or_else(|| anyhow::anyhow!("Provider not found"))?;
+            provider.api = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            droidgear_core::omp::save_omp_custom_provider_for_home(
+                &app.home_dir,
+                &provider_id,
+                provider,
+            )
+            .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
+        app::InputAction::OmpSetCustomProviderApiKey { provider_id } => {
+            let current = droidgear_core::omp::read_omp_custom_providers_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            let mut provider = current
+                .providers
+                .into_iter()
+                .find(|p| p.provider_id == provider_id)
+                .map(|p| p.config)
+                .ok_or_else(|| anyhow::anyhow!("Provider not found"))?;
+            provider.api_key = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            droidgear_core::omp::save_omp_custom_provider_for_home(
+                &app.home_dir,
+                &provider_id,
+                provider,
+            )
+            .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
+        app::InputAction::OmpImportCustomProviderApiKey { provider_id } => {
+            if trimmed.is_empty() {
+                return Err(anyhow::Error::msg("API key is required"));
+            }
+            omp_open_model_selection(app, provider_id, trimmed.to_string())
         }
         app::InputAction::FactoryAuthSaveProfile => {
             if trimmed.is_empty() {

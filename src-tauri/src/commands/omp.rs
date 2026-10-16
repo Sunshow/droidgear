@@ -62,7 +62,7 @@ pub async fn set_active_omp_profile_id(id: String) -> Result<(), String> {
     droidgear_core::omp::set_active_omp_profile_id(&id)
 }
 
-/// Apply a profile to `~/.omp/agent/models.yml`
+/// Apply model roles to `~/.omp/agent/config.yml`
 #[tauri::command]
 #[specta::specta]
 pub async fn apply_omp_profile(id: String) -> Result<(), String> {
@@ -81,6 +81,28 @@ pub async fn get_omp_config_status() -> Result<OmpConfigStatus, String> {
 #[specta::specta]
 pub async fn read_omp_current_config() -> Result<OmpCurrentConfig, String> {
     droidgear_core::omp::read_omp_current_config()
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn read_omp_custom_providers() -> Result<droidgear_core::omp::OmpCustomProviders, String>
+{
+    droidgear_core::omp::read_omp_custom_providers()
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn save_omp_custom_provider(
+    provider_id: String,
+    provider: droidgear_core::omp::OmpCustomProvider,
+) -> Result<(), String> {
+    droidgear_core::omp::save_omp_custom_provider(&provider_id, provider)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_omp_custom_provider(provider_id: String) -> Result<(), String> {
+    droidgear_core::omp::delete_omp_custom_provider(&provider_id)
 }
 
 /// Test an OMP provider connection via HTTP
