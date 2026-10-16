@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.6
+
+**New Features / 新功能**
+
+- OMP custom providers now read and write the official `~/.omp/agent/models.yml` format, with GUI and TUI CRUD plus channel-based model/provider updates that preserve unrelated providers and unknown fields / OMP 自定义 Provider 现按官方 `~/.omp/agent/models.yml` 格式读写，GUI 与 TUI 支持增删改及按渠道更新模型和 Provider，并保留其他 Provider 与未知字段
+- Optional Baizhi MCP preset (GUI + TUI): Quick Add or `b` saves a disabled HTTP server at `https://agent-toolkit.app.baizhi.cloud/mcp` with the literal header `Authorization: Bearer ${BAIZHI_API_KEY}` and `oauth: false`. The flow does not accept or expand a key; set `BAIZHI_API_KEY` in the environment that launches Factory, then enable the server / 可选百智 MCP 预设（GUI + TUI）：「快速添加」或按 `b` 会保存一条默认停用的 HTTP 服务器，URL 固定为 `https://agent-toolkit.app.baizhi.cloud/mcp`，Header 为字面量 `Authorization: Bearer ${BAIZHI_API_KEY}`，并写入 `oauth: false`。该流程不接收、不展开 Key；请在启动 Factory 的环境中设置 `BAIZHI_API_KEY` 后再启用
+
 ## v1.3.5
 
 **New Features / 新功能**
@@ -15,8 +22,6 @@
 ## v1.3.4
 
 **New Features / 新功能**
-
-- OMP custom providers now read and write the official `~/.omp/agent/models.yml` format, with GUI and TUI CRUD plus channel-based model/provider updates that preserve unrelated providers and unknown fields / OMP 自定义 Provider 现按官方 `~/.omp/agent/models.yml` 格式读写，GUI 与 TUI 支持增删改及按渠道更新模型和 Provider，并保留其他 Provider 与未知字段
 
 - Codex profiles can enable API key model discovery: a checkbox on the Codex config page and in the TUI writes `features.api_key_model_discovery` in `config.toml` without touching the other feature flags / Codex Profile 支持启用 API Key 模型发现：Codex 配置页与 TUI 新增复选框，向 `config.toml` 写入 `features.api_key_model_discovery`，不影响其他 feature 开关
 

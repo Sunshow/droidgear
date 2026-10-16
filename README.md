@@ -148,6 +148,11 @@ GUI 的 MCP「快速添加」卡片或 TUI MCP 列表的 `b` 键会打开百智�
 - **临时运行** - 一键以所选配置启动 Copilot（进程级环境变量 + 显式 `--model` 参数）
 - **独立启动器** - 附带 `copilot-local.sh` / `copilot-local.cmd` 启动器，无需 GUI 即可用已导出的配置启动 Copilot
 
+### OMP（Oh My Pi）支持
+
+- **自定义 Provider** - 按官方 `~/.omp/agent/models.yml` 读写自定义 Provider 与模型（GUI 与 TUI 增删改），支持从渠道更新模型和 Provider，并保留其他 Provider 与未知字段
+- **模型角色** - 管理 `~/.omp/agent/config.yml` 中的模型角色，并可从当前配置加载
+
 ### 其他功能
 
 - **自动更新** - 版本检查、自动更新提示和下载进度显示
@@ -198,6 +203,7 @@ TUI 版本支持以下配置管理功能：
 - **Pi Profile**：Provider/Model 配置管理与应用
 - **Dsh Provider**：`llm-pi-ai.providers` 配置管理与凭据值管理（含渠道导入、模型拉取）
 - **Copilot Profile**：BYOK Profile 配置管理与应用（含渠道导入、临时运行）
+- **OMP**：自定义 Provider（`models.yml`）增删改与渠道导入，以及 `config.yml` 模型角色
 - **Sessions**：会话浏览与管理
 - **Paths**：路径覆盖配置（适配服务器环境）
 - **Channels**：代理平台与凭据管理

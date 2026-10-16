@@ -148,6 +148,11 @@ Configuration remains ordinary `~/.factory/mcp.json`: this preset stores a nonse
 - **Temporary Run** - Launch Copilot with the selected profile in one click (process-scoped environment variables plus an explicit `--model` argument)
 - **Standalone Launcher** - Ships `copilot-local.sh` / `copilot-local.cmd` launchers to run Copilot with an exported profile without the GUI
 
+### OMP (Oh My Pi) Support
+
+- **Custom Providers** - Read and write custom providers and models in the official `~/.omp/agent/models.yml` (GUI and TUI CRUD), update models and providers from a channel, and preserve unrelated providers and unknown fields
+- **Model Roles** - Manage model role assignments in `~/.omp/agent/config.yml`, and load them from the live config
+
 ### Other Features
 
 - **Auto Update** - Version check, auto update notification and download progress
@@ -199,6 +204,7 @@ The TUI version supports the following configuration management features:
 - **Pi Profiles**: Provider/Model configuration management and apply
 - **Dsh Providers**: `llm-pi-ai.providers` configuration and credential value management (with channel import and model fetching)
 - **Copilot Profiles**: BYOK profile configuration and apply (with channel import and temporary run)
+- **OMP**: Custom provider CRUD and channel import (`models.yml`), plus model roles in `config.yml`
 - **Sessions**: Session browsing and management
 - **Paths**: Path override configuration (for server environments)
 - **Channels**: Proxy platform and credential management
