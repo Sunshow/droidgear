@@ -151,6 +151,53 @@ pub fn load_mcp_servers() -> Result<Vec<McpServer>, String> {
     load_mcp_servers_for_home(&system_home_dir()?)
 }
 
+/// Fixed Baizhi preset: stores a nonsecret reference, never an expanded API key.
+pub fn baizhi_mcp_preset() -> McpServer {
+    McpServer {
+        name: "baizhi".to_string(),
+        config: McpServerConfig {
+            server_type: McpServerType::Http,
+            disabled: true,
+            command: None,
+            args: None,
+            env: None,
+            url: Some("https://agent-toolkit.app.baizhi.cloud/mcp".to_string()),
+            headers: Some(HashMap::from([(
+                "Authorization".to_string(),
+                "Bearer ${BAIZHI_API_KEY}".to_string(),
+            )])),
+        },
+    }
+}
+
+/// Add the brand preset without replacing any existing raw record of that name.
+/// This checks the observed file contents; atomic rename is not a cross-process lock.
+pub fn save_baizhi_preset_for_home(home_dir: &Path) -> Result<(), String> {
+    let mut config = read_mcp_file_for_home(home_dir)?;
+    let obj = config
+        .as_object_mut()
+        .ok_or_else(|| "MCP config must be a JSON object".to_string())?;
+    let servers = obj
+        .entry("mcpServers")
+        .or_insert_with(|| serde_json::json!({}))
+        .as_object_mut()
+        .ok_or_else(|| "mcpServers must be a JSON object".to_string())?;
+    if servers.contains_key("baizhi") {
+        return Err("MCP server 'baizhi' already exists; not replaced".to_string());
+    }
+    let preset = baizhi_mcp_preset();
+    let mut value = serde_json::to_value(preset.config)
+        .map_err(|e| format!("Failed to serialize Baizhi preset: {e}"))?;
+    // This brand-only raw option does not change the generic configuration type.
+    value["oauth"] = serde_json::Value::Bool(false);
+    servers.insert(preset.name, value);
+    write_mcp_file_for_home(home_dir, &config)
+}
+
+pub fn save_baizhi_preset() -> Result<(), String> {
+    save_baizhi_preset_for_home(&system_home_dir()?)
+}
+
 pub fn save_mcp_server_for_home(home_dir: &Path, server: McpServer) -> Result<(), String> {
     let mut config = read_mcp_file_for_home(home_dir)?;
 

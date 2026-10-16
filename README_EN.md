@@ -77,6 +77,14 @@ Run the installer directly.
 - **Presets** - Built-in MCP presets (including exa, etc.)
 - **Server Management** - MCP server configuration management
 
+#### Baizhi MCP tool bundle
+
+The GUI MCP Quick Add card or `b` on the TUI MCP list opens a Baizhi confirmation. Selecting or cancelling does not save configuration or connect. Confirming saves a disabled HTTP entry with the fixed URL `https://agent-toolkit.app.baizhi.cloud/mcp` and the literal header `Authorization: Bearer ${BAIZHI_API_KEY}`. This preset flow does not accept a key, query BAIZHI_API_KEY or expand its value; saving reads the existing configuration to preserve other records.
+
+Use the [Baizhi toolkit entry](https://agent-toolkit.app.baizhi.cloud/) for the separate account and fees. Set `BAIZHI_API_KEY` independently in the **environment that launches Factory**, then explicitly enable the server. Do not put a real key into the preset or URL. [Factory's MCP documentation](https://docs.factory.com/harness/mcp) says header environment references expand at connection time, an unset variable fails connection, and expanded values are not written back. These are documented behavior, not verification of a real Factory connection, model call, or GUI/shell environment inheritance.
+
+Configuration remains ordinary `~/.factory/mcp.json`: this preset stores a nonsecret reference, not encrypted/keychain storage. The Baizhi writer includes `oauth: false` in the new raw JSON entry, as Factory recommends for header authentication. Enable/disable toggles preserve it. Saving through the existing generic editor may omit the unmodeled `oauth` field; inspect the configuration after edits. Actual Factory OAuth behavior has not been verified. When enabled, tool arguments go to Baizhi and returned content may enter your selected AI model. Disabling/deleting the local entry does not revoke a key, remote task, or charges.
+
 ### OpenCode Support
 
 - **AI Development Integration** - OpenCode tool integration

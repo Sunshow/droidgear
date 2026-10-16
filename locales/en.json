@@ -1700,5 +1700,12 @@
   "copilot.actions.launchTooltip": "Save this profile and launch Copilot in a new terminal without changing the applied config.env",
   "copilot.actions.launchSuccess": "Copilot launched in a new terminal window",
   "copilot.actions.selectDirectory": "Select working directory for Copilot",
-  "copilot.actions.loadedFromLive": "Loaded from live config"
+  "copilot.actions.loadedFromLive": "Loaded from live config",
+
+  "mcp.presets.baizhi.description": "Baizhi hosted tools with an environment reference; saved disabled.",
+  "mcp.presets.baizhi.setup": "Save an HTTP preset with a literal BAIZHI_API_KEY environment reference, disabled by default. This preset flow does not ask for a key or query/expand BAIZHI_API_KEY; saving reads existing configuration to preserve other records. Set it separately in the environment that launches Factory, then enable the server. Selecting this card does not save or connect.",
+  "mcp.presets.baizhi.accountAndData": "A separate Baizhi account and fees apply. Tool arguments are sent to Baizhi; returned content may enter the AI model you use. The reference and oauth:false are stored in ordinary Factory JSON, not a keychain. The generic editor may omit the OAuth option on later edits. Factory connection and GUI environment inheritance have not been verified here.",
+  "mcp.presets.baizhi.saveDisabled": "Save disabled preset",
+  "mcp.presets.baizhi.saveFailed": "The Baizhi preset could not be saved or reloaded.",
+  "mcp.presets.baizhi.alreadyExists": "A 'baizhi' server already exists; it was not replaced."
 }

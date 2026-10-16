@@ -1402,3 +1402,110 @@ fn droid_settings_link_key_opens_input_and_links_local_json_file() {
         r#"{"customModels":[]}"#
     );
 }
+
+#[test]
+fn baizhi_preset_routes_through_confirmation_and_roundtrips_symbolic_config() {
+    let temp = TempDir::new().unwrap();
+    let mut app = app::App::new(temp.path().to_path_buf());
+    app.screen = app::Screen::Mcp;
+    handle_key(&mut app, KeyCode::Char('b'));
+    assert!(matches!(
+        app.modal,
+        Some(app::Modal::Confirm {
+            action: app::ConfirmAction::McpAddBaizhi,
+            ..
+        })
+    ));
+    assert!(!temp.path().join(".factory/mcp.json").exists());
+    handle_key(&mut app, KeyCode::Enter);
+    assert!(app.modal.is_none());
+    let loaded = droidgear_core::mcp::load_mcp_servers_for_home(temp.path()).unwrap();
+    assert_eq!(loaded.len(), 1);
+    let saved = &loaded[0];
+    assert_eq!(saved.name, "baizhi");
+    assert_eq!(
+        saved.config.server_type,
+        droidgear_core::mcp::McpServerType::Http
+    );
+    assert!(saved.config.disabled);
+    assert_eq!(
+        saved.config.url.as_deref(),
+        Some("https://agent-toolkit.app.baizhi.cloud/mcp")
+    );
+    assert_eq!(
+        saved
+            .config
+            .headers
+            .as_ref()
+            .unwrap()
+            .get("Authorization")
+            .map(String::as_str),
+        Some("Bearer ${BAIZHI_API_KEY}")
+    );
+    assert!(saved.config.env.is_none());
+    let disk: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(temp.path().join(".factory/mcp.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        disk["mcpServers"]["baizhi"],
+        serde_json::json!({
+            "type": "http", "disabled": true, "oauth": false,
+            "url": "https://agent-toolkit.app.baizhi.cloud/mcp",
+            "headers": { "Authorization": "Bearer ${BAIZHI_API_KEY}" }
+        })
+    );
+}
+
+#[test]
+fn baizhi_preset_cancel_does_not_write_config() {
+    let temp = TempDir::new().unwrap();
+    let mut app = app::App::new(temp.path().to_path_buf());
+    app.screen = app::Screen::Mcp;
+    handle_key(&mut app, KeyCode::Char('b'));
+    handle_key(&mut app, KeyCode::Esc);
+    assert!(app.modal.is_none());
+    assert!(!temp.path().join(".factory/mcp.json").exists());
+}
+
+#[test]
+fn baizhi_preset_preserves_existing_entry_at_confirmation() {
+    let temp = TempDir::new().unwrap();
+    let mut app = app::App::new(temp.path().to_path_buf());
+    app.screen = app::Screen::Mcp;
+    handle_key(&mut app, KeyCode::Char('b'));
+    let path = temp.path().join(".factory/mcp.json");
+    let contents = "{\"mcpServers\":{\"baizhi\":{\"type\":\"http\",\"disabled\":false,\"url\":\"https://example.test/custom\",\"oauth\":{\"clientId\":\"synthetic-client\"}}}}";
+    write_file(&path, contents);
+    handle_key(&mut app, KeyCode::Enter);
+    assert_eq!(std::fs::read_to_string(path).unwrap(), contents);
+    assert!(app.toast_message().contains("already exists"));
+}
+
+#[test]
+fn baizhi_confirmation_renders_endpoint_header_and_controls_at_80x24() {
+    let temp = TempDir::new().unwrap();
+    let mut app = app::App::new(temp.path().to_path_buf());
+    app.screen = app::Screen::Mcp;
+    handle_key(&mut app, KeyCode::Char('b'));
+    let backend = ratatui::backend::TestBackend::new(80, 24);
+    let mut terminal = ratatui::Terminal::new(backend).unwrap();
+    terminal.draw(|frame| crate::ui::draw(frame, &app)).unwrap();
+    let buffer = terminal.backend().buffer();
+    let rendered = (0..24)
+        .map(|y| (0..80).map(|x| buffer[(x, y)].symbol()).collect::<String>())
+        .collect::<Vec<_>>()
+        .join("\n");
+    for visible in [
+        "https://agent-toolkit.app.baizhi.cloud/mcp",
+        "Authorization: Bearer ${BAIZHI_API_KEY}",
+        "oauth:false",
+        "y/Enter: yes  n/Esc: no",
+    ] {
+        assert!(
+            rendered.contains(visible),
+            "Missing {visible} in:\n{rendered}"
+        );
+    }
+    assert!(!temp.path().join(".factory/mcp.json").exists());
+}

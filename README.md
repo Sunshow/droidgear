@@ -77,6 +77,14 @@ xattr -cr /Applications/DroidGear.app
 - **预设配置** - 内置 MCP 预设（包含 exa 等）
 - **服务器管理** - MCP 服务器配置管理
 
+#### 百智工具包（Baizhi MCP）
+
+GUI 的 MCP「快速添加」卡片或 TUI MCP 列表的 `b` 键会打开百智预设确认；选择和取消不写入配置、不连接服务。确认后保存默认停用的 HTTP 条目，固定 URL 为 `https://agent-toolkit.app.baizhi.cloud/mcp`，Header 仅为字面引用 `Authorization: Bearer ${BAIZHI_API_KEY}`。此预设流程不接收 Key、不查询 BAIZHI_API_KEY 环境变量或展开真实 Key；保存会读取原配置以保留其他记录。
+
+请通过[百智工具包使用入口](https://agent-toolkit.app.baizhi.cloud/)了解独立账号及费用，另在**启动 Factory 的环境**中设置 `BAIZHI_API_KEY` 后再显式启用。不要将真实 Key 填入预设或 URL。根据 [Factory 官方 MCP 文档](https://docs.factory.com/harness/mcp)，Header 中的环境变量在连接时展开，未设置变量会使连接失败，展开结果不回写文件；这些是官方声明，此变更未验证真实 Factory 连接、模型调用或 GUI/shell 环境继承。
+
+配置仍写入普通 `~/.factory/mcp.json`；保存的是非秘密引用，不是加密存储或钥匙串。百智专属写入入口在新条目的原始 JSON 中保存 `oauth: false`，对应 Factory 官方对 Header 认证的推荐。启用/停用切换会保留该选项；在现有通用编辑器保存条目可能丢掉未建模的 `oauth` 字段，编辑后请核对配置。这里未验证真实 Factory 的 OAuth 行为。启用后，工具参数发送给百智，返回内容可能进入所选 AI 模型。停用或删除本地条目不等于撤销 Key、远端任务或费用。
+
 ### OpenCode 支持
 
 - **AI 开发集成** - OpenCode 工具集成

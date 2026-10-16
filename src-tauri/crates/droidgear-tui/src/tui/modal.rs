@@ -2290,6 +2290,7 @@ pub(super) fn run_confirm_action(
                 .map_err(anyhow::Error::msg)?;
             Ok(())
         }
+        app::ConfirmAction::McpAddBaizhi => keys_mcp::save_baizhi_preset(app),
         app::ConfirmAction::McpToggle { name, disabled } => {
             droidgear_core::mcp::toggle_mcp_server_for_home(&app.home_dir, &name, disabled)
                 .map_err(anyhow::Error::msg)?;

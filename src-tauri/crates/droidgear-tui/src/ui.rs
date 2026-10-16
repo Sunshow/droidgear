@@ -940,7 +940,7 @@ fn draw_mcp(frame: &mut Frame, app: &app::App, area: Rect) {
     render_list(frame, list, chunks[0], selected);
 
     let help = help_paragraph(
-        "Up/Down: select  Enter/e: open  n: new  t: toggle  d: delete  r: refresh  q/Esc: back",
+        "Up/Down: select  Enter/e: open  n: new  b: 百智/Baizhi preset  t: toggle  d: delete  r: refresh  q/Esc: back",
     );
     frame.render_widget(help, chunks[1]);
 }
@@ -2919,18 +2919,31 @@ fn draw_profile_list<'a>(
 
 fn draw_modal(frame: &mut Frame, app: &app::App) {
     let t = theme();
-    let area = centered_rect(70, 30, frame.area());
-    frame.render_widget(Clear, area);
     let Some(modal) = app.modal.as_ref() else {
         return;
     };
+    let is_baizhi = matches!(
+        modal,
+        app::Modal::Confirm {
+            action: app::ConfirmAction::McpAddBaizhi,
+            ..
+        }
+    );
+    let area = if is_baizhi {
+        centered_rect(95, 85, frame.area())
+    } else {
+        centered_rect(70, 30, frame.area())
+    };
+    frame.render_widget(Clear, area);
     match modal {
         app::Modal::Confirm { message, .. } => {
-            let text = vec![
-                Line::from(message.as_str()),
-                Line::from(""),
-                hint_line("y/Enter: yes  n/Esc: no"),
-            ];
+            let mut text = if is_baizhi {
+                message.lines().map(Line::from).collect::<Vec<_>>()
+            } else {
+                vec![Line::from(message.as_str())]
+            };
+            text.push(Line::from(""));
+            text.push(hint_line("y/Enter: yes  n/Esc: no"));
             let block = block("Confirm")
                 .border_style(t.warning_style())
                 .title_style(t.warning_style());

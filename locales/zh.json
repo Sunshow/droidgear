@@ -1700,5 +1700,12 @@
   "copilot.actions.launchTooltip": "保存当前配置并在新终端运行 Copilot，不改写已应用的 config.env",
   "copilot.actions.launchSuccess": "Copilot 已在新终端窗口启动",
   "copilot.actions.selectDirectory": "选择 Copilot 工作目录",
-  "copilot.actions.loadedFromLive": "已从当前配置加载"
+  "copilot.actions.loadedFromLive": "已从当前配置加载",
+
+  "mcp.presets.baizhi.description": "百智托管工具，使用环境变量引用，保存时默认停用。",
+  "mcp.presets.baizhi.setup": "保存默认停用的 HTTP 预设，Header 仅为 BAIZHI_API_KEY 环境变量的字面引用。此预设流程不索取 Key、不查询/展开 BAIZHI_API_KEY；保存会读取原配置以保留其他记录。请另在启动 Factory 的环境中设置后再启用。选择此卡片不会保存或连接。",
+  "mcp.presets.baizhi.accountAndData": "百智账号与费用独立。工具参数发送给百智，返回内容可能进入你使用的 AI 模型。引用和 oauth:false 写入普通 Factory JSON，不是钥匙串；以后在通用编辑器保存可能丢掉 OAuth 选项。此处未验证真实 Factory 连接或 GUI 环境继承。",
+  "mcp.presets.baizhi.saveDisabled": "保存停用预设",
+  "mcp.presets.baizhi.saveFailed": "百智预设保存或重载失败。",
+  "mcp.presets.baizhi.alreadyExists": "已有 baizhi 服务器，未覆盖。"
 }
