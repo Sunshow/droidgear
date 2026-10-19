@@ -1188,6 +1188,27 @@
     }
   },
   {
+    "id": "gemini-4-argon",
+    "name": "Gemini 4 Argon",
+    "aliases": [],
+    "platform": "gemini",
+    "reasoning": true,
+    "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
+    "contextWindow": 1048576,
+    "maxOutputTokens": 65536,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
     "id": "glm-4.5",
     "name": "GLM 4.5",
     "aliases": [],
