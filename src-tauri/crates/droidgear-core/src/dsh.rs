@@ -244,8 +244,12 @@ pub fn list_dsh_profiles_for_home(home_dir: &Path) -> Result<Vec<DshProfile>, St
         if is_profile {
             profiles.push(DshProfile {
                 name: name.to_string(),
-                dir: profile_dir.to_string_lossy().to_string(),
-                patch_path: patch_path.to_string_lossy().to_string(),
+                dir: profile_dir
+                    .to_string_lossy()
+                    .replace('/', std::path::MAIN_SEPARATOR_STR),
+                patch_path: patch_path
+                    .to_string_lossy()
+                    .replace('/', std::path::MAIN_SEPARATOR_STR),
             });
         }
     }
@@ -929,11 +933,17 @@ pub fn get_dsh_config_status_for_profile(
     Ok(DshConfigStatus {
         profile_name: profile.map(str::to_string),
         config_exists: config_path.exists(),
-        config_path: config_path.to_string_lossy().to_string(),
+        config_path: config_path
+            .to_string_lossy()
+            .replace('/', std::path::MAIN_SEPARATOR_STR),
         legacy_exists: legacy_path.exists(),
-        legacy_path: legacy_path.to_string_lossy().to_string(),
+        legacy_path: legacy_path
+            .to_string_lossy()
+            .replace('/', std::path::MAIN_SEPARATOR_STR),
         credentials_exists: credentials_path.exists(),
-        credentials_path: credentials_path.to_string_lossy().to_string(),
+        credentials_path: credentials_path
+            .to_string_lossy()
+            .replace('/', std::path::MAIN_SEPARATOR_STR),
     })
 }
 

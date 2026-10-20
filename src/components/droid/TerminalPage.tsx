@@ -117,9 +117,6 @@ export function TerminalPage() {
   // Track which terminals are ready (for sequential derived terminal rendering)
   const [readyTerminals, setReadyTerminals] = useState<Set<string>>(new Set())
 
-  // Get the currently selected terminal
-  const selectedTerminal = terminals.find(t => t.id === selectedTerminalId)
-
   // Helper to check if a derived terminal can be rendered
   const canRenderDerived = (
     terminalId: string,
@@ -153,7 +150,7 @@ export function TerminalPage() {
         terminalRefs.current.get(refKey)?.focus()
       }, 50)
     }
-  }, [selectedTerminalId, selectedTerminal?.selectedDerivedId, terminals])
+  }, [selectedTerminalId, terminals])
 
   // Focus rename input when editing starts (fallback for non-context-menu triggers)
   useEffect(() => {

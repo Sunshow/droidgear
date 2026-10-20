@@ -417,7 +417,9 @@ fn read_session(path: &Path, include_messages: bool) -> Result<PiSessionDetail, 
             modified_at,
             message_count,
             token_usage: usage,
-            path: path.to_string_lossy().to_string(),
+            path: path
+                .to_string_lossy()
+                .replace('/', std::path::MAIN_SEPARATOR_STR),
         },
         messages,
     })

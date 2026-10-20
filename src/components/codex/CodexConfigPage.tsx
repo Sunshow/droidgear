@@ -161,7 +161,7 @@ export function CodexConfigPage() {
     return () => {
       cancelled = true
     }
-  }, [isOpenaiModelProvider, currentProfile?.id])
+  }, [isOpenaiModelProvider])
 
   const handleProfileChange = (profileId: string) => {
     selectProfile(profileId)
