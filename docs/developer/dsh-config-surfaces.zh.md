@@ -260,7 +260,50 @@ Dsh 页保持现有 profile 维度（desktop/web），每个 profile 下分栏�
 - **桌面实例不可 API 复用**：不要尝试读 Electron Cookies/Keychain 伪造鉴权。
 - **旧 node_modules**：检测到 `~/.dsh/profiles/node_modules` 版本与安装版不一致时提示归档，避免回退加载 0.1 代码。
 
-## 9. 研究工件
+## 9. 本分支实现（feat/dsh-config-surfaces）
+
+### 9.1 后端
+
+- `src-tauri/crates/droidgear-core/src/dsh_config.rs`：通用 profile patch 读写。
+  - `read_dsh_config_snapshot(profile)`：组合 bundle（来自 schema 快照）+ profile patch + home patch，返回每个 entry 的层来源、生效 config、字段值/默认值、`overridden`/`shadowedByHome`、`hasJs`、migration warnings。
+  - `save_dsh_config_entry(profile, entry_id, config, expected_hash)`：整段替换 config；`config = null` 删除覆盖（恢复默认）。
+  - `set_dsh_config_entry_disabled(profile, entry_id, disabled, expected_hash)`。
+  - 写入协议：`<profile>/package.json.lock`（与 DSH 同名、2s 等待、30s 陈旧接管）→ YAML Document 级编辑（注释保留）→ 随机后缀临时文件 + 0600 + rename；`!!js` 表达式按 `$js` 标记往返；其他自定义 tag 拒绝重写；home patch 遮蔽拒绝；`expected_hash` 冲突返回 `DSH_CONFIG_CONFLICT`。
+  - secret：snapshot 里 top-level secret 字段替换为 `{"$secret": true}`；保存时该标记表示「保持继承值」，明文 secret 拒绝写入。
+- `src-tauri/src/commands/dsh_config.rs` + `src/lib/bindings.ts`：三个 Tauri 命令。
+- `src-tauri/crates/droidgear-core/src/storage.rs`：`atomic_write` 改为唯一临时文件名；新增 `atomic_write_private`（0600）。
+
+### 9.2 Schema 快照
+
+`src-tauri/crates/droidgear-core/res/dsh-config-schema.json` 由脚本生成：
+
+```bash
+node scripts/gen-dsh-config-schema.mjs                 # 重新生成（默认读 /Users/feuvan/src/deepseek-harness）
+node scripts/gen-dsh-config-schema.mjs --check         # 校验已提交文件与源一致（DSH 升级后跑）
+```
+
+快照包含：四个 bundle 的 entry/config/disabled（按 profile × OS 求值）、每个 config entry 的顶层字段（kind/default/enum/volatile/secret/tier/description）。升级 DSH 后必须重跑并提交新快照，否则 UI 字段与 schema 校验会落后于运行时。
+
+### 9.3 前端
+
+- `DshConfigPage`：在现有 desktop/web profile 维度内增加 7 个 tab：概览、模型、通用、Agent、网络、高级、诊断。
+- `src/components/dsh/config/`：通用表单组件（SettingsSection/SettingsRow/EnumField/NumberField/SwitchField/TextField/徽标/PageHeader）。
+- `EntrySettingsCard`：按 entry 渲染字段并 staged 保存；`$js`/secret/json/C 档只读，非 volatile 显示「重启后生效」。
+- `src/store/dsh-store.ts`：snapshot + `loadSnapshot`/`saveEntry`/`toggleEntryDisabled`，冲突/遮蔽错误转成提示。
+
+### 9.4 TUI
+
+`src-tauri/crates/droidgear-tui/` 增加 Dsh 配置视图（`keys_dsh_config.rs`）：显示 profile/版本/warnings，entries 列表，`d` 切换 disabled、`r` 刷新、Esc 返回。
+
+### 9.5 测试
+
+```bash
+cd src-tauri && cargo test -p droidgear-core dsh_config
+npx vitest run src/components/dsh
+cd src-tauri && cargo test -p droidgear-tui
+```
+
+## 10. 研究工件
 
 本次调研的完整现场（170 条目 × 353 字段逐字段表、disabled 清单、写入协议证据链、file:line 索引）在 `/tmp/dsh-config-research/`：
 
