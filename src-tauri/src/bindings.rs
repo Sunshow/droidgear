@@ -4,9 +4,8 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
     use crate::commands::{
         channel, channel_export, claude, claude_settings, codex, codex_auth_profiles,
         codex_sessions, config, connectivity, copilot, droid_settings, dsh, dsh_config,
-        dsh_sessions, env,
-        factory_auth_profiles, hermes, mcp, notifications, omp, openclaw, opencode, paths, pi,
-        pi_sessions, preferences, recovery, sessions, specs, updater, window,
+        dsh_sessions, env, factory_auth_profiles, hermes, mcp, notifications, omp, openclaw,
+        opencode, paths, pi, pi_sessions, preferences, recovery, sessions, specs, updater, window,
     };
 
     Builder::<tauri::Wry>::new().commands(collect_commands![
