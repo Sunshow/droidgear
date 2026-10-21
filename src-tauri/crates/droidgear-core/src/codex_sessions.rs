@@ -439,7 +439,9 @@ pub fn list_codex_sessions_for_home(home_dir: &Path) -> Result<Vec<CodexSessionS
             model_provider,
             modified_at,
             token_usage,
-            path: path.to_string_lossy().to_string(),
+            path: path
+                .to_string_lossy()
+                .replace('/', std::path::MAIN_SEPARATOR_STR),
         });
     }
 
@@ -943,7 +945,7 @@ mod tests {
             self.home
                 .join(".codex/sessions/2026/09/08/rollout-test.jsonl")
                 .to_string_lossy()
-                .to_string()
+                .replace('/', std::path::MAIN_SEPARATOR_STR)
         }
     }
 

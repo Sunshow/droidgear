@@ -32,18 +32,18 @@ export function MacOSWindowControls({
     setIsHovering(false)
   }
 
-  const handleAltKeyDown = (e: KeyboardEvent) => {
-    if (e.key === key) {
-      setIsAltKeyPressed(true)
-    }
-  }
-  const handleAltKeyUp = (e: KeyboardEvent) => {
-    if (e.key === key) {
-      setIsAltKeyPressed(false)
-    }
-  }
-
   useEffect(() => {
+    const handleAltKeyDown = (e: KeyboardEvent) => {
+      if (e.key === key) {
+        setIsAltKeyPressed(true)
+      }
+    }
+    const handleAltKeyUp = (e: KeyboardEvent) => {
+      if (e.key === key) {
+        setIsAltKeyPressed(false)
+      }
+    }
+
     // Attach event listeners when the component mounts
     window.addEventListener('keydown', handleAltKeyDown)
     window.addEventListener('keyup', handleAltKeyUp)
