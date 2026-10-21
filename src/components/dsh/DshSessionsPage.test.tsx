@@ -142,6 +142,51 @@ describe('DshSessionsPage', () => {
     ).toBeInTheDocument()
   })
 
+  it('groups consecutive thinking-only messages into one collapsible block', async () => {
+    const user = userEvent.setup()
+    commandMocks.getDshSessionDetail.mockResolvedValue({
+      status: 'ok',
+      data: {
+        summary: session,
+        messages: [
+          {
+            id: 'think-1',
+            role: 'assistant',
+            content: [{ type: 'thinking', thinking: 'First thought' }],
+            timestamp: '2026-01-01T00:00:00Z',
+          },
+          {
+            id: 'think-2',
+            role: 'assistant',
+            content: [{ type: 'thinking', thinking: 'Second thought' }],
+            timestamp: '2026-01-01T00:00:01Z',
+          },
+          {
+            id: 'answer-1',
+            role: 'assistant',
+            content: [{ type: 'text', text: 'Visible answer' }],
+            timestamp: '2026-01-01T00:00:02Z',
+          },
+        ],
+      },
+    })
+    render(<DshSessionsPage />)
+
+    await user.click(await screen.findByText('Inspect the parser'))
+
+    const groupSummary = await screen.findByText('Thinking process (2)')
+    const details = groupSummary.closest('details')
+    expect(details).not.toBeNull()
+    expect(details?.open).toBe(false)
+    expect(screen.queryByText('Thinking process (1)')).not.toBeInTheDocument()
+
+    await user.click(groupSummary)
+    expect(details?.open).toBe(true)
+    expect(screen.getByText('First thought')).toBeInTheDocument()
+    expect(screen.getByText('Second thought')).toBeInTheDocument()
+    expect(screen.getByTestId('streamdown')).toHaveTextContent('Visible answer')
+  })
+
   it('deletes a session through the context menu', async () => {
     showContextMenuMock.mockImplementation(
       async (items: { id: string; action: () => Promise<void> }[]) => {

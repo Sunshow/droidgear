@@ -1558,6 +1558,7 @@
   "dsh.sessions.groupedView": "按项目分组",
   "dsh.sessions.unknownProject": "未知项目",
   "dsh.sessions.thinking": "思考中...",
+  "dsh.sessions.thinkingGroup": "思考过程（{{count}}）",
   "dsh.sessions.expandThinkingOn": "默认展开思考内容",
   "dsh.sessions.expandThinkingOff": "点击默认展开思考内容",
   "dsh.sessions.hideEmptySessionsOn": "已隐藏空会话",

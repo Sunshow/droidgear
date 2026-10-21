@@ -1558,6 +1558,7 @@
   "dsh.sessions.groupedView": "Grouped by Project",
   "dsh.sessions.unknownProject": "Unknown project",
   "dsh.sessions.thinking": "Thinking...",
+  "dsh.sessions.thinkingGroup": "Thinking process ({{count}})",
   "dsh.sessions.expandThinkingOn": "Thinking expanded by default",
   "dsh.sessions.expandThinkingOff": "Click to expand thinking by default",
   "dsh.sessions.hideEmptySessionsOn": "Empty sessions hidden",

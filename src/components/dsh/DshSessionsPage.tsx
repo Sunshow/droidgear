@@ -34,6 +34,7 @@ import {
 import { cn } from '@/lib/utils'
 import {
   commands,
+  type DshSessionMessage,
   type DshSessionSummary,
   type DshSessionDetail,
 } from '@/lib/bindings'
@@ -46,6 +47,60 @@ function projectLabel(project: string): string {
   if (!project) return ''
   const parts = project.replace(/\\/g, '/').split('/').filter(Boolean)
   return parts[parts.length - 1] ?? project
+}
+
+type RenderItem =
+  | { kind: 'message'; message: DshSessionMessage }
+  | { kind: 'thinking'; id: string; texts: string[] }
+
+/** Thinking texts when a message renders as nothing but reasoning, else null. */
+function thinkingOnlyTexts(message: DshSessionMessage): string[] | null {
+  if (message.role !== 'assistant' || message.content.length === 0) {
+    return null
+  }
+  const texts: string[] = []
+  for (const block of message.content) {
+    if (block.type !== 'thinking' || !block.thinking) {
+      return null
+    }
+    texts.push(block.thinking)
+  }
+  return texts
+}
+
+/**
+ * Merge runs of reasoning-only assistant messages into one collapsible group.
+ * Dsh writes one assistant message per step, and a step that only calls tools
+ * renders as nothing but reasoning — without grouping the transcript becomes a
+ * long ladder of separate "Thinking" boxes.
+ */
+function groupConsecutiveThinking(messages: DshSessionMessage[]): RenderItem[] {
+  const items: RenderItem[] = []
+  let pending: { id: string; texts: string[] } | null = null
+
+  const flush = () => {
+    if (pending) {
+      items.push({ kind: 'thinking', ...pending })
+      pending = null
+    }
+  }
+
+  for (const message of messages) {
+    const texts = thinkingOnlyTexts(message)
+    if (texts) {
+      if (pending) {
+        pending.texts.push(...texts)
+      } else {
+        pending = { id: message.id, texts: [...texts] }
+      }
+    } else {
+      flush()
+      items.push({ kind: 'message', message })
+    }
+  }
+  flush()
+
+  return items
 }
 
 export function DshSessionsPage() {
@@ -346,6 +401,9 @@ export function DshSessionsPage() {
   )
 
   const summary = selectedSession?.summary
+  const renderItems = selectedSession
+    ? groupConsecutiveThinking(selectedSession.messages)
+    : []
 
   return (
     <div className="flex flex-col h-full">
@@ -522,68 +580,105 @@ export function DshSessionsPage() {
                 </div>
                 <ScrollArea ref={contentScrollRef} className="flex-1 min-w-0">
                   <div className="p-4 space-y-4">
-                    {selectedSession.messages.map(message => (
-                      <div
-                        key={message.id}
-                        className={cn(
-                          'flex gap-3',
-                          message.role === 'user'
-                            ? 'justify-end'
-                            : message.role === 'assistant'
-                              ? 'justify-start'
-                              : 'justify-center'
-                        )}
-                      >
-                        {message.role === 'assistant' && (
-                          <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            <Bot className="h-4 w-4 text-primary" />
+                    {renderItems.map(item => {
+                      if (item.kind === 'thinking') {
+                        return (
+                          <div
+                            key={`thinking-${item.id}`}
+                            className="flex gap-3 justify-start"
+                          >
+                            <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                              <Bot className="h-4 w-4 text-primary" />
+                            </div>
+                            <div className="max-w-[80%] rounded-lg p-3 bg-muted">
+                              <details
+                                open={expandThinking}
+                                className="text-xs opacity-70"
+                              >
+                                <summary className="cursor-pointer select-none">
+                                  {t('dsh.sessions.thinkingGroup', {
+                                    count: item.texts.length,
+                                  })}
+                                </summary>
+                                <div className="mt-2 space-y-2">
+                                  {item.texts.map((text, index) => (
+                                    <div
+                                      key={index}
+                                      className="whitespace-pre-wrap pl-2 border-l-2 border-muted-foreground/30"
+                                    >
+                                      {text}
+                                    </div>
+                                  ))}
+                                </div>
+                              </details>
+                            </div>
                           </div>
-                        )}
+                        )
+                      }
+                      const message = item.message
+                      return (
                         <div
+                          key={message.id}
                           className={cn(
-                            'max-w-[80%] rounded-lg p-3',
+                            'flex gap-3',
                             message.role === 'user'
-                              ? 'bg-primary text-primary-foreground'
-                              : message.role === 'system'
-                                ? 'bg-muted/70 text-muted-foreground text-sm'
-                                : 'bg-muted'
+                              ? 'justify-end'
+                              : message.role === 'assistant'
+                                ? 'justify-start'
+                                : 'justify-center'
                           )}
                         >
-                          {message.content.map((block, index) => (
-                            <div key={index} className="select-text">
-                              {block.type === 'thinking' && block.thinking ? (
-                                <details
-                                  open={expandThinking}
-                                  className="text-xs opacity-70 mb-2"
-                                >
-                                  <summary className="cursor-pointer">
-                                    {t('dsh.sessions.thinking')}
-                                  </summary>
-                                  <div className="mt-1 pl-2 border-l-2 border-muted-foreground/30">
-                                    {block.thinking}
-                                  </div>
-                                </details>
-                              ) : block.text ? (
-                                message.role === 'user' ? (
-                                  <div className="whitespace-pre-wrap text-sm">
-                                    {block.text}
-                                  </div>
-                                ) : (
-                                  <Streamdown shikiTheme={shikiTheme}>
-                                    {block.text}
-                                  </Streamdown>
-                                )
-                              ) : null}
+                          {message.role === 'assistant' && (
+                            <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                              <Bot className="h-4 w-4 text-primary" />
                             </div>
-                          ))}
-                        </div>
-                        {message.role === 'user' && (
-                          <div className="shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                            <User className="h-4 w-4 text-primary-foreground" />
+                          )}
+                          <div
+                            className={cn(
+                              'max-w-[80%] rounded-lg p-3',
+                              message.role === 'user'
+                                ? 'bg-primary text-primary-foreground'
+                                : message.role === 'system'
+                                  ? 'bg-muted/70 text-muted-foreground text-sm'
+                                  : 'bg-muted'
+                            )}
+                          >
+                            {message.content.map((block, index) => (
+                              <div key={index} className="select-text">
+                                {block.type === 'thinking' && block.thinking ? (
+                                  <details
+                                    open={expandThinking}
+                                    className="text-xs opacity-70 mb-2"
+                                  >
+                                    <summary className="cursor-pointer">
+                                      {t('dsh.sessions.thinking')}
+                                    </summary>
+                                    <div className="mt-1 pl-2 border-l-2 border-muted-foreground/30">
+                                      {block.thinking}
+                                    </div>
+                                  </details>
+                                ) : block.text ? (
+                                  message.role === 'user' ? (
+                                    <div className="whitespace-pre-wrap text-sm">
+                                      {block.text}
+                                    </div>
+                                  ) : (
+                                    <Streamdown shikiTheme={shikiTheme}>
+                                      {block.text}
+                                    </Streamdown>
+                                  )
+                                ) : null}
+                              </div>
+                            ))}
                           </div>
-                        )}
-                      </div>
-                    ))}
+                          {message.role === 'user' && (
+                            <div className="shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                              <User className="h-4 w-4 text-primary-foreground" />
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 </ScrollArea>
               </>
