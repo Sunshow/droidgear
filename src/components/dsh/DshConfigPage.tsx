@@ -1,25 +1,52 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, AlertCircle, RefreshCw } from 'lucide-react'
-import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+  Activity,
+  AlertCircle,
+  Bot,
+  Boxes,
+  Globe,
+  LayoutDashboard,
+  RefreshCw,
+  Settings2,
+  SlidersHorizontal,
+  type LucideIcon,
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useDshStore } from '@/store/dsh-store'
-import { ConfigStatus } from './ConfigStatus'
-import { ProviderCard } from './ProviderCard'
-import { ProviderDialog } from './ProviderDialog'
+import { DshAdvancedTab } from './DshAdvancedTab'
+import { DshAgentTab } from './DshAgentTab'
+import { DshDiagnosticsTab } from './DshDiagnosticsTab'
+import { DshGeneralTab } from './DshGeneralTab'
+import { DshModelsTab } from './DshModelsTab'
+import { DshNetworkTab } from './DshNetworkTab'
+import { DshOverviewTab } from './DshOverviewTab'
 
 /** Official DSH runtime profile managed by this page. */
 export type DshPageProfile = 'desktop' | 'web'
+
+const TABS = [
+  'overview',
+  'models',
+  'general',
+  'agent',
+  'network',
+  'advanced',
+  'diagnostics',
+] as const
+
+type DshTab = (typeof TABS)[number]
+
+const TAB_ICONS: Record<DshTab, LucideIcon> = {
+  overview: LayoutDashboard,
+  models: Boxes,
+  general: Settings2,
+  agent: Bot,
+  network: Globe,
+  advanced: SlidersHorizontal,
+  diagnostics: Activity,
+}
 
 interface DshConfigPageProps {
   profile: DshPageProfile
@@ -27,158 +54,120 @@ interface DshConfigPageProps {
 
 export function DshConfigPage({ profile }: DshConfigPageProps) {
   const { t } = useTranslation()
-  const providers = useDshStore(state => state.providers)
-  const isLoading = useDshStore(state => state.isLoading)
   const error = useDshStore(state => state.error)
-  const configStatus = useDshStore(state => state.configStatus)
-
+  const setError = useDshStore(state => state.setError)
   const setProfile = useDshStore(state => state.setProfile)
   const loadProviders = useDshStore(state => state.loadProviders)
   const loadCredentials = useDshStore(state => state.loadCredentials)
   const loadConfigStatus = useDshStore(state => state.loadConfigStatus)
-  const deleteProvider = useDshStore(state => state.deleteProvider)
-  const setError = useDshStore(state => state.setError)
+  const loadSnapshot = useDshStore(state => state.loadSnapshot)
 
-  const [providerDialogOpen, setProviderDialogOpen] = useState(false)
-  const [editingProviderId, setEditingProviderId] = useState<string | null>(
-    null
-  )
-  const [deleteProviderId, setDeleteProviderId] = useState<string | null>(null)
+  const [tab, setTab] = useState<DshTab>('overview')
 
   useEffect(() => {
     setProfile(profile)
-    loadProviders()
-    loadCredentials()
-    loadConfigStatus()
-  }, [profile, setProfile, loadProviders, loadCredentials, loadConfigStatus])
+    void loadProviders()
+    void loadCredentials()
+    void loadConfigStatus()
+    void loadSnapshot()
+  }, [
+    profile,
+    setProfile,
+    loadProviders,
+    loadCredentials,
+    loadConfigStatus,
+    loadSnapshot,
+  ])
 
   const refresh = () => {
     setProfile(profile)
-    loadProviders()
-    loadCredentials()
-    loadConfigStatus()
+    void loadProviders()
+    void loadCredentials()
+    void loadConfigStatus()
+    void loadSnapshot()
   }
 
   const title = t(
     profile === 'desktop' ? 'dsh.profile.desktop' : 'dsh.profile.web'
   )
 
-  const handleAddProvider = () => {
-    setEditingProviderId(null)
-    setProviderDialogOpen(true)
-  }
-
-  const handleEditProvider = (providerId: string) => {
-    setEditingProviderId(providerId)
-    setProviderDialogOpen(true)
-  }
-
-  const handleConfirmDeleteProvider = async () => {
-    if (deleteProviderId) {
-      await deleteProvider(deleteProviderId)
-      toast.success(t('dsh.provider.deleted'))
-      setDeleteProviderId(null)
-    }
-  }
-
-  const providerEntries = Object.entries(providers)
-
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-2 p-4 border-b">
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between gap-2 border-b p-4">
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-semibold">{title}</h1>
+          <p className="text-sm text-muted-foreground">
+            {t(`dsh.tabs.${tab}.description`)}
+          </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleAddProvider}
-            disabled={isLoading}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            {t('dsh.provider.add')}
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={refresh}
-            disabled={isLoading}
-            title={t('common.refresh')}
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={refresh}
+          title={t('common.refresh')}
+        >
+          <RefreshCw aria-hidden="true" />
+        </Button>
       </div>
 
-      {/* Error Alert */}
-      {error && (
-        <div className="mx-4 mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 text-destructive" />
+      {error ? (
+        <div className="mx-4 mt-4 flex items-center gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-3">
+          <AlertCircle className="size-4 shrink-0 text-destructive" />
           <span className="text-sm text-destructive">{error}</span>
           <Button
             variant="ghost"
             size="sm"
-            className="ml-auto"
+            className="ms-auto"
             onClick={() => setError(null)}
           >
             {t('common.dismiss')}
           </Button>
         </div>
-      )}
+      ) : null}
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-auto p-4 space-y-4">
-        {providerEntries.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            {t('dsh.provider.noProviders')}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {providerEntries.map(([providerId, config]) => (
-              <ProviderCard
-                key={providerId}
-                providerId={providerId}
-                config={config ?? undefined}
-                onEdit={() => handleEditProvider(providerId)}
-                onDelete={() => setDeleteProviderId(providerId)}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Config Status */}
-        <ConfigStatus status={configStatus} />
-      </div>
-
-      {/* Provider Dialog */}
-      <ProviderDialog
-        open={providerDialogOpen}
-        onOpenChange={setProviderDialogOpen}
-        editingProviderId={editingProviderId}
-      />
-
-      {/* Delete Provider Confirmation */}
-      <AlertDialog
-        open={deleteProviderId !== null}
-        onOpenChange={() => setDeleteProviderId(null)}
+      <Tabs
+        value={tab}
+        onValueChange={value => setTab(value as DshTab)}
+        className="min-h-0 flex-1 gap-0"
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('dsh.provider.delete')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('dsh.provider.deleteConfirm')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDeleteProvider}>
-              {t('common.delete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <div className="overflow-x-auto border-b px-2 py-2">
+          <TabsList className="w-max">
+            {TABS.map(tabId => {
+              const Icon = TAB_ICONS[tabId]
+              return (
+                <TabsTrigger key={tabId} value={tabId} className="gap-1.5 px-3">
+                  <Icon aria-hidden="true" />
+                  {t(`dsh.tabs.${tabId}`)}
+                </TabsTrigger>
+              )
+            })}
+          </TabsList>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-auto p-4">
+          <TabsContent value="overview" className="mt-0">
+            <DshOverviewTab />
+          </TabsContent>
+          <TabsContent value="models" className="mt-0">
+            <DshModelsTab />
+          </TabsContent>
+          <TabsContent value="general" className="mt-0">
+            <DshGeneralTab />
+          </TabsContent>
+          <TabsContent value="agent" className="mt-0">
+            <DshAgentTab />
+          </TabsContent>
+          <TabsContent value="network" className="mt-0">
+            <DshNetworkTab />
+          </TabsContent>
+          <TabsContent value="advanced" className="mt-0">
+            <DshAdvancedTab />
+          </TabsContent>
+          <TabsContent value="diagnostics" className="mt-0">
+            <DshDiagnosticsTab />
+          </TabsContent>
+        </div>
+      </Tabs>
     </div>
   )
 }
