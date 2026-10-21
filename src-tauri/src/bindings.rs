@@ -3,7 +3,7 @@ use tauri_specta::{collect_commands, Builder};
 pub fn generate_bindings() -> Builder<tauri::Wry> {
     use crate::commands::{
         channel, channel_export, claude, claude_settings, codex, codex_auth_profiles,
-        codex_sessions, config, connectivity, copilot, droid_settings, dsh, env,
+        codex_sessions, config, connectivity, copilot, droid_settings, dsh, dsh_sessions, env,
         factory_auth_profiles, hermes, mcp, notifications, omp, openclaw, opencode, paths, pi,
         pi_sessions, preferences, recovery, sessions, specs, updater, window,
     };
@@ -208,6 +208,11 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         dsh::save_dsh_credential_ref,
         dsh::delete_dsh_credential_ref,
         dsh::fetch_dsh_models,
+        dsh_sessions::list_dsh_sessions,
+        dsh_sessions::get_dsh_session_detail,
+        dsh_sessions::delete_dsh_session,
+        dsh_sessions::start_dsh_sessions_watcher,
+        dsh_sessions::stop_dsh_sessions_watcher,
         sessions::list_session_projects,
         sessions::list_sessions,
         sessions::get_session_detail,

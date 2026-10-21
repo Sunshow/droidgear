@@ -2165,6 +2165,46 @@ async fetchDshModels(baseUrl: string, apiKey: string, api: string | null) : Prom
     else return { status: "error", error: e  as any };
 }
 },
+async listDshSessions() : Promise<Result<DshSessionSummary[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_dsh_sessions") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getDshSessionDetail(sessionPath: string) : Promise<Result<DshSessionDetail, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_dsh_session_detail", { sessionPath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async deleteDshSession(sessionPath: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_dsh_session", { sessionPath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async startDshSessionsWatcher() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("start_dsh_sessions_watcher") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async stopDshSessionsWatcher() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("stop_dsh_sessions_watcher") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 /**
  * Lists all session projects from ~/.factory/sessions directory.
  */
@@ -3228,6 +3268,14 @@ export type DshProviderConfig = { displayName?: string | null;
  * The file uses `baseURL` (not `baseUrl`).
  */
 baseURL?: string | null; apiKeyEnv?: string | null; api?: string | null; compat?: DshCompatConfig | null; models: DshModel[] }
+export type DshSessionDetail = { summary: DshSessionSummary; messages: DshSessionMessage[] }
+export type DshSessionMessage = { id: string; role: string; content: ContentBlock[]; timestamp: string }
+export type DshSessionSummary = { id: string; title: string; 
+/**
+ * The header's cwd, not the lossy directory encoding.
+ */
+project: string; model: string; modelProvider: string; modifiedAt: number; tokenUsage: DshTokenUsage; path: string }
+export type DshTokenUsage = { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheCreationTokens: number; totalTokens: number }
 /**
  * Effective path info with default indicator
  */

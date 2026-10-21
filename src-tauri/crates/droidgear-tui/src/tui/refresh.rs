@@ -439,6 +439,13 @@ pub(super) fn refresh_pi_sessions(app: &mut app::App) {
     }
 }
 
+pub(super) fn refresh_dsh_sessions(app: &mut app::App) {
+    match droidgear_core::dsh_sessions::list_dsh_sessions_for_home(&app.home_dir) {
+        Ok(list) => app.dsh_sessions = list,
+        Err(e) => app.set_toast(e, true),
+    }
+}
+
 pub(super) fn refresh_specs(app: &mut app::App) {
     match droidgear_core::specs::list_specs_for_home(&app.home_dir) {
         Ok(list) => app.specs = list,

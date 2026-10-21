@@ -13,6 +13,7 @@ pub mod copilot_runtime;
 pub mod droid_runtime;
 pub mod droid_settings_files;
 pub mod dsh;
+pub mod dsh_sessions;
 pub mod factory_auth_profiles;
 pub mod factory_settings;
 pub mod hermes;

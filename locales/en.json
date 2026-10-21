@@ -1494,6 +1494,7 @@
 
   "dsh.features.desktop": "Desktop",
   "dsh.features.web": "Web",
+  "dsh.features.sessions": "Sessions",
   "dsh.features.terminal": "Terminal",
   "dsh.features.hint": "Manage DeepSeek Harness LLM providers (settings.yaml).",
 
@@ -1550,6 +1551,20 @@
   "dsh.configStatus.legacyHint": "The legacy settings.yaml is imported once into the active profile on the next modern DSH start (and renamed to settings.yaml.imported); until then its providers still participate in merged reads.",
   "dsh.profile.desktop": "Desktop",
   "dsh.profile.web": "Web",
+  "dsh.sessions.title": "Dsh Sessions",
+  "dsh.sessions.noSessions": "No sessions found",
+  "dsh.sessions.selectSessionHint": "Select a session from the list to view",
+  "dsh.sessions.listView": "List View",
+  "dsh.sessions.groupedView": "Grouped by Project",
+  "dsh.sessions.unknownProject": "Unknown project",
+  "dsh.sessions.thinking": "Thinking...",
+  "dsh.sessions.thinkingGroup": "Thinking process ({{count}})",
+  "dsh.sessions.expandThinkingOn": "Thinking expanded by default",
+  "dsh.sessions.expandThinkingOff": "Click to expand thinking by default",
+  "dsh.sessions.hideEmptySessionsOn": "Empty sessions hidden",
+  "dsh.sessions.hideEmptySessionsOff": "Click to show empty sessions",
+  "dsh.sessions.followModeOn": "Following (auto-scroll)",
+  "dsh.sessions.followModeOff": "Click to follow new messages",
 
   "connectivity.title": "Connectivity",
   "connectivity.summary": "Summary",

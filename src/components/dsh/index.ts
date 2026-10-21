@@ -1,5 +1,6 @@
 export { DshConfigPage } from './DshConfigPage'
 export { DshFeatureList } from './DshFeatureList'
+export { DshSessionsPage } from './DshSessionsPage'
 export { ConfigStatus } from './ConfigStatus'
 export { ProviderCard } from './ProviderCard'
 export { ProviderDialog } from './ProviderDialog'

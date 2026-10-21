@@ -1494,6 +1494,7 @@
 
   "dsh.features.desktop": "桌面",
   "dsh.features.web": "Web",
+  "dsh.features.sessions": "会话",
   "dsh.features.terminal": "终端",
   "dsh.features.hint": "管理 DeepSeek Harness LLM 提供商 (settings.yaml)。",
 
@@ -1550,6 +1551,20 @@
   "dsh.configStatus.legacyHint": "旧版 settings.yaml 将在新版 DSH 启动时被一次性导入到激活的 profile（并被改名为 settings.yaml.imported）；导入前其 providers 仍参与合并读取。",
   "dsh.profile.desktop": "桌面",
   "dsh.profile.web": "Web",
+  "dsh.sessions.title": "Dsh 会话",
+  "dsh.sessions.noSessions": "没有找到会话",
+  "dsh.sessions.selectSessionHint": "从列表中选择一个会话查看",
+  "dsh.sessions.listView": "列表视图",
+  "dsh.sessions.groupedView": "按项目分组",
+  "dsh.sessions.unknownProject": "未知项目",
+  "dsh.sessions.thinking": "思考中...",
+  "dsh.sessions.thinkingGroup": "思考过程（{{count}}）",
+  "dsh.sessions.expandThinkingOn": "默认展开思考内容",
+  "dsh.sessions.expandThinkingOff": "点击默认展开思考内容",
+  "dsh.sessions.hideEmptySessionsOn": "已隐藏空会话",
+  "dsh.sessions.hideEmptySessionsOff": "点击显示空会话",
+  "dsh.sessions.followModeOn": "追踪中（自动滚动）",
+  "dsh.sessions.followModeOff": "点击追踪新消息",
 
   "connectivity.title": "连接性",
   "connectivity.summary": "概览",

@@ -15,6 +15,7 @@ pub mod connectivity;
 pub mod copilot;
 pub mod droid_settings;
 pub mod dsh;
+pub mod dsh_sessions;
 pub mod env;
 pub mod factory_auth_profiles;
 pub mod hermes;

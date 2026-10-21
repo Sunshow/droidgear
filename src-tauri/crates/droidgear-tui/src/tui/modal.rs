@@ -2332,6 +2332,11 @@ pub(super) fn run_confirm_action(
                 .map_err(anyhow::Error::msg)?;
             Ok(())
         }
+        app::ConfirmAction::DshSessionDelete { path } => {
+            droidgear_core::dsh_sessions::delete_dsh_session_for_home(&app.home_dir, &path)
+                .map_err(anyhow::Error::msg)?;
+            Ok(())
+        }
         app::ConfirmAction::SpecDelete { path } => {
             droidgear_core::specs::delete_spec_for_home(&app.home_dir, &path)
                 .map_err(anyhow::Error::msg)?;

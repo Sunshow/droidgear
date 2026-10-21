@@ -122,6 +122,11 @@ const DshConfigPage = lazy(() =>
     default: m.DshConfigPage,
   }))
 )
+const DshSessionsPage = lazy(() =>
+  import('@/components/dsh/DshSessionsPage').then(m => ({
+    default: m.DshSessionsPage,
+  }))
+)
 const ChannelDetail = lazy(() =>
   import('@/components/channels/ChannelDetail').then(m => ({
     default: m.ChannelDetail,
@@ -263,9 +268,9 @@ export function MainWindowContent({
     }
 
     if (currentView === 'dsh') {
-      return dshSubView === 'terminal' ? null : (
-        <DshConfigPage profile={dshSubView} />
-      )
+      if (dshSubView === 'terminal') return null
+      if (dshSubView === 'sessions') return <DshSessionsPage />
+      return <DshConfigPage profile={dshSubView} />
     }
 
     if (currentView === 'openclaw') {
