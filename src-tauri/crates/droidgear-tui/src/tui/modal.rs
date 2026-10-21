@@ -1861,6 +1861,22 @@ pub(super) fn run_select_action(
                 .map_err(anyhow::Error::msg)?;
             Ok(())
         }
+        app::SelectAction::DshConfigSetField {
+            entry_id,
+            field_name,
+            kind,
+        } => {
+            if let Some(value) = selected {
+                super::keys_dsh_config::dsh_config_save_field_value(
+                    app,
+                    &entry_id,
+                    &field_name,
+                    &kind,
+                    &value,
+                )?;
+            }
+            Ok(())
+        }
         app::SelectAction::OmpImportCustomProviderFromChannel { provider_id } => {
             let Some(selected) = selected else {
                 return Ok(());
@@ -5170,6 +5186,20 @@ pub(super) fn run_input_action(
             )
             .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::DshConfigSetField {
+            entry_id,
+            field_name,
+            kind,
+        } => {
+            super::keys_dsh_config::dsh_config_save_field_value(
+                app,
+                &entry_id,
+                &field_name,
+                &kind,
+                trimmed,
+            )?;
             Ok(())
         }
         app::InputAction::OmpCreateProfile => {

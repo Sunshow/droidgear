@@ -1550,3 +1550,436 @@ fn baizhi_confirmation_renders_endpoint_header_and_controls_at_80x24() {
     }
     assert!(!temp.path().join(".factory/mcp.json").exists());
 }
+
+// --- DSH configuration screen (AGENTS.md rule 9) ---
+
+fn dsh_config_write_profile(home: &Path, patch: &str) {
+    let dir = home.join(".dsh/profiles/desktop");
+    std::fs::create_dir_all(&dir).unwrap();
+    write_file(
+        &dir.join("package.json"),
+        r#"{"name":"dsh-profile-desktop","private":true,"dsh":{"profile":{"bundles":["droidgear-test-bundle"]}}}"#,
+    );
+    write_file(&dir.join("cordis.yml"), "[]\n");
+    write_file(&dir.join("cordis.patch.yml"), patch);
+}
+
+fn wait_dsh_config(app: &mut app::App) {
+    for _ in 0..400 {
+        super::refresh::poll_dsh_config_refresh(app);
+        if !app.dsh_config_loading {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    panic!(
+        "DSH configuration refresh did not finish (toast: {})",
+        app.toast_message()
+    );
+}
+
+fn dsh_config_entry(
+    id: &str,
+    tier: &str,
+    layer: &str,
+) -> droidgear_core::dsh_config::DshConfigEntryView {
+    droidgear_core::dsh_config::DshConfigEntryView {
+        id: id.to_string(),
+        package_name: format!("@deepseek-ai/dsh-{id}"),
+        layer: layer.to_string(),
+        tier: tier.to_string(),
+        description: String::new(),
+        disabled: false,
+        has_js: false,
+        config: None,
+        overridden: false,
+        shadowed_by_home: false,
+        fields: Vec::new(),
+    }
+}
+
+fn dsh_config_field(
+    name: &str,
+    kind: &str,
+    value: serde_json::Value,
+    default: serde_json::Value,
+) -> droidgear_core::dsh_config::DshConfigFieldView {
+    droidgear_core::dsh_config::DshConfigFieldView {
+        name: name.to_string(),
+        kind: kind.to_string(),
+        value: Some(value),
+        default: Some(default),
+        enum_values: vec!["light".to_string(), "dark".to_string()],
+        volatile: true,
+        secret: false,
+        description: String::new(),
+        overridden: true,
+        tier: "A".to_string(),
+    }
+}
+
+fn dsh_config_warning(
+    severity: &str,
+    code: &str,
+    message: &str,
+    hint: &str,
+) -> droidgear_core::dsh_config::DshMigrationWarning {
+    droidgear_core::dsh_config::DshMigrationWarning {
+        code: code.to_string(),
+        severity: severity.to_string(),
+        entry_id: None,
+        message: message.to_string(),
+        hint: hint.to_string(),
+    }
+}
+
+fn dsh_config_snapshot(
+    entries: Vec<droidgear_core::dsh_config::DshConfigEntryView>,
+    warnings: Vec<droidgear_core::dsh_config::DshMigrationWarning>,
+) -> droidgear_core::dsh_config::DshConfigSnapshot {
+    droidgear_core::dsh_config::DshConfigSnapshot {
+        schema_version: "0.2.1-rc.2".to_string(),
+        installed_version: Some("0.2.1".to_string()),
+        profile: Some("desktop".to_string()),
+        profile_patch_path: "/tmp/home/.dsh/profiles/desktop/cordis.patch.yml".to_string(),
+        home_patch_path: "/tmp/home/.dsh/cordis.patch.yml".to_string(),
+        home_patch_exists: false,
+        legacy_settings_path: "/tmp/home/.dsh/settings.yaml".to_string(),
+        legacy_settings_exists: false,
+        patch_hash: "0123456789abcdef".to_string(),
+        entries,
+        warnings,
+    }
+}
+
+fn render_visible(app: &app::App, width: u16, height: u16) -> String {
+    let backend = ratatui::backend::TestBackend::new(width, height);
+    let mut terminal = ratatui::Terminal::new(backend).unwrap();
+    terminal.draw(|frame| crate::ui::draw(frame, app)).unwrap();
+    let buffer = terminal.backend().buffer();
+    (0..height)
+        .map(|y| {
+            (0..width)
+                .map(|x| buffer[(x, y)].symbol())
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+#[test]
+fn dsh_config_screen_initializes_correctly() {
+    let app = app::App::new(PathBuf::from("/tmp/test-home"));
+    assert!(app.dsh_config_snapshot.is_none());
+    assert_eq!(app.dsh_config_index, 0);
+    assert!(app.dsh_config_expanded.is_empty());
+    assert_eq!(app.dsh_config_focus, app::DshConfigFocus::Entries);
+    assert_eq!(app.dsh_config_field_index, 0);
+    assert!(!app.dsh_config_loading);
+    assert!(app.dsh_config_ordered_entries().is_empty());
+    let _screen = app::Screen::DshConfig;
+}
+
+#[test]
+fn dsh_c_key_opens_config_screen_from_dsh_list() {
+    let temp = TempDir::new().unwrap();
+    let mut app = app::App::new(temp.path().to_path_buf());
+    app.screen = app::Screen::DshDesktop;
+
+    super::keys_dsh::handle_dsh_key(&mut app, KeyCode::Char('c'));
+
+    assert_eq!(app.screen, app::Screen::DshConfig);
+    assert!(app.dsh_config_loading);
+    wait_dsh_config(&mut app);
+    assert!(!app.dsh_config_loading);
+    // No ~/.dsh/profiles in this home: the snapshot explains that instead of
+    // silently showing an empty list.
+    let snapshot = app.dsh_config_snapshot.as_ref().expect("snapshot");
+    assert!(snapshot.profile.is_none());
+    assert!(snapshot
+        .warnings
+        .iter()
+        .any(|warning| warning.code == "DSH_CONFIG_NO_PROFILE" && warning.severity == "error"));
+    assert!(snapshot.entries.is_empty());
+}
+
+#[test]
+fn dsh_config_empty_profile_renders_error_warning_and_no_entries() {
+    let temp = TempDir::new().unwrap();
+    let mut app = app::App::new(temp.path().to_path_buf());
+    app.screen = app::Screen::DshConfig;
+    super::refresh::request_dsh_config_refresh(&mut app);
+    wait_dsh_config(&mut app);
+
+    let rendered = render_visible(&app, 100, 30);
+    for visible in [
+        "Dsh Config",
+        "Profile: (none)",
+        "[E]",
+        "No DSH runtime profile",
+        "Entries (0)",
+        "No configuration entries",
+    ] {
+        assert!(
+            rendered.contains(visible),
+            "Missing {visible} in:\n{rendered}"
+        );
+    }
+}
+
+#[test]
+fn dsh_config_renders_header_tiered_entries_and_warnings() {
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.screen = app::Screen::DshConfig;
+
+    let mut theme = dsh_config_entry("ui-theme", "A", "profile");
+    theme.overridden = true;
+    theme.has_js = true;
+    theme.fields = vec![
+        {
+            let mut field = dsh_config_field(
+                "preference",
+                "enum",
+                serde_json::json!("dark"),
+                serde_json::json!("system"),
+            );
+            field.enum_values = vec!["light".to_string(), "dark".to_string()];
+            field
+        },
+        dsh_config_field(
+            "fontSize",
+            "number",
+            serde_json::json!(14),
+            serde_json::json!(13),
+        ),
+        {
+            let mut field = dsh_config_field(
+                "textFontFamily",
+                "string",
+                serde_json::json!("Inter"),
+                serde_json::json!(""),
+            );
+            field.secret = true;
+            field
+        },
+    ];
+    let mut log = dsh_config_entry("session-log-deepseek", "B", "bundle:@deepseek-ai/dsh-base");
+    log.disabled = true;
+    let mut search = dsh_config_entry("web-search-deepseek", "B", "home");
+    search.shadowed_by_home = true;
+    app.dsh_config_snapshot = Some(dsh_config_snapshot(
+        vec![search, theme, log],
+        vec![
+            dsh_config_warning("error", "ERR", "tools.mode is invalid", "Use native or ptc"),
+            dsh_config_warning("warning", "WARN", "field was removed", "Remove the field"),
+            dsh_config_warning(
+                "info",
+                "INFO",
+                "legacy settings present",
+                "No action needed",
+            ),
+        ],
+    ));
+    app.dsh_config_expanded.insert("ui-theme".to_string());
+    app.dsh_config_index = 0; // first entry in display order is tier A: ui-theme
+
+    let rendered = render_visible(&app, 120, 40);
+
+    for visible in [
+        "Dsh Config",
+        "Profile: desktop",
+        "Schema: 0.2.1-rc.2",
+        "Installed: 0.2.1",
+        "Profile patch: /tmp/home/.dsh/profiles/desktop/cordis.patch.yml",
+        "Patch hash: 0123456789abcdef",
+        "Warnings (3)",
+        "[E]",
+        "[W]",
+        "[i]",
+        "tools.mode is invalid",
+        "Use native or ptc",
+        "legacy settings present",
+        "-- tier A --",
+        "-- tier B --",
+        "ui-theme",
+        "session-log-deepseek",
+        "web-search-deepseek",
+        "[disabled]",
+        "[override]",
+        "[home]",
+        "[js]",
+        "preference",
+        "fontSize",
+        "textFontFamily",
+        "<secret>",
+        "[volatile]",
+        "[secret]",
+        "default:",
+        "Entries (3)",
+    ] {
+        assert!(
+            rendered.contains(visible),
+            "Missing {visible} in:\n{rendered}"
+        );
+    }
+
+    // Tiers are grouped in order A before B, and the flag-only home entry
+    // stays out of the writable profile layer.
+    let tier_a = rendered.find("-- tier A --").expect("tier A header");
+    let tier_b = rendered.find("-- tier B --").expect("tier B header");
+    let first_entry = rendered.find("ui-theme").expect("ui-theme");
+    assert!(tier_a < first_entry && first_entry < tier_b);
+}
+
+#[test]
+fn dsh_config_renders_no_warnings_state() {
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.screen = app::Screen::DshConfig;
+    app.dsh_config_snapshot = Some(dsh_config_snapshot(Vec::new(), Vec::new()));
+
+    let rendered = render_visible(&app, 100, 30);
+    assert!(rendered.contains("Warnings (0)"), "{rendered}");
+    assert!(rendered.contains("No warnings"), "{rendered}");
+}
+
+#[test]
+fn dsh_config_navigation_expands_entries_and_moves_fields() {
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.screen = app::Screen::DshConfig;
+
+    let mut first = dsh_config_entry("alpha", "A", "profile");
+    first.fields = vec![
+        dsh_config_field("one", "number", serde_json::json!(1), serde_json::json!(1)),
+        dsh_config_field(
+            "two",
+            "boolean",
+            serde_json::json!(true),
+            serde_json::json!(true),
+        ),
+    ];
+    let second = dsh_config_entry("beta", "A", "profile");
+    let third = dsh_config_entry("gamma", "C", "bundle:@deepseek-ai/dsh-base");
+    app.dsh_config_snapshot = Some(dsh_config_snapshot(vec![first, second, third], Vec::new()));
+
+    let press = |app: &mut app::App, code: KeyCode| {
+        super::keys_dsh_config::handle_dsh_config_key(app, code);
+    };
+
+    press(&mut app, KeyCode::Down);
+    assert_eq!(app.dsh_config_index, 1);
+    press(&mut app, KeyCode::PageDown);
+    assert_eq!(app.dsh_config_index, 2);
+    press(&mut app, KeyCode::Down);
+    assert_eq!(app.dsh_config_index, 2, "clamped at the last entry");
+    press(&mut app, KeyCode::Up);
+    assert_eq!(app.dsh_config_index, 1);
+    press(&mut app, KeyCode::PageUp);
+    assert_eq!(app.dsh_config_index, 0);
+
+    // Enter toggles the field list, Tab moves focus into it.
+    press(&mut app, KeyCode::Enter);
+    assert!(app.dsh_config_expanded.contains("alpha"));
+    assert_eq!(app.dsh_config_focus, app::DshConfigFocus::Entries);
+    press(&mut app, KeyCode::Tab);
+    assert_eq!(app.dsh_config_focus, app::DshConfigFocus::Fields);
+    press(&mut app, KeyCode::Down);
+    assert_eq!(app.dsh_config_field_index, 1);
+    press(&mut app, KeyCode::Down);
+    assert_eq!(app.dsh_config_field_index, 1, "clamped at the last field");
+    press(&mut app, KeyCode::PageUp);
+    assert_eq!(app.dsh_config_field_index, 0);
+    press(&mut app, KeyCode::Tab);
+    assert_eq!(app.dsh_config_focus, app::DshConfigFocus::Entries);
+    press(&mut app, KeyCode::Enter);
+    assert!(!app.dsh_config_expanded.contains("alpha"));
+}
+
+#[test]
+fn dsh_config_d_toggles_disabled_through_core() {
+    let temp = TempDir::new().unwrap();
+    dsh_config_write_profile(
+        temp.path(),
+        "- id: session-log-deepseek\n  name: '@deepseek-ai/dsh-session-log-deepseek'\n  config:\n    enabled: true\n",
+    );
+    let mut app = app::App::new(temp.path().to_path_buf());
+    app.dsh_active_profile = Some("desktop".to_string());
+    app.screen = app::Screen::DshConfig;
+    super::refresh::request_dsh_config_refresh(&mut app);
+    wait_dsh_config(&mut app);
+
+    let snapshot = app
+        .dsh_config_snapshot
+        .as_ref()
+        .unwrap_or_else(|| panic!("snapshot missing; toast={}", app.toast_message()));
+    assert_eq!(snapshot.entries.len(), 1);
+    assert_eq!(snapshot.entries[0].id, "session-log-deepseek");
+    assert!(!snapshot.entries[0].disabled);
+
+    super::keys_dsh_config::handle_dsh_config_key(&mut app, KeyCode::Char('d'));
+    assert!(
+        app.toast_message().contains("Disabled"),
+        "{}",
+        app.toast_message()
+    );
+    wait_dsh_config(&mut app);
+
+    let patch = std::fs::read_to_string(temp.path().join(".dsh/profiles/desktop/cordis.patch.yml"))
+        .unwrap();
+    assert!(patch.contains("disabled: true"), "{patch}");
+    let snapshot = app.dsh_config_snapshot.as_ref().expect("snapshot");
+    assert!(snapshot.entries[0].disabled);
+
+    super::keys_dsh_config::handle_dsh_config_key(&mut app, KeyCode::Char('d'));
+    wait_dsh_config(&mut app);
+    assert!(!app.dsh_config_snapshot.as_ref().unwrap().entries[0].disabled);
+}
+
+#[test]
+fn dsh_config_edits_boolean_field_through_select_modal() {
+    let temp = TempDir::new().unwrap();
+    dsh_config_write_profile(
+        temp.path(),
+        "- id: session-log-deepseek\n  name: '@deepseek-ai/dsh-session-log-deepseek'\n  config:\n    enabled: true\n",
+    );
+    let mut app = app::App::new(temp.path().to_path_buf());
+    app.dsh_active_profile = Some("desktop".to_string());
+    app.screen = app::Screen::DshConfig;
+    super::refresh::request_dsh_config_refresh(&mut app);
+    wait_dsh_config(&mut app);
+
+    super::keys_dsh_config::handle_dsh_config_key(&mut app, KeyCode::Enter);
+    assert!(app.dsh_config_expanded.contains("session-log-deepseek"));
+    super::keys_dsh_config::handle_dsh_config_key(&mut app, KeyCode::Tab);
+    assert_eq!(app.dsh_config_focus, app::DshConfigFocus::Fields);
+
+    // The first schema field is the `enabled` boolean.
+    super::keys_dsh_config::handle_dsh_config_key(&mut app, KeyCode::Enter);
+    let Some(app::Modal::Select {
+        options,
+        index,
+        action,
+        ..
+    }) = app.modal.take()
+    else {
+        panic!("expected a select modal, got {:?}", app.modal);
+    };
+    assert_eq!(options, vec!["true".to_string(), "false".to_string()]);
+    assert_eq!(index, 0);
+
+    modal::run_select_action(&mut app, action, 1, Some("false".to_string())).unwrap();
+    wait_dsh_config(&mut app);
+
+    let patch = std::fs::read_to_string(temp.path().join(".dsh/profiles/desktop/cordis.patch.yml"))
+        .unwrap();
+    assert!(patch.contains("enabled: false"), "{patch}");
+    let snapshot = app.dsh_config_snapshot.as_ref().expect("snapshot");
+    assert_eq!(
+        snapshot.entries[0].config,
+        Some(serde_json::json!({"enabled": false}))
+    );
+    assert!(
+        app.toast_message().contains("Saved"),
+        "{}",
+        app.toast_message()
+    );
+}

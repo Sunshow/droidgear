@@ -6,6 +6,15 @@ pub(super) fn handle_dsh_key(app: &mut app::App, code: KeyCode) -> Option<Action
         KeyCode::Down => app.dsh_index = app.dsh_index.saturating_add(1),
         KeyCode::Up => app.dsh_index = app.dsh_index.saturating_sub(1),
         KeyCode::Char('r') => refresh_dsh(app),
+        KeyCode::Char('c') => {
+            // AGENTS.md rule 9: the DSH config surfaces have a TUI peer view.
+            app.dsh_config_index = 0;
+            app.dsh_config_field_index = 0;
+            app.dsh_config_focus = app::DshConfigFocus::Entries;
+            app.dsh_config_expanded.clear();
+            app.screen = app::Screen::DshConfig;
+            request_dsh_config_refresh(app);
+        }
         KeyCode::Char('n') => {
             app.modal = Some(app::Modal::Input {
                 title: "New Dsh provider id".to_string(),

@@ -67,6 +67,7 @@ pub enum Screen {
     DshWeb,
     DshProvider,
     DshModel,
+    DshConfig,
     DshSessions,
     Hermes,
     HermesProfile,
@@ -607,6 +608,12 @@ pub enum InputAction {
         provider_id: String,
         model_index: usize,
     },
+    /// Write one top-level field of a composed DSH config entry.
+    DshConfigSetField {
+        entry_id: String,
+        field_name: String,
+        kind: String,
+    },
     HermesCreateProfile,
     HermesDuplicate {
         id: String,
@@ -790,6 +797,12 @@ pub enum SelectAction {
     HermesSetProfileReasoningEffort {
         id: String,
     },
+    /// Pick a boolean/enum value for one DSH config field.
+    DshConfigSetField {
+        entry_id: String,
+        field_name: String,
+        kind: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -810,6 +823,18 @@ pub enum CodexDetailFocus {
     Fields,
     Providers,
 }
+
+/// Which pane of the DSH configuration screen receives Up/Down and Enter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DshConfigFocus {
+    Entries,
+    Fields,
+}
+
+/// Result slot filled by the background DSH configuration reader.
+pub type DshConfigRefreshSlot = std::sync::Arc<
+    std::sync::Mutex<Option<Result<droidgear_core::dsh_config::DshConfigSnapshot, String>>>,
+>;
 
 #[derive(Debug, Clone)]
 pub struct App {
@@ -947,6 +972,13 @@ pub struct App {
     pub dsh_provider_field_index: usize,
     pub dsh_model_index: usize,
     pub dsh_model_field_index: usize,
+    pub dsh_config_snapshot: Option<droidgear_core::dsh_config::DshConfigSnapshot>,
+    pub dsh_config_index: usize,
+    pub dsh_config_expanded: HashSet<String>,
+    pub dsh_config_focus: DshConfigFocus,
+    pub dsh_config_field_index: usize,
+    pub dsh_config_loading: bool,
+    pub dsh_config_refresh_slot: Option<DshConfigRefreshSlot>,
     /// Pending models fetched from a provider (for fetch multi-select flow)
     pub dsh_fetch_pending_models: Option<Vec<droidgear_core::dsh::DshModel>>,
     /// Temporary state used during Dsh "import from channel" flow in TUI
@@ -1150,6 +1182,13 @@ impl App {
             dsh_provider_field_index: 0,
             dsh_model_index: 0,
             dsh_model_field_index: 0,
+            dsh_config_snapshot: None,
+            dsh_config_index: 0,
+            dsh_config_expanded: HashSet::new(),
+            dsh_config_focus: DshConfigFocus::Entries,
+            dsh_config_field_index: 0,
+            dsh_config_loading: false,
+            dsh_config_refresh_slot: None,
             dsh_fetch_pending_models: None,
             dsh_import_pending_provider_id: None,
             dsh_import_pending_base_url: None,
@@ -1372,6 +1411,7 @@ impl App {
                         // opened them.
                         Screen::DshProvider => self.dsh_list_screen(),
                         Screen::DshModel => Screen::DshProvider,
+                        Screen::DshConfig => self.dsh_list_screen(),
                         screen => Self::parent_screen(screen),
                     };
                 }
@@ -1451,6 +1491,37 @@ impl App {
             .iter()
             .find(|(provider_id, _)| provider_id == id)
             .map(|(_, config)| config)
+    }
+
+    /// DSH configuration entries in display order: grouped by schema tier
+    /// (A before B before C), preserving the snapshot order inside a tier.
+    pub fn dsh_config_ordered_entries(
+        &self,
+    ) -> Vec<&droidgear_core::dsh_config::DshConfigEntryView> {
+        let Some(snapshot) = self.dsh_config_snapshot.as_ref() else {
+            return Vec::new();
+        };
+        let mut tiers: Vec<&str> = snapshot
+            .entries
+            .iter()
+            .map(|entry| entry.tier.as_str())
+            .collect();
+        tiers.sort_unstable();
+        tiers.dedup();
+        let mut ordered = Vec::with_capacity(snapshot.entries.len());
+        for tier in tiers {
+            ordered.extend(snapshot.entries.iter().filter(|entry| entry.tier == tier));
+        }
+        ordered
+    }
+
+    /// Entry currently selected on the DSH configuration screen.
+    pub fn dsh_config_selected_entry(
+        &self,
+    ) -> Option<&droidgear_core::dsh_config::DshConfigEntryView> {
+        self.dsh_config_ordered_entries()
+            .get(self.dsh_config_index)
+            .copied()
     }
 
     pub fn current_paths_key(&self) -> Option<String> {
@@ -1730,6 +1801,19 @@ impl App {
         }
         if self.dsh_sessions_index >= self.dsh_sessions.len() {
             self.dsh_sessions_index = self.dsh_sessions.len().saturating_sub(1);
+        }
+        // DshConfig screen: one row per composed entry, plus the expanded
+        // entry's field rows.
+        let dsh_config_entry_count = self.dsh_config_ordered_entries().len();
+        if self.dsh_config_index >= dsh_config_entry_count {
+            self.dsh_config_index = dsh_config_entry_count.saturating_sub(1);
+        }
+        let dsh_config_field_count = self
+            .dsh_config_selected_entry()
+            .map(|entry| entry.fields.len())
+            .unwrap_or(0);
+        if self.dsh_config_field_index >= dsh_config_field_count {
+            self.dsh_config_field_index = dsh_config_field_count.saturating_sub(1);
         }
         // --- OMP ---
         if self.omp_index >= self.omp_profiles.len() {
