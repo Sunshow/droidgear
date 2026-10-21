@@ -138,6 +138,7 @@ GUI 的 MCP「快速添加」卡片或 TUI MCP 列表的 `b` 键会打开百智�
 - **密钥值管理** - 在 `~/.dsh/.credentials.yaml` 中配置 API 密钥值（0600 权限），与 `apiKeyEnv` 环境变量名联动
 - **渠道导入** - 从渠道导入 Provider（自动填充 ID、Base URL、密钥与 API 类型）
 - **模型拉取** - 配置 URL 与密钥后从服务商 API 拉取模型列表，多选添加
+- **会话历史** - 浏览 `~/.dsh/sessions` 会话日志（GUI + TUI）：列表/按项目分组、思考内容渲染、实时追踪、隐藏空会话与删除；连续的纯思考步骤合并为一个可展开的「思考过程」块
 - **注册表自动适配** - 按模型 ID 自动填充名称、上下文窗口、最大 Token 与推理强度（reasoningEfforts）
 
 ### GitHub Copilot 支持

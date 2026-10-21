@@ -138,6 +138,7 @@ Configuration remains ordinary `~/.factory/mcp.json`: this preset stores a nonse
 - **API Key Values** - Configure API key values in `~/.dsh/.credentials.yaml` (0600 permissions), linked to the `apiKeyEnv` variable name
 - **Channel Import** - Import providers from channels (auto-fills ID, base URL, key, and API type)
 - **Model Fetching** - Fetch the model list from the provider API after configuring the URL and key, with multi-select before adding
+- **Session History** - Browse `~/.dsh/sessions` logs (GUI + TUI): list or project-grouped views, thinking blocks, live follow, hide-empty and delete; consecutive reasoning-only steps collapse into one expandable "Thinking process" block
 - **Registry Auto-Adaptation** - Auto-fill model name, context window, max tokens, and reasoning efforts from the registry by model ID
 
 ### GitHub Copilot Support

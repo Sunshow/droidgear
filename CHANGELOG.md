@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.3.7
+
+**New Features / 新功能**
+
+- Dsh session history (GUI + TUI): browse `~/.dsh/sessions` logs in list or project-grouped views, render the newest canonical generation (including concatenated Zstandard frames) with thinking blocks, follow live sessions, hide empty sessions and delete sessions. Consecutive reasoning-only steps collapse into one expandable "Thinking process (N)" block / 新增 Dsh 会话历史（GUI + TUI）：浏览 `~/.dsh/sessions` 会话日志，支持列表/按项目分组视图、读取最新一代规范日志（含拼接的 Zstandard 帧）并渲染思考内容、实时追踪、隐藏空会话与删除。连续的纯思考步骤合并为一个可展开的「思考过程 (N)」块
+- Register Gemini 4 Argon (`gemini-4-argon`): 1M context, 64K output, image input, and reasoning efforts none / low / medium / high / 注册 Gemini 4 Argon（`gemini-4-argon`）：1M 上下文、64K 输出、图片输入，推理力度为 none / low / medium / high
+
+**Bug Fixes / 问题修复**
+
+- Embedded terminal: spawn the PTY only after the container has a real layout (a hidden mount no longer locks wrapping at a bogus ~10-column size), mark the Windows PTY as ConPTY so a resize cannot drop top lines, stop CJK glyphs and near-black ANSI colors from clipping or disappearing, and cancel pointer selection only during an active IME composition so Chinese input clicks no longer start accidental selections / 嵌入式终端：容器完成真实布局后再启动 PTY（隐藏挂载不再把折行锁死在错误的约 10 列宽度），将 Windows PTY 标记为 ConPTY 以免调整大小时丢失顶部行，修复 CJK 字形被裁切与近黑色 ANSI 前景不可见，并仅在 IME 组字期间取消指针选择，中文输入点击不再误触发选区
+- Normalize returned session and config paths with the platform separator in droidgear-core (Codex, Dsh, and Pi sessions), including the newer dir and patch_path fields / droidgear-core 返回的会话与配置路径按平台分隔符规范化（Codex、Dsh 与 Pi 会话），覆盖新增的 dir 与 patch_path 字段
+- Fix stale closures and redundant effect re-runs: macOS window-control key handlers see the current shortcut key, the Codex official-auth scan no longer re-runs on profile changes, and the terminal focus effect no longer depends on the selected derived id / 修复过期闭包与多余的 effect 重跑：macOS 窗口控制按键处理读取当前快捷键，Codex 官方认证扫描不再随 Profile 变化重跑，终端聚焦 effect 不再依赖选中的 derived id
+
 ## v1.3.6
 
 **New Features / 新功能**
