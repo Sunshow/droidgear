@@ -200,7 +200,7 @@ pub fn dsh_home_patch_path_for_home(home_dir: &Path) -> PathBuf {
     dsh_config_dir_for_home(home_dir).join(DSH_PATCH_FILENAME)
 }
 
-fn system_home_dir() -> Result<PathBuf, String> {
+pub(crate) fn system_home_dir() -> Result<PathBuf, String> {
     dirs::home_dir().ok_or_else(|| "Failed to get home directory".to_string())
 }
 
@@ -382,7 +382,7 @@ pub fn enrich_dsh_model_from_registry(model: &mut DshModel) -> bool {
 // YAML Read/Write
 // ============================================================================
 
-fn empty_mapping() -> YamlValue {
+pub(crate) fn empty_mapping() -> YamlValue {
     YamlValue::Mapping(serde_yaml::Mapping::new())
 }
 
@@ -423,7 +423,7 @@ fn write_settings_yaml_for_home(home_dir: &Path, value: &YamlValue) -> Result<()
 
 /// Leading block-comment lines of a document (template header comments), or
 /// an empty string when the document starts with content.
-fn leading_comment_block(original: &str) -> String {
+pub(crate) fn leading_comment_block(original: &str) -> String {
     let mut block = String::new();
     for line in original.lines() {
         let trimmed = line.trim_start();
@@ -442,7 +442,7 @@ fn leading_comment_block(original: &str) -> String {
 /// Returns the parsed entries plus the raw text (for comment preservation).
 /// A missing or empty file yields an empty document; `null` and `~` roots
 /// (empty patch layers) are also accepted as empty.
-fn read_patch_document(path: &Path) -> Result<(Vec<YamlValue>, String), String> {
+pub(crate) fn read_patch_document(path: &Path) -> Result<(Vec<YamlValue>, String), String> {
     if !path.exists() {
         return Ok((Vec::new(), String::new()));
     }
@@ -511,7 +511,7 @@ fn write_patch_document(path: &Path, original: &str, entries: &[YamlValue]) -> R
 
 /// Serialize a patch entry mapping as a sequence item: first line prefixed
 /// with `- `, continuation lines indented two spaces.
-fn serialize_patch_entry(entry: &YamlValue) -> Result<String, String> {
+pub(crate) fn serialize_patch_entry(entry: &YamlValue) -> Result<String, String> {
     let body = serde_yaml::to_string(entry)
         .map_err(|e| format!("Failed to serialize Dsh patch entry: {e}"))?;
     let mut out = String::from("- ");
@@ -529,7 +529,7 @@ fn serialize_patch_entry(entry: &YamlValue) -> Result<String, String> {
 /// Split a patch document into its header (everything before the first
 /// column-0 sequence item, comments and blank lines included) and one raw
 /// text block per top-level sequence item.
-fn split_patch_document(raw: &str) -> (String, Vec<String>) {
+pub(crate) fn split_patch_document(raw: &str) -> (String, Vec<String>) {
     let mut header = String::new();
     let mut blocks = Vec::new();
     let mut current = String::new();
@@ -558,7 +558,7 @@ fn split_patch_document(raw: &str) -> (String, Vec<String>) {
 }
 
 /// The `id` of a patch entry, if it is a mapping with a string id.
-fn patch_entry_id(entry: &YamlValue) -> Option<&str> {
+pub(crate) fn patch_entry_id(entry: &YamlValue) -> Option<&str> {
     entry.as_mapping()?.get("id")?.as_str()
 }
 
