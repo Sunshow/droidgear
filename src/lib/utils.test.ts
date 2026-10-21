@@ -58,6 +58,7 @@ describe('isStrictSamplingModel', () => {
     expect(isStrictSamplingModel('gemini-3.8-flash')).toBe(false)
     expect(isStrictSamplingModel('qwen3.8-max')).toBe(false)
     expect(isStrictSamplingModel('deepseek-v4-flash-vision-exp')).toBe(false)
+    expect(isStrictSamplingModel('gemini-4-argon')).toBe(false)
   })
 })
 
@@ -184,6 +185,7 @@ describe('supportsXhighEffort', () => {
     expect(supportsXhighEffort('gemini-2.5-pro')).toBe(false)
     expect(supportsXhighEffort('grok-4.5')).toBe(false)
     expect(supportsXhighEffort('gemini-3.8-flash')).toBe(false)
+    expect(supportsXhighEffort('gemini-4-argon')).toBe(false)
   })
 
   it('does not grant xhigh to unregistered Claude IDs', () => {
@@ -254,6 +256,7 @@ describe('getDefaultMaxOutputTokens', () => {
     expect(getDefaultMaxOutputTokens('deepseek-v4.1-flash')).toBe(393216)
     // alias resolves to the same registry entry
     expect(getDefaultMaxOutputTokens('deepseek-flash')).toBe(393216)
+    expect(getDefaultMaxOutputTokens('gemini-4-argon')).toBe(65536)
   })
 
   it('falls back to generic rules for unregistered IDs', () => {
