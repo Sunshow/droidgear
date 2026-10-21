@@ -9,6 +9,7 @@ use droidgear_core::{
     copilot::{CopilotChannelSelection, CopilotProfile},
     droid_settings_files::SettingsFileInfo,
     dsh::DshProviderConfig,
+    dsh_sessions::DshSessionSummary,
     factory_auth_profiles::AuthProfile,
     factory_settings::{CustomModel, MissionModelSettings, ModelInfo},
     hermes::HermesProfile,
@@ -66,6 +67,7 @@ pub enum Screen {
     DshWeb,
     DshProvider,
     DshModel,
+    DshSessions,
     Hermes,
     HermesProfile,
     HermesProvider,
@@ -242,6 +244,9 @@ pub enum ConfirmAction {
     DshDeleteModel {
         provider_id: String,
         model_index: usize,
+    },
+    DshSessionDelete {
+        path: String,
     },
     HermesApply {
         id: String,
@@ -950,6 +955,8 @@ pub struct App {
     pub dsh_import_pending_api_key: Option<String>,
     pub dsh_import_pending_api_type: Option<String>,
     pub dsh_import_pending_models: Option<Vec<droidgear_core::factory_settings::ModelInfo>>,
+    pub dsh_sessions: Vec<DshSessionSummary>,
+    pub dsh_sessions_index: usize,
 
     pub hermes_profiles: Vec<HermesProfile>,
     pub hermes_active_id: Option<String>,
@@ -1200,6 +1207,8 @@ impl App {
             copilot_index: 0,
             pi_sessions: Vec::new(),
             pi_sessions_index: 0,
+            dsh_sessions: Vec::new(),
+            dsh_sessions_index: 0,
         }
     }
 
@@ -1273,7 +1282,11 @@ impl App {
             },
             NavGroup {
                 label: "Dsh",
-                items: &[("Desktop", Screen::DshDesktop), ("Web", Screen::DshWeb)],
+                items: &[
+                    ("Desktop", Screen::DshDesktop),
+                    ("Web", Screen::DshWeb),
+                    ("Sessions", Screen::DshSessions),
+                ],
                 system: false,
             },
             NavGroup {
@@ -1714,6 +1727,9 @@ impl App {
         let dsh_model_fields_count = 5usize;
         if self.dsh_model_field_index >= dsh_model_fields_count {
             self.dsh_model_field_index = dsh_model_fields_count.saturating_sub(1);
+        }
+        if self.dsh_sessions_index >= self.dsh_sessions.len() {
+            self.dsh_sessions_index = self.dsh_sessions.len().saturating_sub(1);
         }
         // --- OMP ---
         if self.omp_index >= self.omp_profiles.len() {

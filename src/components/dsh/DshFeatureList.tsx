@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Globe, Monitor, TerminalSquare } from 'lucide-react'
+import { Globe, MessageSquare, Monitor, TerminalSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ActionButton } from '@/components/ui/action-button'
 import { useUIStore, type DshSubView } from '@/store/ui-store'
@@ -10,10 +10,15 @@ interface FeatureItem {
   icon: React.ElementType
 }
 
-/** Official DSH runtime profiles, each with its own page (no switching). */
+/** DSH pages: the two official runtime profiles plus local session history. */
 const features: FeatureItem[] = [
   { id: 'desktop', labelKey: 'dsh.features.desktop', icon: Monitor },
   { id: 'web', labelKey: 'dsh.features.web', icon: Globe },
+  {
+    id: 'sessions',
+    labelKey: 'dsh.features.sessions',
+    icon: MessageSquare,
+  },
   {
     id: 'terminal',
     labelKey: 'dsh.features.terminal',

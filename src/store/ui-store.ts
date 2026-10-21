@@ -47,7 +47,7 @@ export type HermesSubView = 'model' | 'terminal'
 export type PiSubView = 'providers' | 'sessions' | 'terminal'
 export type OmpSubView = 'config' | 'terminal'
 export type CopilotSubView = 'profiles' | 'terminal'
-export type DshSubView = 'desktop' | 'web' | 'terminal'
+export type DshSubView = 'desktop' | 'web' | 'sessions' | 'terminal'
 export type ChannelsSubView = 'detail' | 'export-templates'
 
 export interface PendingUpdate {

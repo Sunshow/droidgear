@@ -26,6 +26,7 @@ mod keys_codex_sessions;
 mod keys_copilot;
 mod keys_droid_settings;
 mod keys_dsh;
+mod keys_dsh_sessions;
 mod keys_factory;
 mod keys_factory_auth;
 mod keys_hermes;
@@ -66,6 +67,7 @@ use keys_codex_sessions::handle_codex_sessions_key;
 use keys_copilot::handle_copilot_key;
 use keys_droid_settings::handle_droid_settings_files_key;
 use keys_dsh::{handle_dsh_key, handle_dsh_model_key, handle_dsh_provider_key};
+use keys_dsh_sessions::handle_dsh_sessions_key;
 use keys_factory::{handle_factory_key, handle_factory_model_key, normalize_factory_models};
 use keys_hermes::{handle_hermes_key, handle_hermes_profile_key, handle_hermes_provider_key};
 use keys_main::handle_key;
@@ -182,6 +184,9 @@ enum Action {
         path: String,
     },
     ViewPiSession {
+        path: String,
+    },
+    ViewDshSession {
         path: String,
     },
     EditSpec {
@@ -332,6 +337,7 @@ fn refresh_screen_data(app: &mut app::App) {
         app::Screen::CodexSessions => refresh_codex_sessions(app),
         app::Screen::Copilot => refresh_copilot(app),
         app::Screen::PiSessions => refresh_pi_sessions(app),
+        app::Screen::DshSessions => refresh_dsh_sessions(app),
         app::Screen::Specs => refresh_specs(app),
         app::Screen::Channels => refresh_channels(app),
         app::Screen::ChannelsEdit => {}

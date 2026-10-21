@@ -109,6 +109,9 @@ pub fn run() {
         .manage(commands::pi_sessions::PiSessionsWatcherState(Mutex::new(
             None,
         )))
+        .manage(commands::dsh_sessions::DshSessionsWatcherState(Mutex::new(
+            None,
+        )))
         .setup(|app| {
             log::info!("Application starting up");
             log::debug!(

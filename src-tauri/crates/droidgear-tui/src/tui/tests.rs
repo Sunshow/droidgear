@@ -636,14 +636,25 @@ fn dsh_screen_variants_exist() {
     let _dsh_web = app::Screen::DshWeb;
     let _dsh_provider = app::Screen::DshProvider;
     let _dsh_model = app::Screen::DshModel;
+    let _dsh_sessions = app::Screen::DshSessions;
 }
 
 #[test]
 fn dsh_is_in_dsh_nav_group() {
-    for screen in [app::Screen::DshDesktop, app::Screen::DshWeb] {
+    for screen in [
+        app::Screen::DshDesktop,
+        app::Screen::DshWeb,
+        app::Screen::DshSessions,
+    ] {
         let group = app::App::group_of_screen(screen).expect("Dsh screens should be nav items");
         assert_eq!(app::App::nav_groups()[group].label, "Dsh");
     }
+    let group = app::App::group_of_screen(app::Screen::DshSessions)
+        .expect("DshSessions should be a nav item");
+    assert!(app::App::nav_groups()[group]
+        .items
+        .iter()
+        .any(|(label, screen)| *label == "Sessions" && *screen == app::Screen::DshSessions));
 }
 
 #[test]
@@ -656,6 +667,8 @@ fn dsh_app_state_initializes_correctly() {
     assert_eq!(app.dsh_provider_field_index, 0);
     assert_eq!(app.dsh_model_index, 0);
     assert_eq!(app.dsh_model_field_index, 0);
+    assert!(app.dsh_sessions.is_empty());
+    assert_eq!(app.dsh_sessions_index, 0);
 }
 
 #[test]
@@ -679,6 +692,33 @@ fn dsh_provider_f_key_routes_through_fetch_action() {
         }
         other => panic!("expected FetchDshModels action, got {other:?}"),
     }
+}
+
+#[test]
+fn dsh_sessions_key_routes_view_and_delete_actions() {
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.dsh_sessions = vec![droidgear_core::dsh_sessions::DshSessionSummary {
+        id: "session".to_string(),
+        title: "Session".to_string(),
+        project: "/tmp/project".to_string(),
+        model: "model".to_string(),
+        model_provider: "provider".to_string(),
+        modified_at: 0.0,
+        token_usage: droidgear_core::dsh_sessions::DshTokenUsage::default(),
+        path: "/tmp/session.v4.jsonl.zstd".to_string(),
+    }];
+
+    let view = super::keys_dsh_sessions::handle_dsh_sessions_key(&mut app, KeyCode::Enter);
+    assert!(matches!(view, Some(super::Action::ViewDshSession { .. })));
+
+    super::keys_dsh_sessions::handle_dsh_sessions_key(&mut app, KeyCode::Char('d'));
+    assert!(matches!(
+        app.modal,
+        Some(app::Modal::Confirm {
+            action: app::ConfirmAction::DshSessionDelete { .. },
+            ..
+        })
+    ));
 }
 
 #[test]
@@ -1154,6 +1194,7 @@ fn nav_groups_cover_all_screens_exactly_once() {
         app::Screen::OpenClawHelpers,
         app::Screen::DshDesktop,
         app::Screen::DshWeb,
+        app::Screen::DshSessions,
     ];
     for screen in screens {
         let group = app::App::group_of_screen(screen)

@@ -424,6 +424,7 @@ fn draw_main(frame: &mut Frame, app: &app::App, area: Rect) {
         app::Screen::DshDesktop | app::Screen::DshWeb => draw_dsh_providers(frame, app, area),
         app::Screen::DshProvider => draw_dsh_provider(frame, app, area),
         app::Screen::DshModel => draw_dsh_model(frame, app, area),
+        app::Screen::DshSessions => draw_dsh_sessions(frame, app, area),
         app::Screen::Hermes => draw_hermes_profiles(frame, app, area),
         app::Screen::HermesProfile => draw_hermes_profile(frame, app, area),
         app::Screen::HermesProvider => draw_hermes_provider(frame, app, area),
@@ -2680,6 +2681,51 @@ fn draw_pi_sessions(frame: &mut Frame, app: &app::App, area: Rect) {
     let selected = (!app.pi_sessions.is_empty()).then_some(app.pi_sessions_index);
     let list = List::new(items)
         .block(block(crumb_title(app, "Pi Sessions")))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, list, chunks[0], selected);
+
+    let help = help_paragraph("Up/Down: select  Enter/v: view  d: delete  r: refresh  q/Esc: back");
+    frame.render_widget(help, chunks[1]);
+}
+
+fn draw_dsh_sessions(frame: &mut Frame, app: &app::App, area: Rect) {
+    let t = theme();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .split(area);
+
+    let mut items: Vec<ListItem> = Vec::new();
+    for session in &app.dsh_sessions {
+        let project = session
+            .project
+            .rsplit(['/', '\\'])
+            .next()
+            .filter(|part| !part.is_empty())
+            .unwrap_or("unknown");
+        let model = if session.model_provider.is_empty() {
+            session.model.clone()
+        } else {
+            format!("{}/{}", session.model_provider, session.model)
+        };
+        items.push(ListItem::new(Line::from(vec![
+            Span::raw(session.title.clone()),
+            Span::raw("  "),
+            Span::styled(format!("[{project}]"), t.dim_style()),
+            Span::raw("  "),
+            Span::styled(model, t.key_style()),
+        ])));
+    }
+    if items.is_empty() {
+        items.push(ListItem::new(Line::from(Span::styled(
+            "No Dsh sessions",
+            t.placeholder_style(),
+        ))));
+    }
+
+    let selected = (!app.dsh_sessions.is_empty()).then_some(app.dsh_sessions_index);
+    let list = List::new(items)
+        .block(block(crumb_title(app, "Dsh Sessions")))
         .highlight_style(t.selected_row_style());
     render_list(frame, list, chunks[0], selected);
 

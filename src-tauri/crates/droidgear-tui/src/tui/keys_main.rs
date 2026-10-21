@@ -46,6 +46,7 @@ pub(super) fn handle_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
         app::Screen::DshDesktop | app::Screen::DshWeb => handle_dsh_key(app, code),
         app::Screen::DshProvider => handle_dsh_provider_key(app, code),
         app::Screen::DshModel => handle_dsh_model_key(app, code),
+        app::Screen::DshSessions => handle_dsh_sessions_key(app, code),
         app::Screen::Hermes => handle_hermes_key(app, code),
         app::Screen::HermesProfile => handle_hermes_profile_key(app, code),
         app::Screen::HermesProvider => handle_hermes_provider_key(app, code),
