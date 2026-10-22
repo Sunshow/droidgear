@@ -40,7 +40,7 @@ telemetry hard-disable patch            DSH_TELEMETRY_DISABLED 非空时自动�
 
 所有层摊平后一次 `applyEntryPatches`，同一 `id` 后出现者胜（`packages/boot/app-boot/src/profile.ts:816-823`、`profile-context.ts:74-84`）。
 
-desktop 本机的 bundle 组合（`~/.dsh/profiles/desktop/package.json`）：
+desktop profile 的 bundle 组合（`~/.dsh/profiles/desktop/package.json`，官方默认）：
 
 | 顺序 | bundle                                             | 作用                                                         |
 | ---- | -------------------------------------------------- | ------------------------------------------------------------ |
@@ -140,7 +140,7 @@ DSH 0.2.1 的「设置」不是一个页面，而是三处：
 | `ui-chat`                                          | `transcriptView`（compact/standard/detailed/verbose，默认 detailed，当前 standard）、`collapseTiming`（completion/next-input）、`performanceUsage`（compact/detailed）、`linkOpening`（sidebar/new-tab） | 4 个 Select                                    |                                                                                               |
 | `ui-conversation`                                  | `busyEnter`（queue/steer，默认 queue）                                                                                                                                                                   | Select                                         |                                                                                               |
 | `ui-settings`                                      | `enabled`（开发者工具，默认 true）                                                                                                                                                                       | Switch                                         | 当前 true                                                                                     |
-| `session-log-deepseek`                             | `enabled`（默认 true，本机 false）                                                                                                                                                                       | Switch                                         | 隐私开关；注意该行**不是** disabled，是 config 里 false                                       |
+| `session-log-deepseek`                             | `enabled`（默认 true，可关闭）                                                                                                                                                                           | Switch                                         | 隐私开关；注意该行**不是** disabled，是 config 里 false                                       |
 | `bash-sandbox`                                     | `timeoutMs`（schema 默认 120000，base/config 60000）、`maxOutputBytes`（默认 64000）                                                                                                                     | Number（秒/字节人性化）                        | Windows 改用 `pwsh-sandbox`                                                                   |
 | `agent-loop`                                       | `maxParallelToolCalls`（默认 10）                                                                                                                                                                        | Number                                         | volatile                                                                                      |
 | `subagent`                                         | `maxDepth`（默认 1，0=禁用）、`maxActiveSubagents`（默认 8）                                                                                                                                             | Number                                         | volatile                                                                                      |
@@ -260,7 +260,7 @@ Dsh 页保持现有 profile 维度（desktop/web），每个 profile 下分栏�
 - **桌面实例不可 API 复用**：不要尝试读 Electron Cookies/Keychain 伪造鉴权。
 - **旧 node_modules**：检测到 `~/.dsh/profiles/node_modules` 版本与安装版不一致时提示归档，避免回退加载 0.1 代码。
 
-## 9. 本分支实现（feat/dsh-config-surfaces）
+## 9. 实现
 
 ### 9.1 后端
 
@@ -280,8 +280,8 @@ Dsh 页保持现有 profile 维度（desktop/web），每个 profile 下分栏�
 `src-tauri/crates/droidgear-core/res/dsh-config-schema.json` 由脚本生成：
 
 ```bash
-node scripts/gen-dsh-config-schema.mjs                 # 重新生成（默认读 /Users/feuvan/src/deepseek-harness）
-node scripts/gen-dsh-config-schema.mjs --check         # 校验已提交文件与源一致（DSH 升级后跑）
+node scripts/gen-dsh-config-schema.mjs --dsh <deepseek-harness>            # 重新生成
+node scripts/gen-dsh-config-schema.mjs --dsh <deepseek-harness> --check   # 校验已提交文件与源一致（DSH 升级后跑）
 ```
 
 快照包含：四个 bundle 的 entry/config/disabled（按 profile × OS 求值）、每个 config entry 的顶层字段（kind/default/enum/volatile/secret/tier/description）。升级 DSH 后必须重跑并提交新快照，否则 UI 字段与 schema 校验会落后于运行时。
@@ -309,12 +309,13 @@ npx vitest run src/components/dsh
 cd src-tauri && cargo test -p droidgear-tui
 ```
 
-## 10. 研究工件
+## 10. 数据来源与再生成
 
-本次调研的完整现场（170 条目 × 353 字段逐字段表、disabled 清单、写入协议证据链、file:line 索引）在 `/tmp/dsh-config-research/`：
+Schema 快照与文档结论来自 DSH 0.2.1-rc.2 源码（`docs/config-catalog.zh.md` 的生成式 TS 声明、四个 bundle 的 patch 文件、各包的 schemastery 定义与 JSDoc）；本机 profile 实测只用于验证行为，不参与生成。
 
-- `01-active-config-catalog.md` / `active-config-inventory.json`：活动条目与字段清单（含档位、默认值、当前 profile 值）。
-- `02-settings-ui-and-api.md`：设置系统架构、页面×字段×entry id、远程 API 与鉴权。
-- `03-local-state-map.md`：层叠/写回/文件清单/风险。
+升级 DSH 后：
 
-`/tmp` 不是持久位置；如需长期保留，把 `01` 与 `active-config-inventory.json` 移到 `docs/developer/dsh/` 并在 DSH 升级时重新生成。
+1. 更新生成器读取的源码 checkout（`--dsh` 或 `DSH_SOURCE_DIR`）；
+2. 重新生成并提交 `res/dsh-config-schema.json`；
+3. 跑 `node scripts/gen-dsh-config-schema.mjs --dsh <checkout> --check` 与 `cargo test -p droidgear-core dsh_config`；
+4. 若生成器报告新的/删除的 bundle 或字段，同步检查第 3 节的档位表与 UI 白名单。
