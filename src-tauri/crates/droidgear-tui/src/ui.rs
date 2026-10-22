@@ -3593,7 +3593,29 @@ fn draw_pi_model(frame: &mut Frame, app: &app::App, area: Rect) {
 fn draw_dsh_providers(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
 
-    let mut items: Vec<ListItem> = Vec::new();
+    // First row is the official DeepSeek route status (not a provider row, so
+    // provider selection is offset by one).
+    let official_status = if app.dsh_official_api_key_configured {
+        "configured"
+    } else {
+        "missing"
+    };
+    let mut items: Vec<ListItem> = vec![ListItem::new(Line::from(vec![
+        Span::styled("DeepSeek official key", t.dim_style()),
+        Span::raw(": "),
+        Span::styled(
+            official_status,
+            if app.dsh_official_api_key_configured {
+                t.success_fg_style()
+            } else {
+                t.warning_fg_style()
+            },
+        ),
+        Span::styled(
+            format!("  ({})", app.dsh_official_api_key_env),
+            t.dim_style(),
+        ),
+    ]))];
     for (provider_id, config) in app.dsh_providers.iter() {
         let display = config
             .display_name
@@ -3604,7 +3626,7 @@ fn draw_dsh_providers(frame: &mut Frame, app: &app::App, area: Rect) {
             Span::styled(format!("  ({} models)", config.models.len()), t.dim_style()),
         ])));
     }
-    if items.is_empty() {
+    if app.dsh_providers.is_empty() {
         items.push(ListItem::new(Line::from(Span::styled(
             "No providers",
             t.placeholder_style(),
@@ -3613,22 +3635,28 @@ fn draw_dsh_providers(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .constraints([Constraint::Min(0), Constraint::Length(3)].as_ref())
         .split(area);
 
     let profile_label = match app.dsh_active_profile.as_deref() {
         Some(name) => format!("Dsh Providers [profile: {name}]"),
         None => "Dsh Providers [legacy settings.yaml]".to_string(),
     };
-    let highlight = (!app.dsh_providers.is_empty()).then_some(app.dsh_index);
+    let highlight = (!app.dsh_providers.is_empty()).then_some(app.dsh_index + 1);
     let list = List::new(items)
         .block(block(profile_label.as_str()))
         .highlight_style(t.selected_row_style());
     render_list(frame, list, chunks[0], highlight);
 
-    let help = help_paragraph(
-        "Up/Down: select  Enter/e: open  c: config  n: add  i: import from channel  d: delete  r: refresh  q/Esc: back",
-    );
+    let help = Paragraph::new(vec![
+        help_line(
+            "Up/Down: select  Enter/e: open  c: config  o: DeepSeek official key  n: add  i: import",
+        ),
+        hint_line("d: delete  r: refresh  q/Esc: back"),
+    ])
+    .style(t.dim_style())
+    .block(help_block())
+    .wrap(Wrap { trim: true });
     frame.render_widget(help, chunks[1]);
 }
 

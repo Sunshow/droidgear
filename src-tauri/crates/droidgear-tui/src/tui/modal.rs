@@ -5041,6 +5041,29 @@ pub(super) fn run_input_action(
             refresh_dsh(app);
             Ok(())
         }
+        app::InputAction::DshSetOfficialApiKey => {
+            // Resolve the ref at submit time so a config edit made since the
+            // dialog opened is respected.
+            let env_name = resolve_dsh_official_api_key_env(app);
+            droidgear_core::dsh::save_dsh_credential_ref_for_home(
+                &app.home_dir,
+                &env_name,
+                trimmed,
+            )
+            .map_err(anyhow::Error::msg)?;
+            match droidgear_core::dsh::read_dsh_credentials_for_home(&app.home_dir) {
+                Ok(credentials) => app.dsh_credentials = credentials.refs,
+                Err(error) => app.set_toast(error, true),
+            }
+            app.dsh_official_api_key_env = env_name.clone();
+            app.dsh_official_api_key_configured = !trimmed.is_empty();
+            if trimmed.is_empty() {
+                app.set_toast(format!("Cleared {env_name}"), false);
+            } else {
+                app.set_toast(format!("Saved {env_name}"), false);
+            }
+            Ok(())
+        }
         app::InputAction::DshAddModel { provider_id } => {
             if trimmed.is_empty() {
                 return Err(anyhow::Error::msg("Model id is required"));

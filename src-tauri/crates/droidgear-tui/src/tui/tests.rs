@@ -2427,3 +2427,117 @@ fn dsh_provider_derived_api_key_env_sanitizes_hyphens() {
     );
     assert!(dsh_patch_text(temp.path()).contains("apiKeyEnv: MY_ROUTE_2_API_KEY"));
 }
+
+// --- DSH official DeepSeek API key (task-16) ---
+
+fn dsh_official_app(home: &Path) -> app::App {
+    let mut app = app::App::new(home.to_path_buf());
+    app.dsh_active_profile = Some("desktop".to_string());
+    app.screen = app::Screen::DshDesktop;
+    super::refresh::refresh_dsh(&mut app);
+    app
+}
+
+fn dsh_credentials_refs(home: &Path) -> HashMap<String, String> {
+    droidgear_core::dsh::read_dsh_credentials_for_home(home)
+        .unwrap()
+        .refs
+}
+
+fn open_official_key_dialog(app: &mut app::App) -> (String, app::InputAction) {
+    super::keys_dsh::handle_dsh_key(app, KeyCode::Char('o'));
+    let Some(app::Modal::Input {
+        is_secret,
+        action,
+        title,
+        value,
+        ..
+    }) = app.modal.take()
+    else {
+        panic!("expected secret input dialog, got {:?}", app.modal);
+    };
+    assert!(is_secret);
+    assert!(value.is_empty());
+    (title, action)
+}
+
+#[test]
+fn dsh_official_key_default_ref_saves_and_shows_status() {
+    let temp = TempDir::new().unwrap();
+    dsh_config_write_profile(temp.path(), "[]\n");
+    let mut app = dsh_official_app(temp.path());
+    assert_eq!(app.dsh_official_api_key_env, "DEEPSEEK_API_KEY");
+    assert!(!app.dsh_official_api_key_configured);
+
+    let (title, action) = open_official_key_dialog(&mut app);
+    assert!(title.contains("DEEPSEEK_API_KEY"), "{title}");
+    assert!(matches!(action, app::InputAction::DshSetOfficialApiKey));
+    super::modal::run_input_action(&mut app, action, "sk-official".to_string()).unwrap();
+
+    assert_eq!(
+        dsh_credentials_refs(temp.path())
+            .get("DEEPSEEK_API_KEY")
+            .map(String::as_str),
+        Some("sk-official")
+    );
+    assert!(
+        app.toast_message().contains("Saved DEEPSEEK_API_KEY"),
+        "{}",
+        app.toast_message()
+    );
+    assert!(app.dsh_official_api_key_configured);
+
+    let rendered = render_visible(&app, 100, 30);
+    assert!(rendered.contains("o: DeepSeek official key"), "{rendered}");
+    assert!(
+        rendered.contains("DeepSeek official key: configured"),
+        "{rendered}"
+    );
+    assert!(rendered.contains("(DEEPSEEK_API_KEY)"), "{rendered}");
+}
+
+#[test]
+fn dsh_official_key_uses_configured_api_key_env_ref() {
+    let temp = TempDir::new().unwrap();
+    dsh_config_write_profile(
+        temp.path(),
+        "- id: llm-deepseek\n  name: '@deepseek-ai/dsh-llm-deepseek-api-key'\n  config:\n    apiKeyEnv: MY_DS_KEY\n",
+    );
+    let mut app = dsh_official_app(temp.path());
+    assert_eq!(app.dsh_official_api_key_env, "MY_DS_KEY");
+
+    let (title, action) = open_official_key_dialog(&mut app);
+    assert!(title.contains("MY_DS_KEY"), "{title}");
+    super::modal::run_input_action(&mut app, action, "sk-custom".to_string()).unwrap();
+
+    let refs = dsh_credentials_refs(temp.path());
+    assert_eq!(refs.get("MY_DS_KEY").map(String::as_str), Some("sk-custom"));
+    assert!(!refs.contains_key("DEEPSEEK_API_KEY"));
+    assert!(app.dsh_official_api_key_configured);
+}
+
+#[test]
+fn dsh_official_key_empty_value_clears_ref() {
+    let temp = TempDir::new().unwrap();
+    dsh_config_write_profile(temp.path(), "[]\n");
+    droidgear_core::dsh::save_dsh_credential_ref_for_home(
+        temp.path(),
+        "DEEPSEEK_API_KEY",
+        "sk-old",
+    )
+    .unwrap();
+    let mut app = dsh_official_app(temp.path());
+    assert!(app.dsh_official_api_key_configured);
+
+    let (_, action) = open_official_key_dialog(&mut app);
+    super::modal::run_input_action(&mut app, action, String::new()).unwrap();
+
+    let refs = dsh_credentials_refs(temp.path());
+    assert!(!refs.contains_key("DEEPSEEK_API_KEY"), "{refs:?}");
+    assert!(
+        app.toast_message().contains("Cleared DEEPSEEK_API_KEY"),
+        "{}",
+        app.toast_message()
+    );
+    assert!(!app.dsh_official_api_key_configured);
+}

@@ -15,6 +15,18 @@ pub(super) fn handle_dsh_key(app: &mut app::App, code: KeyCode) -> Option<Action
             app.screen = app::Screen::DshConfig;
             request_dsh_config_refresh(app);
         }
+        KeyCode::Char('o') => {
+            // The official DeepSeek route keeps its key in `.credentials.yaml`
+            // under a configurable ref name (default DEEPSEEK_API_KEY).
+            let env_name = resolve_dsh_official_api_key_env(app);
+            app.modal = Some(app::Modal::Input {
+                title: format!("DeepSeek official API key [{env_name}] (empty = clear)"),
+                value: String::new(),
+                cursor: usize::MAX,
+                is_secret: true,
+                action: app::InputAction::DshSetOfficialApiKey,
+            });
+        }
         KeyCode::Char('n') => {
             app.modal = Some(app::Modal::Input {
                 title: "New Dsh provider id".to_string(),

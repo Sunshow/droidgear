@@ -410,6 +410,15 @@ pub(super) fn refresh_dsh(app: &mut app::App) {
         }
     }
 
+    // The official DeepSeek route references its key through
+    // `llm-deepseek.config.apiKeyEnv`; show whether that ref is configured.
+    let official_env = resolve_dsh_official_api_key_env(app);
+    app.dsh_official_api_key_configured = app
+        .dsh_credentials
+        .get(&official_env)
+        .is_some_and(|value| !value.trim().is_empty());
+    app.dsh_official_api_key_env = official_env;
+
     // Drop the open provider if it was removed on disk.
     if let Some(provider_id) = app.dsh_provider_id.clone() {
         if !app.dsh_providers.iter().any(|(id, _)| id == &provider_id) {
@@ -437,6 +446,50 @@ pub(super) fn refresh_pi_sessions(app: &mut app::App) {
         Ok(list) => app.pi_sessions = list,
         Err(e) => app.set_toast(e, true),
     }
+}
+
+/// Fallback credential ref for the official DeepSeek route when the composed
+/// config does not expose one.
+pub(super) const DSH_OFFICIAL_API_KEY_ENV_FALLBACK: &str = "DEEPSEEK_API_KEY";
+
+/// Resolve the credential reference of the official DeepSeek route from the
+/// composed snapshot: `llm-deepseek.config.apiKeyEnv`, then the schema field
+/// value/default, then [`DSH_OFFICIAL_API_KEY_ENV_FALLBACK`]. Never reads the
+/// secret value itself.
+pub(super) fn resolve_dsh_official_api_key_env(app: &app::App) -> String {
+    let Ok(snapshot) = droidgear_core::dsh_config::read_dsh_config_snapshot_for_home(
+        &app.home_dir,
+        app.dsh_active_profile.clone(),
+    ) else {
+        return DSH_OFFICIAL_API_KEY_ENV_FALLBACK.to_string();
+    };
+    let Some(entry) = snapshot
+        .entries
+        .iter()
+        .find(|entry| entry.id == "llm-deepseek")
+    else {
+        return DSH_OFFICIAL_API_KEY_ENV_FALLBACK.to_string();
+    };
+    if let Some(value) = entry
+        .config
+        .as_ref()
+        .and_then(|config| config.get("apiKeyEnv"))
+        .and_then(serde_json::Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        return value.to_string();
+    }
+    entry
+        .fields
+        .iter()
+        .find(|field| field.name == "apiKeyEnv")
+        .and_then(|field| field.value.as_ref().or(field.default.as_ref()))
+        .and_then(serde_json::Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(DSH_OFFICIAL_API_KEY_ENV_FALLBACK)
+        .to_string()
 }
 
 pub(super) fn refresh_dsh_sessions(app: &mut app::App) {

@@ -574,6 +574,8 @@ pub enum InputAction {
     },
     DshAddProvider,
     DshAddProviderFromChannel,
+    /// Store/clear the official DeepSeek API key in `.credentials.yaml`.
+    DshSetOfficialApiKey,
     DshSetProviderDisplayName {
         provider_id: String,
     },
@@ -973,6 +975,11 @@ pub struct App {
 
     pub dsh_providers: Vec<(String, DshProviderConfig)>,
     pub dsh_credentials: std::collections::HashMap<String, String>,
+    /// Credential ref backing the official `deepseek-official` route
+    /// (`llm-deepseek.config.apiKeyEnv`), resolved from the composed config.
+    pub dsh_official_api_key_env: String,
+    /// Whether `.credentials.yaml` carries a value for that ref.
+    pub dsh_official_api_key_configured: bool,
     /// Official profile this screen manages; set when the desktop/web page
     /// is opened from the feature list.
     pub dsh_active_profile: Option<String>,
@@ -1185,6 +1192,8 @@ impl App {
             omp_provider_field_index: 0,
             dsh_providers: Vec::new(),
             dsh_credentials: std::collections::HashMap::new(),
+            dsh_official_api_key_env: "DEEPSEEK_API_KEY".to_string(),
+            dsh_official_api_key_configured: false,
             dsh_active_profile: None,
             dsh_index: 0,
             dsh_provider_id: None,
