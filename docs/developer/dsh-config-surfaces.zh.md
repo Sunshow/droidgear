@@ -271,6 +271,7 @@ Dsh 页保持现有 profile 维度（desktop/web），每个 profile 下分栏�
   - 写入协议：`<profile>/package.json.lock`（与 DSH 同名、2s 等待、30s 陈旧接管）→ YAML Document 级编辑（注释保留）→ 随机后缀临时文件 + 0600 + rename；`!!js` 表达式按 `$js` 标记往返；其他自定义 tag 拒绝重写；home patch 遮蔽拒绝；`expected_hash` 冲突返回 `DSH_CONFIG_CONFLICT`。
   - secret：snapshot 里 top-level secret 字段替换为 `{"$secret": true}`；保存时该标记表示「保持继承值」，明文 secret 拒绝写入。
 - `src-tauri/src/commands/dsh_config.rs` + `src/lib/bindings.ts`：三个 Tauri 命令。
+- `DshProviderConfig.reasoning`（pi-ai 路由默认思考强度，`off/minimal/low/medium/high/xhigh/max`，空 = 跟随 provider 默认；后端 normalize + 校验）。这是 DSH 生成 `defaultEffort` 的唯一来源：不写它，模型选择器就显示「Default」。
 - `src-tauri/crates/droidgear-core/src/storage.rs`：`atomic_write` 改为唯一临时文件名；新增 `atomic_write_private`（0600）。
 
 ### 9.2 Schema 快照
@@ -289,6 +290,7 @@ node scripts/gen-dsh-config-schema.mjs --check         # 校验已提交文件�
 - `DshConfigPage`：在现有 desktop/web profile 维度内增加 7 个 tab：概览、模型、通用、Agent、网络、高级、诊断。
 - `src/components/dsh/config/`：通用表单组件（SettingsSection/SettingsRow/EnumField/NumberField/SwitchField/TextField/徽标/PageHeader）。
 - `EntrySettingsCard`：按 entry 渲染字段并 staged 保存；`$js`/secret/json/C 档只读，非 volatile 显示「重启后生效」。
+- Models tab 的 ProviderDialog：新增「默认思考强度」Select（新建/未显式设置时，若该路由所有模型已知支持 `high` 则自动建议 `high`，与官方 DeepSeek 行为对齐；部分模型不支持时显示警告），以及模型行的「设为默认模型」星标——保存时把 `{provider, model, reasoningEffort}` 写入 `agent-default-model` 条目（复用通用 `saveEntry`，带 patch hash 乐观锁）。
 - `src/store/dsh-store.ts`：snapshot + `loadSnapshot`/`saveEntry`/`toggleEntryDisabled`，冲突/遮蔽错误转成提示。
 
 ### 9.4 TUI

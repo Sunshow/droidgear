@@ -346,8 +346,13 @@ pub fn draw(frame: &mut Frame, app: &app::App) {
 
     if app.modal.is_some() {
         draw_modal(frame, app);
-    } else if let Some(toast) = app.toast.as_ref() {
-        draw_toast(frame, toast);
+    }
+    // Error toasts stay visible over a dialog: invalid values keep the input
+    // open so the rejection must be readable while it is still on screen.
+    if let Some(toast) = app.toast.as_ref() {
+        if app.modal.is_none() || toast.is_error {
+            draw_toast(frame, toast);
+        }
     }
 }
 
@@ -3654,7 +3659,7 @@ fn draw_dsh_provider(frame: &mut Frame, app: &app::App, area: Rect) {
         .direction(Direction::Vertical)
         .constraints(
             [
-                Constraint::Length(8),
+                Constraint::Length(9),
                 Constraint::Min(0),
                 Constraint::Length(2),
             ]
@@ -3715,6 +3720,14 @@ fn draw_dsh_provider(frame: &mut Frame, app: &app::App, area: Rect) {
                 "(n/a)".to_string()
             },
         ),
+        (
+            "Default Reasoning",
+            config
+                .reasoning
+                .clone()
+                .filter(|value| !value.trim().is_empty())
+                .unwrap_or_else(|| "-".to_string()),
+        ),
     ];
 
     let fields_count = fields.len();
@@ -3748,7 +3761,7 @@ fn draw_dsh_provider(frame: &mut Frame, app: &app::App, area: Rect) {
     }
     let model_selected = (app.dsh_provider_field_index >= fields_count
         && !config.models.is_empty())
-    .then_some(app.dsh_provider_field_index - fields_count);
+    .then(|| app.dsh_provider_field_index - fields_count);
     let models_list = List::new(model_items)
         .block(block("Models"))
         .highlight_style(t.selected_row_style());
@@ -3762,7 +3775,7 @@ fn draw_dsh_provider(frame: &mut Frame, app: &app::App, area: Rect) {
 
 fn draw_dsh_model(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
-    let Some(_provider_id) = app.dsh_provider_id.as_deref() else {
+    let Some(provider_id) = app.dsh_provider_id.as_deref() else {
         let p = Paragraph::new(vec![Line::from(Span::styled(
             "No provider selected",
             t.warning_style(),
@@ -3845,12 +3858,45 @@ fn draw_dsh_model(frame: &mut Frame, app: &app::App, area: Rect) {
         .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
         .split(area);
 
+    // Current `agent-default-model` from the composed config snapshot, if the
+    // snapshot belongs to the profile this screen manages.
+    let default_selection = app
+        .dsh_config_snapshot
+        .as_ref()
+        .filter(|snapshot| {
+            app.dsh_active_profile
+                .as_deref()
+                .is_none_or(|active| snapshot.profile.as_deref() == Some(active))
+        })
+        .and_then(|snapshot| {
+            snapshot
+                .entries
+                .iter()
+                .find(|entry| entry.id == "agent-default-model")
+        })
+        .and_then(|entry| entry.config.as_ref())
+        .and_then(|config| {
+            let provider = config.get("provider").and_then(serde_json::Value::as_str)?;
+            let model = config.get("model").and_then(serde_json::Value::as_str)?;
+            Some((provider.to_string(), model.to_string()))
+        });
+    let is_current_default = default_selection
+        .as_ref()
+        .is_some_and(|(provider, model_id)| provider == provider_id && model_id == &model.id);
+    let title = if is_current_default {
+        format!("Dsh Model: {} (current default)", model.id)
+    } else if let Some((provider, model_id)) = default_selection.as_ref() {
+        format!("Dsh Model: {} (default: {provider}/{model_id})", model.id)
+    } else {
+        format!("Dsh Model: {}", model.id)
+    };
+
     let list = List::new(items)
-        .block(block(format!("Dsh Model: {}", model.id)))
+        .block(block(title))
         .highlight_style(t.selected_row_style());
     render_list(frame, list, chunks[0], Some(app.dsh_model_field_index));
 
-    let help = help_paragraph("Up/Down: select  Enter/e: edit  q/Esc: back");
+    let help = help_paragraph("Up/Down: select  Enter/e: edit  g: set default model  q/Esc: back");
     frame.render_widget(help, chunks[1]);
 }
 

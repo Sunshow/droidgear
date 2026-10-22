@@ -29,6 +29,13 @@ pub(super) fn handle_modal_key(app: &mut app::App, code: KeyCode, modal: app::Mo
             match code {
                 KeyCode::Esc => app.modal = None,
                 KeyCode::Enter => {
+                    // Values rejected here keep the dialog open so they can be
+                    // corrected without retyping everything.
+                    if let Some(message) = super::keys_dsh::dsh_input_action_error(&action, &value)
+                    {
+                        app.set_toast(message, true);
+                        return;
+                    }
                     app.modal = None;
                     if let Err(e) = run_input_action(app, action, value) {
                         app.set_toast(e.to_string(), true);
@@ -5033,6 +5040,35 @@ pub(super) fn run_input_action(
             )
             .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::DshSetProviderReasoning { provider_id } => {
+            if let Some(message) = super::keys_dsh::dsh_provider_reasoning_error(trimmed) {
+                return Err(anyhow::Error::msg(message));
+            }
+            let normalized = trimmed.to_ascii_lowercase();
+            let mut config = droidgear_core::dsh::read_dsh_current_config_for_profile(
+                &app.home_dir,
+                app.dsh_active_profile.as_deref(),
+            )
+            .map_err(anyhow::Error::msg)?;
+            let Some(provider) = config.providers.get_mut(&provider_id) else {
+                return Err(anyhow::Error::msg("Provider not found"));
+            };
+            provider.reasoning = if normalized.is_empty() {
+                None
+            } else {
+                Some(normalized)
+            };
+            droidgear_core::dsh::save_dsh_provider_for_profile(
+                &app.home_dir,
+                app.dsh_active_profile.as_deref(),
+                &provider_id,
+                provider,
+            )
+            .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            refresh_dsh(app);
             Ok(())
         }
         app::InputAction::DshAddModel { provider_id } => {

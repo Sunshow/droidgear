@@ -1983,3 +1983,227 @@ fn dsh_config_edits_boolean_field_through_select_modal() {
         app.toast_message()
     );
 }
+
+// --- DSH provider default reasoning + agent default model (task-10) ---
+
+fn dsh_provider_with_models() -> droidgear_core::dsh::DshProviderConfig {
+    droidgear_core::dsh::DshProviderConfig {
+        base_url: Some("https://example.com/v1".to_string()),
+        api_key_env: Some("TEST_API_KEY".to_string()),
+        ..Default::default()
+    }
+}
+
+fn dsh_provider_app(home: &Path) -> app::App {
+    let mut app = app::App::new(home.to_path_buf());
+    app.dsh_active_profile = Some("desktop".to_string());
+    app.screen = app::Screen::DshProvider;
+    app.dsh_provider_id = Some("test-provider".to_string());
+    super::refresh::refresh_dsh(&mut app);
+    app.dsh_provider_field_index = 6;
+    app
+}
+
+#[test]
+fn dsh_provider_reasoning_field_edit_persists_and_clears() {
+    let temp = TempDir::new().unwrap();
+    dsh_config_write_profile(temp.path(), "[]\n");
+    droidgear_core::dsh::save_dsh_provider_for_profile(
+        temp.path(),
+        Some("desktop"),
+        "test-provider",
+        &dsh_provider_with_models(),
+    )
+    .unwrap();
+
+    let mut app = dsh_provider_app(temp.path());
+    super::keys_dsh::handle_dsh_provider_key(&mut app, KeyCode::Enter);
+    let Some(app::Modal::Input { action, value, .. }) = app.modal.take() else {
+        panic!("expected reasoning input, got {:?}", app.modal);
+    };
+    assert!(value.is_empty());
+    super::modal::run_input_action(&mut app, action, "HIGH".to_string()).unwrap();
+
+    let patch = std::fs::read_to_string(temp.path().join(".dsh/profiles/desktop/cordis.patch.yml"))
+        .unwrap();
+    assert!(patch.contains("reasoning: high"), "{patch}");
+    let current =
+        droidgear_core::dsh::read_dsh_current_config_for_profile(temp.path(), Some("desktop"))
+            .unwrap();
+    assert_eq!(
+        current
+            .providers
+            .get("test-provider")
+            .unwrap()
+            .reasoning
+            .as_deref(),
+        Some("high")
+    );
+
+    let rendered = render_visible(&app, 100, 30);
+    assert!(rendered.contains("Default Reasoning"), "{rendered}");
+    assert!(rendered.contains("high"), "{rendered}");
+
+    // An empty submission clears the route default again.
+    app.dsh_provider_field_index = 6;
+    super::keys_dsh::handle_dsh_provider_key(&mut app, KeyCode::Enter);
+    let Some(app::Modal::Input { action, value, .. }) = app.modal.take() else {
+        panic!("expected reasoning input, got {:?}", app.modal);
+    };
+    assert_eq!(value, "high");
+    super::modal::run_input_action(&mut app, action, String::new()).unwrap();
+    let current =
+        droidgear_core::dsh::read_dsh_current_config_for_profile(temp.path(), Some("desktop"))
+            .unwrap();
+    assert!(current
+        .providers
+        .get("test-provider")
+        .unwrap()
+        .reasoning
+        .is_none());
+}
+
+#[test]
+fn dsh_provider_reasoning_invalid_value_keeps_dialog_and_does_not_write() {
+    let temp = TempDir::new().unwrap();
+    dsh_config_write_profile(temp.path(), "[]\n");
+    droidgear_core::dsh::save_dsh_provider_for_profile(
+        temp.path(),
+        Some("desktop"),
+        "test-provider",
+        &dsh_provider_with_models(),
+    )
+    .unwrap();
+    let mut app = dsh_provider_app(temp.path());
+
+    app.modal = Some(app::Modal::Input {
+        title: "Default reasoning".to_string(),
+        value: "turbo".to_string(),
+        cursor: usize::MAX,
+        is_secret: false,
+        action: app::InputAction::DshSetProviderReasoning {
+            provider_id: "test-provider".to_string(),
+        },
+    });
+    handle_key(&mut app, KeyCode::Enter);
+
+    assert!(
+        matches!(app.modal, Some(app::Modal::Input { .. })),
+        "invalid value must keep the dialog open"
+    );
+    match app.modal.as_ref() {
+        Some(app::Modal::Input { value, .. }) => assert_eq!(value, "turbo"),
+        other => panic!("expected input dialog, got {other:?}"),
+    }
+    assert!(
+        app.toast_message().contains("Invalid reasoning level"),
+        "{}",
+        app.toast_message()
+    );
+    let rendered = render_visible(&app, 110, 30);
+    assert!(rendered.contains("Invalid reasoning level"), "{rendered}");
+
+    let current =
+        droidgear_core::dsh::read_dsh_current_config_for_profile(temp.path(), Some("desktop"))
+            .unwrap();
+    assert!(current
+        .providers
+        .get("test-provider")
+        .unwrap()
+        .reasoning
+        .is_none());
+}
+
+#[test]
+fn dsh_model_g_writes_agent_default_model() {
+    let temp = TempDir::new().unwrap();
+    dsh_config_write_profile(
+        temp.path(),
+        "- id: agent-default-model\n  name: '@deepseek-ai/dsh-agent-default-model'\n  config:\n    provider: old-provider\n    model: old-model\n",
+    );
+    let mut provider = dsh_provider_with_models();
+    provider.reasoning = Some("high".to_string());
+    provider.models = vec![droidgear_core::dsh::DshModel {
+        id: "test-model".to_string(),
+        ..Default::default()
+    }];
+    droidgear_core::dsh::save_dsh_provider_for_profile(
+        temp.path(),
+        Some("desktop"),
+        "test-provider",
+        &provider,
+    )
+    .unwrap();
+
+    let mut app = app::App::new(temp.path().to_path_buf());
+    app.dsh_active_profile = Some("desktop".to_string());
+    app.screen = app::Screen::DshModel;
+    app.dsh_provider_id = Some("test-provider".to_string());
+    app.dsh_model_index = 0;
+    app.dsh_model_field_index = 0;
+    super::refresh::refresh_dsh(&mut app);
+
+    super::keys_dsh::handle_dsh_model_key(&mut app, KeyCode::Char('g'));
+    assert!(
+        app.toast_message().contains("Default model"),
+        "{}",
+        app.toast_message()
+    );
+
+    let snapshot = droidgear_core::dsh_config::read_dsh_config_snapshot_for_home(
+        temp.path(),
+        Some("desktop".to_string()),
+    )
+    .unwrap();
+    let entry = snapshot
+        .entries
+        .iter()
+        .find(|entry| entry.id == "agent-default-model")
+        .expect("agent-default-model entry");
+    assert_eq!(
+        entry.config,
+        Some(serde_json::json!({
+            "provider": "test-provider",
+            "model": "test-model",
+            "reasoningEffort": "high",
+        }))
+    );
+    let patch = std::fs::read_to_string(temp.path().join(".dsh/profiles/desktop/cordis.patch.yml"))
+        .unwrap();
+    assert!(patch.contains("reasoningEffort: high"), "{patch}");
+
+    // The model screen advertises the shortcut and flags the current default.
+    app.dsh_config_snapshot = Some(snapshot);
+    let rendered = render_visible(&app, 110, 30);
+    assert!(rendered.contains("g: set default model"), "{rendered}");
+    assert!(rendered.contains("current default"), "{rendered}");
+
+    // Without a provider-level reasoning default the entry omits it.
+    provider.reasoning = None;
+    droidgear_core::dsh::save_dsh_provider_for_profile(
+        temp.path(),
+        Some("desktop"),
+        "test-provider",
+        &provider,
+    )
+    .unwrap();
+    super::refresh::refresh_dsh(&mut app);
+    super::keys_dsh::handle_dsh_model_key(&mut app, KeyCode::Char('g'));
+    let snapshot = droidgear_core::dsh_config::read_dsh_config_snapshot_for_home(
+        temp.path(),
+        Some("desktop".to_string()),
+    )
+    .unwrap();
+    let entry = snapshot
+        .entries
+        .iter()
+        .find(|entry| entry.id == "agent-default-model")
+        .expect("agent-default-model entry");
+    assert_eq!(
+        entry.config,
+        Some(serde_json::json!({
+            "provider": "test-provider",
+            "model": "test-model",
+        }))
+    );
+}

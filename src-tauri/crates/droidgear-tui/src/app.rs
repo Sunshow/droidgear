@@ -586,6 +586,10 @@ pub enum InputAction {
     DshSetProviderApiKey {
         provider_id: String,
     },
+    /// Route default pi-ai thinking level (`providers.<id>.reasoning`).
+    DshSetProviderReasoning {
+        provider_id: String,
+    },
     DshImportSetApiKey {
         provider_id: String,
     },
@@ -1780,9 +1784,10 @@ impl App {
         if self.dsh_index >= self.dsh_providers.len() {
             self.dsh_index = self.dsh_providers.len().saturating_sub(1);
         }
-        // DshProvider screen: 6 fields (DisplayName, BaseURL, API, APIKeyEnv, API Key value, SupportsDevRole)
-        // + model list entries.
-        let dsh_provider_fields_count = 6usize;
+        // DshProvider screen: 7 fields (DisplayName, BaseURL, API, APIKeyEnv,
+        // API Key value, SupportsDevRole, DefaultReasoning) + model list
+        // entries.
+        let dsh_provider_fields_count = 7usize;
         let dsh_model_count = self
             .dsh_current_provider()
             .map(|c| c.models.len())
