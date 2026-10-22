@@ -84,6 +84,13 @@ pub struct DshModel {
     /// Reasoning effort mapping, e.g. `{"off": null, "high": "high"}`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning_efforts: Option<HashMap<String, Option<String>>>,
+    /// Request modalities this model accepts (`text`, `image`).
+    ///
+    /// DSH falls back to the installed pi-ai catalog, then to the route's
+    /// `defaultInput` (`text`), and a custom route has no installed entry, so
+    /// omitting this makes images unsupported even for a vision model.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input: Option<Vec<String>>,
     #[serde(flatten)]
     #[specta(skip)]
     pub extra: HashMap<String, serde_json::Value>,
@@ -319,6 +326,9 @@ struct DshRegistryModel {
     thinking_level_map: Option<HashMap<String, Option<String>>>,
     #[serde(default)]
     reasoning_config: Option<DshRegistryReasoningConfig>,
+    /// Request modalities the model accepts (`text`, `image`).
+    #[serde(default)]
+    input: Vec<String>,
     context_window: u32,
     max_output_tokens: Option<u32>,
 }
@@ -385,7 +395,25 @@ pub fn enrich_dsh_model_from_registry(model: &mut DshModel) -> bool {
     {
         model.reasoning_efforts = registry_reasoning_efforts(metadata);
     }
+    if model.input.is_none() && !metadata.input.is_empty() {
+        model.input = Some(normalize_input_modalities(&metadata.input));
+    }
     true
+}
+
+/// The pi-ai request modalities a model may declare.
+pub const DSH_INPUT_MODALITIES: [&str; 2] = ["text", "image"];
+
+/// Trim, lowercase, validate, deduplicate and order request modalities.
+fn normalize_input_modalities(values: &[String]) -> Vec<String> {
+    let mut normalized = Vec::new();
+    for value in values {
+        let value = value.trim().to_ascii_lowercase();
+        if DSH_INPUT_MODALITIES.contains(&value.as_str()) && !normalized.contains(&value) {
+            normalized.push(value);
+        }
+    }
+    normalized
 }
 
 // ============================================================================
@@ -720,6 +748,23 @@ fn prepare_provider_config(config: &DshProviderConfig) -> Result<DshProviderConf
     let mut config = config.clone();
     for model in &mut config.models {
         enrich_dsh_model_from_registry(model);
+        if let Some(input) = model.input.clone() {
+            let normalized = normalize_input_modalities(&input);
+            if input.iter().any(|value| {
+                !DSH_INPUT_MODALITIES.contains(&value.trim().to_ascii_lowercase().as_str())
+            }) {
+                return Err(format!(
+                    "Invalid Dsh model '{}' input modality; expected one of: {}",
+                    model.id,
+                    DSH_INPUT_MODALITIES.join(", ")
+                ));
+            }
+            model.input = if normalized.is_empty() {
+                None
+            } else {
+                Some(normalized)
+            };
+        }
     }
 
     // The route default is a pi-ai thinking level; an unknown value would make
@@ -1400,6 +1445,7 @@ mod tests {
                     ("high".to_string(), Some("high".to_string())),
                     ("max".to_string(), Some("max".to_string())),
                 ])),
+                input: None,
                 extra: HashMap::new(),
             }],
             ..Default::default()
@@ -2174,6 +2220,42 @@ records:
 
         let err = read_dsh_credentials_for_home(home(&temp)).unwrap_err();
         assert!(err.contains("Unsupported Dsh credentials version"));
+    }
+
+    #[test]
+    fn test_enrich_model_input_from_registry() {
+        let mut flash = DshModel {
+            id: "deepseek-flash".to_string(),
+            ..Default::default()
+        };
+        assert!(enrich_dsh_model_from_registry(&mut flash));
+        assert_eq!(
+            flash.input,
+            Some(vec!["text".to_string(), "image".to_string()])
+        );
+
+        let mut pro = DshModel {
+            id: "deepseek-v4-pro".to_string(),
+            ..Default::default()
+        };
+        assert!(enrich_dsh_model_from_registry(&mut pro));
+        assert_eq!(pro.input, Some(vec!["text".to_string()]));
+    }
+
+    #[test]
+    fn test_provider_model_input_is_normalized_and_validated() {
+        let mut provider = sample_provider();
+        provider.models[0].input = Some(vec![" TEXT ".to_string(), "text".to_string()]);
+        let prepared = prepare_provider_config(&provider).unwrap();
+        assert_eq!(
+            prepared.models[0].input,
+            Some(vec!["text".to_string()]),
+            "duplicates and casing are normalized"
+        );
+
+        provider.models[0].input = Some(vec!["audio".to_string()]);
+        let error = prepare_provider_config(&provider).unwrap_err();
+        assert!(error.contains("input modality"), "{error}");
     }
 
     #[test]

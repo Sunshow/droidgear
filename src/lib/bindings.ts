@@ -3371,7 +3371,15 @@ export type DshModel = { id: string; name?: string | null; contextWindow?: numbe
 /**
  * Reasoning effort mapping, e.g. `{"off": null, "high": "high"}`.
  */
-reasoningEfforts?: Partial<{ [key in string]: string | null }> | null }
+reasoningEfforts?: Partial<{ [key in string]: string | null }> | null; 
+/**
+ * Request modalities this model accepts (`text`, `image`).
+ * 
+ * DSH falls back to the installed pi-ai catalog, then to the route's
+ * `defaultInput` (`text`), and a custom route has no installed entry, so
+ * omitting this makes images unsupported even for a vision model.
+ */
+input?: string[] | null }
 /**
  * One Dsh profile directory under `~/.dsh/profiles/`.
  */
