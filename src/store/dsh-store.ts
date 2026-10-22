@@ -261,6 +261,9 @@ export const useDshStore = create<DshState>()(
         // 重新读取，展示后端补齐（注册表元数据、协议兼容处理）后的结果
         await get().loadConfigStatus()
         await get().loadProviders()
+        // Provider writes change the profile patch hash; keep the snapshot
+        // usable for a follow-up `saveEntry` (default model) without conflicts.
+        await get().loadSnapshot()
       },
 
       deleteProvider: async id => {
@@ -272,6 +275,7 @@ export const useDshStore = create<DshState>()(
         const { [id]: _removed, ...providers } = get().providers
         set({ providers }, undefined, 'dsh/deleteProvider/success')
         await get().loadConfigStatus()
+        await get().loadSnapshot()
       },
 
       setError: error => set({ error }, undefined, 'dsh/setError'),

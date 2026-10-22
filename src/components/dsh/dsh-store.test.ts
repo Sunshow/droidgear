@@ -5,6 +5,10 @@ const { commandMocks } = vi.hoisted(() => ({
     readDshConfigSnapshot: vi.fn(),
     saveDshConfigEntry: vi.fn(),
     setDshConfigEntryDisabled: vi.fn(),
+    saveDshProvider: vi.fn(),
+    deleteDshProvider: vi.fn(),
+    readDshCurrentConfig: vi.fn(),
+    getDshConfigStatus: vi.fn(),
   },
 }))
 
@@ -111,6 +115,35 @@ describe('dsh store config writes', () => {
       true,
       'abc123'
     )
+  })
+
+  it('refreshes the snapshot after saving a provider', async () => {
+    commandMocks.saveDshProvider.mockResolvedValue({ status: 'ok', data: null })
+    commandMocks.readDshCurrentConfig.mockResolvedValue({
+      status: 'ok',
+      data: { providers: {} },
+    })
+    commandMocks.getDshConfigStatus.mockResolvedValue({
+      status: 'ok',
+      data: null,
+    })
+    commandMocks.readDshConfigSnapshot.mockResolvedValue({
+      status: 'ok',
+      data: { ...snapshot, patchHash: 'after-provider' },
+    })
+
+    await useDshStore.getState().saveProvider('byok', {
+      models: [{ id: 'gpt-5' }],
+      reasoning: 'high',
+    })
+
+    expect(commandMocks.saveDshProvider).toHaveBeenCalledWith(
+      'desktop',
+      'byok',
+      expect.objectContaining({ reasoning: 'high' })
+    )
+    expect(commandMocks.readDshConfigSnapshot).toHaveBeenCalledWith('desktop')
+    expect(useDshStore.getState().snapshot?.patchHash).toBe('after-provider')
   })
 
   it('loads a snapshot for the active profile', async () => {

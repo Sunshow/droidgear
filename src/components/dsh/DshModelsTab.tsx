@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus } from 'lucide-react'
+import { Plus, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -17,20 +17,29 @@ import { useDshStore } from '@/store/dsh-store'
 import { ConfigStatus } from './ConfigStatus'
 import { ProviderCard } from './ProviderCard'
 import { ProviderDialog } from './ProviderDialog'
+import { isProviderReasoningLevel, readDefaultModel } from './provider-defaults'
 
-/** Models tab: the existing provider CRUD plus config status. */
+/** Models tab: provider CRUD, the current default model, and config status. */
 export function DshModelsTab() {
   const { t } = useTranslation()
   const providers = useDshStore(state => state.providers)
   const isLoading = useDshStore(state => state.isLoading)
   const configStatus = useDshStore(state => state.configStatus)
   const deleteProvider = useDshStore(state => state.deleteProvider)
+  const snapshot = useDshStore(state => state.snapshot)
 
   const [providerDialogOpen, setProviderDialogOpen] = useState(false)
   const [editingProviderId, setEditingProviderId] = useState<string | null>(
     null
   )
   const [deleteProviderId, setDeleteProviderId] = useState<string | null>(null)
+
+  const defaultModel = readDefaultModel(snapshot)
+  const defaultEffort =
+    defaultModel?.reasoningEffort &&
+    isProviderReasoningLevel(defaultModel.reasoningEffort)
+      ? t(`dsh.provider.reasoningLevel.${defaultModel.reasoningEffort}`)
+      : null
 
   const handleConfirmDeleteProvider = async () => {
     if (!deleteProviderId) return
@@ -43,19 +52,40 @@ export function DshModelsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-end gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setEditingProviderId(null)
-            setProviderDialogOpen(true)
-          }}
-          disabled={isLoading}
-        >
-          <Plus aria-hidden="true" />
-          {t('dsh.provider.add')}
-        </Button>
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 p-3">
+        <Star className="size-4 shrink-0 text-amber-500" aria-hidden="true" />
+        {defaultModel ? (
+          <span className="text-sm">
+            {defaultEffort
+              ? t('dsh.models.currentDefaultWithEffort', {
+                  provider: defaultModel.provider,
+                  model: defaultModel.model,
+                  effort: defaultEffort,
+                })
+              : t('dsh.models.currentDefault', {
+                  provider: defaultModel.provider,
+                  model: defaultModel.model,
+                })}
+          </span>
+        ) : (
+          <span className="text-sm text-muted-foreground">
+            {t('dsh.models.noDefault')}
+          </span>
+        )}
+        <div className="ms-auto flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setEditingProviderId(null)
+              setProviderDialogOpen(true)
+            }}
+            disabled={isLoading}
+          >
+            <Plus aria-hidden="true" />
+            {t('dsh.provider.add')}
+          </Button>
+        </div>
       </div>
 
       {providerEntries.length === 0 ? (
@@ -69,6 +99,14 @@ export function DshModelsTab() {
               key={providerId}
               providerId={providerId}
               config={config ?? undefined}
+              defaultModel={
+                defaultModel?.provider === providerId
+                  ? {
+                      model: defaultModel.model,
+                      reasoningEffort: defaultModel.reasoningEffort,
+                    }
+                  : null
+              }
               onEdit={() => {
                 setEditingProviderId(providerId)
                 setProviderDialogOpen(true)
