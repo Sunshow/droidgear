@@ -45,6 +45,12 @@ import {
   readDefaultModel,
   suggestDefaultReasoning,
 } from './provider-defaults'
+import {
+  envNameForProviderId,
+  isCustomApiKeyEnv,
+  isValidApiKeyEnv,
+  resolveApiKeyEnv,
+} from './provider-credentials'
 import { findModelByIdOrAlias, getSupportedEfforts } from '@/lib/model-registry'
 import { providerToClientApiType } from '@/lib/model-protocol'
 import {
@@ -109,10 +115,6 @@ function sanitizeProviderId(name: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
-function envNameForProviderId(providerId: string): string {
-  return `${providerId.toUpperCase().replace(/-/g, '_')}_API_KEY`
-}
-
 function inferApiType(baseUrl: string, platform: string | null): string {
   const url = baseUrl.toLowerCase()
   if (
@@ -147,7 +149,8 @@ export function ProviderDialog({
   const [providerId, setProviderId] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [baseUrl, setBaseUrl] = useState('')
-  const [apiKeyEnv, setApiKeyEnv] = useState('')
+  const [customApiKeyEnv, setCustomApiKeyEnv] = useState('')
+  const [apiKeyEnvExpanded, setApiKeyEnvExpanded] = useState(false)
   const [apiKeyValue, setApiKeyValue] = useState('')
   const [api, setApi] = useState('')
   const [supportsDeveloperRole, setSupportsDeveloperRole] = useState(false)
@@ -168,6 +171,9 @@ export function ProviderDialog({
   // Channel import state
   const [channelPickerOpen, setChannelPickerOpen] = useState(false)
 
+  const derivedApiKeyEnv = envNameForProviderId(providerId)
+  const effectiveApiKeyEnv = resolveApiKeyEnv(providerId, customApiKeyEnv)
+
   // Re-initialize the form whenever the dialog opens for a provider.
   const openKey = `${open}:${editingProviderId ?? ''}`
   if (open && openKey !== lastOpenKey) {
@@ -179,12 +185,17 @@ export function ProviderDialog({
     const existing = editingProviderId
       ? providers[editingProviderId]
       : undefined
-    const envName = existing?.apiKeyEnv ?? ''
+    const storedEnvName = existing?.apiKeyEnv ?? ''
+    const editingId = editingProviderId ?? ''
+    const customEnv = isCustomApiKeyEnv(editingId, storedEnvName)
+      ? storedEnvName
+      : ''
     setProviderId(editingProviderId ?? '')
     setDisplayName(existing?.displayName ?? '')
     setBaseUrl(existing?.baseURL ?? '')
-    setApiKeyEnv(envName)
-    setApiKeyValue(envName ? (credentials[envName] ?? '') : '')
+    setCustomApiKeyEnv(customEnv)
+    setApiKeyEnvExpanded(customEnv.length > 0)
+    setApiKeyValue(storedEnvName ? (credentials[storedEnvName] ?? '') : '')
     setApi(existing?.api ?? '')
     setSupportsDeveloperRole(existing?.compat?.supportsDeveloperRole ?? false)
     const existingReasoning = existing?.reasoning ?? ''
@@ -252,8 +263,7 @@ export function ProviderDialog({
   const resolveApiKeyForFetch = (): string => {
     const direct = apiKeyValue.trim()
     if (direct) return direct
-    const envName = apiKeyEnv.trim()
-    return envName ? (credentials[envName] ?? '') : ''
+    return effectiveApiKeyEnv ? (credentials[effectiveApiKeyEnv] ?? '') : ''
   }
 
   const mergeFetchedModels = (selected: DshModel[]) => {
@@ -364,8 +374,8 @@ export function ProviderDialog({
         ? ensureOpenAICompatibleV1(context.baseUrl)
         : context.baseUrl
     )
-    const envName = envNameForProviderId(sanitizedId)
-    setApiKeyEnv(envName)
+    setCustomApiKeyEnv('')
+    setApiKeyEnvExpanded(false)
     setApiKeyValue(context.apiKey)
     setApi(apiType)
     // 用内置注册表补齐上下文窗口等元数据，和保存时的后端填充保持一致
@@ -403,7 +413,7 @@ export function ProviderDialog({
       ...(base ?? {}),
       displayName: displayName.trim() || null,
       baseURL: baseUrl.trim() || null,
-      apiKeyEnv: apiKeyEnv.trim() || null,
+      apiKeyEnv: effectiveApiKeyEnv || null,
       api: api || null,
       reasoning: effectiveReasoning || null,
       compat: supportsDevRole
@@ -424,9 +434,8 @@ export function ProviderDialog({
     }
 
     try {
-      const envName = apiKeyEnv.trim()
-      if (envName) {
-        await saveCredential(envName, apiKeyValue.trim())
+      if (effectiveApiKeyEnv) {
+        await saveCredential(effectiveApiKeyEnv, apiKeyValue.trim())
       }
       const stagedDefault =
         defaultModelId && modelIds.has(defaultModelId) ? defaultModelId : null
@@ -512,21 +521,7 @@ export function ProviderDialog({
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="dsh-provider-api-key-env">
-                  {t('dsh.provider.apiKeyEnv')}
-                </Label>
-                <Input
-                  id="dsh-provider-api-key-env"
-                  value={apiKeyEnv}
-                  onChange={e => setApiKeyEnv(e.target.value)}
-                  placeholder="OPENAI_API_KEY"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {t('dsh.provider.apiKeyEnvHint')}
-                </p>
-              </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="dsh-provider-api-key-value">
                   {t('dsh.provider.apiKeyValue')}
@@ -535,7 +530,7 @@ export function ProviderDialog({
                   id="dsh-provider-api-key-value"
                   value={apiKeyValue}
                   onChange={e => setApiKeyValue(e.target.value)}
-                  disabled={!apiKeyEnv.trim()}
+                  disabled={!effectiveApiKeyEnv}
                   placeholder="sk-..."
                 />
                 <p className="text-xs text-muted-foreground">
@@ -562,6 +557,58 @@ export function ProviderDialog({
                 </Select>
               </div>
             </div>
+
+            {providerId.trim() ? (
+              <div className="space-y-1">
+                <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span>
+                    {t('dsh.provider.credentialRefValue', {
+                      env: effectiveApiKeyEnv,
+                    })}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-xs"
+                    onClick={() => {
+                      if (apiKeyEnvExpanded) {
+                        setCustomApiKeyEnv('')
+                        setApiKeyEnvExpanded(false)
+                      } else {
+                        setApiKeyEnvExpanded(true)
+                      }
+                    }}
+                  >
+                    {apiKeyEnvExpanded
+                      ? t('dsh.provider.credentialRefDefault')
+                      : t('dsh.provider.credentialRefCustom')}
+                  </Button>
+                </p>
+                {apiKeyEnvExpanded ? (
+                  <div className="max-w-md space-y-2">
+                    <Label htmlFor="dsh-provider-api-key-env">
+                      {t('dsh.provider.credentialRef')}
+                    </Label>
+                    <Input
+                      id="dsh-provider-api-key-env"
+                      value={customApiKeyEnv}
+                      onChange={e => setCustomApiKeyEnv(e.target.value)}
+                      placeholder={derivedApiKeyEnv}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {t('dsh.provider.credentialRefHint')}
+                    </p>
+                    {customApiKeyEnv.trim() &&
+                    !isValidApiKeyEnv(customApiKeyEnv) ? (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        {t('dsh.provider.credentialRefInvalid')}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="space-y-2">
               <Label htmlFor="dsh-provider-reasoning">
