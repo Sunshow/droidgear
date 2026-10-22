@@ -81,6 +81,8 @@ describe('ProviderDialog defaults', () => {
     expect(screen.getByLabelText('Default reasoning effort')).toHaveTextContent(
       'High'
     )
+    expect(screen.getByRole('checkbox', { name: 'Text' })).toBeDisabled()
+    expect(screen.getByRole('checkbox', { name: 'Image' })).toBeChecked()
     expect(
       screen.getByText(
         'Suggested High from the current models; you can change it'
@@ -96,7 +98,12 @@ describe('ProviderDialog defaults', () => {
       expect(commandMocks.saveDshProvider).toHaveBeenCalledWith(
         'desktop',
         'byok',
-        expect.objectContaining({ reasoning: 'high' })
+        expect.objectContaining({
+          reasoning: 'high',
+          models: [
+            expect.objectContaining({ id: 'gpt-5', input: ['text', 'image'] }),
+          ],
+        })
       )
     })
     await waitFor(() => {
@@ -108,6 +115,39 @@ describe('ProviderDialog defaults', () => {
       )
     })
     expect(onOpenChangeMock).toHaveBeenCalledWith(false)
+  })
+
+  it('lets the user turn image support off for a custom gateway', async () => {
+    const user = userEvent.setup()
+    render(
+      <ProviderDialog
+        open
+        onOpenChange={onOpenChangeMock}
+        editingProviderId={null}
+      />
+    )
+
+    await user.type(screen.getByLabelText('Provider ID'), 'byok')
+    await user.click(screen.getByRole('button', { name: 'Add Model' }))
+    await user.type(
+      screen.getAllByPlaceholderText('Model ID')[0] as HTMLElement,
+      'gpt-5'
+    )
+
+    // Registry suggests image, then the user disables it.
+    await user.click(screen.getByRole('checkbox', { name: 'Image' }))
+    expect(screen.getByRole('checkbox', { name: 'Image' })).not.toBeChecked()
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      expect(commandMocks.saveDshProvider).toHaveBeenCalledWith(
+        'desktop',
+        'byok',
+        expect.objectContaining({
+          models: [expect.objectContaining({ id: 'gpt-5', input: ['text'] })],
+        })
+      )
+    })
   })
 
   it('omits reasoningEffort when the default level is not set', async () => {

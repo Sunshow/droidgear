@@ -34,6 +34,7 @@ import {
   draftFromChannelModel,
   draftToModel,
   modelToDraft,
+  resolveInputModalities,
   type DshModelDraft as ModelDraft,
 } from './model-draft'
 import { commands, type DshModel, type DshProviderConfig } from '@/lib/bindings'
@@ -222,7 +223,15 @@ export function ProviderDialog({
   const handleAddModel = () => {
     setModels(prev => [
       ...prev,
-      { id: '', name: '', contextWindow: '', maxTokens: '', base: null },
+      {
+        id: '',
+        name: '',
+        contextWindow: '',
+        maxTokens: '',
+        input: ['text'],
+        inputTouched: false,
+        base: null,
+      },
     ])
   }
 
@@ -264,6 +273,9 @@ export function ProviderDialog({
             maxTokens: existing.maxTokens.trim()
               ? existing.maxTokens
               : (model.maxTokens?.toString() ?? ''),
+            input: existing.inputTouched
+              ? existing.input
+              : modelToDraft(model).input,
             base: existing.base ?? model,
           }
           byId.set(model.id, merged)
@@ -674,7 +686,14 @@ export function ProviderDialog({
                           value={draft.id}
                           onChange={e => {
                             const nextId = e.target.value
-                            updateModel(index, { id: nextId })
+                            updateModel(index, {
+                              id: nextId,
+                              ...(draft.inputTouched
+                                ? {}
+                                : {
+                                    input: resolveInputModalities(nextId, null),
+                                  }),
+                            })
                             if (defaultModelId === modelId) {
                               setDefaultModelId(nextId.trim())
                             }
@@ -745,11 +764,50 @@ export function ProviderDialog({
                             t('dsh.provider.reasoningEffortsAuto')}
                         </span>
                       </div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="text-xs text-muted-foreground">
+                          {t('dsh.provider.inputModalities')}
+                        </span>
+                        <label
+                          className="flex items-center gap-1.5 text-xs"
+                          htmlFor={`dsh-model-text-${index}`}
+                        >
+                          <Checkbox
+                            id={`dsh-model-text-${index}`}
+                            checked
+                            disabled
+                          />
+                          {t('dsh.provider.inputText')}
+                        </label>
+                        <label
+                          className="flex items-center gap-1.5 text-xs"
+                          htmlFor={`dsh-model-image-${index}`}
+                        >
+                          <Checkbox
+                            id={`dsh-model-image-${index}`}
+                            checked={draft.input.includes('image')}
+                            onCheckedChange={checked =>
+                              updateModel(index, {
+                                input:
+                                  checked === true
+                                    ? ['text', 'image']
+                                    : ['text'],
+                                inputTouched: true,
+                              })
+                            }
+                          />
+                          {t('dsh.provider.inputImage')}
+                        </label>
+                      </div>
                     </div>
                   )
                 })}
               </div>
             )}
+
+            <p className="text-xs text-muted-foreground">
+              {t('dsh.provider.inputModalitiesHint')}
+            </p>
           </div>
 
           {validationError && (

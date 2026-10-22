@@ -1562,6 +1562,11 @@
   "dsh.provider.defaultModelSummary": "默认模型：{{model}}",
   "dsh.provider.defaultModelSummaryWithEffort": "默认模型：{{model}}（{{effort}}）",
 
+  "dsh.provider.inputModalities": "输入类型",
+  "dsh.provider.inputText": "文本",
+  "dsh.provider.inputImage": "图像",
+  "dsh.provider.inputModalitiesHint": "图像能力按 model registry 自动填充，可手动关闭；自定义网关若不支持图像请取消勾选。",
+
   "dsh.models.currentDefault": "当前默认模型：{{provider}} / {{model}}",
   "dsh.models.currentDefaultWithEffort": "当前默认模型：{{provider}} / {{model}}（{{effort}}）",
   "dsh.models.noDefault": "尚未设置默认模型",

@@ -1562,6 +1562,11 @@
   "dsh.provider.defaultModelSummary": "Default model: {{model}}",
   "dsh.provider.defaultModelSummaryWithEffort": "Default model: {{model}} ({{effort}})",
 
+  "dsh.provider.inputModalities": "Input modalities",
+  "dsh.provider.inputText": "Text",
+  "dsh.provider.inputImage": "Image",
+  "dsh.provider.inputModalitiesHint": "Image support is filled from the model registry and can be turned off; uncheck it when a custom gateway cannot handle images.",
+
   "dsh.models.currentDefault": "Current default model: {{provider}} / {{model}}",
   "dsh.models.currentDefaultWithEffort": "Current default model: {{provider}} / {{model}} ({{effort}})",
   "dsh.models.noDefault": "No default model set",
