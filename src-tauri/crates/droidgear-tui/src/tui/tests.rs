@@ -2207,3 +2207,104 @@ fn dsh_model_g_writes_agent_default_model() {
         }))
     );
 }
+
+// --- DSH model input modalities (task-12) ---
+
+fn dsh_model_app(home: &Path) -> app::App {
+    let mut provider = dsh_provider_with_models();
+    provider.models = vec![droidgear_core::dsh::DshModel {
+        id: "test-model".to_string(),
+        ..Default::default()
+    }];
+    droidgear_core::dsh::save_dsh_provider_for_profile(
+        home,
+        Some("desktop"),
+        "test-provider",
+        &provider,
+    )
+    .unwrap();
+    let mut app = app::App::new(home.to_path_buf());
+    app.dsh_active_profile = Some("desktop".to_string());
+    app.screen = app::Screen::DshModel;
+    app.dsh_provider_id = Some("test-provider".to_string());
+    app.dsh_model_index = 0;
+    app.dsh_model_field_index = 5;
+    super::refresh::refresh_dsh(&mut app);
+    app
+}
+
+fn dsh_model_input(home: &Path) -> Option<Vec<String>> {
+    let config =
+        droidgear_core::dsh::read_dsh_current_config_for_profile(home, Some("desktop")).unwrap();
+    config
+        .providers
+        .get("test-provider")
+        .unwrap()
+        .models
+        .first()
+        .unwrap()
+        .input
+        .clone()
+}
+
+fn select_model_input(app: &mut app::App) -> (app::SelectAction, usize) {
+    super::keys_dsh::handle_dsh_model_key(app, KeyCode::Enter);
+    let Some(app::Modal::Select { action, index, .. }) = app.modal.take() else {
+        panic!("expected input modality select, got {:?}", app.modal);
+    };
+    (action, index)
+}
+
+#[test]
+fn dsh_model_input_field_selects_text_image_and_auto() {
+    let temp = TempDir::new().unwrap();
+    dsh_config_write_profile(temp.path(), "[]\n");
+    let mut app = dsh_model_app(temp.path());
+
+    let (action, index) = select_model_input(&mut app);
+    assert_eq!(index, 2, "unset input shows the auto option");
+    super::modal::run_select_action(&mut app, action, 1, Some("text+image".to_string())).unwrap();
+    assert_eq!(
+        dsh_model_input(temp.path()),
+        Some(vec!["text".to_string(), "image".to_string()])
+    );
+    let patch = std::fs::read_to_string(temp.path().join(".dsh/profiles/desktop/cordis.patch.yml"))
+        .unwrap();
+    assert!(patch.contains("input:"), "{patch}");
+    assert!(patch.contains("- image"), "{patch}");
+
+    super::refresh::refresh_dsh(&mut app);
+    let rendered = render_visible(&app, 110, 30);
+    assert!(rendered.contains("Input"), "{rendered}");
+    assert!(rendered.contains("text, image"), "{rendered}");
+    assert!(
+        rendered.contains("Input field: text / text+image"),
+        "{rendered}"
+    );
+
+    // The saved value is preselected next time round.
+    let (action, index) = select_model_input(&mut app);
+    assert_eq!(index, 1);
+    super::modal::run_select_action(&mut app, action, 0, Some("text".to_string())).unwrap();
+    assert_eq!(dsh_model_input(temp.path()), Some(vec!["text".to_string()]));
+
+    // Auto clears the explicit list again.
+    let (action, _) = select_model_input(&mut app);
+    super::modal::run_select_action(&mut app, action, 2, Some("(auto: registry)".to_string()))
+        .unwrap();
+    assert_eq!(dsh_model_input(temp.path()), None);
+    let patch = std::fs::read_to_string(temp.path().join(".dsh/profiles/desktop/cordis.patch.yml"))
+        .unwrap();
+    assert!(!patch.contains("input:"), "{patch}");
+}
+
+#[test]
+fn dsh_model_input_cancel_does_not_write() {
+    let temp = TempDir::new().unwrap();
+    dsh_config_write_profile(temp.path(), "[]\n");
+    let mut app = dsh_model_app(temp.path());
+    let (action, _) = select_model_input(&mut app);
+    // Esc/cancel arrives as `selected == None`.
+    super::modal::run_select_action(&mut app, action, 0, None).unwrap();
+    assert_eq!(dsh_model_input(temp.path()), None);
+}

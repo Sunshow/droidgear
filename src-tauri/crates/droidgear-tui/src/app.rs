@@ -794,6 +794,11 @@ pub enum SelectAction {
     DshAddFetchedModels {
         provider_id: String,
     },
+    /// Pick the pi-ai input modalities of one model (`text` / `text+image`).
+    DshSetModelInput {
+        provider_id: String,
+        model_index: usize,
+    },
     HermesImportFromChannel {
         profile_id: String,
         model_index: usize,
@@ -1799,8 +1804,9 @@ impl App {
         if self.dsh_model_index >= dsh_model_count {
             self.dsh_model_index = dsh_model_count.saturating_sub(1);
         }
-        // DshModel screen has 5 fields: id, name, contextWindow, maxTokens, reasoning
-        let dsh_model_fields_count = 5usize;
+        // DshModel screen has 6 fields: id, name, contextWindow, maxTokens,
+        // reasoning, input modalities
+        let dsh_model_fields_count = 6usize;
         if self.dsh_model_field_index >= dsh_model_fields_count {
             self.dsh_model_field_index = dsh_model_fields_count.saturating_sub(1);
         }

@@ -272,6 +272,7 @@ Dsh 页保持现有 profile 维度（desktop/web），每个 profile 下分栏�
   - secret：snapshot 里 top-level secret 字段替换为 `{"$secret": true}`；保存时该标记表示「保持继承值」，明文 secret 拒绝写入。
 - `src-tauri/src/commands/dsh_config.rs` + `src/lib/bindings.ts`：三个 Tauri 命令。
 - `DshProviderConfig.reasoning`（pi-ai 路由默认思考强度，`off/minimal/low/medium/high/xhigh/max`，空 = 跟随 provider 默认；后端 normalize + 校验）。这是 DSH 生成 `defaultEffort` 的唯一来源：不写它，模型选择器就显示「Default」。
+- `DshModel.input`（`text` / `image`）：保存时按 model id/alias 从 DroidGear registry 自动填充（如 `deepseek-flash`→text+image、`deepseek-v4-pro`→text），非法值拒绝。自定义 pi-ai 路由没有 installed catalog 可继承，DSH 会把未声明的模型当成 route `defaultInput` = 仅 `text`，所以不写它图像请求会被拒（`UNSUPPORTED_CONTENT`）。
 - `src-tauri/crates/droidgear-core/src/storage.rs`：`atomic_write` 改为唯一临时文件名；新增 `atomic_write_private`（0600）。
 
 ### 9.2 Schema 快照
@@ -291,6 +292,7 @@ node scripts/gen-dsh-config-schema.mjs --check         # 校验已提交文件�
 - `src/components/dsh/config/`：通用表单组件（SettingsSection/SettingsRow/EnumField/NumberField/SwitchField/TextField/徽标/PageHeader）。
 - `EntrySettingsCard`：按 entry 渲染字段并 staged 保存；`$js`/secret/json/C 档只读，非 volatile 显示「重启后生效」。
 - Models tab 的 ProviderDialog：新增「默认思考强度」Select（新建/未显式设置时，若该路由所有模型已知支持 `high` 则自动建议 `high`，与官方 DeepSeek 行为对齐；部分模型不支持时显示警告），以及模型行的「设为默认模型」星标——保存时把 `{provider, model, reasoningEffort}` 写入 `agent-default-model` 条目（复用通用 `saveEntry`，带 patch hash 乐观锁）。
+- 模型行新增「输入类型」：文本固定、图像可勾选；未手动改过时随 model id/alias 按 registry 自动建议（`deepseek-flash` 自动含 image），手动切换后不再被覆盖，自定义网关不支持图像时可取消。
 - `src/store/dsh-store.ts`：snapshot + `loadSnapshot`/`saveEntry`/`toggleEntryDisabled`，冲突/遮蔽错误转成提示。
 
 ### 9.4 TUI

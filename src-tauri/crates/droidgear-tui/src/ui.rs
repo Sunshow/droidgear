@@ -3840,6 +3840,15 @@ fn draw_dsh_model(frame: &mut Frame, app: &app::App, area: Rect) {
                 .unwrap_or_else(|| "".to_string()),
         ),
         ("Reasoning", reasoning),
+        (
+            "Input",
+            model
+                .input
+                .as_ref()
+                .filter(|values| !values.is_empty())
+                .map(|values| values.join(", "))
+                .unwrap_or_else(|| "(auto from registry)".to_string()),
+        ),
     ];
 
     let mut items: Vec<ListItem> = Vec::new();
@@ -3855,7 +3864,7 @@ fn draw_dsh_model(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .constraints([Constraint::Min(0), Constraint::Length(3)].as_ref())
         .split(area);
 
     // Current `agent-default-model` from the composed config snapshot, if the
@@ -3896,7 +3905,13 @@ fn draw_dsh_model(frame: &mut Frame, app: &app::App, area: Rect) {
         .highlight_style(t.selected_row_style());
     render_list(frame, list, chunks[0], Some(app.dsh_model_field_index));
 
-    let help = help_paragraph("Up/Down: select  Enter/e: edit  g: set default model  q/Esc: back");
+    let help = Paragraph::new(vec![
+        help_line("Up/Down: select  Enter/e: edit  g: set default model  q/Esc: back"),
+        hint_line("Input field: text / text+image  (auto = registry default)"),
+    ])
+    .style(t.dim_style())
+    .block(help_block())
+    .wrap(Wrap { trim: true });
     frame.render_widget(help, chunks[1]);
 }
 

@@ -1386,6 +1386,37 @@ pub(super) fn run_select_action(
             }
             Ok(())
         }
+        app::SelectAction::DshSetModelInput {
+            provider_id,
+            model_index,
+        } => {
+            let Some(label) = selected else {
+                return Ok(());
+            };
+            let input = super::keys_dsh::dsh_model_input_from_label(&label);
+            let mut config = droidgear_core::dsh::read_dsh_current_config_for_profile(
+                &app.home_dir,
+                app.dsh_active_profile.as_deref(),
+            )
+            .map_err(anyhow::Error::msg)?;
+            let Some(provider) = config.providers.get_mut(&provider_id) else {
+                return Err(anyhow::Error::msg("Provider not found"));
+            };
+            let Some(model) = provider.models.get_mut(model_index) else {
+                return Err(anyhow::Error::msg("Model not found"));
+            };
+            model.input = input;
+            droidgear_core::dsh::save_dsh_provider_for_profile(
+                &app.home_dir,
+                app.dsh_active_profile.as_deref(),
+                &provider_id,
+                provider,
+            )
+            .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            refresh_dsh(app);
+            Ok(())
+        }
         app::SelectAction::PiImportFromChannel {
             profile_id,
             provider_id,

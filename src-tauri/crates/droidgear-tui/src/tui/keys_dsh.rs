@@ -320,6 +320,22 @@ pub(super) fn handle_dsh_model_key(app: &mut app::App, code: KeyCode) -> Option<
                     false,
                 );
             }
+            5 => {
+                let options: Vec<String> = DSH_MODEL_INPUT_OPTIONS
+                    .iter()
+                    .map(|option| option.to_string())
+                    .collect();
+                let index = dsh_model_input_index(model.input.as_deref());
+                app.modal = Some(app::Modal::Select {
+                    title: format!("{} input modalities", model.id),
+                    options,
+                    index,
+                    action: app::SelectAction::DshSetModelInput {
+                        provider_id: provider_id.clone(),
+                        model_index,
+                    },
+                });
+            }
             _ => {}
         },
         _ => {}
@@ -466,5 +482,34 @@ pub(super) fn dsh_set_default_model(app: &mut app::App) {
             request_dsh_config_refresh(app);
         }
         Err(error) => app.set_toast(error, true),
+    }
+}
+
+/// Select labels for one model's pi-ai input modalities. The last entry
+/// clears the explicit list so core re-enriches it from the model registry.
+pub(super) const DSH_MODEL_INPUT_OPTIONS: [&str; 3] = ["text", "text+image", "(auto: registry)"];
+
+/// Index of the current modalities in [`DSH_MODEL_INPUT_OPTIONS`].
+pub(super) fn dsh_model_input_index(input: Option<&[String]>) -> usize {
+    match input {
+        Some(values)
+            if values
+                .iter()
+                .any(|value| value.eq_ignore_ascii_case("image")) =>
+        {
+            1
+        }
+        Some(values) if !values.is_empty() => 0,
+        _ => 2,
+    }
+}
+
+/// Map a [`DSH_MODEL_INPUT_OPTIONS`] label back to `DshModel.input`
+/// (`None` = leave it unset so core fills it from the registry).
+pub(super) fn dsh_model_input_from_label(label: &str) -> Option<Vec<String>> {
+    match label {
+        "text" => Some(vec!["text".to_string()]),
+        "text+image" => Some(vec!["text".to_string(), "image".to_string()]),
+        _ => None,
     }
 }
