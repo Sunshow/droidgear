@@ -68,7 +68,11 @@ import ts from 'typescript'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(SCRIPT_DIR, '..')
-const DEFAULT_DSH_REPO = '/Users/feuvan/src/deepseek-harness'
+// A sibling DSH checkout keeps the command portable for reviewers; CI or a
+// custom layout can point `DSH_SOURCE_DIR` at the checkout instead.
+const DEFAULT_DSH_REPO = process.env.DSH_SOURCE_DIR
+  ? resolve(process.env.DSH_SOURCE_DIR)
+  : resolve(REPO_ROOT, '..', 'deepseek-harness')
 const DEFAULT_OUT_PATH = join(
   REPO_ROOT,
   'src-tauri/crates/droidgear-core/res/dsh-config-schema.json'
@@ -416,7 +420,8 @@ const HELP = `Usage: node scripts/gen-dsh-config-schema.mjs [options]
 Generate res/dsh-config-schema.json from a DeepSeek Harness source checkout.
 
 Options:
-  --dsh <path>      DSH source checkout (default: ${DEFAULT_DSH_REPO})
+  --dsh <path>      DSH source checkout (default: $DSH_SOURCE_DIR or a
+                    deepseek-harness checkout next to this repository)
   --version <ver>   DSH version label (default: <dsh>/package.json version)
   --out <path>      Output path (default: src-tauri/crates/droidgear-core/res/dsh-config-schema.json)
   --check           Validate the committed JSON and verify it is up to date (no write)
@@ -531,7 +536,6 @@ function createContext(options) {
   return {
     dshRoot,
     version,
-    isDefaultDshRoot: dshRoot === resolve(DEFAULT_DSH_REPO),
     generatedAt: formatLocalDate(new Date()),
     packageIndex: buildPackageIndex(options.dsh),
     packageIndexByDir: new Map(),
@@ -3037,11 +3041,8 @@ function buildEntries(context, bundles) {
 function buildDocument(context) {
   const bundles = buildBundles(context)
   const { entries } = buildEntries(context, bundles)
-  const dshArgument = context.isDefaultDshRoot
-    ? ''
-    : ` --dsh ${context.dshRoot}`
   const generator =
-    `node scripts/gen-dsh-config-schema.mjs${dshArgument} --version ${context.version}` +
+    `node scripts/gen-dsh-config-schema.mjs --dsh <deepseek-harness-checkout> --version ${context.version}` +
     '  (reads DSH bundle patches + docs/config-catalog.zh.md + schemastery sources; never hand-edit the output)'
   return {
     schemaVersion: 1,

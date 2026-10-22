@@ -3,7 +3,7 @@
   "dshVersion": "0.2.1-rc.2",
   "generatedAt": "2026-10-22",
   "source": "deepseek-ai/deepseek-harness@dsh-v0.2.1-rc.2",
-  "generator": "node scripts/gen-dsh-config-schema.mjs --version 0.2.1-rc.2  (reads DSH bundle patches + docs/config-catalog.zh.md + schemastery sources; never hand-edit the output)",
+  "generator": "node scripts/gen-dsh-config-schema.mjs --dsh <deepseek-harness-checkout> --version 0.2.1-rc.2  (reads DSH bundle patches + docs/config-catalog.zh.md + schemastery sources; never hand-edit the output)",
   "bundles": {
     "@deepseek-ai/dsh-base": {
       "entries": [
