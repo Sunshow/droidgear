@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { useDshStore } from '@/store/dsh-store'
 import { ConfigStatus } from './ConfigStatus'
+import { DshOfficialDeepseekCard } from './DshOfficialDeepseekCard'
 import { ProviderCard } from './ProviderCard'
 import { ProviderDialog } from './ProviderDialog'
 import { isProviderReasoningLevel, readDefaultModel } from './provider-defaults'
@@ -52,6 +53,8 @@ export function DshModelsTab() {
 
   return (
     <div className="space-y-4">
+      <DshOfficialDeepseekCard />
+
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 p-3">
         <Star className="size-4 shrink-0 text-amber-500" aria-hidden="true" />
         {defaultModel ? (
