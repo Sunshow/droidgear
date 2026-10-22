@@ -1236,13 +1236,7 @@ pub(super) fn run_select_action(
                 return Err(anyhow::Error::msg("Provider not found"));
             };
             provider.api = Some(selected);
-            droidgear_core::dsh::save_dsh_provider_for_profile(
-                &app.home_dir,
-                app.dsh_active_profile.as_deref(),
-                &provider_id,
-                provider,
-            )
-            .map_err(anyhow::Error::msg)?;
+            super::keys_dsh::dsh_save_provider(app, &provider_id, provider)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -1321,22 +1315,13 @@ pub(super) fn run_select_action(
                 .collect();
 
             provider.base_url = Some(base_url);
-            provider.api_key_env = Some(format!(
-                "{}_API_KEY",
-                provider_id.to_uppercase().replace('-', "_")
-            ));
+            provider.api_key_env = Some(super::keys_dsh::dsh_default_api_key_env(&provider_id));
             provider.api = app.dsh_import_pending_api_type.take();
             provider.models = dsh_models;
-            droidgear_core::dsh::save_dsh_provider_for_profile(
-                &app.home_dir,
-                app.dsh_active_profile.as_deref(),
-                &provider_id,
-                provider,
-            )
-            .map_err(anyhow::Error::msg)?;
+            super::keys_dsh::dsh_save_provider(app, &provider_id, provider)?;
 
             // Store the API key in the credentials refs under the env name.
-            let env_name = provider_id.to_uppercase().replace('-', "_") + "_API_KEY";
+            let env_name = super::keys_dsh::dsh_default_api_key_env(&provider_id);
             droidgear_core::dsh::save_dsh_credential_ref_for_home(
                 &app.home_dir,
                 &env_name,
@@ -1372,13 +1357,7 @@ pub(super) fn run_select_action(
                 provider.models.push(model);
                 added += 1;
             }
-            droidgear_core::dsh::save_dsh_provider_for_profile(
-                &app.home_dir,
-                app.dsh_active_profile.as_deref(),
-                &provider_id,
-                provider,
-            )
-            .map_err(anyhow::Error::msg)?;
+            super::keys_dsh::dsh_save_provider(app, &provider_id, provider)?;
             if added > 0 {
                 app.set_toast(format!("Fetched models: {added} added"), false);
             } else {
@@ -1406,13 +1385,7 @@ pub(super) fn run_select_action(
                 return Err(anyhow::Error::msg("Model not found"));
             };
             model.input = input;
-            droidgear_core::dsh::save_dsh_provider_for_profile(
-                &app.home_dir,
-                app.dsh_active_profile.as_deref(),
-                &provider_id,
-                provider,
-            )
-            .map_err(anyhow::Error::msg)?;
+            super::keys_dsh::dsh_save_provider(app, &provider_id, provider)?;
             app.set_toast("Saved", false);
             refresh_dsh(app);
             Ok(())
@@ -2551,13 +2524,7 @@ pub(super) fn run_confirm_action(
             if model_index < provider.models.len() {
                 provider.models.remove(model_index);
             }
-            droidgear_core::dsh::save_dsh_provider_for_profile(
-                &app.home_dir,
-                app.dsh_active_profile.as_deref(),
-                &provider_id,
-                provider,
-            )
-            .map_err(anyhow::Error::msg)?;
+            super::keys_dsh::dsh_save_provider(app, &provider_id, provider)?;
             refresh_dsh(app);
             Ok(())
         }
@@ -4896,13 +4863,11 @@ pub(super) fn run_input_action(
                 return Err(anyhow::Error::msg("Provider already exists"));
             }
             let provider_id = trimmed.to_string();
-            droidgear_core::dsh::save_dsh_provider_for_profile(
-                &app.home_dir,
-                app.dsh_active_profile.as_deref(),
+            super::keys_dsh::dsh_save_provider(
+                app,
                 &provider_id,
                 &super::keys_dsh::dsh_default_provider_config(),
-            )
-            .map_err(anyhow::Error::msg)?;
+            )?;
 
             refresh_dsh(app);
             if let Some(idx) = app
@@ -4932,13 +4897,11 @@ pub(super) fn run_input_action(
                 return Err(anyhow::Error::msg("Provider already exists"));
             }
             let provider_id = trimmed.to_string();
-            droidgear_core::dsh::save_dsh_provider_for_profile(
-                &app.home_dir,
-                app.dsh_active_profile.as_deref(),
+            super::keys_dsh::dsh_save_provider(
+                app,
                 &provider_id,
                 &super::keys_dsh::dsh_default_provider_config(),
-            )
-            .map_err(anyhow::Error::msg)?;
+            )?;
             refresh_dsh(app);
 
             refresh_channels(app);
@@ -4996,13 +4959,7 @@ pub(super) fn run_input_action(
                 return Err(anyhow::Error::msg("Provider not found"));
             };
             provider.display_name = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::dsh::save_dsh_provider_for_profile(
-                &app.home_dir,
-                app.dsh_active_profile.as_deref(),
-                &provider_id,
-                provider,
-            )
-            .map_err(anyhow::Error::msg)?;
+            super::keys_dsh::dsh_save_provider(app, &provider_id, provider)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -5016,13 +4973,7 @@ pub(super) fn run_input_action(
                 return Err(anyhow::Error::msg("Provider not found"));
             };
             provider.base_url = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::dsh::save_dsh_provider_for_profile(
-                &app.home_dir,
-                app.dsh_active_profile.as_deref(),
-                &provider_id,
-                provider,
-            )
-            .map_err(anyhow::Error::msg)?;
+            super::keys_dsh::dsh_save_provider(app, &provider_id, provider)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -5036,13 +4987,7 @@ pub(super) fn run_input_action(
                 return Err(anyhow::Error::msg("Provider not found"));
             };
             provider.api_key_env = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::dsh::save_dsh_provider_for_profile(
-                &app.home_dir,
-                app.dsh_active_profile.as_deref(),
-                &provider_id,
-                provider,
-            )
-            .map_err(anyhow::Error::msg)?;
+            super::keys_dsh::dsh_save_provider(app, &provider_id, provider)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -5091,13 +5036,7 @@ pub(super) fn run_input_action(
             } else {
                 Some(normalized)
             };
-            droidgear_core::dsh::save_dsh_provider_for_profile(
-                &app.home_dir,
-                app.dsh_active_profile.as_deref(),
-                &provider_id,
-                provider,
-            )
-            .map_err(anyhow::Error::msg)?;
+            super::keys_dsh::dsh_save_provider(app, &provider_id, provider)?;
             app.set_toast("Saved", false);
             refresh_dsh(app);
             Ok(())
@@ -5119,13 +5058,7 @@ pub(super) fn run_input_action(
                 id: trimmed.to_string(),
                 ..Default::default()
             });
-            droidgear_core::dsh::save_dsh_provider_for_profile(
-                &app.home_dir,
-                app.dsh_active_profile.as_deref(),
-                &provider_id,
-                provider,
-            )
-            .map_err(anyhow::Error::msg)?;
+            super::keys_dsh::dsh_save_provider(app, &provider_id, provider)?;
             app.dsh_model_index = new_index;
             app.dsh_model_field_index = 0;
             app.screen = app::Screen::DshModel;
@@ -5151,13 +5084,7 @@ pub(super) fn run_input_action(
                 return Err(anyhow::Error::msg("Model not found"));
             };
             model.id = trimmed.to_string();
-            droidgear_core::dsh::save_dsh_provider_for_profile(
-                &app.home_dir,
-                app.dsh_active_profile.as_deref(),
-                &provider_id,
-                provider,
-            )
-            .map_err(anyhow::Error::msg)?;
+            super::keys_dsh::dsh_save_provider(app, &provider_id, provider)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -5177,13 +5104,7 @@ pub(super) fn run_input_action(
                 return Err(anyhow::Error::msg("Model not found"));
             };
             model.name = (!trimmed.is_empty()).then(|| trimmed.to_string());
-            droidgear_core::dsh::save_dsh_provider_for_profile(
-                &app.home_dir,
-                app.dsh_active_profile.as_deref(),
-                &provider_id,
-                provider,
-            )
-            .map_err(anyhow::Error::msg)?;
+            super::keys_dsh::dsh_save_provider(app, &provider_id, provider)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -5211,13 +5132,7 @@ pub(super) fn run_input_action(
                         .map_err(|_| anyhow::Error::msg("Invalid context window"))?,
                 )
             };
-            droidgear_core::dsh::save_dsh_provider_for_profile(
-                &app.home_dir,
-                app.dsh_active_profile.as_deref(),
-                &provider_id,
-                provider,
-            )
-            .map_err(anyhow::Error::msg)?;
+            super::keys_dsh::dsh_save_provider(app, &provider_id, provider)?;
             app.set_toast("Saved", false);
             Ok(())
         }
@@ -5245,13 +5160,7 @@ pub(super) fn run_input_action(
                         .map_err(|_| anyhow::Error::msg("Invalid max tokens"))?,
                 )
             };
-            droidgear_core::dsh::save_dsh_provider_for_profile(
-                &app.home_dir,
-                app.dsh_active_profile.as_deref(),
-                &provider_id,
-                provider,
-            )
-            .map_err(anyhow::Error::msg)?;
+            super::keys_dsh::dsh_save_provider(app, &provider_id, provider)?;
             app.set_toast("Saved", false);
             Ok(())
         }

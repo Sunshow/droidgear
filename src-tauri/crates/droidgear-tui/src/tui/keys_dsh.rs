@@ -132,7 +132,7 @@ pub(super) fn handle_dsh_provider_key(app: &mut app::App, code: KeyCode) -> Opti
                     }
                     3 => {
                         app.modal = Some(app::Modal::Input {
-                            title: "API key env var".to_string(),
+                            title: "API key env var (empty = auto)".to_string(),
                             value: config.api_key_env.clone().unwrap_or_default(),
                             cursor: usize::MAX,
                             is_secret: false,
@@ -378,13 +378,7 @@ pub(super) fn dsh_toggle_supports_developer_role(
         .unwrap_or(false);
     let compat = provider.compat.get_or_insert_with(Default::default);
     compat.supports_developer_role = Some(!current);
-    droidgear_core::dsh::save_dsh_provider_for_profile(
-        &app.home_dir,
-        app.dsh_active_profile.as_deref(),
-        provider_id,
-        provider,
-    )
-    .map_err(anyhow::Error::msg)?;
+    dsh_save_provider(app, provider_id, provider)?;
     Ok(())
 }
 
@@ -512,4 +506,47 @@ pub(super) fn dsh_model_input_from_label(label: &str) -> Option<Vec<String>> {
         "text+image" => Some(vec!["text".to_string(), "image".to_string()]),
         _ => None,
     }
+}
+
+/// Credential env var name the Models page derives for a provider id:
+/// uppercase, non-alphanumerics (except `_`) become `_`, then `_API_KEY`.
+pub(super) fn dsh_default_api_key_env(provider_id: &str) -> String {
+    let upper = provider_id.to_uppercase();
+    let sanitized: String = upper
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    format!("{sanitized}_API_KEY")
+}
+
+/// Save a provider from the TUI. An empty `apiKeyEnv` falls back to the
+/// derived `<PROVIDER_ID>_API_KEY` reference, so saving an API key value never
+/// produces a provider that cannot reference it.
+pub(super) fn dsh_save_provider(
+    app: &app::App,
+    provider_id: &str,
+    config: &droidgear_core::dsh::DshProviderConfig,
+) -> anyhow::Result<()> {
+    let mut config = config.clone();
+    if !provider_id.is_empty()
+        && config
+            .api_key_env
+            .as_deref()
+            .is_none_or(|env| env.trim().is_empty())
+    {
+        config.api_key_env = Some(dsh_default_api_key_env(provider_id));
+    }
+    droidgear_core::dsh::save_dsh_provider_for_profile(
+        &app.home_dir,
+        app.dsh_active_profile.as_deref(),
+        provider_id,
+        &config,
+    )
+    .map_err(anyhow::Error::msg)
 }

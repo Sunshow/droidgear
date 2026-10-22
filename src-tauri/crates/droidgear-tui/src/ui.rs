@@ -3661,7 +3661,7 @@ fn draw_dsh_provider(frame: &mut Frame, app: &app::App, area: Rect) {
             [
                 Constraint::Length(9),
                 Constraint::Min(0),
-                Constraint::Length(2),
+                Constraint::Length(3),
             ]
             .as_ref(),
         )
@@ -3701,7 +3701,7 @@ fn draw_dsh_provider(frame: &mut Frame, app: &app::App, area: Rect) {
             if api_key_env_set {
                 config.api_key_env.clone().unwrap_or_default()
             } else {
-                "(not set)".to_string()
+                "(empty = auto)".to_string()
             },
         ),
         (
@@ -3767,9 +3767,15 @@ fn draw_dsh_provider(frame: &mut Frame, app: &app::App, area: Rect) {
         .highlight_style(t.selected_row_style());
     render_list(frame, models_list, chunks[1], model_selected);
 
-    let help = help_paragraph(
-        "Up/Down: move  Enter/e: edit field/open model  n: add model  f: fetch models  d: del model  r: refresh  q/Esc: back",
-    );
+    let help = Paragraph::new(vec![
+        help_line(
+            "Up/Down: move  Enter/e: edit field/open model  n: add model  f: fetch models  d: del model  r: refresh  q/Esc: back",
+        ),
+        hint_line("API Key Env: empty = auto (<PROVIDER_ID>_API_KEY)"),
+    ])
+    .style(t.dim_style())
+    .block(help_block())
+    .wrap(Wrap { trim: true });
     frame.render_widget(help, chunks[2]);
 }
 

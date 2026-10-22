@@ -2308,3 +2308,122 @@ fn dsh_model_input_cancel_does_not_write() {
     super::modal::run_select_action(&mut app, action, 0, None).unwrap();
     assert_eq!(dsh_model_input(temp.path()), None);
 }
+
+// --- DSH provider apiKeyEnv auto-derivation (task-14) ---
+
+fn dsh_provider_create_app(home: &Path) -> app::App {
+    let mut app = app::App::new(home.to_path_buf());
+    app.dsh_active_profile = Some("desktop".to_string());
+    app.screen = app::Screen::DshDesktop;
+    super::refresh::refresh_dsh(&mut app);
+    app
+}
+
+fn dsh_patch_text(home: &Path) -> String {
+    std::fs::read_to_string(home.join(".dsh/profiles/desktop/cordis.patch.yml")).unwrap()
+}
+
+fn dsh_provider_env(home: &Path, provider_id: &str) -> Option<String> {
+    let config =
+        droidgear_core::dsh::read_dsh_current_config_for_profile(home, Some("desktop")).unwrap();
+    config
+        .providers
+        .get(provider_id)
+        .unwrap()
+        .api_key_env
+        .clone()
+}
+
+#[test]
+fn dsh_provider_save_derives_api_key_env_when_empty() {
+    let temp = TempDir::new().unwrap();
+    dsh_config_write_profile(temp.path(), "[]\n");
+    let mut app = dsh_provider_create_app(temp.path());
+
+    super::modal::run_input_action(
+        &mut app,
+        app::InputAction::DshAddProvider,
+        "openrouter".to_string(),
+    )
+    .unwrap();
+    assert!(
+        dsh_patch_text(temp.path()).contains("apiKeyEnv: OPENROUTER_API_KEY"),
+        "{}",
+        dsh_patch_text(temp.path())
+    );
+    assert_eq!(
+        dsh_provider_env(temp.path(), "openrouter").as_deref(),
+        Some("OPENROUTER_API_KEY")
+    );
+
+    // Clearing the field keeps the derived reference instead of writing None.
+    super::modal::run_input_action(
+        &mut app,
+        app::InputAction::DshSetProviderApiKeyEnv {
+            provider_id: "openrouter".to_string(),
+        },
+        String::new(),
+    )
+    .unwrap();
+    assert_eq!(
+        dsh_provider_env(temp.path(), "openrouter").as_deref(),
+        Some("OPENROUTER_API_KEY")
+    );
+}
+
+#[test]
+fn dsh_provider_explicit_api_key_env_is_preserved() {
+    let temp = TempDir::new().unwrap();
+    dsh_config_write_profile(temp.path(), "[]\n");
+    let mut envless = dsh_provider_with_models();
+    envless.api_key_env = None;
+    droidgear_core::dsh::save_dsh_provider_for_profile(
+        temp.path(),
+        Some("desktop"),
+        "test-provider",
+        &envless,
+    )
+    .unwrap();
+
+    let mut app = dsh_provider_create_app(temp.path());
+    super::modal::run_input_action(
+        &mut app,
+        app::InputAction::DshSetProviderApiKeyEnv {
+            provider_id: "test-provider".to_string(),
+        },
+        "MY_KEY".to_string(),
+    )
+    .unwrap();
+
+    assert!(
+        dsh_patch_text(temp.path()).contains("apiKeyEnv: MY_KEY"),
+        "{}",
+        dsh_patch_text(temp.path())
+    );
+    assert_eq!(
+        dsh_provider_env(temp.path(), "test-provider").as_deref(),
+        Some("MY_KEY")
+    );
+}
+
+#[test]
+fn dsh_provider_derived_api_key_env_sanitizes_hyphens() {
+    assert_eq!(
+        super::keys_dsh::dsh_default_api_key_env("my-route"),
+        "MY_ROUTE_API_KEY"
+    );
+    let temp = TempDir::new().unwrap();
+    dsh_config_write_profile(temp.path(), "[]\n");
+    let mut app = dsh_provider_create_app(temp.path());
+    super::modal::run_input_action(
+        &mut app,
+        app::InputAction::DshAddProvider,
+        "my-route-2".to_string(),
+    )
+    .unwrap();
+    assert_eq!(
+        dsh_provider_env(temp.path(), "my-route-2").as_deref(),
+        Some("MY_ROUTE_2_API_KEY")
+    );
+    assert!(dsh_patch_text(temp.path()).contains("apiKeyEnv: MY_ROUTE_2_API_KEY"));
+}
