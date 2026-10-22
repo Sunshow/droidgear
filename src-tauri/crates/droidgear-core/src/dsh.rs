@@ -51,6 +51,10 @@ pub const DSH_PATCH_FILENAME: &str = "cordis.patch.yml";
 /// Legacy flat settings document, read by Dsh only for its one-time import.
 pub const DSH_LEGACY_SETTINGS_FILENAME: &str = "settings.yaml";
 
+/// Thinking levels a pi-ai route may declare as its default (`providers.<id>.reasoning`).
+pub const DSH_REASONING_LEVELS: [&str; 7] =
+    ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -99,6 +103,12 @@ pub struct DshProviderConfig {
     pub api_key_env: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api: Option<String>,
+    /// Route default thinking level applied when a session selects no effort.
+    ///
+    /// DSH resolves a pi-ai model's `defaultEffort` from this route field only,
+    /// so a BYOK route without it shows "Default" in the model picker.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compat: Option<DshCompatConfig>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -710,6 +720,22 @@ fn prepare_provider_config(config: &DshProviderConfig) -> Result<DshProviderConf
     let mut config = config.clone();
     for model in &mut config.models {
         enrich_dsh_model_from_registry(model);
+    }
+
+    // The route default is a pi-ai thinking level; an unknown value would make
+    // DSH reject the whole provider when the entry reloads.
+    if let Some(reasoning) = config.reasoning.clone() {
+        let normalized = reasoning.trim().to_ascii_lowercase();
+        if normalized.is_empty() {
+            config.reasoning = None;
+        } else if !DSH_REASONING_LEVELS.contains(&normalized.as_str()) {
+            return Err(format!(
+                "Invalid Dsh provider default reasoning level '{reasoning}'; expected one of: {}",
+                DSH_REASONING_LEVELS.join(", ")
+            ));
+        } else {
+            config.reasoning = Some(normalized);
+        }
     }
 
     // `compat.supportsDeveloperRole` only exists on OpenAI-style routes;
@@ -2148,6 +2174,24 @@ records:
 
         let err = read_dsh_credentials_for_home(home(&temp)).unwrap_err();
         assert!(err.contains("Unsupported Dsh credentials version"));
+    }
+
+    #[test]
+    fn test_provider_reasoning_level_is_normalized_and_validated() {
+        let mut provider = sample_provider();
+        provider.reasoning = Some(" HIGH ".to_string());
+        let prepared = prepare_provider_config(&provider).unwrap();
+        assert_eq!(prepared.reasoning.as_deref(), Some("high"));
+
+        provider.reasoning = Some("turbo".to_string());
+        let error = prepare_provider_config(&provider).unwrap_err();
+        assert!(error.contains("default reasoning level"), "{error}");
+
+        provider.reasoning = Some("   ".to_string());
+        assert!(prepare_provider_config(&provider)
+            .unwrap()
+            .reasoning
+            .is_none());
     }
 
     #[cfg(unix)]

@@ -3395,7 +3395,14 @@ export type DshProviderConfig = { displayName?: string | null;
 /**
  * The file uses `baseURL` (not `baseUrl`).
  */
-baseURL?: string | null; apiKeyEnv?: string | null; api?: string | null; compat?: DshCompatConfig | null; models: DshModel[] }
+baseURL?: string | null; apiKeyEnv?: string | null; api?: string | null; 
+/**
+ * Route default thinking level applied when a session selects no effort.
+ * 
+ * DSH resolves a pi-ai model's `defaultEffort` from this route field only,
+ * so a BYOK route without it shows "Default" in the model picker.
+ */
+reasoning?: string | null; compat?: DshCompatConfig | null; models: DshModel[] }
 export type DshSessionDetail = { summary: DshSessionSummary; messages: DshSessionMessage[] }
 export type DshSessionMessage = { id: string; role: string; content: ContentBlock[]; timestamp: string }
 export type DshSessionSummary = { id: string; title: string; 
