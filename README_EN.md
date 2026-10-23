@@ -135,7 +135,11 @@ Configuration remains ordinary `~/.factory/mcp.json`: this preset stores a nonse
 ### Dsh (DeepSeek Harness) Support
 
 - **Provider Configuration** - Manage `llm-pi-ai.providers` in the modern multi-profile DSH `cordis.patch.yml` (displayName, baseURL, apiKeyEnv, api, compat, model list): supports the official `desktop` / `web` runtime profiles (default `desktop`), preserves other patch entries and `!!js` expressions on write; falls back to the legacy `~/.dsh/settings.yaml` without a profile, and merges legacy → profile patch → home patch on read
-- **API Key Values** - Configure API key values in `~/.dsh/.credentials.yaml` (0600 permissions), linked to the `apiKeyEnv` variable name
+- **API Key Values** - Configure API key values in `~/.dsh/.credentials.yaml` (0600 permissions). A provider's credential reference defaults to `<PROVIDER_ID>_API_KEY` and can be overridden to reuse an existing environment variable; the stored value wins over the environment and `.env`
+- **Official DeepSeek API Key** - On the Models tab and in the TUI (`o`), set the official key for users who do not sign in through DSH. The value is stored for `llm-deepseek.apiKeyEnv` (default `DEEPSEEK_API_KEY`); clearing it falls back to the environment
+- **Visual Configuration** - The composed desktop / web profile is edited across seven tabs: overview, models, general, agent, network, advanced, and diagnostics. In the TUI, `c` inspects and edits fields and toggles an entry's disabled state. Writes go to the profile `cordis.patch.yml`, keep comments and `!!js`, redact secrets, and use a revision hash so a concurrent edit is not overwritten
+- **Default Reasoning and Default Model** - A pi-ai route can set a default thinking level (`off` through `max`, suggested as High when every model on the route supports it). Marking a model as the default writes `agent-default-model` (TUI: `g`)
+- **Model Input Modality** - Show and edit per-model text / image input. Until pinned, image follows the registry suggestion, so a custom route is not treated as text-only by DSH
 - **Channel Import** - Import providers from channels (auto-fills ID, base URL, key, and API type)
 - **Model Fetching** - Fetch the model list from the provider API after configuring the URL and key, with multi-select before adding
 - **Session History** - Browse `~/.dsh/sessions` logs (GUI + TUI): list or project-grouped views, thinking blocks, live follow, hide-empty and delete; consecutive reasoning-only steps collapse into one expandable "Thinking process" block
@@ -203,7 +207,7 @@ The TUI version supports the following configuration management features:
 - **OpenClaw Profiles**: Configuration management and apply (with Subagents/Helpers nav entries)
 - **Hermes Profiles**: Configuration management and apply
 - **Pi Profiles**: Provider/Model configuration management and apply
-- **Dsh Providers**: `llm-pi-ai.providers` configuration and credential value management (with channel import and model fetching)
+- **Dsh**: Visual profile configuration (`c`), plus `llm-pi-ai.providers` and credential management (channel import, model fetching, the official DeepSeek API key, default reasoning, and the default model)
 - **Copilot Profiles**: BYOK profile configuration and apply (with channel import and temporary run)
 - **OMP**: Custom provider CRUD and channel import (`models.yml`), plus model roles in `config.yml`
 - **Sessions**: Session browsing and management

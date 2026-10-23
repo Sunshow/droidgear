@@ -135,7 +135,11 @@ GUI 的 MCP「快速添加」卡片或 TUI MCP 列表的 `b` 键会打开百智�
 ### Dsh（DeepSeek Harness）支持
 
 - **Provider 配置管理** - 管理新版 DSH 多 Profile 的 `cordis.patch.yml` 中 `llm-pi-ai.providers`（displayName、baseURL、apiKeyEnv、api、compat、模型列表）：支持官方 desktop / web 两种运行时 profile（默认 desktop），写入时保留其余 patch 条目与 `!!js` 表达式；无 profile 时回退到旧版 `~/.dsh/settings.yaml`，读取时按 旧版 settings.yaml → profile patch → home patch 顺序合并
-- **密钥值管理** - 在 `~/.dsh/.credentials.yaml` 中配置 API 密钥值（0600 权限），与 `apiKeyEnv` 环境变量名联动
+- **密钥值管理** - 在 `~/.dsh/.credentials.yaml` 中配置 API 密钥值（0600 权限）。Provider 的凭据引用名默认由 ID 推导为 `<PROVIDER_ID>_API_KEY`，也可自定义以复用已有环境变量；存储值优先于环境变量与 `.env`
+- **官方 DeepSeek API Key** - 在模型页与 TUI（按 `o`）为不通过 DSH 登录的用户配置官方密钥，写入 `llm-deepseek.apiKeyEnv`（默认 `DEEPSEEK_API_KEY`）对应的凭据；清除后回退到环境变量
+- **可视化配置** - desktop / web Profile 的合成配置分为概览、模型、通用设置、Agent、网络、高级与诊断七个页签；TUI 按 `c` 查看并编辑字段、切换条目禁用。写入 Profile 的 `cordis.patch.yml`，保留注释与 `!!js`，密钥脱敏，并用修订哈希避免覆盖并发修改
+- **默认思考强度与默认模型** - pi-ai 路由可设置默认思考级别（`off` 至 `max`，该路由上的模型都支持时建议 High）；可将某个模型标为默认并写入 `agent-default-model`（TUI 按 `g`）
+- **模型输入类型** - 按模型查看并编辑文本 / 图像输入；未手动固定前按注册表建议填充，避免自定义路由被 DSH 当成仅文本
 - **渠道导入** - 从渠道导入 Provider（自动填充 ID、Base URL、密钥与 API 类型）
 - **模型拉取** - 配置 URL 与密钥后从服务商 API 拉取模型列表，多选添加
 - **会话历史** - 浏览 `~/.dsh/sessions` 会话日志（GUI + TUI）：列表/按项目分组、思考内容渲染、实时追踪、隐藏空会话与删除；连续的纯思考步骤合并为一个可展开的「思考过程」块
@@ -202,7 +206,7 @@ TUI 版本支持以下配置管理功能：
 - **OpenClaw Profile**：配置管理与应用（含 Subagents/Helpers 导航入口）
 - **Hermes Profile**：配置管理与应用
 - **Pi Profile**：Provider/Model 配置管理与应用
-- **Dsh Provider**：`llm-pi-ai.providers` 配置管理与凭据值管理（含渠道导入、模型拉取）
+- **Dsh**：Profile 可视化配置（按 `c`）、`llm-pi-ai.providers` 与凭据管理（含渠道导入、模型拉取、官方 DeepSeek API Key、默认思考强度与默认模型）
 - **Copilot Profile**：BYOK Profile 配置管理与应用（含渠道导入、临时运行）
 - **OMP**：自定义 Provider（`models.yml`）增删改与渠道导入，以及 `config.yml` 模型角色
 - **Sessions**：会话浏览与管理

@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.8
+
+**New Features / 新功能**
+
+- DSH visual configuration (GUI + TUI): seven tabs over the composed desktop / web profile — overview, models, general, agent, network, advanced, and diagnostics. Writes go to the profile `cordis.patch.yml` with DSH's file lock, atomic write, comment and `!!js` preservation, secret redaction, and an optimistic revision hash. In the TUI, `c` opens the same config to inspect warnings, entries, and fields, edit values, and toggle an entry's disabled state / DSH 可视化配置（GUI + TUI）：在 desktop / web Profile 的合成配置上提供七个页签——概览、模型、通用设置、Agent、网络、高级与诊断。写入目标为 Profile 的 `cordis.patch.yml`，沿用 DSH 的文件锁、原子写、注释与 `!!js` 保留、密钥脱敏以及乐观修订哈希。TUI 按 `c` 查看警告、条目与字段，编辑值并切换条目的禁用状态
+- Official DeepSeek API key (GUI + TUI): the Models tab and `o` on the TUI provider list store a key for users who do not sign in through DSH. The value is saved in `~/.dsh/.credentials.yaml` under `llm-deepseek.apiKeyEnv` (default `DEEPSEEK_API_KEY`); a custom reference updates that entry, and clearing the key removes the stored value. The credentials file wins over the environment and `.env` / 官方 DeepSeek API Key（GUI + TUI）：模型页与 TUI Provider 列表按 `o`，为不通过 DSH 登录的用户配置密钥。值写入 `~/.dsh/.credentials.yaml`，引用名为 `llm-deepseek.apiKeyEnv`（默认 `DEEPSEEK_API_KEY`）；自定义引用名会回写该条目，清除密钥则删除已存值。凭据文件优先于环境变量与 `.env`
+- Provider API-key reference derived from the provider id as `<PROVIDER_ID>_API_KEY`, with a custom override for an existing environment variable. The TUI fills a blank `apiKeyEnv` the same way, so a provider cannot be saved with a key value and no credential reference / Provider 的 API Key 引用名默认由 Provider ID 推导为 `<PROVIDER_ID>_API_KEY`，需要复用已有环境变量时可自定义。TUI 在 `apiKeyEnv` 留空时同样自动填充，避免只保存了密钥值却没有凭据引用
+- Per-model text / image input (GUI + TUI): each model row shows and edits input modality. Text stays on for chat models, and image follows the registry suggestion until it is pinned. Custom pi-ai routes persist `input`, so DSH does not treat an undeclared model as text-only / 按模型配置文本 / 图像输入（GUI + TUI）：模型行可查看并编辑输入类型。对话模型始终包含文本，图像在手动固定前跟随注册表建议。自定义 pi-ai 路由会持久化 `input`，避免 DSH 把未声明的模型当成仅文本
+- Default reasoning and default model (GUI + TUI): a pi-ai route can set a default thinking level (`off` through `max`), suggested as High when every model on the route supports it. Marking a model as the default writes `agent-default-model` with that route's effort. The TUI edits the same fields, and `g` sets the default model / 默认思考强度与默认模型（GUI + TUI）：pi-ai 路由可设置默认思考级别（`off` 至 `max`），当该路由上的模型都支持时建议为 High。将某个模型标为默认会把该路由的力度写入 `agent-default-model`。TUI 编辑同一组字段，按 `g` 设为默认模型
+
 ## v1.3.7
 
 **New Features / 新功能**
