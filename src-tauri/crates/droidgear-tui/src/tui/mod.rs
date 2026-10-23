@@ -26,6 +26,7 @@ mod keys_codex_sessions;
 mod keys_copilot;
 mod keys_droid_settings;
 mod keys_dsh;
+mod keys_dsh_config;
 mod keys_dsh_sessions;
 mod keys_factory;
 mod keys_factory_auth;
@@ -67,6 +68,7 @@ use keys_codex_sessions::handle_codex_sessions_key;
 use keys_copilot::handle_copilot_key;
 use keys_droid_settings::handle_droid_settings_files_key;
 use keys_dsh::{handle_dsh_key, handle_dsh_model_key, handle_dsh_provider_key};
+use keys_dsh_config::handle_dsh_config_key;
 use keys_dsh_sessions::handle_dsh_sessions_key;
 use keys_factory::{handle_factory_key, handle_factory_model_key, normalize_factory_models};
 use keys_hermes::{handle_hermes_key, handle_hermes_profile_key, handle_hermes_provider_key};
@@ -212,6 +214,7 @@ pub fn run(app: &mut app::App) -> anyhow::Result<()> {
     refresh_screen_data(app);
 
     while !app.should_quit {
+        poll_dsh_config_refresh(app);
         app.clamp_indices();
         terminal.draw(|f| ui::draw(f, app)).context("draw")?;
 
@@ -327,6 +330,13 @@ fn refresh_screen_data(app: &mut app::App) {
         | app::Screen::DshProvider
         | app::Screen::DshModel => {
             refresh_dsh(app);
+        }
+        app::Screen::DshConfig => {
+            // The snapshot is composed on a worker thread; only kick one off
+            // when this screen has nothing to show yet.
+            if app.dsh_config_snapshot.is_none() && !app.dsh_config_loading {
+                request_dsh_config_refresh(app);
+            }
         }
         app::Screen::Hermes => refresh_hermes(app),
         app::Screen::HermesProfile | app::Screen::HermesProvider => {

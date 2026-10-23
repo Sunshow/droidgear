@@ -346,8 +346,13 @@ pub fn draw(frame: &mut Frame, app: &app::App) {
 
     if app.modal.is_some() {
         draw_modal(frame, app);
-    } else if let Some(toast) = app.toast.as_ref() {
-        draw_toast(frame, toast);
+    }
+    // Error toasts stay visible over a dialog: invalid values keep the input
+    // open so the rejection must be readable while it is still on screen.
+    if let Some(toast) = app.toast.as_ref() {
+        if app.modal.is_none() || toast.is_error {
+            draw_toast(frame, toast);
+        }
     }
 }
 
@@ -424,6 +429,7 @@ fn draw_main(frame: &mut Frame, app: &app::App, area: Rect) {
         app::Screen::DshDesktop | app::Screen::DshWeb => draw_dsh_providers(frame, app, area),
         app::Screen::DshProvider => draw_dsh_provider(frame, app, area),
         app::Screen::DshModel => draw_dsh_model(frame, app, area),
+        app::Screen::DshConfig => draw_dsh_config(frame, app, area),
         app::Screen::DshSessions => draw_dsh_sessions(frame, app, area),
         app::Screen::Hermes => draw_hermes_profiles(frame, app, area),
         app::Screen::HermesProfile => draw_hermes_profile(frame, app, area),
@@ -3587,7 +3593,29 @@ fn draw_pi_model(frame: &mut Frame, app: &app::App, area: Rect) {
 fn draw_dsh_providers(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
 
-    let mut items: Vec<ListItem> = Vec::new();
+    // First row is the official DeepSeek route status (not a provider row, so
+    // provider selection is offset by one).
+    let official_status = if app.dsh_official_api_key_configured {
+        "configured"
+    } else {
+        "missing"
+    };
+    let mut items: Vec<ListItem> = vec![ListItem::new(Line::from(vec![
+        Span::styled("DeepSeek official key", t.dim_style()),
+        Span::raw(": "),
+        Span::styled(
+            official_status,
+            if app.dsh_official_api_key_configured {
+                t.success_fg_style()
+            } else {
+                t.warning_fg_style()
+            },
+        ),
+        Span::styled(
+            format!("  ({})", app.dsh_official_api_key_env),
+            t.dim_style(),
+        ),
+    ]))];
     for (provider_id, config) in app.dsh_providers.iter() {
         let display = config
             .display_name
@@ -3598,7 +3626,7 @@ fn draw_dsh_providers(frame: &mut Frame, app: &app::App, area: Rect) {
             Span::styled(format!("  ({} models)", config.models.len()), t.dim_style()),
         ])));
     }
-    if items.is_empty() {
+    if app.dsh_providers.is_empty() {
         items.push(ListItem::new(Line::from(Span::styled(
             "No providers",
             t.placeholder_style(),
@@ -3607,22 +3635,28 @@ fn draw_dsh_providers(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .constraints([Constraint::Min(0), Constraint::Length(3)].as_ref())
         .split(area);
 
     let profile_label = match app.dsh_active_profile.as_deref() {
         Some(name) => format!("Dsh Providers [profile: {name}]"),
         None => "Dsh Providers [legacy settings.yaml]".to_string(),
     };
-    let highlight = (!app.dsh_providers.is_empty()).then_some(app.dsh_index);
+    let highlight = (!app.dsh_providers.is_empty()).then_some(app.dsh_index + 1);
     let list = List::new(items)
         .block(block(profile_label.as_str()))
         .highlight_style(t.selected_row_style());
     render_list(frame, list, chunks[0], highlight);
 
-    let help = help_paragraph(
-        "Up/Down: select  Enter/e: open  n: add  i: import from channel  d: delete  r: refresh  q/Esc: back",
-    );
+    let help = Paragraph::new(vec![
+        help_line(
+            "Up/Down: select  Enter/e: open  c: config  o: DeepSeek official key  n: add  i: import",
+        ),
+        hint_line("d: delete  r: refresh  q/Esc: back"),
+    ])
+    .style(t.dim_style())
+    .block(help_block())
+    .wrap(Wrap { trim: true });
     frame.render_widget(help, chunks[1]);
 }
 
@@ -3653,9 +3687,9 @@ fn draw_dsh_provider(frame: &mut Frame, app: &app::App, area: Rect) {
         .direction(Direction::Vertical)
         .constraints(
             [
-                Constraint::Length(8),
+                Constraint::Length(9),
                 Constraint::Min(0),
-                Constraint::Length(2),
+                Constraint::Length(3),
             ]
             .as_ref(),
         )
@@ -3695,7 +3729,7 @@ fn draw_dsh_provider(frame: &mut Frame, app: &app::App, area: Rect) {
             if api_key_env_set {
                 config.api_key_env.clone().unwrap_or_default()
             } else {
-                "(not set)".to_string()
+                "(empty = auto)".to_string()
             },
         ),
         (
@@ -3713,6 +3747,14 @@ fn draw_dsh_provider(frame: &mut Frame, app: &app::App, area: Rect) {
             } else {
                 "(n/a)".to_string()
             },
+        ),
+        (
+            "Default Reasoning",
+            config
+                .reasoning
+                .clone()
+                .filter(|value| !value.trim().is_empty())
+                .unwrap_or_else(|| "-".to_string()),
         ),
     ];
 
@@ -3747,21 +3789,27 @@ fn draw_dsh_provider(frame: &mut Frame, app: &app::App, area: Rect) {
     }
     let model_selected = (app.dsh_provider_field_index >= fields_count
         && !config.models.is_empty())
-    .then_some(app.dsh_provider_field_index - fields_count);
+    .then(|| app.dsh_provider_field_index - fields_count);
     let models_list = List::new(model_items)
         .block(block("Models"))
         .highlight_style(t.selected_row_style());
     render_list(frame, models_list, chunks[1], model_selected);
 
-    let help = help_paragraph(
-        "Up/Down: move  Enter/e: edit field/open model  n: add model  f: fetch models  d: del model  r: refresh  q/Esc: back",
-    );
+    let help = Paragraph::new(vec![
+        help_line(
+            "Up/Down: move  Enter/e: edit field/open model  n: add model  f: fetch models  d: del model  r: refresh  q/Esc: back",
+        ),
+        hint_line("API Key Env: empty = auto (<PROVIDER_ID>_API_KEY)"),
+    ])
+    .style(t.dim_style())
+    .block(help_block())
+    .wrap(Wrap { trim: true });
     frame.render_widget(help, chunks[2]);
 }
 
 fn draw_dsh_model(frame: &mut Frame, app: &app::App, area: Rect) {
     let t = theme();
-    let Some(_provider_id) = app.dsh_provider_id.as_deref() else {
+    let Some(provider_id) = app.dsh_provider_id.as_deref() else {
         let p = Paragraph::new(vec![Line::from(Span::styled(
             "No provider selected",
             t.warning_style(),
@@ -3826,6 +3874,15 @@ fn draw_dsh_model(frame: &mut Frame, app: &app::App, area: Rect) {
                 .unwrap_or_else(|| "".to_string()),
         ),
         ("Reasoning", reasoning),
+        (
+            "Input",
+            model
+                .input
+                .as_ref()
+                .filter(|values| !values.is_empty())
+                .map(|values| values.join(", "))
+                .unwrap_or_else(|| "(auto from registry)".to_string()),
+        ),
     ];
 
     let mut items: Vec<ListItem> = Vec::new();
@@ -3841,16 +3898,325 @@ fn draw_dsh_model(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+        .constraints([Constraint::Min(0), Constraint::Length(3)].as_ref())
         .split(area);
 
+    // Current `agent-default-model` from the composed config snapshot, if the
+    // snapshot belongs to the profile this screen manages.
+    let default_selection = app
+        .dsh_config_snapshot
+        .as_ref()
+        .filter(|snapshot| {
+            app.dsh_active_profile
+                .as_deref()
+                .is_none_or(|active| snapshot.profile.as_deref() == Some(active))
+        })
+        .and_then(|snapshot| {
+            snapshot
+                .entries
+                .iter()
+                .find(|entry| entry.id == "agent-default-model")
+        })
+        .and_then(|entry| entry.config.as_ref())
+        .and_then(|config| {
+            let provider = config.get("provider").and_then(serde_json::Value::as_str)?;
+            let model = config.get("model").and_then(serde_json::Value::as_str)?;
+            Some((provider.to_string(), model.to_string()))
+        });
+    let is_current_default = default_selection
+        .as_ref()
+        .is_some_and(|(provider, model_id)| provider == provider_id && model_id == &model.id);
+    let title = if is_current_default {
+        format!("Dsh Model: {} (current default)", model.id)
+    } else if let Some((provider, model_id)) = default_selection.as_ref() {
+        format!("Dsh Model: {} (default: {provider}/{model_id})", model.id)
+    } else {
+        format!("Dsh Model: {}", model.id)
+    };
+
     let list = List::new(items)
-        .block(block(format!("Dsh Model: {}", model.id)))
+        .block(block(title))
         .highlight_style(t.selected_row_style());
     render_list(frame, list, chunks[0], Some(app.dsh_model_field_index));
 
-    let help = help_paragraph("Up/Down: select  Enter/e: edit  q/Esc: back");
+    let help = Paragraph::new(vec![
+        help_line("Up/Down: select  Enter/e: edit  g: set default model  q/Esc: back"),
+        hint_line("Input field: text / text+image  (auto = registry default)"),
+    ])
+    .style(t.dim_style())
+    .block(help_block())
+    .wrap(Wrap { trim: true });
     frame.render_widget(help, chunks[1]);
+}
+
+fn draw_dsh_config(frame: &mut Frame, app: &app::App, area: Rect) {
+    let t = theme();
+    let Some(snapshot) = app.dsh_config_snapshot.as_ref() else {
+        let body = if app.dsh_config_loading {
+            "Loading DSH configuration..."
+        } else {
+            "No DSH configuration loaded. Press r to reload."
+        };
+        let p = Paragraph::new(body)
+            .block(block("Dsh Config"))
+            .wrap(Wrap { trim: true });
+        frame.render_widget(p, area);
+        return;
+    };
+
+    let warnings_height = if snapshot.warnings.is_empty() {
+        3
+    } else {
+        ((snapshot.warnings.len() * 2 + 2).min(11)) as u16
+    };
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(6),
+            Constraint::Length(warnings_height),
+            Constraint::Min(0),
+            Constraint::Length(3),
+        ])
+        .split(area);
+
+    // --- Header: profile, versions and the writable patch file ---
+    let profile = snapshot.profile.as_deref().unwrap_or("(none)");
+    let installed = snapshot
+        .installed_version
+        .as_deref()
+        .unwrap_or("(not detected)");
+    let profile_patch = if snapshot.profile_patch_path.is_empty() {
+        "(none)".to_string()
+    } else {
+        snapshot.profile_patch_path.clone()
+    };
+    let header_lines = vec![
+        Line::from(vec![
+            Span::styled("Profile: ", t.dim_style()),
+            Span::raw(profile.to_string()),
+            Span::raw("    "),
+            Span::styled("Schema: ", t.dim_style()),
+            Span::raw(snapshot.schema_version.clone()),
+            Span::raw("    "),
+            Span::styled("Installed: ", t.dim_style()),
+            Span::raw(installed.to_string()),
+        ]),
+        Line::from(vec![
+            Span::styled("Profile patch: ", t.dim_style()),
+            Span::raw(profile_patch),
+        ]),
+        Line::from(vec![
+            Span::styled("Home patch: ", t.dim_style()),
+            Span::raw(snapshot.home_patch_path.clone()),
+            Span::styled(
+                format!(" ({})", present_label(snapshot.home_patch_exists)),
+                t.dim_style(),
+            ),
+        ]),
+        Line::from(vec![
+            Span::styled("Legacy settings: ", t.dim_style()),
+            Span::raw(snapshot.legacy_settings_path.clone()),
+            Span::styled(
+                format!(" ({})", present_label(snapshot.legacy_settings_exists)),
+                t.dim_style(),
+            ),
+            Span::raw("    "),
+            Span::styled("Patch hash: ", t.dim_style()),
+            Span::raw(snapshot.patch_hash.clone()),
+        ]),
+    ];
+    frame.render_widget(
+        Paragraph::new(header_lines).block(block("Dsh Config")),
+        chunks[0],
+    );
+
+    // --- Warnings: [E]/[W]/[i] + message + hint ---
+    let mut warning_lines: Vec<Line> = Vec::new();
+    if snapshot.warnings.is_empty() {
+        warning_lines.push(Line::from(Span::styled(
+            "No warnings",
+            t.placeholder_style(),
+        )));
+    } else {
+        for warning in &snapshot.warnings {
+            let (prefix, style) = match warning.severity.as_str() {
+                "error" => ("[E]", t.error_style()),
+                "warning" => ("[W]", t.warning_fg_style()),
+                _ => ("[i]", t.dim_style()),
+            };
+            let mut spans = vec![
+                Span::styled(prefix.to_string(), style),
+                Span::raw(" "),
+                Span::raw(warning.message.clone()),
+            ];
+            if let Some(entry_id) = warning.entry_id.as_ref() {
+                spans.push(Span::styled(format!(" ({entry_id})"), t.dim_style()));
+            }
+            warning_lines.push(Line::from(spans));
+            warning_lines.push(Line::from(vec![
+                Span::raw("    "),
+                Span::styled(warning.hint.clone(), t.dim_style()),
+            ]));
+        }
+    }
+    frame.render_widget(
+        Paragraph::new(warning_lines)
+            .block(block(format!("Warnings ({})", snapshot.warnings.len()))),
+        chunks[1],
+    );
+
+    // --- Entries, grouped by schema tier, plus expanded fields ---
+    let ordered = app.dsh_config_ordered_entries();
+    let mut items: Vec<ListItem> = Vec::new();
+    let mut selected_row: Option<usize> = None;
+    let mut current_tier: Option<&str> = None;
+    for (entry_index, entry) in ordered.iter().enumerate() {
+        if current_tier != Some(entry.tier.as_str()) {
+            current_tier = Some(entry.tier.as_str());
+            items.push(ListItem::new(Line::from(Span::styled(
+                format!("-- tier {} --", entry.tier),
+                t.dim_style(),
+            ))));
+        }
+        let expanded = app.dsh_config_expanded.contains(&entry.id);
+        let marker = if expanded { "v" } else { ">" };
+        let mut spans = vec![
+            Span::raw(format!("{marker} ")),
+            Span::raw(entry.id.clone()),
+            Span::styled(format!("  [{}]", entry.layer), t.dim_style()),
+        ];
+        if entry.disabled {
+            spans.push(Span::styled(" [disabled]", t.warning_fg_style()));
+        }
+        if entry.overridden {
+            spans.push(Span::styled(" [override]", t.success_fg_style()));
+        }
+        if entry.shadowed_by_home {
+            spans.push(Span::styled(" [home]", t.warning_fg_style()));
+        }
+        if entry.has_js {
+            spans.push(Span::styled(" [js]", t.dim_style()));
+        }
+        if !entry.fields.is_empty() {
+            spans.push(Span::styled(
+                format!("  {} fields", entry.fields.len()),
+                t.dim_style(),
+            ));
+        }
+        if app.dsh_config_focus == app::DshConfigFocus::Entries
+            && entry_index == app.dsh_config_index
+        {
+            selected_row = Some(items.len());
+        }
+        items.push(ListItem::new(Line::from(spans)));
+
+        if expanded {
+            if entry.fields.is_empty() {
+                items.push(ListItem::new(Line::from(vec![
+                    Span::raw("    "),
+                    Span::styled("(no config fields)", t.placeholder_style()),
+                ])));
+            }
+            for (field_index, field) in entry.fields.iter().enumerate() {
+                if app.dsh_config_focus == app::DshConfigFocus::Fields
+                    && entry_index == app.dsh_config_index
+                    && field_index == app.dsh_config_field_index
+                {
+                    selected_row = Some(items.len());
+                }
+                items.push(ListItem::new(dsh_config_field_line(field)));
+            }
+        }
+    }
+    if items.is_empty() {
+        items.push(ListItem::new(Line::from(Span::styled(
+            "No configuration entries",
+            t.placeholder_style(),
+        ))));
+    }
+    let entries_title = if app.dsh_config_loading {
+        format!("Entries ({}) - refreshing...", ordered.len())
+    } else {
+        format!("Entries ({})", ordered.len())
+    };
+    let list = List::new(items)
+        .block(block_focus(
+            entries_title.as_str(),
+            app.dsh_config_focus == app::DshConfigFocus::Entries,
+        ))
+        .highlight_style(t.selected_row_style());
+    render_list(frame, list, chunks[2], selected_row);
+
+    let help_text = if app.dsh_config_focus == app::DshConfigFocus::Fields {
+        "Enter: edit field  Tab: entries  Esc: back"
+    } else {
+        "Enter: expand  Tab: fields  d: toggle  r: reload  Esc: back"
+    };
+    frame.render_widget(help_paragraph(help_text), chunks[3]);
+}
+
+fn present_label(present: bool) -> &'static str {
+    if present {
+        "present"
+    } else {
+        "absent"
+    }
+}
+
+fn dsh_config_json_text(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::String(text) => text.clone(),
+        other => other.to_string(),
+    }
+}
+
+fn truncate_chars(value: &str, max_chars: usize) -> String {
+    if value.chars().count() <= max_chars {
+        return value.to_string();
+    }
+    let mut truncated: String = value.chars().take(max_chars.saturating_sub(1)).collect();
+    truncated.push('~');
+    truncated
+}
+
+fn dsh_config_field_line(field: &droidgear_core::dsh_config::DshConfigFieldView) -> Line<'static> {
+    let t = theme();
+    let value = if field.secret {
+        "<secret>".to_string()
+    } else {
+        field
+            .value
+            .as_ref()
+            .map(dsh_config_json_text)
+            .map(|text| truncate_chars(&text, 48))
+            .unwrap_or_else(|| "(not set)".to_string())
+    };
+    let mut spans = vec![
+        Span::raw("    "),
+        Span::styled(
+            format!("{:<22}", truncate_chars(&field.name, 22)),
+            Style::default().add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(format!("{:<8}", field.kind), t.dim_style()),
+        Span::raw(value),
+    ];
+    if field.volatile {
+        spans.push(Span::styled(" [volatile]", t.dim_style()));
+    }
+    if field.secret {
+        spans.push(Span::styled(" [secret]", t.warning_fg_style()));
+    }
+    if field.overridden {
+        spans.push(Span::styled(" [override]", t.success_fg_style()));
+    }
+    if let Some(default) = field.default.as_ref() {
+        let default_text = truncate_chars(&dsh_config_json_text(default), 32);
+        spans.push(Span::styled(
+            format!(" default: {default_text}"),
+            t.dim_style(),
+        ));
+    }
+    Line::from(spans)
 }
 
 fn draw_omp_profiles(frame: &mut Frame, app: &app::App, area: Rect) {

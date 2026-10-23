@@ -51,6 +51,10 @@ pub const DSH_PATCH_FILENAME: &str = "cordis.patch.yml";
 /// Legacy flat settings document, read by Dsh only for its one-time import.
 pub const DSH_LEGACY_SETTINGS_FILENAME: &str = "settings.yaml";
 
+/// Thinking levels a pi-ai route may declare as its default (`providers.<id>.reasoning`).
+pub const DSH_REASONING_LEVELS: [&str; 7] =
+    ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -80,6 +84,13 @@ pub struct DshModel {
     /// Reasoning effort mapping, e.g. `{"off": null, "high": "high"}`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning_efforts: Option<HashMap<String, Option<String>>>,
+    /// Request modalities this model accepts (`text`, `image`).
+    ///
+    /// DSH falls back to the installed pi-ai catalog, then to the route's
+    /// `defaultInput` (`text`), and a custom route has no installed entry, so
+    /// omitting this makes images unsupported even for a vision model.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input: Option<Vec<String>>,
     #[serde(flatten)]
     #[specta(skip)]
     pub extra: HashMap<String, serde_json::Value>,
@@ -99,6 +110,12 @@ pub struct DshProviderConfig {
     pub api_key_env: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api: Option<String>,
+    /// Route default thinking level applied when a session selects no effort.
+    ///
+    /// DSH resolves a pi-ai model's `defaultEffort` from this route field only,
+    /// so a BYOK route without it shows "Default" in the model picker.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compat: Option<DshCompatConfig>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -200,7 +217,7 @@ pub fn dsh_home_patch_path_for_home(home_dir: &Path) -> PathBuf {
     dsh_config_dir_for_home(home_dir).join(DSH_PATCH_FILENAME)
 }
 
-fn system_home_dir() -> Result<PathBuf, String> {
+pub(crate) fn system_home_dir() -> Result<PathBuf, String> {
     dirs::home_dir().ok_or_else(|| "Failed to get home directory".to_string())
 }
 
@@ -309,6 +326,9 @@ struct DshRegistryModel {
     thinking_level_map: Option<HashMap<String, Option<String>>>,
     #[serde(default)]
     reasoning_config: Option<DshRegistryReasoningConfig>,
+    /// Request modalities the model accepts (`text`, `image`).
+    #[serde(default)]
+    input: Vec<String>,
     context_window: u32,
     max_output_tokens: Option<u32>,
 }
@@ -375,14 +395,32 @@ pub fn enrich_dsh_model_from_registry(model: &mut DshModel) -> bool {
     {
         model.reasoning_efforts = registry_reasoning_efforts(metadata);
     }
+    if model.input.is_none() && !metadata.input.is_empty() {
+        model.input = Some(normalize_input_modalities(&metadata.input));
+    }
     true
+}
+
+/// The pi-ai request modalities a model may declare.
+pub const DSH_INPUT_MODALITIES: [&str; 2] = ["text", "image"];
+
+/// Trim, lowercase, validate, deduplicate and order request modalities.
+fn normalize_input_modalities(values: &[String]) -> Vec<String> {
+    let mut normalized = Vec::new();
+    for value in values {
+        let value = value.trim().to_ascii_lowercase();
+        if DSH_INPUT_MODALITIES.contains(&value.as_str()) && !normalized.contains(&value) {
+            normalized.push(value);
+        }
+    }
+    normalized
 }
 
 // ============================================================================
 // YAML Read/Write
 // ============================================================================
 
-fn empty_mapping() -> YamlValue {
+pub(crate) fn empty_mapping() -> YamlValue {
     YamlValue::Mapping(serde_yaml::Mapping::new())
 }
 
@@ -423,7 +461,7 @@ fn write_settings_yaml_for_home(home_dir: &Path, value: &YamlValue) -> Result<()
 
 /// Leading block-comment lines of a document (template header comments), or
 /// an empty string when the document starts with content.
-fn leading_comment_block(original: &str) -> String {
+pub(crate) fn leading_comment_block(original: &str) -> String {
     let mut block = String::new();
     for line in original.lines() {
         let trimmed = line.trim_start();
@@ -442,7 +480,7 @@ fn leading_comment_block(original: &str) -> String {
 /// Returns the parsed entries plus the raw text (for comment preservation).
 /// A missing or empty file yields an empty document; `null` and `~` roots
 /// (empty patch layers) are also accepted as empty.
-fn read_patch_document(path: &Path) -> Result<(Vec<YamlValue>, String), String> {
+pub(crate) fn read_patch_document(path: &Path) -> Result<(Vec<YamlValue>, String), String> {
     if !path.exists() {
         return Ok((Vec::new(), String::new()));
     }
@@ -511,7 +549,7 @@ fn write_patch_document(path: &Path, original: &str, entries: &[YamlValue]) -> R
 
 /// Serialize a patch entry mapping as a sequence item: first line prefixed
 /// with `- `, continuation lines indented two spaces.
-fn serialize_patch_entry(entry: &YamlValue) -> Result<String, String> {
+pub(crate) fn serialize_patch_entry(entry: &YamlValue) -> Result<String, String> {
     let body = serde_yaml::to_string(entry)
         .map_err(|e| format!("Failed to serialize Dsh patch entry: {e}"))?;
     let mut out = String::from("- ");
@@ -529,7 +567,7 @@ fn serialize_patch_entry(entry: &YamlValue) -> Result<String, String> {
 /// Split a patch document into its header (everything before the first
 /// column-0 sequence item, comments and blank lines included) and one raw
 /// text block per top-level sequence item.
-fn split_patch_document(raw: &str) -> (String, Vec<String>) {
+pub(crate) fn split_patch_document(raw: &str) -> (String, Vec<String>) {
     let mut header = String::new();
     let mut blocks = Vec::new();
     let mut current = String::new();
@@ -558,7 +596,7 @@ fn split_patch_document(raw: &str) -> (String, Vec<String>) {
 }
 
 /// The `id` of a patch entry, if it is a mapping with a string id.
-fn patch_entry_id(entry: &YamlValue) -> Option<&str> {
+pub(crate) fn patch_entry_id(entry: &YamlValue) -> Option<&str> {
     entry.as_mapping()?.get("id")?.as_str()
 }
 
@@ -710,6 +748,39 @@ fn prepare_provider_config(config: &DshProviderConfig) -> Result<DshProviderConf
     let mut config = config.clone();
     for model in &mut config.models {
         enrich_dsh_model_from_registry(model);
+        if let Some(input) = model.input.clone() {
+            let normalized = normalize_input_modalities(&input);
+            if input.iter().any(|value| {
+                !DSH_INPUT_MODALITIES.contains(&value.trim().to_ascii_lowercase().as_str())
+            }) {
+                return Err(format!(
+                    "Invalid Dsh model '{}' input modality; expected one of: {}",
+                    model.id,
+                    DSH_INPUT_MODALITIES.join(", ")
+                ));
+            }
+            model.input = if normalized.is_empty() {
+                None
+            } else {
+                Some(normalized)
+            };
+        }
+    }
+
+    // The route default is a pi-ai thinking level; an unknown value would make
+    // DSH reject the whole provider when the entry reloads.
+    if let Some(reasoning) = config.reasoning.clone() {
+        let normalized = reasoning.trim().to_ascii_lowercase();
+        if normalized.is_empty() {
+            config.reasoning = None;
+        } else if !DSH_REASONING_LEVELS.contains(&normalized.as_str()) {
+            return Err(format!(
+                "Invalid Dsh provider default reasoning level '{reasoning}'; expected one of: {}",
+                DSH_REASONING_LEVELS.join(", ")
+            ));
+        } else {
+            config.reasoning = Some(normalized);
+        }
     }
 
     // `compat.supportsDeveloperRole` only exists on OpenAI-style routes;
@@ -1374,6 +1445,7 @@ mod tests {
                     ("high".to_string(), Some("high".to_string())),
                     ("max".to_string(), Some("max".to_string())),
                 ])),
+                input: None,
                 extra: HashMap::new(),
             }],
             ..Default::default()
@@ -2148,6 +2220,60 @@ records:
 
         let err = read_dsh_credentials_for_home(home(&temp)).unwrap_err();
         assert!(err.contains("Unsupported Dsh credentials version"));
+    }
+
+    #[test]
+    fn test_enrich_model_input_from_registry() {
+        let mut flash = DshModel {
+            id: "deepseek-flash".to_string(),
+            ..Default::default()
+        };
+        assert!(enrich_dsh_model_from_registry(&mut flash));
+        assert_eq!(
+            flash.input,
+            Some(vec!["text".to_string(), "image".to_string()])
+        );
+
+        let mut pro = DshModel {
+            id: "deepseek-v4-pro".to_string(),
+            ..Default::default()
+        };
+        assert!(enrich_dsh_model_from_registry(&mut pro));
+        assert_eq!(pro.input, Some(vec!["text".to_string()]));
+    }
+
+    #[test]
+    fn test_provider_model_input_is_normalized_and_validated() {
+        let mut provider = sample_provider();
+        provider.models[0].input = Some(vec![" TEXT ".to_string(), "text".to_string()]);
+        let prepared = prepare_provider_config(&provider).unwrap();
+        assert_eq!(
+            prepared.models[0].input,
+            Some(vec!["text".to_string()]),
+            "duplicates and casing are normalized"
+        );
+
+        provider.models[0].input = Some(vec!["audio".to_string()]);
+        let error = prepare_provider_config(&provider).unwrap_err();
+        assert!(error.contains("input modality"), "{error}");
+    }
+
+    #[test]
+    fn test_provider_reasoning_level_is_normalized_and_validated() {
+        let mut provider = sample_provider();
+        provider.reasoning = Some(" HIGH ".to_string());
+        let prepared = prepare_provider_config(&provider).unwrap();
+        assert_eq!(prepared.reasoning.as_deref(), Some("high"));
+
+        provider.reasoning = Some("turbo".to_string());
+        let error = prepare_provider_config(&provider).unwrap_err();
+        assert!(error.contains("default reasoning level"), "{error}");
+
+        provider.reasoning = Some("   ".to_string());
+        assert!(prepare_provider_config(&provider)
+            .unwrap()
+            .reasoning
+            .is_none());
     }
 
     #[cfg(unix)]

@@ -410,6 +410,15 @@ pub(super) fn refresh_dsh(app: &mut app::App) {
         }
     }
 
+    // The official DeepSeek route references its key through
+    // `llm-deepseek.config.apiKeyEnv`; show whether that ref is configured.
+    let official_env = resolve_dsh_official_api_key_env(app);
+    app.dsh_official_api_key_configured = app
+        .dsh_credentials
+        .get(&official_env)
+        .is_some_and(|value| !value.trim().is_empty());
+    app.dsh_official_api_key_env = official_env;
+
     // Drop the open provider if it was removed on disk.
     if let Some(provider_id) = app.dsh_provider_id.clone() {
         if !app.dsh_providers.iter().any(|(id, _)| id == &provider_id) {
@@ -437,6 +446,50 @@ pub(super) fn refresh_pi_sessions(app: &mut app::App) {
         Ok(list) => app.pi_sessions = list,
         Err(e) => app.set_toast(e, true),
     }
+}
+
+/// Fallback credential ref for the official DeepSeek route when the composed
+/// config does not expose one.
+pub(super) const DSH_OFFICIAL_API_KEY_ENV_FALLBACK: &str = "DEEPSEEK_API_KEY";
+
+/// Resolve the credential reference of the official DeepSeek route from the
+/// composed snapshot: `llm-deepseek.config.apiKeyEnv`, then the schema field
+/// value/default, then [`DSH_OFFICIAL_API_KEY_ENV_FALLBACK`]. Never reads the
+/// secret value itself.
+pub(super) fn resolve_dsh_official_api_key_env(app: &app::App) -> String {
+    let Ok(snapshot) = droidgear_core::dsh_config::read_dsh_config_snapshot_for_home(
+        &app.home_dir,
+        app.dsh_active_profile.clone(),
+    ) else {
+        return DSH_OFFICIAL_API_KEY_ENV_FALLBACK.to_string();
+    };
+    let Some(entry) = snapshot
+        .entries
+        .iter()
+        .find(|entry| entry.id == "llm-deepseek")
+    else {
+        return DSH_OFFICIAL_API_KEY_ENV_FALLBACK.to_string();
+    };
+    if let Some(value) = entry
+        .config
+        .as_ref()
+        .and_then(|config| config.get("apiKeyEnv"))
+        .and_then(serde_json::Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        return value.to_string();
+    }
+    entry
+        .fields
+        .iter()
+        .find(|field| field.name == "apiKeyEnv")
+        .and_then(|field| field.value.as_ref().or(field.default.as_ref()))
+        .and_then(serde_json::Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(DSH_OFFICIAL_API_KEY_ENV_FALLBACK)
+        .to_string()
 }
 
 pub(super) fn refresh_dsh_sessions(app: &mut app::App) {
@@ -571,4 +624,80 @@ pub(super) fn hermes_set_default_model(
         .map_err(anyhow::Error::msg)?;
     refresh_hermes_detail(app);
     Ok(())
+}
+
+// ============================================================================
+// DSH configuration screen (`cordis.patch.yml`)
+// ============================================================================
+//
+// Composing a snapshot reads the profile manifest plus every bundle patch, so
+// it runs on a worker thread instead of the draw/event loop. The result is
+// dropped into `app.dsh_config_refresh_slot` and applied by
+// `poll_dsh_config_refresh` on the next UI tick.
+
+/// Start a background DSH configuration read for the active profile.
+pub(super) fn request_dsh_config_refresh(app: &mut app::App) {
+    if app.dsh_config_loading {
+        return;
+    }
+    let slot: app::DshConfigRefreshSlot = std::sync::Arc::new(std::sync::Mutex::new(None));
+    let thread_slot = std::sync::Arc::clone(&slot);
+    let home_dir = app.home_dir.clone();
+    let profile = app.dsh_active_profile.clone();
+    let spawned = std::thread::Builder::new()
+        .name("dsh-config-refresh".to_string())
+        .spawn(move || {
+            let result =
+                droidgear_core::dsh_config::read_dsh_config_snapshot_for_home(&home_dir, profile);
+            let mut guard = thread_slot
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            *guard = Some(result);
+        });
+    match spawned {
+        Ok(_) => {
+            app.dsh_config_refresh_slot = Some(slot);
+            app.dsh_config_loading = true;
+        }
+        Err(error) => app.set_toast(format!("Failed to start DSH config refresh: {error}"), true),
+    }
+}
+
+/// Apply a background read that has completed; no-op while it is running.
+pub(super) fn poll_dsh_config_refresh(app: &mut app::App) {
+    let Some(slot) = app.dsh_config_refresh_slot.as_ref() else {
+        return;
+    };
+    let result = slot
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .take();
+    let Some(result) = result else {
+        return;
+    };
+    app.dsh_config_refresh_slot = None;
+    app.dsh_config_loading = false;
+    match result {
+        Ok(snapshot) => apply_dsh_config_snapshot(app, snapshot),
+        Err(error) => app.set_toast(error, true),
+    }
+}
+
+fn apply_dsh_config_snapshot(
+    app: &mut app::App,
+    snapshot: droidgear_core::dsh_config::DshConfigSnapshot,
+) {
+    app.dsh_config_index = app
+        .dsh_config_index
+        .min(snapshot.entries.len().saturating_sub(1));
+    app.dsh_config_expanded
+        .retain(|id| snapshot.entries.iter().any(|entry| &entry.id == id));
+    app.dsh_config_snapshot = Some(snapshot);
+    let field_count = app
+        .dsh_config_selected_entry()
+        .map(|entry| entry.fields.len())
+        .unwrap_or(0);
+    if app.dsh_config_field_index >= field_count {
+        app.dsh_config_field_index = field_count.saturating_sub(1);
+    }
 }

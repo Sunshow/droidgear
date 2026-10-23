@@ -24,6 +24,7 @@ Technical documentation for building and extending this app. These docs describe
 | [Tauri Plugins](./tauri-plugins.md)                     | Plugin usage and configuration                            |
 | [Claude Code Profiles](./claude-code-profile-design.md) | Product and runtime design for Claude Code profiles       |
 | [Temporary Tool Runs](./temporary-tool-run-design.md)   | Design for launching tools with ephemeral config overlays |
+| [DSH Config Surfaces](./dsh-config-surfaces.zh.md)      | DeepSeek Harness local config model and Dsh page surfaces |
 
 - [GitHub Copilot BYOK](./copilot-byok.md) — Profiles, local configuration, and temporary launchers
 

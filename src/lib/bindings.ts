@@ -2165,6 +2165,46 @@ async fetchDshModels(baseUrl: string, apiKey: string, api: string | null) : Prom
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Read the composed DSH configuration snapshot for a profile.
+ * 
+ * `profile` selects an official runtime profile (`desktop` / `web`); when
+ * omitted the default resolution is used (`desktop`, then `web`).
+ */
+async readDshConfigSnapshot(profile: string | null) : Promise<Result<DshConfigSnapshot, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("read_dsh_config_snapshot", { profile }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Replace one entry's complete `config` in the profile patch.
+ * 
+ * `config: null` removes the override so the bundle layer applies again.
+ * `expectedHash` is the `patchHash` from the last snapshot; a mismatch is
+ * refused with a `DSH_CONFIG_CONFLICT` error.
+ */
+async saveDshConfigEntry(profile: string | null, entryId: string, config: JsonValue | null, expectedHash: string | null) : Promise<Result<DshConfigWriteResult, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_dsh_config_entry", { profile, entryId, config, expectedHash }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Enable or disable one entry in the profile patch layer.
+ */
+async setDshConfigEntryDisabled(profile: string | null, entryId: string, disabled: boolean, expectedHash: string | null) : Promise<Result<DshConfigWriteResult, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_dsh_config_entry_disabled", { profile, entryId, disabled, expectedHash }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async listDshSessions() : Promise<Result<DshSessionSummary[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("list_dsh_sessions") };
@@ -3206,6 +3246,82 @@ export type DroidRunPreferences = { disableAutoUpdateEnv?: boolean | null; unset
  */
 export type DshCompatConfig = { supportsDeveloperRole?: boolean | null }
 /**
+ * One composed plugin entry.
+ */
+export type DshConfigEntryView = { id: string; packageName: string; 
+/**
+ * `bundle:<package>` | `profile` | `home`.
+ */
+layer: string; tier: string; description: string; disabled: boolean; 
+/**
+ * Effective config contains at least one `!!js` expression.
+ */
+hasJs: boolean; 
+/**
+ * Effective config; secret fields are replaced by `{"$secret": true}`.
+ */
+config: JsonValue | null; 
+/**
+ * The profile patch carries a config override for this entry.
+ */
+overridden: boolean; 
+/**
+ * The home overlay carries a config override for this entry.
+ */
+shadowedByHome: boolean; fields: DshConfigFieldView[] }
+/**
+ * One top-level configuration field with its effective value.
+ */
+export type DshConfigFieldView = { name: string; 
+/**
+ * `string` | `number` | `boolean` | `enum` | `json`.
+ */
+kind: string; value: JsonValue | null; default: JsonValue | null; enumValues: string[]; volatile: boolean; secret: boolean; description: string; overridden: boolean; tier: string }
+/**
+ * Everything the Dsh configuration page needs for one profile.
+ */
+export type DshConfigSnapshot = { 
+/**
+ * DSH version the generated schema describes.
+ */
+schemaVersion: string; 
+/**
+ * Version of the installed desktop app, when it can be detected.
+ */
+installedVersion: string | null; 
+/**
+ * Resolved profile name (`desktop`, `web`, ...).
+ */
+profile: string | null; 
+/**
+ * Effective profile patch file (`cordis.patch.yml`).
+ */
+profilePatchPath: string; 
+/**
+ * Home overlay patch (`~/.dsh/cordis.patch.yml`), read-only.
+ */
+homePatchPath: string; homePatchExists: boolean; 
+/**
+ * Legacy pre-0.2 settings document.
+ */
+legacySettingsPath: string; 
+/**
+ * Whether the legacy document (or its `.imported` rename) exists.
+ */
+legacySettingsExists: boolean; 
+/**
+ * Content hash of the profile patch (`"absent"` when missing).
+ */
+patchHash: string; 
+/**
+ * Composed entries, lowest layer first.
+ */
+entries: DshConfigEntryView[]; 
+/**
+ * Migration / safety warnings for the UI.
+ */
+warnings: DshMigrationWarning[] }
+/**
  * Dsh configuration file status.
  */
 export type DshConfigStatus = { 
@@ -3225,6 +3341,10 @@ configPath: string;
  */
 legacyExists: boolean; legacyPath: string; credentialsExists: boolean; credentialsPath: string }
 /**
+ * Result of one successful patch write.
+ */
+export type DshConfigWriteResult = { patchHash: string; changed: boolean }
+/**
  * Credentials read from `~/.dsh/.credentials.yaml` (version + env refs).
  */
 export type DshCredentials = { version?: number; 
@@ -3237,13 +3357,29 @@ refs?: Partial<{ [key in string]: string }> }
  */
 export type DshCurrentConfig = { providers?: Partial<{ [key in string]: DshProviderConfig }> }
 /**
+ * One migration or safety warning.
+ */
+export type DshMigrationWarning = { code: string; 
+/**
+ * `info` | `warning` | `error`.
+ */
+severity: string; entryId: string | null; message: string; hint: string }
+/**
  * Dsh model definition inside a provider.
  */
 export type DshModel = { id: string; name?: string | null; contextWindow?: number | null; maxTokens?: number | null; 
 /**
  * Reasoning effort mapping, e.g. `{"off": null, "high": "high"}`.
  */
-reasoningEfforts?: Partial<{ [key in string]: string | null }> | null }
+reasoningEfforts?: Partial<{ [key in string]: string | null }> | null; 
+/**
+ * Request modalities this model accepts (`text`, `image`).
+ * 
+ * DSH falls back to the installed pi-ai catalog, then to the route's
+ * `defaultInput` (`text`), and a custom route has no installed entry, so
+ * omitting this makes images unsupported even for a vision model.
+ */
+input?: string[] | null }
 /**
  * One Dsh profile directory under `~/.dsh/profiles/`.
  */
@@ -3267,7 +3403,14 @@ export type DshProviderConfig = { displayName?: string | null;
 /**
  * The file uses `baseURL` (not `baseUrl`).
  */
-baseURL?: string | null; apiKeyEnv?: string | null; api?: string | null; compat?: DshCompatConfig | null; models: DshModel[] }
+baseURL?: string | null; apiKeyEnv?: string | null; api?: string | null; 
+/**
+ * Route default thinking level applied when a session selects no effort.
+ * 
+ * DSH resolves a pi-ai model's `defaultEffort` from this route field only,
+ * so a BYOK route without it shows "Default" in the model picker.
+ */
+reasoning?: string | null; compat?: DshCompatConfig | null; models: DshModel[] }
 export type DshSessionDetail = { summary: DshSessionSummary; messages: DshSessionMessage[] }
 export type DshSessionMessage = { id: string; role: string; content: ContentBlock[]; timestamp: string }
 export type DshSessionSummary = { id: string; title: string; 

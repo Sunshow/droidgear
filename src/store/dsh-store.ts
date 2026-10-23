@@ -1,10 +1,23 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
+import i18n from '@/i18n/config'
 import {
   commands,
   type DshProviderConfig,
+  type DshConfigSnapshot,
   type DshConfigStatus,
+  type JsonValue,
 } from '@/lib/bindings'
+
+/** Turn backend config write codes into user-facing copy. */
+export function friendlyConfigWriteError(error: string): string {
+  if (error.startsWith('DSH_CONFIG_CONFLICT'))
+    return i18n.t('dsh.config.conflict')
+  if (error.startsWith('DSH_CONFIG_SHADOWED')) {
+    return i18n.t('dsh.config.homePatchShadow')
+  }
+  return error
+}
 
 interface DshState {
   providers: Partial<Record<string, DshProviderConfig>>
@@ -16,11 +29,23 @@ interface DshState {
   isLoading: boolean
   error: string | null
   configStatus: DshConfigStatus | null
+  /** Composed configuration for the active profile (all layers). */
+  snapshot: DshConfigSnapshot | null
+  isLoadingSnapshot: boolean
+  /** Entry whose write is in flight, for per-card spinners. */
+  savingEntryId: string | null
 
   setProfile: (profile: string | null) => void
   loadProviders: () => Promise<void>
   loadCredentials: () => Promise<void>
   loadConfigStatus: () => Promise<void>
+  loadSnapshot: () => Promise<void>
+  /**
+   * Replace one entry's complete config in the profile patch.
+   * `config: null` removes the override so the bundle defaults apply again.
+   */
+  saveEntry: (entryId: string, config: JsonValue | null) => Promise<void>
+  toggleEntryDisabled: (entryId: string, disabled: boolean) => Promise<void>
   saveProvider: (id: string, config: DshProviderConfig) => Promise<void>
   deleteProvider: (id: string) => Promise<void>
   saveCredential: (name: string, value: string) => Promise<void>
@@ -37,8 +62,18 @@ export const useDshStore = create<DshState>()(
       isLoading: false,
       error: null,
       configStatus: null,
+      snapshot: null,
+      isLoadingSnapshot: false,
+      savingEntryId: null,
 
-      setProfile: profile => set({ profile }, undefined, 'dsh/setProfile'),
+      setProfile: profile => {
+        if (get().profile === profile) return
+        set(
+          { profile, snapshot: null, savingEntryId: null },
+          undefined,
+          'dsh/setProfile'
+        )
+      },
 
       loadProviders: async () => {
         set(
@@ -82,6 +117,91 @@ export const useDshStore = create<DshState>()(
           }
         } catch {
           // ignore
+        }
+      },
+
+      loadSnapshot: async () => {
+        set({ isLoadingSnapshot: true }, undefined, 'dsh/loadSnapshot/start')
+        try {
+          const result = await commands.readDshConfigSnapshot(get().profile)
+          if (result.status === 'ok') {
+            set(
+              { snapshot: result.data, isLoadingSnapshot: false },
+              undefined,
+              'dsh/loadSnapshot/success'
+            )
+          } else {
+            set(
+              {
+                error: friendlyConfigWriteError(result.error),
+                isLoadingSnapshot: false,
+              },
+              undefined,
+              'dsh/loadSnapshot/error'
+            )
+          }
+        } catch (e) {
+          set(
+            { error: String(e), isLoadingSnapshot: false },
+            undefined,
+            'dsh/loadSnapshot/exception'
+          )
+        }
+      },
+
+      saveEntry: async (entryId, config) => {
+        set({ savingEntryId: entryId }, undefined, 'dsh/saveEntry/start')
+        try {
+          const expectedHash = get().snapshot?.patchHash ?? null
+          const result = await commands.saveDshConfigEntry(
+            get().profile,
+            entryId,
+            config,
+            expectedHash
+          )
+          if (result.status !== 'ok') {
+            const error = friendlyConfigWriteError(result.error)
+            set({ error }, undefined, 'dsh/saveEntry/error')
+            throw new Error(error)
+          }
+          set({ error: null }, undefined, 'dsh/saveEntry/success')
+          await get().loadSnapshot()
+        } finally {
+          if (get().savingEntryId === entryId) {
+            set({ savingEntryId: null }, undefined, 'dsh/saveEntry/finish')
+          }
+        }
+      },
+
+      toggleEntryDisabled: async (entryId, disabled) => {
+        set(
+          { savingEntryId: entryId },
+          undefined,
+          'dsh/toggleEntryDisabled/start'
+        )
+        try {
+          const expectedHash = get().snapshot?.patchHash ?? null
+          const result = await commands.setDshConfigEntryDisabled(
+            get().profile,
+            entryId,
+            disabled,
+            expectedHash
+          )
+          if (result.status !== 'ok') {
+            const error = friendlyConfigWriteError(result.error)
+            set({ error }, undefined, 'dsh/toggleEntryDisabled/error')
+            throw new Error(error)
+          }
+          set({ error: null }, undefined, 'dsh/toggleEntryDisabled/success')
+          await get().loadSnapshot()
+        } finally {
+          if (get().savingEntryId === entryId) {
+            set(
+              { savingEntryId: null },
+              undefined,
+              'dsh/toggleEntryDisabled/finish'
+            )
+          }
         }
       },
 
@@ -141,6 +261,9 @@ export const useDshStore = create<DshState>()(
         // 重新读取，展示后端补齐（注册表元数据、协议兼容处理）后的结果
         await get().loadConfigStatus()
         await get().loadProviders()
+        // Provider writes change the profile patch hash; keep the snapshot
+        // usable for a follow-up `saveEntry` (default model) without conflicts.
+        await get().loadSnapshot()
       },
 
       deleteProvider: async id => {
@@ -152,6 +275,7 @@ export const useDshStore = create<DshState>()(
         const { [id]: _removed, ...providers } = get().providers
         set({ providers }, undefined, 'dsh/deleteProvider/success')
         await get().loadConfigStatus()
+        await get().loadSnapshot()
       },
 
       setError: error => set({ error }, undefined, 'dsh/setError'),

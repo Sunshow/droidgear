@@ -67,6 +67,7 @@ pub enum Screen {
     DshWeb,
     DshProvider,
     DshModel,
+    DshConfig,
     DshSessions,
     Hermes,
     HermesProfile,
@@ -573,6 +574,8 @@ pub enum InputAction {
     },
     DshAddProvider,
     DshAddProviderFromChannel,
+    /// Store/clear the official DeepSeek API key in `.credentials.yaml`.
+    DshSetOfficialApiKey,
     DshSetProviderDisplayName {
         provider_id: String,
     },
@@ -583,6 +586,10 @@ pub enum InputAction {
         provider_id: String,
     },
     DshSetProviderApiKey {
+        provider_id: String,
+    },
+    /// Route default pi-ai thinking level (`providers.<id>.reasoning`).
+    DshSetProviderReasoning {
         provider_id: String,
     },
     DshImportSetApiKey {
@@ -606,6 +613,12 @@ pub enum InputAction {
     DshSetModelMaxTokens {
         provider_id: String,
         model_index: usize,
+    },
+    /// Write one top-level field of a composed DSH config entry.
+    DshConfigSetField {
+        entry_id: String,
+        field_name: String,
+        kind: String,
     },
     HermesCreateProfile,
     HermesDuplicate {
@@ -783,12 +796,23 @@ pub enum SelectAction {
     DshAddFetchedModels {
         provider_id: String,
     },
+    /// Pick the pi-ai input modalities of one model (`text` / `text+image`).
+    DshSetModelInput {
+        provider_id: String,
+        model_index: usize,
+    },
     HermesImportFromChannel {
         profile_id: String,
         model_index: usize,
     },
     HermesSetProfileReasoningEffort {
         id: String,
+    },
+    /// Pick a boolean/enum value for one DSH config field.
+    DshConfigSetField {
+        entry_id: String,
+        field_name: String,
+        kind: String,
     },
 }
 
@@ -810,6 +834,18 @@ pub enum CodexDetailFocus {
     Fields,
     Providers,
 }
+
+/// Which pane of the DSH configuration screen receives Up/Down and Enter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DshConfigFocus {
+    Entries,
+    Fields,
+}
+
+/// Result slot filled by the background DSH configuration reader.
+pub type DshConfigRefreshSlot = std::sync::Arc<
+    std::sync::Mutex<Option<Result<droidgear_core::dsh_config::DshConfigSnapshot, String>>>,
+>;
 
 #[derive(Debug, Clone)]
 pub struct App {
@@ -939,6 +975,11 @@ pub struct App {
 
     pub dsh_providers: Vec<(String, DshProviderConfig)>,
     pub dsh_credentials: std::collections::HashMap<String, String>,
+    /// Credential ref backing the official `deepseek-official` route
+    /// (`llm-deepseek.config.apiKeyEnv`), resolved from the composed config.
+    pub dsh_official_api_key_env: String,
+    /// Whether `.credentials.yaml` carries a value for that ref.
+    pub dsh_official_api_key_configured: bool,
     /// Official profile this screen manages; set when the desktop/web page
     /// is opened from the feature list.
     pub dsh_active_profile: Option<String>,
@@ -947,6 +988,13 @@ pub struct App {
     pub dsh_provider_field_index: usize,
     pub dsh_model_index: usize,
     pub dsh_model_field_index: usize,
+    pub dsh_config_snapshot: Option<droidgear_core::dsh_config::DshConfigSnapshot>,
+    pub dsh_config_index: usize,
+    pub dsh_config_expanded: HashSet<String>,
+    pub dsh_config_focus: DshConfigFocus,
+    pub dsh_config_field_index: usize,
+    pub dsh_config_loading: bool,
+    pub dsh_config_refresh_slot: Option<DshConfigRefreshSlot>,
     /// Pending models fetched from a provider (for fetch multi-select flow)
     pub dsh_fetch_pending_models: Option<Vec<droidgear_core::dsh::DshModel>>,
     /// Temporary state used during Dsh "import from channel" flow in TUI
@@ -1144,12 +1192,21 @@ impl App {
             omp_provider_field_index: 0,
             dsh_providers: Vec::new(),
             dsh_credentials: std::collections::HashMap::new(),
+            dsh_official_api_key_env: "DEEPSEEK_API_KEY".to_string(),
+            dsh_official_api_key_configured: false,
             dsh_active_profile: None,
             dsh_index: 0,
             dsh_provider_id: None,
             dsh_provider_field_index: 0,
             dsh_model_index: 0,
             dsh_model_field_index: 0,
+            dsh_config_snapshot: None,
+            dsh_config_index: 0,
+            dsh_config_expanded: HashSet::new(),
+            dsh_config_focus: DshConfigFocus::Entries,
+            dsh_config_field_index: 0,
+            dsh_config_loading: false,
+            dsh_config_refresh_slot: None,
             dsh_fetch_pending_models: None,
             dsh_import_pending_provider_id: None,
             dsh_import_pending_base_url: None,
@@ -1372,6 +1429,7 @@ impl App {
                         // opened them.
                         Screen::DshProvider => self.dsh_list_screen(),
                         Screen::DshModel => Screen::DshProvider,
+                        Screen::DshConfig => self.dsh_list_screen(),
                         screen => Self::parent_screen(screen),
                     };
                 }
@@ -1451,6 +1509,37 @@ impl App {
             .iter()
             .find(|(provider_id, _)| provider_id == id)
             .map(|(_, config)| config)
+    }
+
+    /// DSH configuration entries in display order: grouped by schema tier
+    /// (A before B before C), preserving the snapshot order inside a tier.
+    pub fn dsh_config_ordered_entries(
+        &self,
+    ) -> Vec<&droidgear_core::dsh_config::DshConfigEntryView> {
+        let Some(snapshot) = self.dsh_config_snapshot.as_ref() else {
+            return Vec::new();
+        };
+        let mut tiers: Vec<&str> = snapshot
+            .entries
+            .iter()
+            .map(|entry| entry.tier.as_str())
+            .collect();
+        tiers.sort_unstable();
+        tiers.dedup();
+        let mut ordered = Vec::with_capacity(snapshot.entries.len());
+        for tier in tiers {
+            ordered.extend(snapshot.entries.iter().filter(|entry| entry.tier == tier));
+        }
+        ordered
+    }
+
+    /// Entry currently selected on the DSH configuration screen.
+    pub fn dsh_config_selected_entry(
+        &self,
+    ) -> Option<&droidgear_core::dsh_config::DshConfigEntryView> {
+        self.dsh_config_ordered_entries()
+            .get(self.dsh_config_index)
+            .copied()
     }
 
     pub fn current_paths_key(&self) -> Option<String> {
@@ -1709,9 +1798,10 @@ impl App {
         if self.dsh_index >= self.dsh_providers.len() {
             self.dsh_index = self.dsh_providers.len().saturating_sub(1);
         }
-        // DshProvider screen: 6 fields (DisplayName, BaseURL, API, APIKeyEnv, API Key value, SupportsDevRole)
-        // + model list entries.
-        let dsh_provider_fields_count = 6usize;
+        // DshProvider screen: 7 fields (DisplayName, BaseURL, API, APIKeyEnv,
+        // API Key value, SupportsDevRole, DefaultReasoning) + model list
+        // entries.
+        let dsh_provider_fields_count = 7usize;
         let dsh_model_count = self
             .dsh_current_provider()
             .map(|c| c.models.len())
@@ -1723,13 +1813,27 @@ impl App {
         if self.dsh_model_index >= dsh_model_count {
             self.dsh_model_index = dsh_model_count.saturating_sub(1);
         }
-        // DshModel screen has 5 fields: id, name, contextWindow, maxTokens, reasoning
-        let dsh_model_fields_count = 5usize;
+        // DshModel screen has 6 fields: id, name, contextWindow, maxTokens,
+        // reasoning, input modalities
+        let dsh_model_fields_count = 6usize;
         if self.dsh_model_field_index >= dsh_model_fields_count {
             self.dsh_model_field_index = dsh_model_fields_count.saturating_sub(1);
         }
         if self.dsh_sessions_index >= self.dsh_sessions.len() {
             self.dsh_sessions_index = self.dsh_sessions.len().saturating_sub(1);
+        }
+        // DshConfig screen: one row per composed entry, plus the expanded
+        // entry's field rows.
+        let dsh_config_entry_count = self.dsh_config_ordered_entries().len();
+        if self.dsh_config_index >= dsh_config_entry_count {
+            self.dsh_config_index = dsh_config_entry_count.saturating_sub(1);
+        }
+        let dsh_config_field_count = self
+            .dsh_config_selected_entry()
+            .map(|entry| entry.fields.len())
+            .unwrap_or(0);
+        if self.dsh_config_field_index >= dsh_config_field_count {
+            self.dsh_config_field_index = dsh_config_field_count.saturating_sub(1);
         }
         // --- OMP ---
         if self.omp_index >= self.omp_profiles.len() {

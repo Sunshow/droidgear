@@ -1,6 +1,13 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Download, FolderInput, LoaderCircle, Plus, Trash2 } from 'lucide-react'
+import {
+  Download,
+  FolderInput,
+  LoaderCircle,
+  Plus,
+  Star,
+  Trash2,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -27,9 +34,23 @@ import {
   draftFromChannelModel,
   draftToModel,
   modelToDraft,
+  resolveInputModalities,
   type DshModelDraft as ModelDraft,
 } from './model-draft'
 import { commands, type DshModel, type DshProviderConfig } from '@/lib/bindings'
+import {
+  PROVIDER_REASONING_LEVELS,
+  isProviderReasoningLevel,
+  modelsRejectingLevel,
+  readDefaultModel,
+  suggestDefaultReasoning,
+} from './provider-defaults'
+import {
+  envNameForProviderId,
+  isCustomApiKeyEnv,
+  isValidApiKeyEnv,
+  resolveApiKeyEnv,
+} from './provider-credentials'
 import { findModelByIdOrAlias, getSupportedEfforts } from '@/lib/model-registry'
 import { providerToClientApiType } from '@/lib/model-protocol'
 import {
@@ -39,6 +60,9 @@ import {
 import { ChannelModelPickerDialog } from '@/components/channels/ChannelModelPickerDialog'
 import type { ChannelProviderContext } from '@/components/channels'
 import type { CustomModel } from '@/lib/bindings'
+
+/** Radix Select needs a non-empty value for the "not set" option. */
+const UNSET_REASONING = '__unset__'
 
 const API_OPTIONS = [
   'openai-completions',
@@ -91,10 +115,6 @@ function sanitizeProviderId(name: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
-function envNameForProviderId(providerId: string): string {
-  return `${providerId.toUpperCase().replace(/-/g, '_')}_API_KEY`
-}
-
 function inferApiType(baseUrl: string, platform: string | null): string {
   const url = baseUrl.toLowerCase()
   if (
@@ -120,16 +140,24 @@ export function ProviderDialog({
   const credentials = useDshStore(state => state.credentials)
   const saveProvider = useDshStore(state => state.saveProvider)
   const saveCredential = useDshStore(state => state.saveCredential)
+  const saveEntry = useDshStore(state => state.saveEntry)
+  const snapshot = useDshStore(state => state.snapshot)
   const setError = useDshStore(state => state.setError)
 
   const isEditing = editingProviderId !== null
+  const currentDefaultModel = readDefaultModel(snapshot)
   const [providerId, setProviderId] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [baseUrl, setBaseUrl] = useState('')
-  const [apiKeyEnv, setApiKeyEnv] = useState('')
+  const [customApiKeyEnv, setCustomApiKeyEnv] = useState('')
+  const [apiKeyEnvExpanded, setApiKeyEnvExpanded] = useState(false)
   const [apiKeyValue, setApiKeyValue] = useState('')
   const [api, setApi] = useState('')
   const [supportsDeveloperRole, setSupportsDeveloperRole] = useState(false)
+  const [reasoning, setReasoning] = useState('')
+  const [reasoningTouched, setReasoningTouched] = useState(false)
+  const [defaultModelId, setDefaultModelId] = useState<string | null>(null)
+  const [savedProviderId, setSavedProviderId] = useState<string | null>(null)
   const [models, setModels] = useState<ModelDraft[]>([])
   const [isFetching, setIsFetching] = useState(false)
   const [validationError, setValidationError] = useState<string | null>(null)
@@ -143,6 +171,9 @@ export function ProviderDialog({
   // Channel import state
   const [channelPickerOpen, setChannelPickerOpen] = useState(false)
 
+  const derivedApiKeyEnv = envNameForProviderId(providerId)
+  const effectiveApiKeyEnv = resolveApiKeyEnv(providerId, customApiKeyEnv)
+
   // Re-initialize the form whenever the dialog opens for a provider.
   const openKey = `${open}:${editingProviderId ?? ''}`
   if (open && openKey !== lastOpenKey) {
@@ -154,25 +185,72 @@ export function ProviderDialog({
     const existing = editingProviderId
       ? providers[editingProviderId]
       : undefined
-    const envName = existing?.apiKeyEnv ?? ''
+    const storedEnvName = existing?.apiKeyEnv ?? ''
+    const editingId = editingProviderId ?? ''
+    const customEnv = isCustomApiKeyEnv(editingId, storedEnvName)
+      ? storedEnvName
+      : ''
     setProviderId(editingProviderId ?? '')
     setDisplayName(existing?.displayName ?? '')
     setBaseUrl(existing?.baseURL ?? '')
-    setApiKeyEnv(envName)
-    setApiKeyValue(envName ? (credentials[envName] ?? '') : '')
+    setCustomApiKeyEnv(customEnv)
+    setApiKeyEnvExpanded(customEnv.length > 0)
+    setApiKeyValue(storedEnvName ? (credentials[storedEnvName] ?? '') : '')
     setApi(existing?.api ?? '')
     setSupportsDeveloperRole(existing?.compat?.supportsDeveloperRole ?? false)
+    const existingReasoning = existing?.reasoning ?? ''
+    setReasoning(existingReasoning)
+    setReasoningTouched(existingReasoning.length > 0)
+    setSavedProviderId(null)
+    const providerForDefault = editingProviderId ?? ''
+    setDefaultModelId(
+      currentDefaultModel &&
+        providerForDefault.length > 0 &&
+        currentDefaultModel.provider === providerForDefault
+        ? currentDefaultModel.model
+        : null
+    )
     setModels((existing?.models ?? []).map(modelToDraft))
   }
+
+  const reasoningModels = models.map(draft => ({
+    id: draft.id.trim(),
+    base: draft.base,
+  }))
+  // An untouched value follows the model capabilities; once the user picks a
+  // level explicitly the choice is kept even if the model list changes.
+  const suggestedReasoning = suggestDefaultReasoning(reasoningModels)
+  const effectiveReasoning = reasoningTouched
+    ? reasoning
+    : (suggestedReasoning ?? '')
+  const rejectedBy = effectiveReasoning
+    ? modelsRejectingLevel(reasoningModels, effectiveReasoning)
+    : []
+  const reasoningLevelLabel = (value: string): string =>
+    isProviderReasoningLevel(value)
+      ? t(`dsh.provider.reasoningLevel.${value}`)
+      : value
 
   const handleAddModel = () => {
     setModels(prev => [
       ...prev,
-      { id: '', name: '', contextWindow: '', maxTokens: '', base: null },
+      {
+        id: '',
+        name: '',
+        contextWindow: '',
+        maxTokens: '',
+        input: ['text'],
+        inputTouched: false,
+        base: null,
+      },
     ])
   }
 
   const handleRemoveModel = (index: number) => {
+    const removedId = models[index]?.id.trim()
+    if (removedId && removedId === defaultModelId) {
+      setDefaultModelId(null)
+    }
     setModels(prev => prev.filter((_, i) => i !== index))
   }
 
@@ -185,8 +263,7 @@ export function ProviderDialog({
   const resolveApiKeyForFetch = (): string => {
     const direct = apiKeyValue.trim()
     if (direct) return direct
-    const envName = apiKeyEnv.trim()
-    return envName ? (credentials[envName] ?? '') : ''
+    return effectiveApiKeyEnv ? (credentials[effectiveApiKeyEnv] ?? '') : ''
   }
 
   const mergeFetchedModels = (selected: DshModel[]) => {
@@ -206,6 +283,9 @@ export function ProviderDialog({
             maxTokens: existing.maxTokens.trim()
               ? existing.maxTokens
               : (model.maxTokens?.toString() ?? ''),
+            input: existing.inputTouched
+              ? existing.input
+              : modelToDraft(model).input,
             base: existing.base ?? model,
           }
           byId.set(model.id, merged)
@@ -294,8 +374,8 @@ export function ProviderDialog({
         ? ensureOpenAICompatibleV1(context.baseUrl)
         : context.baseUrl
     )
-    const envName = envNameForProviderId(sanitizedId)
-    setApiKeyEnv(envName)
+    setCustomApiKeyEnv('')
+    setApiKeyEnvExpanded(false)
     setApiKeyValue(context.apiKey)
     setApi(apiType)
     // 用内置注册表补齐上下文窗口等元数据，和保存时的后端填充保持一致
@@ -308,7 +388,7 @@ export function ProviderDialog({
       setValidationError(t('dsh.provider.idRequired'))
       return
     }
-    if (!isEditing && providers[id]) {
+    if (!isEditing && providers[id] && savedProviderId !== id) {
       setValidationError(t('dsh.provider.idConflict'))
       return
     }
@@ -333,24 +413,49 @@ export function ProviderDialog({
       ...(base ?? {}),
       displayName: displayName.trim() || null,
       baseURL: baseUrl.trim() || null,
-      apiKeyEnv: apiKeyEnv.trim() || null,
+      apiKeyEnv: effectiveApiKeyEnv || null,
       api: api || null,
+      reasoning: effectiveReasoning || null,
       compat: supportsDevRole
         ? { ...baseCompat, supportsDeveloperRole }
         : { ...baseCompat },
       models: models.map(draftToModel),
     }
 
+    // A retry after a failed default-model write must not re-create the provider.
+    if (savedProviderId !== id) {
+      try {
+        await saveProvider(id, config)
+        setSavedProviderId(id)
+      } catch {
+        // store already set the error
+        return
+      }
+    }
+
     try {
-      await saveProvider(id, config)
-      const envName = apiKeyEnv.trim()
-      if (envName) {
-        await saveCredential(envName, apiKeyValue.trim())
+      if (effectiveApiKeyEnv) {
+        await saveCredential(effectiveApiKeyEnv, apiKeyValue.trim())
+      }
+      const stagedDefault =
+        defaultModelId && modelIds.has(defaultModelId) ? defaultModelId : null
+      if (stagedDefault) {
+        await saveEntry('agent-default-model', {
+          provider: id,
+          model: stagedDefault,
+          ...(effectiveReasoning
+            ? { reasoningEffort: effectiveReasoning }
+            : {}),
+        })
       }
       setError(null)
       onOpenChange(false)
-    } catch {
-      // store already set the error
+    } catch (e) {
+      // The provider is saved; keep the dialog open so the user can retry the
+      // default-model write without losing the staged changes.
+      const message = e instanceof Error ? e.message : String(e)
+      setValidationError(message)
+      toast.error(message)
     }
   }
 
@@ -416,21 +521,7 @@ export function ProviderDialog({
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="dsh-provider-api-key-env">
-                  {t('dsh.provider.apiKeyEnv')}
-                </Label>
-                <Input
-                  id="dsh-provider-api-key-env"
-                  value={apiKeyEnv}
-                  onChange={e => setApiKeyEnv(e.target.value)}
-                  placeholder="OPENAI_API_KEY"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {t('dsh.provider.apiKeyEnvHint')}
-                </p>
-              </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="dsh-provider-api-key-value">
                   {t('dsh.provider.apiKeyValue')}
@@ -439,7 +530,7 @@ export function ProviderDialog({
                   id="dsh-provider-api-key-value"
                   value={apiKeyValue}
                   onChange={e => setApiKeyValue(e.target.value)}
-                  disabled={!apiKeyEnv.trim()}
+                  disabled={!effectiveApiKeyEnv}
                   placeholder="sk-..."
                 />
                 <p className="text-xs text-muted-foreground">
@@ -465,6 +556,103 @@ export function ProviderDialog({
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {providerId.trim() ? (
+              <div className="space-y-1">
+                <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span>
+                    {t('dsh.provider.credentialRefValue', {
+                      env: effectiveApiKeyEnv,
+                    })}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-xs"
+                    onClick={() => {
+                      if (apiKeyEnvExpanded) {
+                        setCustomApiKeyEnv('')
+                        setApiKeyEnvExpanded(false)
+                      } else {
+                        setApiKeyEnvExpanded(true)
+                      }
+                    }}
+                  >
+                    {apiKeyEnvExpanded
+                      ? t('dsh.provider.credentialRefDefault')
+                      : t('dsh.provider.credentialRefCustom')}
+                  </Button>
+                </p>
+                {apiKeyEnvExpanded ? (
+                  <div className="max-w-md space-y-2">
+                    <Label htmlFor="dsh-provider-api-key-env">
+                      {t('dsh.provider.credentialRef')}
+                    </Label>
+                    <Input
+                      id="dsh-provider-api-key-env"
+                      value={customApiKeyEnv}
+                      onChange={e => setCustomApiKeyEnv(e.target.value)}
+                      placeholder={derivedApiKeyEnv}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {t('dsh.provider.credentialRefHint')}
+                    </p>
+                    {customApiKeyEnv.trim() &&
+                    !isValidApiKeyEnv(customApiKeyEnv) ? (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        {t('dsh.provider.credentialRefInvalid')}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="space-y-2">
+              <Label htmlFor="dsh-provider-reasoning">
+                {t('dsh.provider.defaultReasoning')}
+              </Label>
+              <Select
+                value={effectiveReasoning || UNSET_REASONING}
+                onValueChange={value => {
+                  setReasoningTouched(true)
+                  setReasoning(value === UNSET_REASONING ? '' : value)
+                }}
+              >
+                <SelectTrigger id="dsh-provider-reasoning" className="w-56">
+                  <SelectValue
+                    placeholder={t('dsh.provider.defaultReasoningNotSet')}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={UNSET_REASONING}>
+                    {t('dsh.provider.defaultReasoningNotSet')}
+                  </SelectItem>
+                  {PROVIDER_REASONING_LEVELS.map(level => (
+                    <SelectItem key={level} value={level}>
+                      {reasoningLevelLabel(level)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {t('dsh.provider.defaultReasoningHint')}
+              </p>
+              {!reasoningTouched && suggestedReasoning ? (
+                <p className="text-xs text-muted-foreground">
+                  {t('dsh.provider.defaultReasoningSuggested')}
+                </p>
+              ) : null}
+              {rejectedBy.length > 0 && effectiveReasoning ? (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  {t('dsh.provider.defaultReasoningUnsupported', {
+                    level: reasoningLevelLabel(effectiveReasoning),
+                    models: rejectedBy.join(', '),
+                  })}
+                </p>
+              ) : null}
             </div>
 
             {SUPPORTS_DEV_ROLE_PROTOCOLS.has(api) && (
@@ -527,9 +715,12 @@ export function ProviderDialog({
             ) : (
               <div className="space-y-2">
                 {models.map((draft, index) => {
+                  const modelId = draft.id.trim()
+                  const isDefaultModel =
+                    modelId.length > 0 && defaultModelId === modelId
                   const effortsLabel = reasoningEffortsLabel(
                     draft.base,
-                    draft.id.trim()
+                    modelId
                   )
                   return (
                     <div
@@ -540,9 +731,20 @@ export function ProviderDialog({
                         <Input
                           className="flex-1 min-w-0"
                           value={draft.id}
-                          onChange={e =>
-                            updateModel(index, { id: e.target.value })
-                          }
+                          onChange={e => {
+                            const nextId = e.target.value
+                            updateModel(index, {
+                              id: nextId,
+                              ...(draft.inputTouched
+                                ? {}
+                                : {
+                                    input: resolveInputModalities(nextId, null),
+                                  }),
+                            })
+                            if (defaultModelId === modelId) {
+                              setDefaultModelId(nextId.trim())
+                            }
+                          }}
                           placeholder={t('dsh.provider.modelId')}
                         />
                         <Input
@@ -553,6 +755,24 @@ export function ProviderDialog({
                           }
                           placeholder={t('dsh.provider.modelName')}
                         />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDefaultModelId(modelId)}
+                          type="button"
+                          aria-label={t('dsh.provider.setAsDefaultModel')}
+                          aria-pressed={isDefaultModel}
+                          title={t('dsh.provider.setAsDefaultModel')}
+                          disabled={modelId.length === 0}
+                        >
+                          <Star
+                            className={
+                              isDefaultModel
+                                ? 'h-4 w-4 fill-current text-amber-500'
+                                : 'h-4 w-4'
+                            }
+                          />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -591,11 +811,50 @@ export function ProviderDialog({
                             t('dsh.provider.reasoningEffortsAuto')}
                         </span>
                       </div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="text-xs text-muted-foreground">
+                          {t('dsh.provider.inputModalities')}
+                        </span>
+                        <label
+                          className="flex items-center gap-1.5 text-xs"
+                          htmlFor={`dsh-model-text-${index}`}
+                        >
+                          <Checkbox
+                            id={`dsh-model-text-${index}`}
+                            checked
+                            disabled
+                          />
+                          {t('dsh.provider.inputText')}
+                        </label>
+                        <label
+                          className="flex items-center gap-1.5 text-xs"
+                          htmlFor={`dsh-model-image-${index}`}
+                        >
+                          <Checkbox
+                            id={`dsh-model-image-${index}`}
+                            checked={draft.input.includes('image')}
+                            onCheckedChange={checked =>
+                              updateModel(index, {
+                                input:
+                                  checked === true
+                                    ? ['text', 'image']
+                                    : ['text'],
+                                inputTouched: true,
+                              })
+                            }
+                          />
+                          {t('dsh.provider.inputImage')}
+                        </label>
+                      </div>
                     </div>
                   )
                 })}
               </div>
             )}
+
+            <p className="text-xs text-muted-foreground">
+              {t('dsh.provider.inputModalitiesHint')}
+            </p>
           </div>
 
           {validationError && (
