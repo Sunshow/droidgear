@@ -69,7 +69,7 @@ export function GeneralPane() {
     setUpdateError(null)
 
     try {
-      const update = await checkForUpdate()
+      const update = await checkForUpdate({ force: true })
       if (update) {
         setHasUpdate(true)
         useUIStore.getState().setPendingUpdate(update)
@@ -150,52 +150,37 @@ export function GeneralPane() {
           })}
           description=""
         >
-          {/* Only show check button when no update is available */}
-          {!hasUpdate && !pendingUpdate && (
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCheckForUpdates}
-                disabled={updateStatus !== 'idle'}
-              >
-                {updateStatus === 'checking'
-                  ? t('preferences.general.checking')
-                  : t('preferences.general.checkForUpdates')}
-              </Button>
-            </div>
-          )}
+          {/* Always available so a previously displayed release never blocks a
+              fresh check (e.g. one that was published after it) */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCheckForUpdates}
+            disabled={updateStatus !== 'idle'}
+          >
+            {updateStatus === 'checking'
+              ? t('preferences.general.checking')
+              : t('preferences.general.checkForUpdates')}
+          </Button>
         </SettingsField>
 
         {/* Update status display - show when update is available */}
-        {updateStatus === 'idle' && (hasUpdate || pendingUpdate) && (
-          <>
-            <SettingsField
-              label={t('preferences.general.updateAvailable', {
-                version: pendingUpdate?.version,
-              })}
-              description=""
+        {hasUpdate && (
+          <SettingsField
+            label={t('preferences.general.updateAvailable', {
+              version: pendingUpdate?.version,
+            })}
+            description=""
+          >
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleDownloadAndInstall}
+              disabled={isUpdateInstalling || updateStatus !== 'idle'}
             >
-              {hasUpdate ? (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={handleDownloadAndInstall}
-                  disabled={isUpdateInstalling}
-                >
-                  {t('preferences.general.downloadAndInstall')}
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCheckForUpdates}
-                >
-                  {t('preferences.general.checkForUpdates')}
-                </Button>
-              )}
-            </SettingsField>
-          </>
+              {t('preferences.general.downloadAndInstall')}
+            </Button>
+          </SettingsField>
         )}
 
         {updateStatus === 'idle' &&

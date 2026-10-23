@@ -724,6 +724,7 @@
   "update.installing": "下载完成，正在安装...",
   "update.completed": "更新成功！\n\n是否立即重启应用以使用新版本？",
   "update.failed": "更新失败：自动下载出现问题。\n\n{{error}}",
+  "update.upToDate": "当前已是最新版本",
 
   "validation.bracketsNotAllowed": "不建议使用可能影响正则表达式的特殊字符，可能导致不可预期的问题",
   "validation.officialModelNameNotAllowed": "显示名称不能与官方模型名相同或以其为前缀（如 Opus 4.7、Sonnet 4.6）",

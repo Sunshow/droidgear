@@ -155,7 +155,7 @@ function handleAbout(): void {
 async function handleCheckForUpdates(): Promise<void> {
   logger.info('Check for Updates menu item clicked')
   try {
-    const update = await checkForUpdate()
+    const update = await checkForUpdate({ force: true })
     if (update) {
       showUpdateNotification(update, { force: true })
     } else {
