@@ -152,10 +152,26 @@ async function checkPortableUpdate(): Promise<PendingUpdate | null> {
   return portableUpdate ? createPendingPortableUpdate(portableUpdate) : null
 }
 
-export async function checkForUpdate(): Promise<PendingUpdate | null> {
+export interface CheckForUpdateOptions {
+  /**
+   * Manual checks pass `true` so a previously fetched release can never be
+   * reused: the in-memory update metadata is dropped and any snooze is
+   * cleared before the network request.
+   */
+  force?: boolean
+}
+
+export async function checkForUpdate(
+  options: CheckForUpdateOptions = {}
+): Promise<PendingUpdate | null> {
   if (isUpdateCheckDisabled()) {
     logger.debug('Update check disabled via environment variable')
     return null
+  }
+
+  if (options.force) {
+    clearCachedUpdate()
+    clearUpdateNotificationSnooze()
   }
 
   try {
@@ -198,9 +214,15 @@ async function openReleasePage(releaseUrl: string): Promise<void> {
 }
 
 /**
- * Download and install the update with progress tracking
+ * Download and install the update with progress tracking.
+ *
+ * The pending update may come from a notification that has been on screen for
+ * a while, so the release is re-checked first. Installing the cached metadata
+ * blind would happily downgrade the user to the version that was current when
+ * the notification was created.
  */
 export async function downloadAndInstallUpdate(): Promise<void> {
+  const t = i18n.t.bind(i18n)
   const { pendingUpdate, isUpdateInstalling, setUpdateInstalling } =
     useUIStore.getState()
   if (!pendingUpdate) {
@@ -215,7 +237,26 @@ export async function downloadAndInstallUpdate(): Promise<void> {
 
   setUpdateInstalling(true)
   try {
-    await performDownloadAndInstallUpdate(pendingUpdate)
+    const latestUpdate = await checkForUpdate({ force: true })
+    if (!latestUpdate) {
+      // The release we were told about is gone: either it was installed in the
+      // meantime or it is no longer offered. Drop the stale notification.
+      toast.dismiss(UPDATE_NOTIFICATION_TOAST_ID)
+      useUIStore.getState().clearPendingUpdate()
+      toast.info(t('update.upToDate'))
+      return
+    }
+
+    useUIStore.getState().setPendingUpdate(latestUpdate)
+    await performDownloadAndInstallUpdate(latestUpdate)
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    logger.error('Failed to refresh update metadata before installing', {
+      error: errorMessage,
+    })
+    toast.error(t('update.failed', { error: errorMessage }), {
+      id: 'update-progress',
+    })
   } finally {
     useUIStore.getState().setUpdateInstalling(false)
   }

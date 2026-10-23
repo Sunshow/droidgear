@@ -5,6 +5,7 @@ const { toastMock } = vi.hoisted(() => {
     loading: vi.fn(),
     success: vi.fn(),
     error: vi.fn(),
+    info: vi.fn(),
     dismiss: vi.fn(),
     custom: vi.fn(),
   })
@@ -130,13 +131,86 @@ describe('updater service', () => {
     const duplicateInstall = downloadAndInstallUpdate()
 
     expect(useUIStore.getState().isUpdateInstalling).toBe(true)
-    expect(downloadAndInstall).toHaveBeenCalledTimes(1)
+    // The install starts after the release is re-checked, so give the first
+    // call a tick to reach the download step before asserting.
+    await vi.waitFor(() => expect(downloadAndInstall).toHaveBeenCalledTimes(1))
 
     finishInstall()
     await Promise.all([firstInstall, duplicateInstall])
 
     expect(useUIStore.getState().isUpdateInstalling).toBe(false)
     expect(downloadAndInstall).toHaveBeenCalledTimes(1)
+  })
+
+  it('re-checks the latest release before installing a stale pending update', async () => {
+    const staleDownload = vi.fn()
+    const freshDownload = vi.fn()
+
+    vi.mocked(check).mockResolvedValueOnce({
+      version: '0.5.4',
+      body: 'Stale release notes',
+      downloadAndInstall: staleDownload,
+    } as never)
+
+    const staleUpdate = await checkForUpdate()
+    if (!staleUpdate) {
+      throw new Error('Expected an update to be available')
+    }
+    useUIStore.getState().setPendingUpdate(staleUpdate)
+
+    vi.mocked(check).mockResolvedValueOnce({
+      version: '0.5.5',
+      body: 'Fresh release notes',
+      downloadAndInstall: freshDownload,
+    } as never)
+
+    await downloadAndInstallUpdate()
+
+    expect(staleDownload).not.toHaveBeenCalled()
+    expect(freshDownload).toHaveBeenCalledTimes(1)
+    expect(useUIStore.getState().pendingUpdate).toBeNull()
+    expect(toast.success).toHaveBeenCalled()
+  })
+
+  it('drops the pending update when the release is no longer offered', async () => {
+    const downloadAndInstall = vi.fn()
+
+    vi.mocked(check).mockResolvedValueOnce({
+      version: '0.5.4',
+      downloadAndInstall,
+    } as never)
+
+    const update = await checkForUpdate()
+    if (!update) {
+      throw new Error('Expected an update to be available')
+    }
+    useUIStore.getState().setPendingUpdate(update)
+
+    vi.mocked(check).mockResolvedValueOnce(null)
+
+    await downloadAndInstallUpdate()
+
+    expect(downloadAndInstall).not.toHaveBeenCalled()
+    expect(useUIStore.getState().pendingUpdate).toBeNull()
+    expect(toast.dismiss).toHaveBeenCalledWith(UPDATE_NOTIFICATION_TOAST_ID)
+    expect(toast.info).toHaveBeenCalled()
+  })
+
+  it('clears the notification snooze on manual checks', async () => {
+    const update = {
+      version: '0.5.4',
+      body: 'Release notes',
+      channel: 'managed' as const,
+      releaseUrl: buildReleaseUrl('0.5.4'),
+    }
+
+    useUIStore.getState().setPendingUpdate(update)
+    dismissUpdateNotification(update)
+    expect(isUpdateNotificationSnoozed(update)).toBe(true)
+
+    await checkForUpdate({ force: true })
+
+    expect(isUpdateNotificationSnoozed(update)).toBe(false)
   })
 
   it('shows update notifications via toast.custom and can force repeat', () => {
