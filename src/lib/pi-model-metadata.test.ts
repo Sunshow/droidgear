@@ -58,4 +58,44 @@ describe('pi model metadata', () => {
 
     expect(enrichPiModelFromRegistry(model)).toBe(model)
   })
+
+  it('sets forceAdaptiveThinking for adaptive Anthropic models', () => {
+    const entry = findModelByIdOrAlias('claude-opus-5-5')
+
+    if (!entry) {
+      throw new Error('Expected claude-opus-5-5 in the model registry')
+    }
+
+    const created = createPiModelFromRegistry(entry)
+    expect(created.compat).toEqual({ forceAdaptiveThinking: true })
+
+    const enriched = enrichPiModelFromRegistry({
+      id: 'claude-opus-5.5',
+      name: 'Custom label',
+      api: 'anthropic-messages',
+      reasoning: true,
+      input: ['text', 'image'],
+      contextWindow: 1,
+      maxTokens: 2,
+      cost: null,
+      compat: { supportsDeveloperRole: false },
+    })
+    expect(enriched.compat).toEqual({
+      supportsDeveloperRole: false,
+      forceAdaptiveThinking: true,
+    })
+
+    const optedOut = enrichPiModelFromRegistry({
+      id: 'claude-opus-5-5',
+      name: 'Custom label',
+      api: 'anthropic-messages',
+      reasoning: true,
+      input: ['text', 'image'],
+      contextWindow: 1,
+      maxTokens: 2,
+      cost: null,
+      compat: { forceAdaptiveThinking: false },
+    })
+    expect(optedOut.compat).toEqual({ forceAdaptiveThinking: false })
+  })
 })
