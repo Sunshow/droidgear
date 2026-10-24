@@ -2,7 +2,28 @@ import {
   findModelByIdOrAlias,
   type ModelRegistryEntry,
 } from '@/lib/model-registry'
-import type { PiModel } from '@/lib/bindings'
+import type { PiCompatConfig, PiModel } from '@/lib/bindings'
+
+/**
+ * Compat flags derived from registry metadata. Models whose Anthropic
+ * encoding profile is `anthropic-adaptive` (e.g. claude-opus-5-5) require
+ * thinking.type: adaptive + output_config.effort, which pi only sends for
+ * custom providers when compat.forceAdaptiveThinking is set.
+ */
+function piCompatForEntry(entry: ModelRegistryEntry): PiCompatConfig | null {
+  return entry.reasoningConfig?.profiles?.anthropic === 'anthropic-adaptive'
+    ? { forceAdaptiveThinking: true }
+    : null
+}
+
+/** Merge registry-derived compat under existing user-defined compat. */
+function mergePiCompat(
+  existing: PiCompatConfig | null | undefined,
+  derived: PiCompatConfig | null
+): PiCompatConfig | null {
+  if (!derived) return existing ?? null
+  return { ...derived, ...existing }
+}
 
 export function createPiModelFromRegistry(entry: ModelRegistryEntry): PiModel {
   return {
@@ -17,7 +38,7 @@ export function createPiModelFromRegistry(entry: ModelRegistryEntry): PiModel {
     contextWindow: entry.contextWindow,
     maxTokens: entry.maxOutputTokens,
     cost: null,
-    compat: null,
+    compat: piCompatForEntry(entry),
   }
 }
 
@@ -35,5 +56,6 @@ export function enrichPiModelFromRegistry(model: PiModel): PiModel {
       : null,
     contextWindow: entry.contextWindow,
     maxTokens: entry.maxOutputTokens ?? model.maxTokens,
+    compat: mergePiCompat(model.compat, piCompatForEntry(entry)),
   }
 }
