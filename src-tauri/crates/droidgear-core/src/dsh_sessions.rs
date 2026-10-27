@@ -782,6 +782,7 @@ mod tests {
     use super::{
         delete_dsh_session_for_home, get_dsh_session_detail_for_home, list_dsh_sessions_for_home,
     };
+    use crate::test_support::slashes;
     use std::fs;
     use std::io::Write;
     use std::path::PathBuf;
@@ -891,7 +892,7 @@ mod tests {
         assert_eq!(session.model, "deepseek-flash");
         assert_eq!(session.model_provider, "deepseek-official");
         assert_eq!(session.token_usage.input_tokens, 0.0);
-        assert_eq!(session.path, fixture.log_path());
+        assert_eq!(slashes(&session.path), slashes(&fixture.log_path()));
         assert!(session.modified_at > 0.0);
     }
 

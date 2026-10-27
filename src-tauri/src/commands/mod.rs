@@ -23,6 +23,7 @@ pub mod hermes;
 pub mod mcp;
 pub mod notifications;
 pub mod omp;
+pub mod omp_sessions;
 pub mod openclaw;
 pub mod opencode;
 pub mod paths;

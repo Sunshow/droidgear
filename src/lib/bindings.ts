@@ -1741,6 +1741,46 @@ async testOmpProviderConnection(providerId: string) : Promise<Result<OmpProvider
     else return { status: "error", error: e  as any };
 }
 },
+async listOmpSessions() : Promise<Result<OmpSessionSummary[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_omp_sessions") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getOmpSessionDetail(sessionPath: string) : Promise<Result<OmpSessionDetail, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_omp_session_detail", { sessionPath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async deleteOmpSession(sessionPath: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_omp_session", { sessionPath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async startOmpSessionsWatcher() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("start_omp_sessions_watcher") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async stopOmpSessionsWatcher() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("stop_omp_sessions_watcher") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 /**
  * Test a Pi provider using an isolated temporary models.json and Pi CLI run.
  */
@@ -3678,6 +3718,9 @@ export type OmpProviderModels = { providerId: string; models: OmpCachedModel[] }
  * Result of validating an OMP provider through HTTP connectivity testing.
  */
 export type OmpProviderTestResult = { success: boolean; providerId: string; modelId: string; latencyMs: number; responseText?: string | null; error?: string | null }
+export type OmpSessionDetail = { summary: OmpSessionSummary; messages: OmpSessionMessage[] }
+export type OmpSessionMessage = { id: string; role: string; content: ContentBlock[]; timestamp: string; isActiveBranch: boolean }
+export type OmpSessionSummary = { id: string; title: string; project: string; model: string; modelProvider: string; modifiedAt: number; messageCount: number; tokenUsage: OmpTokenUsage; path: string }
 /**
  * OMP theme configuration.
  */
@@ -3686,6 +3729,7 @@ export type OmpTheme = { dark?: string | null; light?: string | null }
  * OMP thinking/reasoning configuration.
  */
 export type OmpThinkingConfig = { mode?: string | null; efforts?: string[] | null; defaultLevel?: string | null }
+export type OmpTokenUsage = { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheCreationTokens: number; reasoningTokens: number; totalTokens: number; cost: number }
 /**
  * OpenClaw config status
  */
