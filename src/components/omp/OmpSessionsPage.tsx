@@ -44,6 +44,8 @@ import { showContextMenu } from '@/lib/context-menu'
 
 type ViewMode = 'list' | 'grouped'
 
+const LIST_BATCH_SIZE = 20
+
 function projectLabel(project: string): string {
   if (!project) return ''
   const parts = project.replace(/\\/g, '/').split('/').filter(Boolean)
@@ -82,6 +84,9 @@ export function OmpSessionsPage() {
   const [hideEmptySessions, setHideEmptySessions] = useState(() => {
     return localStorage.getItem('omp-sessions-hide-empty') !== 'false'
   })
+  const [visibleSessionCount, setVisibleSessionCount] =
+    useState(LIST_BATCH_SIZE)
+  const [listSentinel, setListSentinel] = useState<HTMLDivElement | null>(null)
   const [systemPrefersDark, setSystemPrefersDark] = useState(
     () => window.matchMedia('(prefers-color-scheme: dark)').matches
   )
@@ -177,6 +182,26 @@ export function OmpSessionsPage() {
     },
     []
   )
+
+  // Start over from the first batch when the view configuration changes
+  useEffect(() => {
+    setVisibleSessionCount(LIST_BATCH_SIZE)
+  }, [viewMode, hideEmptySessions])
+
+  // Load the next batch when the sentinel scrolls into view
+  useEffect(() => {
+    if (!listSentinel) return
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleSessionCount(prev => prev + LIST_BATCH_SIZE)
+        }
+      },
+      { rootMargin: '200px' }
+    )
+    observer.observe(listSentinel)
+    return () => observer.disconnect()
+  }, [listSentinel])
 
   useEffect(() => {
     loadSessions()
@@ -308,53 +333,73 @@ export function OmpSessionsPage() {
     </button>
   )
 
-  const renderGroupedView = () => (
-    <div className="p-2 space-y-1">
-      {groupedProjectNames.map(projectName => {
-        const projectSessions = groupedSessions[projectName] ?? []
-        const isExpanded = expandedProjects.has(projectName)
-        return (
-          <div key={projectName}>
-            <button
-              onClick={() =>
-                setExpandedProjects(previous => {
-                  const next = new Set(previous)
-                  if (next.has(projectName)) next.delete(projectName)
-                  else next.add(projectName)
-                  return next
-                })
-              }
-              className="w-full flex items-center gap-2 p-2 rounded-md hover:bg-accent transition-colors text-sm"
-            >
-              {isExpanded ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-              <span className="truncate flex-1 text-start font-medium">
-                {projectName === 'unknown'
-                  ? t('omp.sessions.unknownProject')
-                  : projectLabel(projectName)}
-              </span>
-              <Badge variant="secondary" className="text-xs">
-                {projectSessions.length}
-              </Badge>
-            </button>
-            {isExpanded && (
-              <div className="ml-4 space-y-1">
-                {projectSessions.map(session =>
-                  renderSessionItem(
-                    session,
-                    selectedSession?.summary.id === session.id
-                  )
-                )}
-              </div>
-            )}
-          </div>
-        )
-      })}
-    </div>
+  const expandedSessionTotal = groupedProjectNames.reduce(
+    (sum, projectName) =>
+      expandedProjects.has(projectName)
+        ? sum + (groupedSessions[projectName]?.length ?? 0)
+        : sum,
+    0
   )
+  const hasMoreSessions =
+    viewMode === 'list'
+      ? filteredSessions.length > visibleSessionCount
+      : expandedSessionTotal > visibleSessionCount
+
+  const renderGroupedView = () => {
+    let remaining = visibleSessionCount
+    return (
+      <div className="p-2 space-y-1">
+        {groupedProjectNames.map(projectName => {
+          const projectSessions = groupedSessions[projectName] ?? []
+          const isExpanded = expandedProjects.has(projectName)
+          const visibleSessions = isExpanded
+            ? projectSessions.slice(0, remaining)
+            : []
+          remaining -= visibleSessions.length
+          return (
+            <div key={projectName}>
+              <button
+                onClick={() =>
+                  setExpandedProjects(previous => {
+                    const next = new Set(previous)
+                    if (next.has(projectName)) next.delete(projectName)
+                    else next.add(projectName)
+                    return next
+                  })
+                }
+                className="w-full flex items-center gap-2 p-2 rounded-md hover:bg-accent transition-colors text-sm"
+              >
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+                <span className="truncate flex-1 text-start font-medium">
+                  {projectName === 'unknown'
+                    ? t('omp.sessions.unknownProject')
+                    : projectLabel(projectName)}
+                </span>
+                <Badge variant="secondary" className="text-xs">
+                  {projectSessions.length}
+                </Badge>
+              </button>
+              {isExpanded && (
+                <div className="ml-4 space-y-1">
+                  {visibleSessions.map(session =>
+                    renderSessionItem(
+                      session,
+                      selectedSession?.summary.id === session.id
+                    )
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+        {hasMoreSessions && <div ref={setListSentinel} className="h-px" />}
+      </div>
+    )
+  }
 
   const renderBlocks = (message: OmpSessionDetail['messages'][number]) => (
     <>
@@ -521,11 +566,16 @@ export function OmpSessionsPage() {
               </div>
             ) : viewMode === 'list' ? (
               <div className="p-2 space-y-1">
-                {filteredSessions.map(session =>
-                  renderSessionItem(
-                    session,
-                    selectedSession?.summary.id === session.id
-                  )
+                {filteredSessions
+                  .slice(0, visibleSessionCount)
+                  .map(session =>
+                    renderSessionItem(
+                      session,
+                      selectedSession?.summary.id === session.id
+                    )
+                  )}
+                {hasMoreSessions && (
+                  <div ref={setListSentinel} className="h-px" />
                 )}
               </div>
             ) : (

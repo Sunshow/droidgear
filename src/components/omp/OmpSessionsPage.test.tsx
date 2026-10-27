@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 const { commandMocks, showContextMenuMock, listenMock } = vi.hoisted(() => ({
@@ -92,6 +92,10 @@ const detail = {
 }
 
 describe('OmpSessionsPage', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
@@ -174,6 +178,63 @@ describe('OmpSessionsPage', () => {
     await user.click(screen.getByText('Tool result'))
     expect(resultBody).toHaveAttribute('open')
     expect(await screen.findByText('parser output here')).toBeInTheDocument()
+  })
+
+  it('renders the list in batches and loads more when the sentinel appears', async () => {
+    const manySessions = Array.from({ length: 45 }, (_, index) => ({
+      ...session,
+      id: `omp-session-${index}`,
+      title: `Session ${index}`,
+    }))
+    commandMocks.listOmpSessions.mockResolvedValue({
+      status: 'ok',
+      data: manySessions,
+    })
+
+    // Stub IntersectionObserver and capture the sentinel callback so the
+    // test can simulate scrolling to the bottom of the list.
+    let triggerSentinel: (() => void) | undefined
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        root = null
+        rootMargin = ''
+        thresholds: number[] = []
+        constructor(
+          callback: IntersectionObserverCallback,
+          _options?: IntersectionObserverInit
+        ) {
+          triggerSentinel = () =>
+            callback(
+              [{ isIntersecting: true } as IntersectionObserverEntry],
+              this as unknown as IntersectionObserver
+            )
+        }
+        observe() {
+          /* no-op in tests */
+        }
+        unobserve() {
+          /* no-op in tests */
+        }
+        disconnect() {
+          /* no-op in tests */
+        }
+        takeRecords(): IntersectionObserverEntry[] {
+          return []
+        }
+      }
+    )
+
+    render(<OmpSessionsPage />)
+
+    expect(await screen.findByText('Session 0')).toBeInTheDocument()
+    expect(screen.getByText('Session 19')).toBeInTheDocument()
+    expect(screen.queryByText('Session 20')).not.toBeInTheDocument()
+
+    act(() => triggerSentinel?.())
+
+    expect(await screen.findByText('Session 39')).toBeInTheDocument()
+    expect(screen.queryByText('Session 40')).not.toBeInTheDocument()
   })
 
   it('deletes a session through the context menu', async () => {
