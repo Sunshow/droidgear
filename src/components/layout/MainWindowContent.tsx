@@ -112,6 +112,11 @@ const OmpConfigPage = lazy(() =>
     default: m.OmpConfigPage,
   }))
 )
+const OmpSessionsPage = lazy(() =>
+  import('@/components/omp/OmpSessionsPage').then(m => ({
+    default: m.OmpSessionsPage,
+  }))
+)
 const CopilotConfigPage = lazy(() =>
   import('@/components/copilot/CopilotConfigPage').then(m => ({
     default: m.CopilotConfigPage,
@@ -260,7 +265,12 @@ export function MainWindowContent({
     }
 
     if (currentView === 'omp') {
-      return ompSubView === 'terminal' ? null : <OmpConfigPage />
+      return (
+        <>
+          {ompSubView === 'config' && <OmpConfigPage />}
+          {ompSubView === 'sessions' && <OmpSessionsPage />}
+        </>
+      )
     }
 
     if (currentView === 'copilot') {

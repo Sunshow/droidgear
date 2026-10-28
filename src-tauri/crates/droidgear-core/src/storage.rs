@@ -26,6 +26,8 @@ pub fn atomic_write_private(path: &Path, bytes: &[u8]) -> Result<(), String> {
     }
 }
 
+// On non-Unix targets the `mode` argument is compiled out of use below.
+#[cfg_attr(not(unix), allow(unused_variables))]
 fn atomic_write_with_mode(path: &Path, bytes: &[u8], mode: Option<u32>) -> Result<(), String> {
     let parent = path.parent().unwrap_or_else(|| Path::new("."));
     if !parent.exists() {

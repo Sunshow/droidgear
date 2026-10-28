@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Settings, TerminalSquare } from 'lucide-react'
+import { Settings, MessageSquare, TerminalSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ActionButton } from '@/components/ui/action-button'
 import { useUIStore, type OmpSubView } from '@/store/ui-store'
@@ -16,6 +16,11 @@ const features: FeatureItem[] = [
     id: 'terminal',
     labelKey: 'omp.features.terminal',
     icon: TerminalSquare,
+  },
+  {
+    id: 'sessions',
+    labelKey: 'omp.features.sessions',
+    icon: MessageSquare,
   },
 ]
 

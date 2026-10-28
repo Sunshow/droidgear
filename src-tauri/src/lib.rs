@@ -109,6 +109,9 @@ pub fn run() {
         .manage(commands::pi_sessions::PiSessionsWatcherState(Mutex::new(
             None,
         )))
+        .manage(commands::omp_sessions::OmpSessionsWatcherState(Mutex::new(
+            None,
+        )))
         .manage(commands::dsh_sessions::DshSessionsWatcherState(Mutex::new(
             None,
         )))
