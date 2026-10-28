@@ -1263,6 +1263,11 @@ fn draw_claude_settings_detail(frame: &mut Frame, app: &app::App, area: Rect) {
         .get("skipDangerousModePermissionPrompt")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
+    let auto_compact_window = json
+        .get("autoCompactWindow")
+        .and_then(|v| v.as_u64())
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| "(auto)".to_string());
 
     let fields: Vec<(&str, String)> = vec![
         ("Base URL", base_url),
@@ -1330,6 +1335,7 @@ fn draw_claude_settings_detail(frame: &mut Frame, app: &app::App, area: Rect) {
                 "no".to_string()
             },
         ),
+        ("Auto-compact window", auto_compact_window),
     ];
 
     let mut items: Vec<ListItem> = Vec::new();

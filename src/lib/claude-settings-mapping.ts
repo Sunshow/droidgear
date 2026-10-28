@@ -14,6 +14,16 @@ export const CLAUDE_MAX_THINKING_TOKENS_ENV = 'MAX_THINKING_TOKENS'
 /** Suffix that Claude Code uses to enable 1M context windows. */
 export const MODEL_1M_SUFFIX = '[1m]'
 
+/**
+ * Root-level Claude Code setting: token count where auto-compaction runs.
+ * Claude Code caps it at the model's context window and accepts
+ * 100,000–1,000,000 tokens; when unset it picks a window tuned for the model.
+ */
+export const CLAUDE_AUTO_COMPACT_WINDOW_KEY = 'autoCompactWindow'
+
+export const CLAUDE_AUTO_COMPACT_WINDOW_MIN = 100_000
+export const CLAUDE_AUTO_COMPACT_WINDOW_MAX = 1_000_000
+
 export type ClaudeReasoningEffort =
   | 'inherit'
   | 'low'
@@ -270,4 +280,44 @@ export function syncTopLevelModel(draft: ClaudeSettingsDoc): void {
   if (envModel) {
     Reflect.deleteProperty(draft, 'model')
   }
+}
+
+// ============================================================================
+// Auto-compact window
+// ============================================================================
+
+/** Claude Code only honours whole token counts in this range. */
+export function isValidAutoCompactWindow(value: number): boolean {
+  return (
+    Number.isInteger(value) &&
+    value >= CLAUDE_AUTO_COMPACT_WINDOW_MIN &&
+    value <= CLAUDE_AUTO_COMPACT_WINDOW_MAX
+  )
+}
+
+/**
+ * Reads the root-level `autoCompactWindow`. Returns null when the key is
+ * absent, not a number, or `"auto"` (the per-model tuned window).
+ */
+export function getAutoCompactWindow(
+  doc: ClaudeSettingsDoc | null | undefined
+): number | null {
+  if (!doc) return null
+  const value = doc[CLAUDE_AUTO_COMPACT_WINDOW_KEY]
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+/**
+ * Writes the root-level `autoCompactWindow`. Passing null (or an out-of-range
+ * value) removes the key so Claude Code falls back to its model default.
+ */
+export function setAutoCompactWindow(
+  draft: ClaudeSettingsDoc,
+  tokens: number | null
+): void {
+  if (tokens === null || !isValidAutoCompactWindow(tokens)) {
+    Reflect.deleteProperty(draft, CLAUDE_AUTO_COMPACT_WINDOW_KEY)
+    return
+  }
+  draft[CLAUDE_AUTO_COMPACT_WINDOW_KEY] = tokens
 }

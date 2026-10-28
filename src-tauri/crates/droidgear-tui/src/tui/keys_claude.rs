@@ -279,11 +279,18 @@ pub(super) fn handle_claude_settings_detail_key(
             // Edit the selected field
             let field_idx = app.claude_detail_field_index;
             match field_idx {
-                0 | 1 | 2 | 4 | 10 => {
-                    // Text fields: base_url, bearer_token, model, small_model, cleanup_period
+                0 | 1 | 2 | 4 | 10 | 14 => {
+                    // Text fields: base_url, bearer_token, model, small_model,
+                    // cleanup_period, auto_compact_window
                     let current_value = get_claude_field_value(app, field_idx);
+                    let title = if field_idx == 14 {
+                        // Mirrors the GUI range and "auto" sentinel.
+                        "Auto-compact window (tokens 100000-1000000, empty = automatic)".to_string()
+                    } else {
+                        claude_field_label(field_idx)
+                    };
                     app.modal = Some(app::Modal::Input {
-                        title: claude_field_label(field_idx),
+                        title,
                         value: current_value,
                         cursor: usize::MAX,
                         is_secret: field_idx == 1, // bearer_token is secret
@@ -450,6 +457,7 @@ pub fn claude_field_label(idx: usize) -> String {
         11 => "Permissions defaultMode".to_string(),
         12 => "disableBypass".to_string(),
         13 => "skipDangerousPrompt".to_string(),
+        14 => "Auto-compact window".to_string(),
         _ => "Unknown".to_string(),
     }
 }
@@ -476,6 +484,11 @@ fn get_claude_field_value(app: &app::App, idx: usize) -> String {
             .and_then(|v| v.as_u64())
             .map(|v| v.to_string())
             .unwrap_or_else(|| "30".to_string()),
+        14 => json
+            .get("autoCompactWindow")
+            .and_then(|v| v.as_u64())
+            .map(|v| v.to_string())
+            .unwrap_or_default(),
         _ => String::new(),
     }
 }

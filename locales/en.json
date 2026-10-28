@@ -1098,6 +1098,14 @@
   "claude.model.context1MSupport": "1M Context Support",
   "claude.model.context1MSupportHint": "Appends [1m] suffix to the model name. Claude Code natively strips this and enables the extended context window (up to 1M tokens) via the anthropic-beta header.",
 
+  "claude.compaction.title": "Context compaction",
+  "claude.compaction.hint": "Maps to the root autoCompactWindow setting (100,000–1,000,000 tokens). Leave it unset to let Claude Code pick a window per model (native 1M windows compact at about 967K). A window saved per model with /autocompact, or CLAUDE_CODE_AUTO_COMPACT_WINDOW in env, takes precedence.",
+  "claude.compaction.autoCompactWindow": "Auto-compact window",
+  "claude.compaction.auto": "Auto (unset)",
+  "claude.compaction.custom": "Custom",
+  "claude.compaction.placeholder": "e.g. 500000",
+  "claude.compaction.invalid": "Enter a whole number of tokens between 100,000 and 1,000,000.",
+
   "claude.reasoning.title": "Reasoning & thinking",
   "claude.reasoning.hint": "Maps to env.CLAUDE_CODE_EFFORT_LEVEL / CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING / CLAUDE_CODE_DISABLE_THINKING and root alwaysThinkingEnabled.",
   "claude.reasoning.effort": "Reasoning effort",

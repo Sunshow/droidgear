@@ -26,6 +26,10 @@ use droidgear_core::{
 };
 use serde_json::Value as JsonValue;
 
+/// Number of rows in the Claude settings detail screen (grows with every
+/// new editable field so `clamp_indices` keeps the cursor in range).
+pub const CLAUDE_DETAIL_FIELD_COUNT: usize = 15;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Screen {
     Main,
@@ -1594,7 +1598,7 @@ impl App {
         if self.trusted_folders_index >= self.trusted_folders.len() {
             self.trusted_folders_index = self.trusted_folders.len().saturating_sub(1);
         }
-        let claude_fields_count = 14;
+        let claude_fields_count = CLAUDE_DETAIL_FIELD_COUNT;
         if self.claude_detail_field_index >= claude_fields_count {
             self.claude_detail_field_index = claude_fields_count.saturating_sub(1);
         }

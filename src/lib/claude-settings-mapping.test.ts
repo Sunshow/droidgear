@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  CLAUDE_AUTO_COMPACT_WINDOW_KEY,
   CLAUDE_AUTH_TOKEN_ENV,
   CLAUDE_BASE_URL_ENV,
   CLAUDE_DISABLE_ADAPTIVE_ENV,
@@ -8,10 +9,13 @@ import {
   CLAUDE_MAX_THINKING_TOKENS_ENV,
   CLAUDE_MODEL_ENV,
   CLAUDE_SMALL_MODEL_ENV,
+  getAutoCompactWindow,
   getEnvString,
   getReasoningEffort,
   getThinkingMode,
   isSmallModelMirroringMain,
+  isValidAutoCompactWindow,
+  setAutoCompactWindow,
   setEnvString,
   setReasoningEffort,
   setSmallModelMirroring,
@@ -217,5 +221,51 @@ describe('small model mirroring', () => {
     const draft: ClaudeSettingsDoc = {}
     setSmallModelMirroring(draft, false, null)
     expect(draft.env).toBeUndefined()
+  })
+})
+
+describe('auto-compact window', () => {
+  it('accepts whole token counts inside 100K-1M', () => {
+    expect(isValidAutoCompactWindow(100_000)).toBe(true)
+    expect(isValidAutoCompactWindow(500_000)).toBe(true)
+    expect(isValidAutoCompactWindow(1_000_000)).toBe(true)
+  })
+
+  it('rejects values outside 100K-1M or non-integers', () => {
+    expect(isValidAutoCompactWindow(99_999)).toBe(false)
+    expect(isValidAutoCompactWindow(1_000_001)).toBe(false)
+    expect(isValidAutoCompactWindow(200_000.5)).toBe(false)
+  })
+
+  it('reads null when the key is absent or not numeric', () => {
+    expect(getAutoCompactWindow({})).toBeNull()
+    expect(
+      getAutoCompactWindow({ [CLAUDE_AUTO_COMPACT_WINDOW_KEY]: '200000' })
+    ).toBeNull()
+  })
+
+  it('writes the token count at the document root', () => {
+    const draft: ClaudeSettingsDoc = {}
+    setAutoCompactWindow(draft, 500_000)
+    expect(draft[CLAUDE_AUTO_COMPACT_WINDOW_KEY]).toBe(500_000)
+    expect(getAutoCompactWindow(draft)).toBe(500_000)
+  })
+
+  it('removes the key when set to auto', () => {
+    const draft: ClaudeSettingsDoc = {
+      [CLAUDE_AUTO_COMPACT_WINDOW_KEY]: 500_000,
+      autoUpdate: false,
+    }
+    setAutoCompactWindow(draft, null)
+    expect(draft[CLAUDE_AUTO_COMPACT_WINDOW_KEY]).toBeUndefined()
+    expect(draft.autoUpdate).toBe(false)
+  })
+
+  it('removes the key when handed an out-of-range value', () => {
+    const draft: ClaudeSettingsDoc = {
+      [CLAUDE_AUTO_COMPACT_WINDOW_KEY]: 500_000,
+    }
+    setAutoCompactWindow(draft, 2_000_000)
+    expect(draft[CLAUDE_AUTO_COMPACT_WINDOW_KEY]).toBeUndefined()
   })
 })

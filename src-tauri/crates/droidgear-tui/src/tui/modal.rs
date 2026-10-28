@@ -2787,6 +2787,30 @@ pub(super) fn run_input_action(
                         obj.remove("cleanupPeriodDays");
                     }
                 }
+                14 => {
+                    // Root-level `autoCompactWindow`: empty removes the key so
+                    // Claude Code uses the window tuned for the model. The
+                    // value must be a whole token count in Claude Code's
+                    // accepted 100K-1M range.
+                    if trimmed.is_empty() {
+                        obj.remove("autoCompactWindow");
+                    } else {
+                        let tokens = trimmed.parse::<u64>().map_err(|_| {
+                            anyhow::Error::msg(
+                                "Auto-compact window must be a whole number of tokens",
+                            )
+                        })?;
+                        if !(100_000..=1_000_000).contains(&tokens) {
+                            return Err(anyhow::Error::msg(
+                                "Auto-compact window must be between 100000 and 1000000 tokens",
+                            ));
+                        }
+                        obj.insert(
+                            "autoCompactWindow".to_string(),
+                            serde_json::Value::Number(serde_json::Number::from(tokens)),
+                        );
+                    }
+                }
                 _ => {}
             }
             app.claude_detail_dirty = true;

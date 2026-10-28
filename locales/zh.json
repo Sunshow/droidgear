@@ -1098,6 +1098,14 @@
   "claude.model.context1MSupport": "1M 上下文支持",
   "claude.model.context1MSupportHint": "在模型名称后追加 [1m] 后缀。Claude Code 会自动去除此后缀并通过 anthropic-beta 头启用扩展上下文窗口（最高 100 万 tokens）。",
 
+  "claude.compaction.title": "上下文压缩",
+  "claude.compaction.hint": "对应根级 autoCompactWindow（100,000–1,000,000 tokens）。留空时由 Claude Code 按模型自动选择窗口（原生 1M 窗口约 967K 触发压缩）；若用 /autocompact 为某个模型保存过窗口，或在 env 里设置了 CLAUDE_CODE_AUTO_COMPACT_WINDOW，则以它们为准。",
+  "claude.compaction.autoCompactWindow": "自动压缩窗口",
+  "claude.compaction.auto": "自动（不设置）",
+  "claude.compaction.custom": "自定义",
+  "claude.compaction.placeholder": "例如 500000",
+  "claude.compaction.invalid": "请输入 100,000–1,000,000 之间的整数 tokens。",
+
   "claude.reasoning.title": "推理与思考",
   "claude.reasoning.hint": "对应 env.CLAUDE_CODE_EFFORT_LEVEL / CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING / CLAUDE_CODE_DISABLE_THINKING 以及根级 alwaysThinkingEnabled。",
   "claude.reasoning.effort": "Reasoning effort",

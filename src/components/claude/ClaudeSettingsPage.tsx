@@ -31,11 +31,14 @@ import {
   CLAUDE_SMALL_MODEL_ENV,
   type ClaudeReasoningEffort,
   type ClaudeThinkingMode,
+  getAutoCompactWindow,
   getEnvString,
   getReasoningEffort,
   getThinkingMode,
   hasModel1MContext,
   isSmallModelMirroringMain,
+  isValidAutoCompactWindow,
+  setAutoCompactWindow,
   setEnvString,
   setReasoningEffort,
   setSmallModelMirroring,
@@ -191,6 +194,7 @@ export function ClaudeSettingsPage() {
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         <ProviderSection json={currentJson} patchJson={patchJson} />
         <ModelSection json={currentJson} patchJson={patchJson} />
+        <CompactionSection json={currentJson} patchJson={patchJson} />
         <ReasoningThinkingSection json={currentJson} patchJson={patchJson} />
         <GeneralSection json={currentJson} patchJson={patchJson} />
         <PermissionsSection
@@ -722,6 +726,171 @@ function ModelSection({ json, patchJson }: SectionProps) {
         </div>
       </div>
     </section>
+  )
+}
+
+/** Quick-select presets for the Claude Code auto-compact window (tokens). */
+const AUTO_COMPACT_PRESETS = [
+  { value: 200_000, label: '200K (200,000)' },
+  { value: 400_000, label: '400K (400,000)' },
+  { value: 500_000, label: '500K (500,000)' },
+  { value: 800_000, label: '800K (800,000)' },
+  { value: 1_000_000, label: '1M (1,000,000)' },
+] as const
+
+const AUTO_COMPACT_UNSET = '__unset__'
+const AUTO_COMPACT_CUSTOM = '__custom__'
+
+function CompactionSection({ json, patchJson }: SectionProps) {
+  const { t } = useTranslation()
+  const stored = getAutoCompactWindow(json)
+
+  return (
+    <section className="space-y-4 pt-4 border-t">
+      <div>
+        <h2 className="text-base font-medium">
+          {t('claude.compaction.title')}
+        </h2>
+        <p className="text-xs text-muted-foreground mt-1">
+          {t('claude.compaction.hint')}
+        </p>
+      </div>
+      <AutoCompactWindowField
+        stored={stored}
+        onChange={tokens =>
+          patchJson(draft => setAutoCompactWindow(draft, tokens))
+        }
+      />
+    </section>
+  )
+}
+
+interface AutoCompactWindowFieldProps {
+  stored: number | null
+  onChange: (tokens: number | null) => void
+}
+
+interface AutoCompactDraft {
+  /** Stored value when the edit began; the draft is dropped when it changes. */
+  source: number | null
+  text: string
+  custom: boolean
+}
+
+function isAutoCompactPreset(value: number): boolean {
+  return AUTO_COMPACT_PRESETS.some(preset => preset.value === value)
+}
+
+function autoCompactDraft(stored: number | null): AutoCompactDraft {
+  return {
+    source: stored,
+    text: stored === null ? '' : String(stored),
+    custom: stored !== null && !isAutoCompactPreset(stored),
+  }
+}
+
+/**
+ * Root-level `autoCompactWindow`. Keeps a local draft so partially typed
+ * numbers (e.g. "20000" on the way to "200000") don't get committed or
+ * rejected. The draft is tagged with the value it started from, so it is
+ * discarded automatically when the document changes underneath (discard,
+ * switching files) without a state-syncing effect.
+ */
+function AutoCompactWindowField({
+  stored,
+  onChange,
+}: AutoCompactWindowFieldProps) {
+  const { t } = useTranslation()
+  const [draft, setDraft] = useState<AutoCompactDraft>(() =>
+    autoCompactDraft(stored)
+  )
+  const active = draft.source === stored ? draft : autoCompactDraft(stored)
+
+  const selectValue = active.custom
+    ? AUTO_COMPACT_CUSTOM
+    : stored === null
+      ? AUTO_COMPACT_UNSET
+      : String(stored)
+
+  const trimmed = active.text.trim()
+  const parsed = trimmed.length > 0 ? Number(trimmed) : null
+  const showInvalid = parsed !== null && !isValidAutoCompactWindow(parsed)
+
+  const commit = (next: number | null) => {
+    if (next !== stored) onChange(next)
+  }
+
+  const apply = (patch: Partial<AutoCompactDraft>) => {
+    setDraft({ ...active, ...patch })
+  }
+
+  const handleSelect = (value: string) => {
+    if (value === AUTO_COMPACT_UNSET) {
+      apply({ custom: false, text: '' })
+      commit(null)
+      return
+    }
+    if (value === AUTO_COMPACT_CUSTOM) {
+      // Keep the current number so the user can tweak it in the input.
+      apply({
+        custom: true,
+        text: stored === null ? '' : String(stored),
+      })
+      return
+    }
+    apply({ custom: false, text: value })
+    commit(Number(value))
+  }
+
+  const handleInput = (raw: string) => {
+    const digits = raw.replace(/\D+/g, '')
+    apply({ custom: true, text: digits })
+    if (digits.length === 0) {
+      commit(null)
+      return
+    }
+    const next = Number(digits)
+    if (isValidAutoCompactWindow(next)) commit(next)
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor="claude-auto-compact-window">
+        {t('claude.compaction.autoCompactWindow')}
+      </Label>
+      <Select value={selectValue} onValueChange={handleSelect}>
+        <SelectTrigger id="claude-auto-compact-window">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={AUTO_COMPACT_UNSET}>
+            {t('claude.compaction.auto')}
+          </SelectItem>
+          {AUTO_COMPACT_PRESETS.map(preset => (
+            <SelectItem key={preset.value} value={String(preset.value)}>
+              {preset.label}
+            </SelectItem>
+          ))}
+          <SelectItem value={AUTO_COMPACT_CUSTOM}>
+            {t('claude.compaction.custom')}
+          </SelectItem>
+        </SelectContent>
+      </Select>
+      {selectValue === AUTO_COMPACT_CUSTOM && (
+        <Input
+          value={active.text}
+          onChange={event => handleInput(event.target.value)}
+          placeholder={t('claude.compaction.placeholder')}
+          inputMode="numeric"
+          aria-invalid={showInvalid}
+        />
+      )}
+      {showInvalid && (
+        <p className="text-xs text-destructive">
+          {t('claude.compaction.invalid')}
+        </p>
+      )}
+    </div>
   )
 }
 
