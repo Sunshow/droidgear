@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.3.9
+
+**New Features / 新功能**
+
+- Claude Code auto-compact window (GUI + TUI): set the root `autoCompactWindow` to a whole token count from 100,000 to 1,000,000, or leave it unset so Claude Code picks a window for the model. Clearing the value or entering one outside that range removes the key. A per-model window saved with `/autocompact`, or `CLAUDE_CODE_AUTO_COMPACT_WINDOW` in the environment, still takes precedence / Claude Code 自动压缩窗口（GUI + TUI）：将根级 `autoCompactWindow` 设为 100,000–1,000,000 的整数 token，或留空由 Claude Code 按模型选择窗口。清除或输入超出范围的值会删除该键。通过 `/autocompact` 按模型保存的窗口，以及环境变量 `CLAUDE_CODE_AUTO_COMPACT_WINDOW`，仍然优先
+- OMP session history (GUI): browse `~/.omp/agent/sessions` JSONL logs in a list or grouped by project, render the active branch including thinking blocks, follow new messages, hide empty sessions, and delete a session. The list loads in batches as you scroll / OMP 会话历史（GUI）：浏览 `~/.omp/agent/sessions` 下的 JSONL 日志，支持列表或按项目分组、渲染当前分支（含思考内容）、跟随新消息、隐藏空会话与删除会话。列表在滚动时分批加载
+- Pi adaptive thinking for Anthropic-adaptive models: when a model's registry profile is `anthropic-adaptive` (for example `claude-opus-5-5`), Pi model config gets `compat.forceAdaptiveThinking` so Pi sends `thinking.type: adaptive` and `output_config.effort`. An explicit `false` already stored on the model is left in place / Pi 为 Anthropic adaptive 模型启用自适应思考：注册表中 Anthropic 编码为 `anthropic-adaptive` 的模型（例如 `claude-opus-5-5`）会写入 `compat.forceAdaptiveThinking`，使 Pi 发送 `thinking.type: adaptive` 与 `output_config.effort`。模型上已经显式写为 `false` 的配置会保留
+
+**Bug Fixes / 问题修复**
+
+- Updater manual check and install always look up the latest release: a manual check drops cached release metadata and any snooze first, and install re-checks before downloading so a stale notification cannot install an older build / 更新器的手动检查与安装始终查询最新版本：手动检查会先丢弃缓存的发布信息与暂缓提示，安装前重新检查再下载，避免过期通知装上更旧的构建
+- OpenClaw subagent dialog keeps the fallback-model and allowed-agent draft fields controlled, so typed text stays put across re-renders and clears after Enter adds a chip / OpenClaw 子代理对话框将后备模型与允许代理的草稿输入改为受控，重渲染时已输入的文字得以保留，按 Enter 添加芯片后会清空
+
 ## v1.3.8
 
 **New Features / 新功能**

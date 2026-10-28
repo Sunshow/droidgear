@@ -104,6 +104,7 @@ Configuration remains ordinary `~/.factory/mcp.json`: this preset stores a nonse
 - **Merge Apply** - Shallow-merge env and permissions from a settings file into the global settings
 - **Import from Channel** - One-click import of provider configuration (base URL, API key, default model) from configured channels
 - **Fetch Models** - Load model IDs from the configured provider with the bearer token and pick the main or small model from the list, while still allowing a manual ID (GUI + TUI)
+- **Auto-compact Window** - Set the root `autoCompactWindow` (100,000–1,000,000 tokens) in the GUI and TUI. Leave it unset and Claude Code picks a window per model; a per-model window saved with `/autocompact`, or `CLAUDE_CODE_AUTO_COMPACT_WINDOW` in the environment, still takes precedence
 - **Runtime Core** - Settings loaded via a runtime overlay at launch so the live configuration is never mutated
 - **GUI/TUI Parity** - Desktop and TUI versions share the same Claude settings features and semantics (an empty small model uses Claude's default Haiku 5.5; mirroring the main model is explicit)
 
@@ -130,7 +131,7 @@ Configuration remains ordinary `~/.factory/mcp.json`: this preset stores a nonse
 - **Connection Test** - Test Pi provider connectivity
 - **Profile Management** - Multi-profile support with one-click apply to `~/.pi/agent/models.json`
 - **Live Config Reading** - Load existing configuration from Pi's live config
-- **Registry-Driven Models** - Enrich Pi provider models from the built-in model registry, with provider-neutral thinking level mapping
+- **Registry-Driven Models** - Enrich Pi provider models from the built-in model registry, with provider-neutral thinking level mapping. Models whose Anthropic profile is `anthropic-adaptive` (such as `claude-opus-5-5`) get `compat.forceAdaptiveThinking`; an explicit opt-out already stored on the model is kept
 
 ### Dsh (DeepSeek Harness) Support
 
@@ -157,6 +158,7 @@ Configuration remains ordinary `~/.factory/mcp.json`: this preset stores a nonse
 
 - **Custom Providers** - Read and write custom providers and models in the official `~/.omp/agent/models.yml` (GUI and TUI CRUD), update models and providers from a channel, and preserve unrelated providers and unknown fields
 - **Model Roles** - Manage model role assignments in `~/.omp/agent/config.yml`, and load them from the live config
+- **Session History** - Browse `~/.omp/agent/sessions` JSONL logs (GUI): list or project-grouped views, active-branch rendering with thinking blocks, follow new messages, hide empty sessions, and delete. The list loads in batches as you scroll
 
 ### Other Features
 
@@ -201,7 +203,7 @@ The TUI version supports the following configuration management features:
 - **Grouped Navigation**: Two-level navigation mirroring the GUI sidebar, with feature-list screens, breadcrumb titles, and module picker labels
 - **Factory Configuration**: Custom model management, default model settings
 - **MCP Servers**: CRUD operations, enable/disable, import/export
-- **Claude Settings Files**: Multi-settings-file management, structured field editing, merge apply, set active, skip-permissions run, dirty tracking, one-off temporary run, model fetching
+- **Claude Settings Files**: Multi-settings-file management, structured field editing, merge apply, set active, skip-permissions run, dirty tracking, one-off temporary run, model fetching, auto-compact window
 - **Codex Profiles**: Configuration file management, change preview, one-click apply
 - **OpenCode Profiles**: Provider/Auth configuration management
 - **OpenClaw Profiles**: Configuration management and apply (with Subagents/Helpers nav entries)

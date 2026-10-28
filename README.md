@@ -104,6 +104,7 @@ GUI 的 MCP「快速添加」卡片或 TUI MCP 列表的 `b` 键会打开百智�
 - **合并应用** - 将设置文件中的 env 与 permissions 浅合并到全局设置
 - **从渠道导入** - 一键从已配置渠道导入 Provider 配置（base URL、API Key、默认模型）
 - **模型拉取** - 使用已配置 Provider 的 Bearer Token 拉取模型 ID，主模型与 Small 模型可从列表选择，仍可手动输入（GUI + TUI）
+- **自动压缩窗口** - 在 GUI 与 TUI 中设置根级 `autoCompactWindow`（100,000–1,000,000 tokens）。留空则由 Claude Code 按模型选择窗口；`/autocompact` 按模型保存的窗口与环境变量 `CLAUDE_CODE_AUTO_COMPACT_WINDOW` 仍然优先
 - **运行时核心** - 启动时通过运行时覆盖层加载设置，从不修改实时配置文件
 - **GUI/TUI 功能对齐** - 桌面版与 TUI 版的设置功能与语义保持一致（Small 模型留空时使用 Claude 默认的 Haiku 5.5，跟随主模型需显式开启）
 
@@ -130,7 +131,7 @@ GUI 的 MCP「快速添加」卡片或 TUI MCP 列表的 `b` 键会打开百智�
 - **连接测试** - 测试 Pi Provider 连通性
 - **Profile 管理** - 多 Profile 支持，一键应用到 `~/.pi/agent/models.json`
 - **实时配置读取** - 支持从 Pi 的 live config 加载现有配置
-- **模型注册表驱动** - 从内置模型注册表丰富 Pi Provider 模型，支持与 Provider 无关的思考级别映射
+- **模型注册表驱动** - 从内置模型注册表丰富 Pi Provider 模型，支持与 Provider 无关的思考级别映射。Anthropic 编码为 `anthropic-adaptive` 的模型（如 `claude-opus-5-5`）会写入 `compat.forceAdaptiveThinking`，已显式关闭的配置会保留
 
 ### Dsh（DeepSeek Harness）支持
 
@@ -157,6 +158,7 @@ GUI 的 MCP「快速添加」卡片或 TUI MCP 列表的 `b` 键会打开百智�
 
 - **自定义 Provider** - 按官方 `~/.omp/agent/models.yml` 读写自定义 Provider 与模型（GUI 与 TUI 增删改），支持从渠道更新模型和 Provider，并保留其他 Provider 与未知字段
 - **模型角色** - 管理 `~/.omp/agent/config.yml` 中的模型角色，并可从当前配置加载
+- **会话历史** - 浏览 `~/.omp/agent/sessions` 的 JSONL 日志（GUI）：列表或按项目分组、渲染当前分支与思考内容、跟随新消息、隐藏空会话与删除，滚动时分批加载
 
 ### 其他功能
 
@@ -200,7 +202,7 @@ TUI 版本支持以下配置管理功能：
 - **分组导航**：与 GUI 两级侧边栏对应的分组导航，支持功能列表界面、面包屑标题与模块选择器标签
 - **Factory 配置**：自定义模型管理、默认模型设置
 - **MCP 服务器**：增删改查、启用/禁用、导入导出
-- **Claude 设置文件**：多设置文件管理、结构化字段编辑、合并应用、设为活动、跳过权限运行、脏状态跟踪、临时单次运行、模型拉取
+- **Claude 设置文件**：多设置文件管理、结构化字段编辑、合并应用、设为活动、跳过权限运行、脏状态跟踪、临时单次运行、模型拉取、自动压缩窗口
 - **Codex Profile**：配置文件管理、变更预览、一键应用
 - **OpenCode Profile**：Provider/Auth 配置管理
 - **OpenClaw Profile**：配置管理与应用（含 Subagents/Helpers 导航入口）
