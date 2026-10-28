@@ -838,15 +838,20 @@ mod tests {
         }
 
         fn log_path(&self) -> String {
-            self.session_dir
+            let path = self
+                .session_dir
                 .read_dir()
                 .unwrap()
                 .flatten()
                 .next()
                 .unwrap()
-                .path()
-                .to_string_lossy()
-                .to_string()
+                .path();
+            // The fixture builds directories with literal "/" segments in
+            // `join(".dsh/sessions/...")`, while the parser stores paths with
+            // native separators. Normalize so the comparison is stable on
+            // every platform.
+            path.to_string_lossy()
+                .replace('/', &std::path::MAIN_SEPARATOR.to_string())
         }
 
         fn write_projcache(&self, id: &str, title: Option<&str>, first_prompt: &str) {

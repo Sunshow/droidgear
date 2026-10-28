@@ -256,6 +256,9 @@ mod tests {
                     Err(error) => panic!("{error}"),
                 }
             };
+            // Accepted sockets inherit the listener's non-blocking mode on
+            // Windows; switch back so read_line waits for the request.
+            stream.set_nonblocking(false).unwrap();
             stream
                 .set_read_timeout(Some(Duration::from_secs(5)))
                 .unwrap();
