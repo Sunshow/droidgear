@@ -83,6 +83,11 @@ pub struct PiCompatConfig {
     pub supports_long_cache_retention: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub supports_eager_tool_input_streaming: Option<bool>,
+    /// Force adaptive thinking (thinking.type: adaptive + output_config.effort)
+    /// regardless of model ID. Required by Anthropic-compatible upstreams for
+    /// models like claude-opus-5-5.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub force_adaptive_thinking: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub open_router_routing: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -549,6 +554,25 @@ struct RegistryModel {
     thinking_level_map: Option<HashMap<String, Option<String>>>,
     context_window: u32,
     max_output_tokens: Option<u32>,
+    reasoning_config: Option<RegistryReasoningConfig>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RegistryReasoningConfig {
+    #[serde(default)]
+    profiles: HashMap<String, String>,
+}
+
+impl RegistryModel {
+    /// Whether the model's Anthropic encoding profile requires the adaptive
+    /// thinking request format (thinking.type: adaptive + output_config.effort).
+    fn requires_adaptive_thinking(&self) -> bool {
+        self.reasoning_config
+            .as_ref()
+            .and_then(|config| config.profiles.get("anthropic"))
+            .is_some_and(|profile| profile == "anthropic-adaptive")
+    }
 }
 
 fn registry_models() -> &'static [RegistryModel] {
@@ -571,6 +595,12 @@ pub fn enrich_pi_model_from_registry(model: &mut PiModel) -> bool {
     model.context_window = metadata.context_window;
     if let Some(max_tokens) = metadata.max_output_tokens {
         model.max_tokens = max_tokens;
+    }
+    if metadata.requires_adaptive_thinking() {
+        let compat = model.compat.get_or_insert_with(PiCompatConfig::default);
+        if compat.force_adaptive_thinking.is_none() {
+            compat.force_adaptive_thinking = Some(true);
+        }
     }
     true
 }
@@ -1152,6 +1182,44 @@ printf 'OK\n'
         assert_eq!(model.context_window, 400000);
         assert_eq!(model.max_tokens, 128000);
         assert_eq!(model.api.as_deref(), Some("openai-completions"));
+        // Non-Anthropic models must not gain the adaptive-thinking compat flag.
+        assert!(model.compat.is_none());
+    }
+
+    #[test]
+    fn test_registry_enables_adaptive_thinking_for_adaptive_claude_models() {
+        let mut model = PiModel {
+            id: "claude-opus-5-5".to_string(),
+            ..Default::default()
+        };
+
+        assert!(enrich_pi_model_from_registry(&mut model));
+        assert_eq!(
+            model
+                .compat
+                .and_then(|compat| compat.force_adaptive_thinking),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn test_registry_enrich_preserves_explicit_compat_opt_out() {
+        let mut model = PiModel {
+            id: "claude-opus-5-5".to_string(),
+            compat: Some(PiCompatConfig {
+                force_adaptive_thinking: Some(false),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        assert!(enrich_pi_model_from_registry(&mut model));
+        assert_eq!(
+            model
+                .compat
+                .and_then(|compat| compat.force_adaptive_thinking),
+            Some(false)
+        );
     }
 
     #[test]
@@ -1304,6 +1372,13 @@ printf 'OK\n'
         let json = serde_json::to_string_pretty(&compat).unwrap();
         assert!(json.contains("\"supportsDeveloperRole\": true"));
         assert!(json.contains("\"thinkingFormat\": \"openai\""));
+
+        let adaptive = PiCompatConfig {
+            force_adaptive_thinking: Some(true),
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&adaptive).unwrap();
+        assert!(json.contains("\"forceAdaptiveThinking\":true"));
     }
 
     #[test]
