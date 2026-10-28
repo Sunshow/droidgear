@@ -298,6 +298,76 @@ fn claude_detail_t_key_auto_saves_dirty_edits() {
 }
 
 #[test]
+fn claude_detail_field_cursor_can_reach_auto_compact_window() {
+    use std::path::PathBuf;
+
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.claude_detail_field_index = app::CLAUDE_DETAIL_FIELD_COUNT - 1;
+    app.clamp_indices();
+    assert_eq!(
+        app.claude_detail_field_index,
+        app::CLAUDE_DETAIL_FIELD_COUNT - 1,
+        "the last Claude detail row must stay selectable"
+    );
+}
+
+#[test]
+fn claude_detail_enter_on_auto_compact_window_prefills_the_stored_value() {
+    use std::path::PathBuf;
+
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.claude_detail_name = Some("work".to_string());
+    app.claude_detail_json = Some(serde_json::json!({"autoCompactWindow": 500000}));
+    app.claude_detail_field_index = 14;
+
+    super::keys_claude::handle_claude_settings_detail_key(&mut app, KeyCode::Enter);
+
+    match app.modal {
+        Some(app::Modal::Input { value, action, .. }) => {
+            assert_eq!(value, "500000");
+            assert!(matches!(
+                action,
+                app::InputAction::ClaudeSettingsEditField { field_index: 14 }
+            ));
+        }
+        other => panic!("expected auto-compact input modal, got {other:?}"),
+    }
+}
+
+#[test]
+fn claude_auto_compact_window_edit_sets_clears_and_validates() {
+    use std::path::PathBuf;
+
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.claude_detail_json = Some(serde_json::json!({"env": {}}));
+    let action = || app::InputAction::ClaudeSettingsEditField { field_index: 14 };
+
+    super::modal::run_input_action(&mut app, action(), "500000".to_string()).unwrap();
+    assert_eq!(
+        app.claude_detail_json.as_ref().unwrap()["autoCompactWindow"],
+        serde_json::json!(500000)
+    );
+    assert!(app.claude_detail_dirty);
+
+    // Out-of-range and non-numeric values are rejected without touching JSON.
+    assert!(super::modal::run_input_action(&mut app, action(), "200".to_string()).is_err());
+    assert!(super::modal::run_input_action(&mut app, action(), "500k".to_string()).is_err());
+    assert_eq!(
+        app.claude_detail_json.as_ref().unwrap()["autoCompactWindow"],
+        serde_json::json!(500000)
+    );
+
+    // An empty value removes the key so Claude Code uses the model default.
+    super::modal::run_input_action(&mut app, action(), String::new()).unwrap();
+    assert!(app
+        .claude_detail_json
+        .as_ref()
+        .unwrap()
+        .get("autoCompactWindow")
+        .is_none());
+}
+
+#[test]
 fn normalize_factory_models_sets_index_and_id() {
     let mut models = vec![
         droidgear_core::factory_settings::CustomModel {
