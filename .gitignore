@@ -38,3 +38,6 @@ openspec/
 
 # Optional local Copilot launcher credentials
 /config.env
+
+# Local cargo config (e.g. sccache rustc-wrapper) — machine-specific, never committed
+.cargo/config.toml

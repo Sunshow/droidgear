@@ -149,6 +149,7 @@
     "uuid": "^14.0.0",
     "@babel/plugin-proposal-private-methods": "npm:@babel/plugin-transform-private-methods@^7.25.0",
     "js-yaml": "^4.3.2",
+    "minimatch": "^11.0.1",
     "smol-toml": "^1.7.1"
   },
   "allowScripts": {
