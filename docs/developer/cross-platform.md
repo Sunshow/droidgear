@@ -299,6 +299,45 @@ The GitHub Actions release workflow builds for all platforms:
 
 See `.github/workflows/release.yml` for the full configuration.
 
+### Cross-Building the Standalone TUI
+
+The TUI (`droidgear-tui`) has no webview/GUI dependency, so it can be
+cross-compiled to a **static single binary** from Windows using
+[cargo-zigbuild](https://github.com/rust-cross/cargo-zigbuild) (zig acts as
+the C compiler/linker for deps like rusqlite and zstd). Managed via the
+root `justfile`; artifacts land in `dist/tui/<target>/` (gitignored) and this
+workflow does not touch the main tauri/npm pipeline.
+
+```bash
+just tui-linux           # x86_64-unknown-linux-musl, statically linked, ~7MB
+just tui-windows         # native MSVC
+```
+
+Requirements: `zig` and `cargo-zigbuild` (available via scoop). `sccache` is
+optional — it only speeds up rebuilds and must be configured in a local
+gitignored `.cargo/config.toml` (or `~/.cargo/config.toml`), never committed:
+
+```toml
+[build]
+rustc-wrapper = "sccache"
+```
+
+✅ The Rust TLS stack is `rustls` (`reqwest` uses `default-features = false` +
+`rustls-tls`). This is what makes cross-builds possible — the former
+`native-tls` dependency required OpenSSL headers for every non-Windows
+target.
+
+❌ Don't attempt macOS cross-builds from Windows. Zig ships darwin libc stubs
+but not Apple SDK frameworks, so all C deps compile yet the final link fails
+with `unable to find system framework`. Build on a macOS host/runner:
+
+```bash
+cargo build -p droidgear-tui --release --target aarch64-apple-darwin
+```
+
+The same limitation applies to the Tauri GUI on all non-native targets — GUI
+cross-compilation always needs platform toolchains; use the CI matrix.
+
 ### Linux Dependencies
 
 Linux builds require additional system libraries:
