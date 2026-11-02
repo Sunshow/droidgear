@@ -1,6 +1,11 @@
 import { useEffect, useLayoutEffect, useState, useRef } from 'react'
 import { emit } from '@tauri-apps/api/event'
-import { ThemeProviderContext, type Theme } from '@/lib/theme-context'
+import {
+  resolveIsDark,
+  THEME_STORAGE_KEY,
+  ThemeProviderContext,
+  type Theme,
+} from '@/lib/theme-context'
 import { usePreferences } from '@/services/preferences'
 
 interface ThemeProviderProps {
@@ -12,7 +17,7 @@ interface ThemeProviderProps {
 export function ThemeProvider({
   children,
   defaultTheme = 'system',
-  storageKey = 'ui-theme',
+  storageKey = THEME_STORAGE_KEY,
   ...props
 }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(
@@ -51,7 +56,7 @@ export function ThemeProvider({
       return () => mediaQuery.removeEventListener('change', handleChange)
     }
 
-    applyTheme(theme === 'dark')
+    applyTheme(resolveIsDark(theme))
   }, [theme])
 
   const value = {

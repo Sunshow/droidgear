@@ -20,7 +20,7 @@ npm run tauri:build      # Full Tauri production build
 
 ```bash
 # Run after significant changes (REQUIRED)
-npm run check:all        # All checks: typecheck, lint, ast-grep, format, rust checks, tests
+npm run check:all        # All checks: typecheck, lint, ast-grep, format, rust checks, tests, production build
 ```
 
 ## Individual Checks

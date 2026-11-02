@@ -3,18 +3,34 @@
 @import './theme-variables.css';
 @import 'sonner/dist/styles.css';
 
+/* Tailwind v4 的自动内容探测跟随 Vite root；显式声明源文件，使样式产物与构建
+   入口解耦——任何改变 root 的构建都不会静默丢掉 src/ 的工具类。 */
+@source './**/*.{ts,tsx}';
 @source "../node_modules/streamdown/dist/*.js";
 
 @custom-variant dark (&:is(.dark *));
 
-/* 防止白屏：设置初始背景色 */
+/* 首帧底色跟随主题：main.tsx 在首次渲染前预置 .dark/.light 类，ThemeProvider
+   挂载后接管；类名出现前用系统偏好兜底，避免浅色主题首帧发黑。 */
 html {
-  background-color: #0f0f0f;
+  background-color: var(--background);
+  height: 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not(.light) {
+    background-color: oklch(0.145 0 0);
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  html:not(.dark) {
+    background-color: oklch(1 0 0);
+  }
 }
 
 #root {
-  background-color: #0f0f0f;
-  min-height: 100vh;
+  height: 100%;
 }
 
 @layer base {
@@ -36,8 +52,7 @@ html {
     -moz-user-select: none;
     -ms-user-select: none;
     overscroll-behavior: none;
-    min-height: 100vh;
-    min-width: 100vw;
+    height: 100%;
     overflow: hidden;
     position: relative;
   }
