@@ -195,6 +195,29 @@ These plugins aren't included by default but are commonly needed:
 | **sql**        | Local SQLite database for structured data                   |
 | **positioner** | Tray apps or floating windows that need precise positioning |
 
+## Version Upgrades and Symbol Renames
+
+Package versions and **exported symbol names are coupled**: a major upgrade can
+rename an export while typecheck, ESLint and unit tests all stay green (the
+mocks in `src/test/setup.ts` keep tests happy even with a stale name). Only the
+production bundle build fails — `npm run build`, which is part of
+`npm run check:all`.
+
+Known renames:
+
+| Package                     | Pinned | Export                      | v2 symbol         | v3 (alpha) symbol  |
+| --------------------------- | ------ | --------------------------- | ----------------- | ------------------ |
+| `@tauri-apps/plugin-opener` | `^2.x` | Reveal file in file manager | `revealItemInDir` | `revealItemsInDir` |
+
+When upgrading any `@tauri-apps/*` package:
+
+1. Run `npm run build` (or `npm run check:all`) — a renamed export fails the
+   bundle with a `[MISSING_EXPORT]` error.
+2. Update the mocks in `src/test/setup.ts` to the new symbol names; otherwise
+   tests keep passing against APIs that no longer exist.
+3. Record the rename in the table above so the next upgrade starts from
+   documented evidence instead of a failed release build.
+
 ## Adding a New Plugin
 
 1. **Install via CLI**:

@@ -4,19 +4,20 @@ All static analysis tools configured in this app and how to use them.
 
 ## Quick Reference
 
-| Tool           | Purpose                  | Command                  | In check:all |
-| -------------- | ------------------------ | ------------------------ | ------------ |
-| TypeScript     | Type checking            | `npm run typecheck`      | Yes          |
-| ESLint         | Syntax, style, TS rules  | `npm run lint`           | Yes          |
-| Prettier       | Code formatting          | `npm run format:check`   | Yes          |
-| ast-grep       | Architecture patterns    | `npm run ast:lint`       | Yes          |
-| React Compiler | Automatic memoization    | Build-time               | Yes          |
-| cargo fmt      | Rust formatting          | `npm run rust:fmt:check` | Yes          |
-| clippy         | Rust linting             | `npm run rust:clippy`    | Yes          |
-| Vitest         | Frontend tests           | `npm run test:run`       | Yes          |
-| cargo test     | Rust tests               | `npm run rust:test`      | Yes          |
-| knip           | Unused code detection    | `npm run knip`           | No           |
-| jscpd          | Duplicate code detection | `npm run jscpd`          | No           |
+| Tool           | Purpose                                                     | Command                  | In check:all |
+| -------------- | ----------------------------------------------------------- | ------------------------ | ------------ |
+| TypeScript     | Type checking                                               | `npm run typecheck`      | Yes          |
+| ESLint         | Syntax, style, TS rules                                     | `npm run lint`           | Yes          |
+| Prettier       | Code formatting                                             | `npm run format:check`   | Yes          |
+| ast-grep       | Architecture patterns                                       | `npm run ast:lint`       | Yes          |
+| React Compiler | Automatic memoization                                       | Build-time               | Yes          |
+| cargo fmt      | Rust formatting                                             | `npm run rust:fmt:check` | Yes          |
+| clippy         | Rust linting                                                | `npm run rust:clippy`    | Yes          |
+| Vitest         | Frontend tests                                              | `npm run test:run`       | Yes          |
+| cargo test     | Rust tests                                                  | `npm run rust:test`      | Yes          |
+| Vite build     | Production bundle (catches missing/renamed package exports) | `npm run build`          | Yes          |
+| knip           | Unused code detection                                       | `npm run knip`           | No           |
+| jscpd          | Duplicate code detection                                    | `npm run jscpd`          | No           |
 
 ## Running All Checks
 
