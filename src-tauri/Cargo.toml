@@ -4,7 +4,7 @@ version = "1.3.9"
 description = "BYOK Model Configuration for Factory Droid"
 authors = ["you"]
 edition = "2021"
-rust-version = "1.82"
+rust-version = "1.90"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
