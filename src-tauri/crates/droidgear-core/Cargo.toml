@@ -2,7 +2,7 @@
 name = "droidgear-core"
 version = "0.0.0"
 edition = "2021"
-rust-version = "1.82"
+rust-version = "1.90"
 
 [dependencies]
 chrono = "0.4"
