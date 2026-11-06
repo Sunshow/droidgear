@@ -33,19 +33,39 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { IdPicker } from '@/components/ui/id-picker'
 import { useOmpStore } from '@/store/omp-store'
 import { ConfigStatus } from './ConfigStatus'
+import { OmpImportFromChannelDialog } from './OmpImportFromChannelDialog'
 import { ProviderCard } from './ProviderCard'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ChannelModelPickerDialog } from '@/components/channels/ChannelModelPickerDialog'
 import type {
+  JsonValue,
   OmpCustomModel,
   OmpCustomProvider,
   OmpCustomProviderEntry,
   OmpProfile,
+  OmpRoleReconcile,
 } from '@/lib/bindings'
 
-const ROLE_KEYS = ['default', 'smol', 'slow', 'plan', 'commit'] as const
+const ROLE_KEYS = [
+  'default',
+  'smol',
+  'slow',
+  'vision',
+  'plan',
+  'commit',
+  'tiny',
+  'memory',
+  'task',
+  'advisor',
+  'image',
+  'web',
+  'speech',
+  'dictation',
+  'judge',
+] as const
 
 function ProfileFields({
   profile,
@@ -112,6 +132,7 @@ function OmpProviderEditor({
   const [api, setApi] = useState(entry?.config.api ?? 'openai-completions')
   const [apiKey, setApiKey] = useState(entry?.config.apiKey ?? '')
   const [auth, setAuth] = useState(entry?.config.auth ?? 'apiKey')
+  const [transport, setTransport] = useState(entry?.config.transport ?? '')
   const [models, setModels] = useState<OmpCustomModel[]>(
     entry?.config.models ?? []
   )
@@ -175,6 +196,7 @@ function OmpProviderEditor({
       api: api || undefined,
       apiKey: apiKey.trim() || undefined,
       auth: auth || undefined,
+      transport: transport.trim() || undefined,
       models: models.filter(model => model.id.trim()),
     })
     onOpenChange(false)
@@ -256,6 +278,14 @@ function OmpProviderEditor({
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>{t('omp.provider.transport')}</Label>
+              <Input
+                value={transport}
+                onChange={e => setTransport(e.target.value)}
+                placeholder="pi-native"
+              />
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -375,6 +405,23 @@ function OmpProviderEditor({
                       </div>
                       <div className="flex items-center gap-2">
                         <Label className="text-xs">
+                          {t('omp.provider.maxContextWindow')}
+                        </Label>
+                        <Input
+                          className="w-28 h-8"
+                          type="number"
+                          value={model.maxContextWindow ?? ''}
+                          onChange={e =>
+                            updateModel(index, {
+                              maxContextWindow: e.target.value
+                                ? Number(e.target.value)
+                                : undefined,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs">
                           {t('omp.provider.maxTokens')}
                         </Label>
                         <Input
@@ -390,6 +437,48 @@ function OmpProviderEditor({
                           }
                         />
                       </div>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs">
+                          {t('omp.provider.imageInputDecoder')}
+                        </Label>
+                        <Input
+                          className="w-28 h-8"
+                          value={model.imageInputDecoder ?? ''}
+                          onChange={e =>
+                            updateModel(index, {
+                              imageInputDecoder: e.target.value || undefined,
+                            })
+                          }
+                        />
+                      </div>
+                      <label className="flex items-center gap-2 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={model.omitMaxOutputTokens === true}
+                          onChange={e =>
+                            updateModel(index, {
+                              omitMaxOutputTokens: e.target.checked
+                                ? true
+                                : undefined,
+                            })
+                          }
+                        />
+                        {t('omp.provider.omitMaxOutputTokens')}
+                      </label>
+                      <label className="flex items-center gap-2 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={model.preferWebsockets === true}
+                          onChange={e =>
+                            updateModel(index, {
+                              preferWebsockets: e.target.checked
+                                ? true
+                                : undefined,
+                            })
+                          }
+                        />
+                        {t('omp.provider.preferWebsockets')}
+                      </label>
                     </div>
                   </div>
                 ))}
@@ -433,6 +522,41 @@ export function OmpConfigPage() {
   const configStatus = useOmpStore(state => state.configStatus)
   const liveConfig = useOmpStore(state => state.liveConfig)
   const customProviders = useOmpStore(state => state.customProviders)
+
+  // A models.yml write can repair config.yml roles; surface every rewrite so a
+  // silently different default model never reaches OMP unnoticed.
+  const reportRoleAdjustments = (result: OmpRoleReconcile | null) => {
+    if (!result?.adjusted) return
+    const notes = (result.adjustments ?? []).map(
+      adjustment =>
+        `${adjustment.role}: ${adjustment.from} → ${adjustment.to ?? '(cleared)'}`
+    )
+    if (result.thinking) {
+      notes.push(
+        `defaultThinkingLevel: ${result.thinking.from} → ${result.thinking.to}`
+      )
+    }
+    if (notes.length === 0) return
+    toast.warning(
+      t('omp.roles.adjusted', {
+        count: notes.length,
+        notes: notes.join(' · '),
+      })
+    )
+  }
+
+  // Role values are "provider/model-id"; the list comes from the service layer
+  // (models.yml plus OMP's cached catalog), the same one `dg omp roles
+  // candidates` prints.
+  const roleOptions = useOmpStore(state => state.roleOptions)
+  const loadRoleOptions = useOmpStore(state => state.loadRoleOptions)
+  const roleValues = roleOptions
+    ? roleOptions.providers.flatMap(providerId =>
+        (roleOptions.models[providerId] ?? []).map(
+          modelId => `${providerId}/${modelId}`
+        )
+      )
+    : []
   const loadProfiles = useOmpStore(state => state.loadProfiles)
   const loadActiveProfileId = useOmpStore(state => state.loadActiveProfileId)
   const loadConfigStatus = useOmpStore(state => state.loadConfigStatus)
@@ -451,6 +575,10 @@ export function OmpConfigPage() {
   const [editingProvider, setEditingProvider] =
     useState<OmpCustomProviderEntry | null>(null)
   const [providerToDelete, setProviderToDelete] = useState<string | null>(null)
+  const [importFromChannelOpen, setImportFromChannelOpen] = useState(false)
+  const [importTargetProviderId, setImportTargetProviderId] = useState<
+    string | null
+  >(null)
 
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [newProfileName, setNewProfileName] = useState('')
@@ -462,17 +590,39 @@ export function OmpConfigPage() {
     void loadConfigStatus()
     void loadLiveConfig()
     void loadCustomProviders()
+    void loadRoleOptions()
   }, [
     loadProfiles,
     loadActiveProfileId,
     loadConfigStatus,
     loadLiveConfig,
     loadCustomProviders,
+    loadRoleOptions,
   ])
 
   const openNewProvider = () => {
     setEditingProvider(null)
     setProviderEditorOpen(true)
+  }
+
+  const openImportFromChannel = (targetProviderId: string | null) => {
+    setImportTargetProviderId(targetProviderId)
+    setImportFromChannelOpen(true)
+  }
+
+  const handleImportFromChannel = async (
+    providerId: string,
+    provider: OmpCustomProvider
+  ) => {
+    const roles = await saveCustomProvider(providerId, provider)
+    toast.success(
+      t(
+        importTargetProviderId
+          ? 'omp.provider.importDialog.updated'
+          : 'omp.provider.importDialog.imported'
+      )
+    )
+    reportRoleAdjustments(roles)
   }
 
   const openEditProvider = (entry: OmpCustomProviderEntry) => {
@@ -482,15 +632,17 @@ export function OmpConfigPage() {
 
   const handleDeleteProvider = async () => {
     if (!providerToDelete) return
-    await deleteCustomProvider(providerToDelete)
+    const roles = await deleteCustomProvider(providerToDelete)
     setProviderToDelete(null)
+    reportRoleAdjustments(roles)
   }
 
   const handleSaveProvider = async (
     providerId: string,
     provider: OmpCustomProvider
   ) => {
-    await saveCustomProvider(providerId, provider)
+    const roles = await saveCustomProvider(providerId, provider)
+    reportRoleAdjustments(roles)
   }
 
   const handleProfileChange = (id: string) => {
@@ -506,10 +658,49 @@ export function OmpConfigPage() {
 
   const handleApply = async () => {
     if (!currentProfile) return
-    await applyProfile(currentProfile.id)
+    const result = await applyProfile(currentProfile.id)
     const currentError = useOmpStore.getState().error
-    if (!currentError) {
-      toast.success(t('omp.actions.applySuccess'))
+    if (currentError) return
+    if (result?.warnings?.length) {
+      // The profile's own choice is written as-is; say which roles OMP will not
+      // be able to resolve instead of letting it fail at the next start.
+      toast.warning(
+        t('omp.actions.applySuccessWarnings', {
+          warnings: result.warnings.join(' · '),
+        })
+      )
+      return
+    }
+    toast.success(t('omp.actions.applySuccess'))
+  }
+
+  // Presets are a JSON document; keep a per-profile draft so typing is not
+  // re-serialised on every keystroke and switching profiles shows that
+  // profile's saved text.
+  const [presetsDrafts, setPresetsDrafts] = useState<Record<string, string>>({})
+  const presetsDraft = currentProfile
+    ? (presetsDrafts[currentProfile.id] ??
+      (currentProfile.modelPresets
+        ? JSON.stringify(currentProfile.modelPresets, null, 2)
+        : ''))
+    : ''
+  const setPresetsDraft = (text: string) => {
+    if (!currentProfile) return
+    setPresetsDrafts(previous => ({ ...previous, [currentProfile.id]: text }))
+  }
+
+  const commitPresets = async () => {
+    if (!currentProfile) return
+    const text = presetsDraft.trim()
+    if (!text) {
+      await updateCurrentProfile({ modelPresets: null })
+      return
+    }
+    try {
+      const parsed = JSON.parse(text) as Record<string, JsonValue>
+      await updateCurrentProfile({ modelPresets: parsed })
+    } catch {
+      toast.error(t('omp.modelRoles.invalidPresets'))
     }
   }
 
@@ -530,6 +721,8 @@ export function OmpConfigPage() {
     if (latest?.agentConfig?.modelRoles) {
       await updateCurrentProfile({
         modelRoles: latest.agentConfig.modelRoles,
+        defaultThinkingLevel: latest.agentConfig.defaultThinkingLevel ?? null,
+        modelPresets: latest.agentConfig.modelPresets ?? null,
       })
       toast.success(t('omp.actions.loadedFromLive'))
     } else {
@@ -674,6 +867,9 @@ export function OmpConfigPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                {t('omp.roles.hint')}
+              </p>
               {ROLE_KEYS.map(role => (
                 <div key={role} className="flex items-center gap-2">
                   <Label className="w-24 shrink-0 text-sm capitalize">
@@ -689,8 +885,48 @@ export function OmpConfigPage() {
                     placeholder="provider/model-id"
                     className="flex-1 font-mono text-sm"
                   />
+                  <IdPicker
+                    label={`${t('omp.roles.pickRole')} · ${role}`}
+                    value={
+                      (currentProfile.modelRoles as Record<string, string>)[
+                        role
+                      ] ?? ''
+                    }
+                    options={roleValues}
+                    onPick={value => handleModelRoleChange(role, value)}
+                  />
                 </div>
               ))}
+              <div className="flex items-center gap-2">
+                <Label className="w-24 shrink-0 text-sm">
+                  {t('omp.modelRoles.defaultThinkingLevel')}
+                </Label>
+                <Input
+                  value={currentProfile.defaultThinkingLevel ?? ''}
+                  onChange={e =>
+                    updateCurrentProfile({
+                      defaultThinkingLevel: e.target.value,
+                    })
+                  }
+                  placeholder="high"
+                  className="flex-1 font-mono text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">{t('omp.modelRoles.presets')}</Label>
+                <textarea
+                  className="min-h-32 w-full rounded-md border bg-transparent px-3 py-2 font-mono text-xs"
+                  value={presetsDraft}
+                  onChange={e => setPresetsDraft(e.target.value)}
+                  onBlur={commitPresets}
+                  placeholder={
+                    '{\n  "deep": { "defaultThinkingLevel": "high" }\n}'
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t('omp.modelRoles.presetsHint')}
+                </p>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -702,10 +938,20 @@ export function OmpConfigPage() {
               <CardTitle className="text-base">
                 {t('omp.providers.title')}
               </CardTitle>
-              <Button variant="outline" size="sm" onClick={openNewProvider}>
-                <Plus className="h-4 w-4 mr-1" />
-                {t('omp.provider.add')}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openImportFromChannel(null)}
+                >
+                  <CloudDownload className="h-4 w-4 mr-1" />
+                  {t('omp.provider.importFromChannel')}
+                </Button>
+                <Button variant="outline" size="sm" onClick={openNewProvider}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  {t('omp.provider.add')}
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -723,7 +969,7 @@ export function OmpConfigPage() {
                     hasApiKey={Boolean(entry.config.apiKey)}
                     onEdit={() => openEditProvider(entry)}
                     onDelete={() => setProviderToDelete(entry.providerId)}
-                    onImport={() => openEditProvider(entry)}
+                    onImport={() => openImportFromChannel(entry.providerId)}
                   />
                 ))
               )}
@@ -794,6 +1040,13 @@ export function OmpConfigPage() {
         onOpenChange={setProviderEditorOpen}
         entry={editingProvider}
         onSave={handleSaveProvider}
+      />
+      <OmpImportFromChannelDialog
+        open={importFromChannelOpen}
+        onOpenChange={setImportFromChannelOpen}
+        existingProviders={customProviders}
+        targetProviderId={importTargetProviderId}
+        onImported={handleImportFromChannel}
       />
       <Dialog
         open={providerToDelete !== null}

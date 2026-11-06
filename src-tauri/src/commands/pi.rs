@@ -5,6 +5,8 @@
 pub use droidgear_core::pi::{
     PiConfigStatus, PiCurrentConfig, PiProfile, PiProviderConfig, PiProviderTestResult,
 };
+pub use droidgear_core::pi_settings::{PiSettings, PiSettingsStatus};
+pub use droidgear_core::pi_startup::{PiApplyResult, StartupOptions};
 
 /// List all Pi profiles
 #[tauri::command]
@@ -65,8 +67,36 @@ pub async fn set_active_pi_profile_id(id: String) -> Result<(), String> {
 /// Apply a profile to `~/.pi/agent/models.json`
 #[tauri::command]
 #[specta::specta]
-pub async fn apply_pi_profile(id: String) -> Result<(), String> {
+pub async fn apply_pi_profile(id: String) -> Result<PiApplyResult, String> {
     droidgear_core::pi::apply_pi_profile(&id)
+}
+
+/// Read the startup model selection from `~/.pi/agent/settings.json`
+#[tauri::command]
+#[specta::specta]
+pub async fn read_pi_settings() -> Result<PiSettingsStatus, String> {
+    droidgear_core::pi::read_pi_settings()
+}
+
+/// Save the startup model selection, keeping every other settings key
+#[tauri::command]
+#[specta::specta]
+pub async fn save_pi_settings(settings: PiSettings) -> Result<(), String> {
+    droidgear_core::pi::save_pi_settings(settings)
+}
+
+/// Clear the startup model selection so pi picks the model itself again
+#[tauri::command]
+#[specta::specta]
+pub async fn clear_pi_settings() -> Result<(), String> {
+    droidgear_core::pi::clear_pi_settings()
+}
+
+/// List what the startup model fields can point at (models.json + pi catalog)
+#[tauri::command]
+#[specta::specta]
+pub async fn list_pi_startup_options() -> Result<StartupOptions, String> {
+    droidgear_core::pi::list_pi_startup_options()
 }
 
 /// Get Pi config status

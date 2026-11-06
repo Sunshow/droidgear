@@ -41,8 +41,15 @@ import {
   getSupportedEfforts,
 } from '@/lib/model-registry'
 
-const WIRE_API_OPTIONS = [
-  { value: 'chat', label: 'Chat Completions' },
+const WIRE_API_OPTIONS: {
+  value: string
+  label: string
+  disabled?: boolean
+}[] = [
+  // Codex removed the chat/completions wire format in Feb 2026 —
+  // `wire_api = "chat"` now fails at config load — so the option stays
+  // visible (disabled) only to surface it on profiles that still use it.
+  { value: 'chat', label: 'Chat Completions (removed)', disabled: true },
   { value: 'responses', label: 'Responses API' },
 ]
 
@@ -391,12 +398,21 @@ function ProviderForm({
               </SelectTrigger>
               <SelectContent>
                 {WIRE_API_OPTIONS.map(option => (
-                  <SelectItem key={option.value} value={option.value}>
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    disabled={option.disabled}
+                  >
                     {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {wireApi === 'chat' && (
+              <p className="text-sm text-destructive">
+                {t('codex.provider.wireApiChatDeprecated')}
+              </p>
+            )}
           </div>
 
           {/* Model */}

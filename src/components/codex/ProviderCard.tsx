@@ -71,8 +71,13 @@ export function ProviderCard({
           )}
           <div className="flex items-center gap-2 flex-wrap">
             {config.wireApi && (
-              <Badge variant="outline" className="text-xs">
-                {config.wireApi}
+              <Badge
+                variant={config.wireApi === 'chat' ? 'destructive' : 'outline'}
+                className="text-xs"
+              >
+                {config.wireApi === 'chat'
+                  ? `${config.wireApi} ⚠`
+                  : config.wireApi}
               </Badge>
             )}
           </div>

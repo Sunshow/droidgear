@@ -187,6 +187,21 @@ export function CodexConfigPage() {
     setShowDeleteProfileConfirm(false)
   }
 
+  // Codex hard-rejects `wire_api = "chat"` (removed Feb 2026), so a
+  // profile that still contains such providers must not apply silently.
+  const warnRemovedWireApi = () => {
+    const stale = Object.entries(currentProfile?.providers ?? {})
+      .filter(([, config]) => config?.wireApi === 'chat')
+      .map(([id]) => id)
+    if (stale.length > 0) {
+      toast.warning(
+        t('codex.actions.applyWireApiChatWarning', {
+          providers: stale.join(', '),
+        })
+      )
+    }
+  }
+
   const handleApply = async () => {
     if (!currentProfile) return
 
@@ -203,6 +218,7 @@ export function CodexConfigPage() {
     await applyProfile(currentProfile.id)
     setShowApplyConfirm(false)
     toast.success(t('codex.actions.applySuccess'))
+    warnRemovedWireApi()
   }
 
   const handleApplyConflictSaveAndApply = async () => {
@@ -220,6 +236,7 @@ export function CodexConfigPage() {
     await applyProfile(currentProfile.id)
     setShowApplyConflictDialog(false)
     toast.success(t('codex.actions.applySuccess'))
+    warnRemovedWireApi()
   }
 
   const handleApplyConflictWithoutSave = async () => {
@@ -227,6 +244,7 @@ export function CodexConfigPage() {
     await applyProfile(currentProfile.id)
     setShowApplyConflictDialog(false)
     toast.success(t('codex.actions.applySuccess'))
+    warnRemovedWireApi()
   }
 
   const handleLaunch = async () => {

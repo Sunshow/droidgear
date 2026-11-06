@@ -3448,6 +3448,10 @@ fn draw_pi_provider(frame: &mut Frame, app: &app::App, area: Rect) {
                 "(not set)".to_string()
             },
         ),
+        (
+            "Name",
+            config.name.clone().unwrap_or_else(|| "".to_string()),
+        ),
     ];
 
     let mut field_items: Vec<ListItem> = Vec::new();
@@ -3551,6 +3555,36 @@ fn draw_pi_model(frame: &mut Frame, app: &app::App, area: Rect) {
         None => "(none)".to_string(),
     };
 
+    let json_summary = |value: Option<&serde_json::Value>| match value {
+        Some(value) => serde_json::to_string(value).unwrap_or_else(|_| "(invalid)".to_string()),
+        None => "(not set)".to_string(),
+    };
+    let sampling_summary = if model.sampling_params.is_empty()
+        && model.sampling_params_by_thinking_level.is_empty()
+    {
+        "(not set)".to_string()
+    } else {
+        let mut parts: Vec<String> = model
+            .sampling_params
+            .iter()
+            .map(|(key, value)| format!("{key}={value}"))
+            .collect();
+        parts.sort();
+        if !model.sampling_params_by_thinking_level.is_empty() {
+            let mut levels: Vec<&String> = model.sampling_params_by_thinking_level.keys().collect();
+            levels.sort();
+            parts.push(format!(
+                "by-thinking:{}",
+                levels
+                    .into_iter()
+                    .map(String::as_str)
+                    .collect::<Vec<_>>()
+                    .join("|")
+            ));
+        }
+        parts.join(" ")
+    };
+
     let fields: Vec<(&str, String)> = vec![
         ("ID", model.id.clone()),
         ("Name", model.name.clone().unwrap_or_else(|| "".to_string())),
@@ -3569,6 +3603,21 @@ fn draw_pi_model(frame: &mut Frame, app: &app::App, area: Rect) {
         ("Context Window", model.context_window.to_string()),
         ("Max Tokens", model.max_tokens.to_string()),
         ("Cost", cost_str),
+        (
+            "Type",
+            model
+                .model_type
+                .clone()
+                .unwrap_or_else(|| "chat".to_string()),
+        ),
+        ("API", model.api.clone().unwrap_or_else(|| "".to_string())),
+        (
+            "Base URL",
+            model.base_url.clone().unwrap_or_else(|| "".to_string()),
+        ),
+        ("Input Limits", json_summary(model.input_limits.as_ref())),
+        ("Prompt Cache", json_summary(model.prompt_cache.as_ref())),
+        ("Sampling", sampling_summary),
     ];
 
     let mut items: Vec<ListItem> = Vec::new();
@@ -4259,8 +4308,9 @@ fn draw_omp_profile(frame: &mut Frame, app: &app::App, area: Rect) {
         .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
         .split(area);
 
-    // Fields: 0=Name, 1=Description, 2=default, 3=smol, 4=slow, 5=plan, 6=commit
-    let fields: Vec<(&str, String)> = vec![
+    // Fields: 0=Name, 1=Description, 2..=16 every OMP role, 17=default thinking
+    // level, 18=model presets.
+    let mut fields: Vec<(&str, String)> = vec![
         ("Name", profile.name.clone()),
         (
             "Description",
@@ -4269,18 +4319,24 @@ fn draw_omp_profile(frame: &mut Frame, app: &app::App, area: Rect) {
                 .clone()
                 .unwrap_or_else(|| "".to_string()),
         ),
-        (
-            "Default",
-            profile.model_roles.default.clone().unwrap_or_default(),
-        ),
-        ("Smol", profile.model_roles.smol.clone().unwrap_or_default()),
-        ("Slow", profile.model_roles.slow.clone().unwrap_or_default()),
-        ("Plan", profile.model_roles.plan.clone().unwrap_or_default()),
-        (
-            "Commit",
-            profile.model_roles.commit.clone().unwrap_or_default(),
-        ),
     ];
+    for role in droidgear_core::omp_roles::OMP_ROLE_NAMES {
+        fields.push((
+            role,
+            droidgear_core::omp_roles::role_value(&profile.model_roles, role).unwrap_or_default(),
+        ));
+    }
+    fields.push((
+        "Thinking",
+        profile.default_thinking_level.clone().unwrap_or_default(),
+    ));
+    fields.push((
+        "Presets",
+        match profile.model_presets.as_ref() {
+            Some(presets) => format!("{} preset(s)", presets.len()),
+            None => "(not set)".to_string(),
+        },
+    ));
 
     let mut field_items: Vec<ListItem> = Vec::new();
     for (i, (label, value)) in fields.into_iter().enumerate() {
@@ -4345,6 +4401,7 @@ fn draw_omp_provider(frame: &mut Frame, app: &app::App, area: Rect) {
                 .map(|_| "(set)".to_string())
                 .unwrap_or_default(),
         ),
+        ("Transport", c.transport.clone().unwrap_or_default()),
         (
             "Models",
             c.models
@@ -4376,7 +4433,7 @@ fn draw_omp_provider(frame: &mut Frame, app: &app::App, area: Rect) {
     render_list(frame, list, chunks[0], Some(app.omp_provider_field_index));
     frame.render_widget(
         help_paragraph(
-            "Up/Down: move  Enter/e: edit  i: import/update channel  r: refresh  q/Esc: back",
+            "Up/Down: move  Enter/e: edit  m: models JSON  i: import channel  r: refresh  q/Esc: back",
         ),
         chunks[1],
     );

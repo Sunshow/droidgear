@@ -1,5 +1,7 @@
 use super::*;
 
+use droidgear_core::omp_roles::OMP_ROLE_NAMES;
+
 pub(super) fn handle_omp_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
     match code {
         KeyCode::Esc | KeyCode::Char('q') => app.go_back(),
@@ -121,84 +123,51 @@ pub(super) fn handle_omp_profile_key(app: &mut app::App, code: KeyCode) -> Optio
                     });
                 }
             }
-            2 => {
+            index if index >= 2 && index < 2 + OMP_ROLE_NAMES.len() => {
+                let role = OMP_ROLE_NAMES[index - 2];
                 let current = app
                     .omp_detail
                     .as_ref()
-                    .and_then(|p| p.model_roles.default.clone())
+                    .and_then(|p| droidgear_core::omp_roles::role_value(&p.model_roles, role))
                     .unwrap_or_default();
                 app.modal = Some(app::Modal::Input {
-                    title: "Default model (provider/model)".to_string(),
+                    title: format!("{role} model (provider/model)"),
                     value: current,
                     cursor: 0,
                     is_secret: false,
                     action: app::InputAction::OmpUpdateModelRole {
-                        role: "default".to_string(),
+                        role: role.to_string(),
                     },
                 });
             }
-            3 => {
+            17 => {
                 let current = app
                     .omp_detail
                     .as_ref()
-                    .and_then(|p| p.model_roles.smol.clone())
+                    .and_then(|p| p.default_thinking_level.clone())
                     .unwrap_or_default();
                 app.modal = Some(app::Modal::Input {
-                    title: "Smol model (provider/model)".to_string(),
+                    title: "Default thinking level (auto|off|minimal|low|medium|high|xhigh|max)"
+                        .to_string(),
                     value: current,
                     cursor: 0,
                     is_secret: false,
-                    action: app::InputAction::OmpUpdateModelRole {
-                        role: "smol".to_string(),
-                    },
+                    action: app::InputAction::OmpUpdateDefaultThinkingLevel,
                 });
             }
-            4 => {
+            18 => {
                 let current = app
                     .omp_detail
                     .as_ref()
-                    .and_then(|p| p.model_roles.slow.clone())
+                    .and_then(|p| p.model_presets.as_ref())
+                    .and_then(|presets| serde_json::to_string_pretty(presets).ok())
                     .unwrap_or_default();
                 app.modal = Some(app::Modal::Input {
-                    title: "Slow model (provider/model)".to_string(),
+                    title: "Model presets (JSON)".to_string(),
                     value: current,
                     cursor: 0,
                     is_secret: false,
-                    action: app::InputAction::OmpUpdateModelRole {
-                        role: "slow".to_string(),
-                    },
-                });
-            }
-            5 => {
-                let current = app
-                    .omp_detail
-                    .as_ref()
-                    .and_then(|p| p.model_roles.plan.clone())
-                    .unwrap_or_default();
-                app.modal = Some(app::Modal::Input {
-                    title: "Plan model (provider/model)".to_string(),
-                    value: current,
-                    cursor: 0,
-                    is_secret: false,
-                    action: app::InputAction::OmpUpdateModelRole {
-                        role: "plan".to_string(),
-                    },
-                });
-            }
-            6 => {
-                let current = app
-                    .omp_detail
-                    .as_ref()
-                    .and_then(|p| p.model_roles.commit.clone())
-                    .unwrap_or_default();
-                app.modal = Some(app::Modal::Input {
-                    title: "Commit model (provider/model)".to_string(),
-                    value: current,
-                    cursor: 0,
-                    is_secret: false,
-                    action: app::InputAction::OmpUpdateModelRole {
-                        role: "commit".to_string(),
-                    },
+                    action: app::InputAction::OmpUpdateModelPresets,
                 });
             }
             _ => {}
@@ -264,8 +233,21 @@ pub(super) fn handle_omp_provider_key(app: &mut app::App, code: KeyCode) -> Opti
         KeyCode::Up => {
             app.omp_provider_field_index = app.omp_provider_field_index.saturating_sub(1)
         }
-        KeyCode::Down => app.omp_provider_field_index = (app.omp_provider_field_index + 1).min(3),
+        KeyCode::Down => app.omp_provider_field_index = (app.omp_provider_field_index + 1).min(4),
         KeyCode::Char('r') => refresh_omp_custom_providers(app),
+        KeyCode::Char('m') => {
+            // Models are edited as one JSON array so every models.yml field
+            // (including the ones this build has no dedicated input for) stays
+            // reachable from the terminal.
+            let value = serde_json::to_string(&config.models).unwrap_or_else(|_| "[]".to_string());
+            app.modal = Some(app::Modal::Input {
+                title: "Models (JSON array)".to_string(),
+                value,
+                cursor: usize::MAX,
+                is_secret: false,
+                action: app::InputAction::OmpSetCustomProviderModels { provider_id },
+            });
+        }
         KeyCode::Char('i') => {
             refresh_channels(app);
             let options: Vec<String> = app
@@ -311,6 +293,15 @@ pub(super) fn handle_omp_provider_key(app: &mut app::App, code: KeyCode) -> Opti
                     cursor: usize::MAX,
                     is_secret: true,
                     action: app::InputAction::OmpSetCustomProviderApiKey { provider_id },
+                })
+            }
+            3 => {
+                app.modal = Some(app::Modal::Input {
+                    title: "Transport (pi-native)".to_string(),
+                    value: config.transport.clone().unwrap_or_default(),
+                    cursor: usize::MAX,
+                    is_secret: false,
+                    action: app::InputAction::OmpSetCustomProviderTransport { provider_id },
                 })
             }
             _ => {}
