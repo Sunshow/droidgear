@@ -1634,16 +1634,7 @@ pub(super) fn run_select_action(
                     let mut model = droidgear_core::pi::PiModel {
                         id: m.id,
                         name: m.name,
-                        api: None,
-                        reasoning: false,
-                        thinking_level_map: None,
-                        input: vec!["text".to_string()],
-                        context_window: 128000,
-                        max_tokens: 16384,
-                        cost: None,
-                        headers: None,
-                        compat: None,
-                        extra: Default::default(),
+                        ..Default::default()
                     };
                     droidgear_core::pi::enrich_pi_model_from_registry(&mut model);
                     model
@@ -1935,41 +1926,66 @@ pub(super) fn run_select_action(
             let models = app.pi_import_pending_models.take().unwrap_or_default();
             let selected = app.pending_multi_selected.take().unwrap_or_default();
             let base_url = app.pi_import_pending_base_url.take().unwrap_or_default();
-            let api_key = app.pi_import_pending_api_key.take();
+            let api_key = app.pi_import_pending_api_key.take().unwrap_or_default();
+            let channel_id = app.pi_import_pending_channel_id.take().unwrap_or_default();
+            let channel = app
+                .channels
+                .iter()
+                .find(|channel| channel.id == channel_id)
+                .cloned();
             let current = droidgear_core::omp::read_omp_custom_providers_for_home(&app.home_dir)
                 .map_err(anyhow::Error::msg)?;
-            let mut provider = current
+            let existing = current
                 .providers
                 .into_iter()
                 .find(|p| p.provider_id == provider_id)
-                .map(|p| p.config)
-                .unwrap_or_default();
-            provider.base_url = Some(base_url);
-            provider.api = Some(
-                provider
-                    .api
-                    .unwrap_or_else(|| "openai-completions".to_string()),
-            );
-            if api_key.is_some() {
-                provider.api_key = api_key;
-            }
-            provider.models = models
-                .into_iter()
+                .map(|p| p.config);
+            let model_ids: Vec<String> = models
+                .iter()
                 .enumerate()
                 .filter(|(i, _)| *i < selected.len() && selected[*i])
-                .map(|(_, m)| droidgear_core::omp::OmpCustomModel {
-                    id: m.id,
-                    name: m.name,
-                    api: None,
-                    ..Default::default()
-                })
+                .map(|(_, m)| m.id.clone())
                 .collect();
-            droidgear_core::omp::save_omp_custom_provider_for_home(
+            // One shared inference for the GUI dialog and this screen: base URL,
+            // protocol and the registry-enriched model specs come from core.
+            let input = droidgear_core::omp_import::OmpChannelImportInput {
+                channel_name: channel
+                    .as_ref()
+                    .map(|channel| channel.name.clone())
+                    .unwrap_or_default(),
+                channel_type: channel
+                    .as_ref()
+                    .map(|channel| format!("{:?}", channel.channel_type).to_lowercase())
+                    .unwrap_or_default(),
+                base_url: channel
+                    .as_ref()
+                    .map(|channel| channel.base_url.clone())
+                    .unwrap_or(base_url),
+                platform: None,
+                api_key,
+                token_name: String::new(),
+                provider_id: provider_id.clone(),
+                model_ids,
+                channel_models: models
+                    .iter()
+                    .map(|model| droidgear_core::omp_import::OmpChannelModel {
+                        id: model.id.clone(),
+                        name: model.name.clone(),
+                    })
+                    .collect(),
+                existing_provider_ids: Vec::new(),
+                existing,
+            };
+            let prepared = droidgear_core::omp_import::prepare_omp_channel_import(&input)
+                .map_err(anyhow::Error::msg)?;
+            let reconcile = droidgear_core::omp::save_omp_custom_provider_for_home(
                 &app.home_dir,
-                &provider_id,
-                provider,
+                &prepared.provider_id,
+                prepared.provider,
             )
             .map_err(anyhow::Error::msg)?;
+            report_omp_reconcile(app, &reconcile);
+            refresh_omp_custom_providers(app);
             app.set_toast("Imported from channel", false);
             Ok(())
         }
@@ -2447,6 +2463,12 @@ pub(super) fn run_confirm_action(
             app.set_toast("Applied", false);
             Ok(())
         }
+        app::ConfirmAction::PiClearDefaults => {
+            droidgear_core::pi::clear_pi_settings_for_home(&app.home_dir)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Startup model selection cleared", false);
+            Ok(())
+        }
         app::ConfirmAction::PiDelete { id } => {
             droidgear_core::pi::delete_pi_profile_for_home(&app.home_dir, &id)
                 .map_err(anyhow::Error::msg)?;
@@ -2483,9 +2505,18 @@ pub(super) fn run_confirm_action(
             Ok(())
         }
         app::ConfirmAction::OmpApply { id } => {
-            droidgear_core::omp::apply_omp_profile_for_home(&app.home_dir, &id)
+            let result = droidgear_core::omp::apply_omp_profile_for_home(&app.home_dir, &id)
                 .map_err(anyhow::Error::msg)?;
-            app.set_toast("Applied", false);
+            if result.warnings.is_empty() {
+                app.set_toast("Applied", false);
+            } else {
+                // A role OMP cannot resolve aborts the next start with
+                // "No default model selected", so surface it here.
+                app.set_toast(
+                    format!("Applied with warnings: {}", result.warnings.join(" · ")),
+                    true,
+                );
+            }
             Ok(())
         }
         app::ConfirmAction::OmpDelete { id } => {
@@ -2494,8 +2525,12 @@ pub(super) fn run_confirm_action(
             Ok(())
         }
         app::ConfirmAction::OmpDeleteCustomProvider { provider_id } => {
-            droidgear_core::omp::delete_omp_custom_provider_for_home(&app.home_dir, &provider_id)
-                .map_err(anyhow::Error::msg)?;
+            let reconcile = droidgear_core::omp::delete_omp_custom_provider_for_home(
+                &app.home_dir,
+                &provider_id,
+            )
+            .map_err(anyhow::Error::msg)?;
+            report_omp_reconcile(app, &reconcile);
             refresh_omp_custom_providers(app);
             Ok(())
         }
@@ -4716,17 +4751,7 @@ pub(super) fn run_input_action(
             let new_index = provider.models.len();
             let mut model = droidgear_core::pi::PiModel {
                 id: trimmed.to_string(),
-                name: None,
-                api: None,
-                reasoning: false,
-                thinking_level_map: None,
-                input: vec!["text".to_string()],
-                context_window: 128000,
-                max_tokens: 16384,
-                cost: None,
-                headers: None,
-                compat: None,
-                extra: Default::default(),
+                ..Default::default()
             };
             droidgear_core::pi::enrich_pi_model_from_registry(&mut model);
             provider.models.push(model);
@@ -4780,6 +4805,156 @@ pub(super) fn run_input_action(
             droidgear_core::pi::save_pi_profile_for_home(&app.home_dir, profile)
                 .map_err(anyhow::Error::msg)?;
             app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::PiSetModelType {
+            profile_id,
+            provider_id,
+            model_index,
+        } => {
+            pi_update_model(
+                &app.home_dir,
+                &profile_id,
+                &provider_id,
+                model_index,
+                |model| {
+                    model.model_type = (!trimmed.is_empty()).then(|| trimmed.to_string());
+                },
+            )?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::PiSetModelApi {
+            profile_id,
+            provider_id,
+            model_index,
+        } => {
+            pi_update_model(
+                &app.home_dir,
+                &profile_id,
+                &provider_id,
+                model_index,
+                |model| {
+                    model.api = (!trimmed.is_empty()).then(|| trimmed.to_string());
+                },
+            )?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::PiSetModelBaseUrl {
+            profile_id,
+            provider_id,
+            model_index,
+        } => {
+            pi_update_model(
+                &app.home_dir,
+                &profile_id,
+                &provider_id,
+                model_index,
+                |model| {
+                    model.base_url = (!trimmed.is_empty()).then(|| trimmed.to_string());
+                },
+            )?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::PiSetModelInputLimits {
+            profile_id,
+            provider_id,
+            model_index,
+        } => {
+            let value = parse_optional_json(trimmed)?;
+            pi_update_model(
+                &app.home_dir,
+                &profile_id,
+                &provider_id,
+                model_index,
+                |model| {
+                    model.input_limits = value.clone();
+                },
+            )?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::PiSetModelPromptCache {
+            profile_id,
+            provider_id,
+            model_index,
+        } => {
+            let value = parse_optional_json(trimmed)?;
+            pi_update_model(
+                &app.home_dir,
+                &profile_id,
+                &provider_id,
+                model_index,
+                |model| {
+                    model.prompt_cache = value.clone();
+                },
+            )?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::PiSetModelSamplingParams {
+            profile_id,
+            provider_id,
+            model_index,
+        } => {
+            // One JSON object covers both `samplingParams` and
+            // `samplingParamsByThinkingLevel`, keyed by their config names.
+            let parsed = parse_optional_json(trimmed)?;
+            let (params, by_level) = sampling_params_from_json(parsed)?;
+            pi_update_model(
+                &app.home_dir,
+                &profile_id,
+                &provider_id,
+                model_index,
+                |model| {
+                    model.sampling_params = (!params.is_empty()).then(|| params.clone());
+                    model.sampling_params_by_thinking_level =
+                        (!by_level.is_empty()).then(|| by_level.clone());
+                },
+            )?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::PiSetProviderName {
+            profile_id,
+            provider_id,
+        } => {
+            let mut profile =
+                droidgear_core::pi::get_pi_profile_for_home(&app.home_dir, &profile_id)
+                    .map_err(anyhow::Error::msg)?;
+            let Some(provider) = profile.providers.get_mut(&provider_id) else {
+                return Err(anyhow::Error::msg("Provider not found"));
+            };
+            provider.name = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            droidgear_core::pi::save_pi_profile_for_home(&app.home_dir, profile)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::PiSetDefaultProvider => {
+            let mut settings = pi_settings_draft(app)?;
+            settings.default_provider = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            droidgear_core::pi::save_pi_settings_for_home(&app.home_dir, &settings)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Default provider saved", false);
+            Ok(())
+        }
+        app::InputAction::PiSetDefaultModel => {
+            let mut settings = pi_settings_draft(app)?;
+            settings.default_model = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            droidgear_core::pi::save_pi_settings_for_home(&app.home_dir, &settings)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Default model saved", false);
+            Ok(())
+        }
+        app::InputAction::PiSetDefaultThinkingLevel => {
+            let mut settings = pi_settings_draft(app)?;
+            settings.default_thinking_level = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            droidgear_core::pi::save_pi_settings_for_home(&app.home_dir, &settings)
+                .map_err(anyhow::Error::msg)?;
+            app.set_toast("Default thinking level saved", false);
             Ok(())
         }
         app::InputAction::PiSetModelContextWindow {
@@ -5244,6 +5419,8 @@ pub(super) fn run_input_action(
                 created_at: String::new(),
                 updated_at: String::new(),
                 model_roles: droidgear_core::omp::OmpModelRoles::default(),
+                default_thinking_level: None,
+                model_presets: None,
             };
             droidgear_core::omp::save_omp_profile_for_home(&app.home_dir, profile)
                 .map_err(anyhow::Error::msg)?;
@@ -5295,17 +5472,59 @@ pub(super) fn run_input_action(
             Ok(())
         }
         app::InputAction::OmpUpdateModelRole { role } => {
+            if !droidgear_core::omp_roles::OMP_ROLE_NAMES.contains(&role.as_str()) {
+                return Err(anyhow::Error::msg(format!("Unknown model role: {role}")));
+            }
             if let Some(ref mut profile) = app.omp_detail {
-                match role.as_str() {
-                    "default" => profile.model_roles.default = Some(trimmed.to_string()),
-                    "smol" => profile.model_roles.smol = Some(trimmed.to_string()),
-                    "slow" => profile.model_roles.slow = Some(trimmed.to_string()),
-                    "plan" => profile.model_roles.plan = Some(trimmed.to_string()),
-                    "commit" => profile.model_roles.commit = Some(trimmed.to_string()),
-                    _ => return Err(anyhow::Error::msg("Unknown model role")),
-                }
+                droidgear_core::omp_roles::set_role_value(
+                    &mut profile.model_roles,
+                    &role,
+                    (!trimmed.is_empty()).then(|| trimmed.to_string()),
+                );
             }
             app.set_toast("Saved (in-memory)", false);
+            Ok(())
+        }
+        app::InputAction::OmpUpdateDefaultThinkingLevel => {
+            if let Some(ref mut profile) = app.omp_detail {
+                profile.default_thinking_level = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            }
+            app.set_toast("Saved (in-memory)", false);
+            Ok(())
+        }
+        app::InputAction::OmpUpdateModelPresets => {
+            if trimmed.is_empty() {
+                if let Some(ref mut profile) = app.omp_detail {
+                    profile.model_presets = None;
+                }
+                app.set_toast("Model presets cleared (in-memory)", false);
+                return Ok(());
+            }
+            let parsed: std::collections::HashMap<String, serde_json::Value> =
+                serde_json::from_str(trimmed)
+                    .map_err(|e| anyhow::Error::msg(format!("Invalid model presets JSON: {e}")))?;
+            if let Some(ref mut profile) = app.omp_detail {
+                profile.model_presets = Some(parsed);
+            }
+            app.set_toast("Saved (in-memory)", false);
+            Ok(())
+        }
+        app::InputAction::OmpSetCustomProviderModels { provider_id } => {
+            let models: Vec<droidgear_core::omp::OmpCustomModel> = serde_json::from_str(trimmed)
+                .map_err(|e| anyhow::Error::msg(format!("Invalid models JSON: {e}")))?;
+            omp_update_provider(&app.home_dir, &provider_id, |provider| {
+                provider.models = models.clone();
+            })?;
+            refresh_omp_custom_providers(app);
+            app.set_toast("Saved", false);
+            Ok(())
+        }
+        app::InputAction::OmpSetCustomProviderTransport { provider_id } => {
+            omp_update_provider(&app.home_dir, &provider_id, |provider| {
+                provider.transport = (!trimmed.is_empty()).then(|| trimmed.to_string());
+            })?;
+            refresh_omp_custom_providers(app);
+            app.set_toast("Saved", false);
             Ok(())
         }
         app::InputAction::OmpCreateCustomProvider => {
@@ -5471,4 +5690,130 @@ pub(super) fn run_input_action(
             Ok(())
         }
     }
+}
+
+/// Load/modify/save one Pi model through the profile file (the TUI never writes
+/// models.json directly).
+fn pi_update_model<F>(
+    home_dir: &std::path::Path,
+    profile_id: &str,
+    provider_id: &str,
+    model_index: usize,
+    mutate: F,
+) -> Result<(), anyhow::Error>
+where
+    F: FnOnce(&mut droidgear_core::pi::PiModel),
+{
+    let mut profile = droidgear_core::pi::get_pi_profile_for_home(home_dir, profile_id)
+        .map_err(anyhow::Error::msg)?;
+    let Some(provider) = profile.providers.get_mut(provider_id) else {
+        return Err(anyhow::Error::msg("Provider not found"));
+    };
+    let Some(model) = provider.models.get_mut(model_index) else {
+        return Err(anyhow::Error::msg("Model not found"));
+    };
+    mutate(model);
+    droidgear_core::pi::save_pi_profile_for_home(home_dir, profile).map_err(anyhow::Error::msg)
+}
+
+/// Parse an optional JSON field: empty clears it, anything else must be valid.
+fn parse_optional_json(trimmed: &str) -> Result<Option<serde_json::Value>, anyhow::Error> {
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    serde_json::from_str::<serde_json::Value>(trimmed)
+        .map(Some)
+        .map_err(|e| anyhow::Error::msg(format!("Invalid JSON: {e}")))
+}
+
+/// Split the combined sampling-params object into its two config fields.
+#[allow(clippy::type_complexity)]
+fn sampling_params_from_json(
+    parsed: Option<serde_json::Value>,
+) -> Result<
+    (
+        std::collections::HashMap<String, serde_json::Value>,
+        std::collections::HashMap<String, serde_json::Value>,
+    ),
+    anyhow::Error,
+> {
+    let mut params = std::collections::HashMap::new();
+    let mut by_level = std::collections::HashMap::new();
+    let Some(serde_json::Value::Object(mut object)) = parsed else {
+        return Ok((params, by_level));
+    };
+    if let Some(serde_json::Value::Object(values)) = object.remove("samplingParams") {
+        params = values.into_iter().collect();
+    }
+    if let Some(serde_json::Value::Object(values)) = object.remove("samplingParamsByThinkingLevel")
+    {
+        by_level = values.into_iter().collect();
+    }
+    if !object.is_empty() {
+        return Err(anyhow::Error::msg(
+            "samplingParams JSON must only use samplingParams / samplingParamsByThinkingLevel",
+        ));
+    }
+    Ok((params, by_level))
+}
+
+/// The saved startup selection, or the empty draft when settings.json is new.
+fn pi_settings_draft(
+    app: &app::App,
+) -> Result<droidgear_core::pi_settings::PiSettings, anyhow::Error> {
+    let status =
+        droidgear_core::pi::read_pi_settings_for_home(&app.home_dir).map_err(anyhow::Error::msg)?;
+    Ok(status.settings())
+}
+
+/// Save one OMP provider field through core (which also merges unknown keys and
+/// reconciles model roles).
+fn omp_update_provider<F>(
+    home_dir: &std::path::Path,
+    provider_id: &str,
+    mutate: F,
+) -> Result<(), anyhow::Error>
+where
+    F: FnOnce(&mut droidgear_core::omp::OmpCustomProvider),
+{
+    let current = droidgear_core::omp::read_omp_custom_providers_for_home(home_dir)
+        .map_err(anyhow::Error::msg)?;
+    let Some(entry) = current
+        .providers
+        .into_iter()
+        .find(|entry| entry.provider_id == provider_id)
+    else {
+        return Err(anyhow::Error::msg("Provider not found"));
+    };
+    let mut provider = entry.config;
+    mutate(&mut provider);
+    droidgear_core::omp::save_omp_custom_provider_for_home(home_dir, provider_id, provider)
+        .map_err(anyhow::Error::msg)?;
+    Ok(())
+}
+
+/// Tell the user which model roles a models.yml write had to repair (OMP would
+/// otherwise fail or silently fall back on the next start).
+fn report_omp_reconcile(
+    app: &mut app::App,
+    reconcile: &droidgear_core::omp_roles::OmpRoleReconcile,
+) {
+    if !reconcile.adjusted {
+        return;
+    }
+    let mut notes: Vec<String> = reconcile
+        .adjustments
+        .iter()
+        .map(|adjustment| match adjustment.to.as_deref() {
+            Some(to) => format!("{}: {} -> {}", adjustment.role, adjustment.from, to),
+            None => format!("{}: {} cleared", adjustment.role, adjustment.from),
+        })
+        .collect();
+    if let Some(thinking) = reconcile.thinking.as_ref() {
+        notes.push(format!(
+            "defaultThinkingLevel: {} -> {}",
+            thinking.from, thinking.to
+        ));
+    }
+    app.set_toast(format!("Repaired roles: {}", notes.join(" · ")), false);
 }

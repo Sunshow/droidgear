@@ -222,6 +222,7 @@ pub enum ConfirmAction {
     PiApply {
         id: String,
     },
+    PiClearDefaults,
     PiDelete {
         id: String,
     },
@@ -554,6 +555,43 @@ pub enum InputAction {
         provider_id: String,
         model_index: usize,
     },
+    PiSetModelType {
+        profile_id: String,
+        provider_id: String,
+        model_index: usize,
+    },
+    PiSetModelApi {
+        profile_id: String,
+        provider_id: String,
+        model_index: usize,
+    },
+    PiSetModelBaseUrl {
+        profile_id: String,
+        provider_id: String,
+        model_index: usize,
+    },
+    PiSetModelInputLimits {
+        profile_id: String,
+        provider_id: String,
+        model_index: usize,
+    },
+    PiSetModelPromptCache {
+        profile_id: String,
+        provider_id: String,
+        model_index: usize,
+    },
+    PiSetModelSamplingParams {
+        profile_id: String,
+        provider_id: String,
+        model_index: usize,
+    },
+    PiSetProviderName {
+        profile_id: String,
+        provider_id: String,
+    },
+    PiSetDefaultProvider,
+    PiSetDefaultModel,
+    PiSetDefaultThinkingLevel,
     OmpCreateProfile,
     OmpDuplicate {
         id: String,
@@ -562,6 +600,14 @@ pub enum InputAction {
     OmpUpdateProfileDescription,
     OmpUpdateModelRole {
         role: String,
+    },
+    OmpUpdateDefaultThinkingLevel,
+    OmpUpdateModelPresets,
+    OmpSetCustomProviderTransport {
+        provider_id: String,
+    },
+    OmpSetCustomProviderModels {
+        provider_id: String,
     },
     OmpCreateCustomProvider,
     OmpSetCustomProviderBaseUrl {

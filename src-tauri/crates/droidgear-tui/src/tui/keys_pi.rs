@@ -54,6 +54,50 @@ pub(super) fn handle_pi_key(app: &mut app::App, code: KeyCode) -> Option<Action>
                 });
             }
         }
+        // Startup model selection lives in ~/.pi/agent/settings.json, not in a
+        // profile, so it gets its own keys on the profile list.
+        KeyCode::Char('D') => {
+            let current = droidgear_core::pi::read_pi_settings_for_home(&app.home_dir)
+                .map(|status| status.default_provider.unwrap_or_default())
+                .unwrap_or_default();
+            app.modal = Some(app::Modal::Input {
+                title: "Default provider (empty = automatic)".to_string(),
+                value: current,
+                cursor: usize::MAX,
+                is_secret: false,
+                action: app::InputAction::PiSetDefaultProvider,
+            });
+        }
+        KeyCode::Char('M') => {
+            let current = droidgear_core::pi::read_pi_settings_for_home(&app.home_dir)
+                .map(|status| status.default_model.unwrap_or_default())
+                .unwrap_or_default();
+            app.modal = Some(app::Modal::Input {
+                title: "Default model id (empty = automatic)".to_string(),
+                value: current,
+                cursor: usize::MAX,
+                is_secret: false,
+                action: app::InputAction::PiSetDefaultModel,
+            });
+        }
+        KeyCode::Char('T') => {
+            let current = droidgear_core::pi::read_pi_settings_for_home(&app.home_dir)
+                .map(|status| status.default_thinking_level.unwrap_or_default())
+                .unwrap_or_default();
+            app.modal = Some(app::Modal::Input {
+                title: "Default thinking level (off|minimal|low|medium|high|xhigh|max)".to_string(),
+                value: current,
+                cursor: usize::MAX,
+                is_secret: false,
+                action: app::InputAction::PiSetDefaultThinkingLevel,
+            });
+        }
+        KeyCode::Char('x') => {
+            app.modal = Some(app::Modal::Confirm {
+                message: "Clear the Pi startup model selection?".to_string(),
+                action: app::ConfirmAction::PiClearDefaults,
+            });
+        }
         _ => {}
     }
     None
@@ -283,6 +327,18 @@ pub(super) fn handle_pi_provider_key(app: &mut app::App, code: KeyCode) -> Optio
                     },
                 });
             }
+            3 => {
+                app.modal = Some(app::Modal::Input {
+                    title: "Provider name".to_string(),
+                    value: config.name.clone().unwrap_or_default(),
+                    cursor: usize::MAX,
+                    is_secret: false,
+                    action: app::InputAction::PiSetProviderName {
+                        profile_id: profile_id.clone(),
+                        provider_id: provider_id.clone(),
+                    },
+                });
+            }
             _ => {}
         },
         KeyCode::Char('n') => {
@@ -459,12 +515,121 @@ pub(super) fn handle_pi_model_key(app: &mut app::App, code: KeyCode) -> Option<A
                     },
                 });
             }
+            7 => {
+                app.modal = Some(app::Modal::Input {
+                    title: "Model type (chat|image|classifier)".to_string(),
+                    value: model.model_type.clone().unwrap_or_default(),
+                    cursor: usize::MAX,
+                    is_secret: false,
+                    action: app::InputAction::PiSetModelType {
+                        profile_id: profile_id.clone(),
+                        provider_id: provider_id.clone(),
+                        model_index,
+                    },
+                });
+            }
+            8 => {
+                app.modal = Some(app::Modal::Input {
+                    title: "Model API".to_string(),
+                    value: model.api.clone().unwrap_or_default(),
+                    cursor: usize::MAX,
+                    is_secret: false,
+                    action: app::InputAction::PiSetModelApi {
+                        profile_id: profile_id.clone(),
+                        provider_id: provider_id.clone(),
+                        model_index,
+                    },
+                });
+            }
+            9 => {
+                app.modal = Some(app::Modal::Input {
+                    title: "Model base URL".to_string(),
+                    value: model.base_url.clone().unwrap_or_default(),
+                    cursor: usize::MAX,
+                    is_secret: false,
+                    action: app::InputAction::PiSetModelBaseUrl {
+                        profile_id: profile_id.clone(),
+                        provider_id: provider_id.clone(),
+                        model_index,
+                    },
+                });
+            }
+            10 => {
+                app.modal = Some(app::Modal::Input {
+                    title: "inputLimits (JSON)".to_string(),
+                    value: json_field_value(model.input_limits.as_ref()),
+                    cursor: usize::MAX,
+                    is_secret: false,
+                    action: app::InputAction::PiSetModelInputLimits {
+                        profile_id: profile_id.clone(),
+                        provider_id: provider_id.clone(),
+                        model_index,
+                    },
+                });
+            }
+            11 => {
+                app.modal = Some(app::Modal::Input {
+                    title: "promptCache (JSON)".to_string(),
+                    value: json_field_value(model.prompt_cache.as_ref()),
+                    cursor: usize::MAX,
+                    is_secret: false,
+                    action: app::InputAction::PiSetModelPromptCache {
+                        profile_id: profile_id.clone(),
+                        provider_id: provider_id.clone(),
+                        model_index,
+                    },
+                });
+            }
+            12 => {
+                app.modal = Some(app::Modal::Input {
+                    title: "samplingParams (JSON)".to_string(),
+                    value: sampling_params_value(model),
+                    cursor: usize::MAX,
+                    is_secret: false,
+                    action: app::InputAction::PiSetModelSamplingParams {
+                        profile_id: profile_id.clone(),
+                        provider_id: provider_id.clone(),
+                        model_index,
+                    },
+                });
+            }
             _ => {}
         },
         _ => {}
     }
 
     None
+}
+
+/// Render an optional JSON field for the input modal ("" when unset).
+pub(super) fn json_field_value(value: Option<&serde_json::Value>) -> String {
+    match value {
+        Some(value) => serde_json::to_string(value).unwrap_or_default(),
+        None => String::new(),
+    }
+}
+
+/// Render the model's sampling params (including the per-thinking-level map) as
+/// one JSON object so a single input can cover both fields.
+fn sampling_params_value(model: &droidgear_core::pi::PiModel) -> String {
+    let mut object = serde_json::Map::new();
+    if let Some(params) = model.sampling_params.as_ref() {
+        object.insert(
+            "samplingParams".to_string(),
+            serde_json::Value::Object(params.clone().into_iter().collect()),
+        );
+    }
+    if let Some(by_level) = model.sampling_params_by_thinking_level.as_ref() {
+        object.insert(
+            "samplingParamsByThinkingLevel".to_string(),
+            serde_json::Value::Object(by_level.clone().into_iter().collect()),
+        );
+    }
+    if object.is_empty() {
+        String::new()
+    } else {
+        serde_json::to_string(&serde_json::Value::Object(object)).unwrap_or_default()
+    }
 }
 
 pub(super) fn pi_toggle_model_reasoning(

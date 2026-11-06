@@ -3,8 +3,10 @@
 //! Core logic lives in `droidgear-core`.
 
 pub use droidgear_core::omp::{
-    OmpConfigStatus, OmpCurrentConfig, OmpProfile, OmpProviderTestResult,
+    OmpApplyResult, OmpConfigStatus, OmpCurrentConfig, OmpProfile, OmpProviderTestResult,
 };
+pub use droidgear_core::omp_import::{OmpChannelImportInput, OmpChannelImportResult};
+pub use droidgear_core::omp_roles::{OmpRoleOptions, OmpRoleReconcile};
 
 /// List all OMP profiles
 #[tauri::command]
@@ -65,8 +67,24 @@ pub async fn set_active_omp_profile_id(id: String) -> Result<(), String> {
 /// Apply model roles to `~/.omp/agent/config.yml`
 #[tauri::command]
 #[specta::specta]
-pub async fn apply_omp_profile(id: String) -> Result<(), String> {
+pub async fn apply_omp_profile(id: String) -> Result<OmpApplyResult, String> {
     droidgear_core::omp::apply_omp_profile(&id)
+}
+
+/// List the `provider/model-id` values an OMP model role can point at
+#[tauri::command]
+#[specta::specta]
+pub async fn list_omp_role_options() -> Result<OmpRoleOptions, String> {
+    droidgear_core::omp::list_omp_role_options()
+}
+
+/// Build a models.yml provider entry from a channel (pure: no disk or network)
+#[tauri::command]
+#[specta::specta]
+pub async fn prepare_omp_channel_import(
+    input: OmpChannelImportInput,
+) -> Result<OmpChannelImportResult, String> {
+    droidgear_core::omp_import::prepare_omp_channel_import(&input)
 }
 
 /// Get OMP config status
@@ -95,13 +113,13 @@ pub async fn read_omp_custom_providers() -> Result<droidgear_core::omp::OmpCusto
 pub async fn save_omp_custom_provider(
     provider_id: String,
     provider: droidgear_core::omp::OmpCustomProvider,
-) -> Result<(), String> {
+) -> Result<OmpRoleReconcile, String> {
     droidgear_core::omp::save_omp_custom_provider(&provider_id, provider)
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn delete_omp_custom_provider(provider_id: String) -> Result<(), String> {
+pub async fn delete_omp_custom_provider(provider_id: String) -> Result<OmpRoleReconcile, String> {
     droidgear_core::omp::delete_omp_custom_provider(&provider_id)
 }
 

@@ -92,6 +92,61 @@ pub struct PiCompatConfig {
     pub open_router_routing: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub vercel_gateway_routing: Option<serde_json::Value>,
+    // Upstream additions (pi docs/models-configuration.md, checked 2026-11-06).
+    // They are modeled so the GUI can round-trip them; unknown future keys are
+    // still preserved by the lossless apply.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supports_finish_reason: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requires_non_null_assistant_content: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chat_template_kwargs: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chat_template_args: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub zai_tool_stream: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking_token_budget_field: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supports_thinking_token_budget: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supports_openai_grammar_tools: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supports_mid_convo_system_messages: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supports_mid_convo_tool_additions: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub send_session_affinity_headers: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_affinity_format: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt_cache_key_mode: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vllm_priority: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supports_additional_tools: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supports_tool_search: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supports_explicit_prompt_cache_mode: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supports_mid_convo_effort: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supports_max_output_tokens: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supports_cache_control_on_tools: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supports_temperature: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allow_empty_signature: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supports_strict_tools: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supports_mid_convo_tool_changes: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supports_message_threads: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allowed_fallback_models: Option<serde_json::Value>,
     #[serde(flatten)]
     #[specta(skip)]
     pub extra: HashMap<String, serde_json::Value>,
@@ -102,22 +157,36 @@ pub struct PiCompatConfig {
 #[serde(rename_all = "camelCase")]
 pub struct PiModel {
     pub id: String,
+    /// Operation discriminator (`chat` | `image` | `classifier`); omitted means
+    /// chat (upstream models-configuration.md).
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub model_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_url: Option<String>,
     #[serde(default)]
     pub reasoning: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thinking_level_map: Option<HashMap<String, Option<String>>>,
     #[serde(default = "default_input")]
     pub input: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input_limits: Option<serde_json::Value>,
     #[serde(default = "default_context_window")]
     pub context_window: u32,
     #[serde(default = "default_max_tokens")]
     pub max_tokens: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cost: Option<PiModelCost>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt_cache: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sampling_params: Option<HashMap<String, serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sampling_params_by_thinking_level: Option<HashMap<String, serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub headers: Option<HashMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -131,14 +200,20 @@ impl Default for PiModel {
     fn default() -> Self {
         Self {
             id: String::new(),
+            model_type: None,
             name: None,
             api: None,
+            base_url: None,
             reasoning: false,
             thinking_level_map: None,
             input: default_input(),
+            input_limits: None,
             context_window: default_context_window(),
             max_tokens: default_max_tokens(),
             cost: None,
+            prompt_cache: None,
+            sampling_params: None,
+            sampling_params_by_thinking_level: None,
             headers: None,
             compat: None,
             extra: HashMap::new(),
@@ -155,17 +230,27 @@ pub struct PiModelOverride {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thinking_level_map: Option<HashMap<String, Option<String>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub input: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub input_limits: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub context_window: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cost: Option<PiModelCost>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt_cache: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sampling_params: Option<HashMap<String, serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sampling_params_by_thinking_level: Option<HashMap<String, serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub headers: Option<HashMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -179,6 +264,8 @@ pub struct PiModelOverride {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct PiProviderConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub base_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -239,9 +326,14 @@ pub struct PiProviderTestResult {
 }
 
 /// Current Pi configuration (from `~/.pi/agent/models.json`)
+///
+/// The optional `$schema` root key is modeled so the GUI can show it; every
+/// other unknown root key survives the lossless apply merge.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct PiCurrentConfig {
+    #[serde(rename = "$schema", skip_serializing_if = "Option::is_none")]
+    pub schema: Option<String>,
     #[serde(default)]
     pub providers: HashMap<String, PiProviderConfig>,
 }
@@ -289,6 +381,7 @@ fn write_pi_test_files(
     config: &PiProviderConfig,
 ) -> Result<(), String> {
     let current = PiCurrentConfig {
+        schema: None,
         providers: HashMap::from([(provider_id.to_string(), config.clone())]),
     };
     let models_json = serde_json::to_vec_pretty(&current)
@@ -543,17 +636,17 @@ const MODEL_REGISTRY_JSON: &str = include_str!("../../../../src/lib/model-regist
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct RegistryModel {
-    id: String,
-    name: String,
+pub(crate) struct RegistryModel {
+    pub(crate) id: String,
+    pub(crate) name: String,
     #[serde(default)]
-    aliases: Vec<String>,
-    reasoning: bool,
-    input: Vec<String>,
+    pub(crate) aliases: Vec<String>,
+    pub(crate) reasoning: bool,
+    pub(crate) input: Vec<String>,
     #[serde(default)]
-    thinking_level_map: Option<HashMap<String, Option<String>>>,
-    context_window: u32,
-    max_output_tokens: Option<u32>,
+    pub(crate) thinking_level_map: Option<HashMap<String, Option<String>>>,
+    pub(crate) context_window: u32,
+    pub(crate) max_output_tokens: Option<u32>,
     reasoning_config: Option<RegistryReasoningConfig>,
 }
 
@@ -578,6 +671,14 @@ impl RegistryModel {
 fn registry_models() -> &'static [RegistryModel] {
     static MODELS: std::sync::OnceLock<Vec<RegistryModel>> = std::sync::OnceLock::new();
     MODELS.get_or_init(|| serde_json::from_str(MODEL_REGISTRY_JSON).unwrap_or_default())
+}
+
+/// Look up a model in the vendored registry (id or alias). Shared with the
+/// channel-import flows of other modules.
+pub(crate) fn find_registry_model(id: &str) -> Option<&'static RegistryModel> {
+    registry_models()
+        .iter()
+        .find(|entry| entry.id == id || entry.aliases.iter().any(|alias| alias == id))
 }
 
 pub fn enrich_pi_model_from_registry(model: &mut PiModel) -> bool {
@@ -847,21 +948,33 @@ pub fn set_active_pi_profile_id_for_home(home_dir: &Path, id: &str) -> Result<()
 
 /// Apply a profile to `~/.pi/agent/models.json`.
 ///
-/// Reads the profile, extracts the providers map, and writes it as
-/// `{ "providers": {...} }` to Pi's models.json. Also sets the active profile
-/// ID to the applied profile.
-pub fn apply_pi_profile_for_home(home_dir: &Path, id: &str) -> Result<(), String> {
+/// Merges over the live document instead of rebuilding it so upstream fields
+/// this build does not model (and an optional `$schema` root key) survive.
+/// Providers absent from the profile are removed, which is why the result
+/// carries the reconcile pass that repaired the startup selection in
+/// `settings.json` (see [`crate::pi_startup`]).
+pub fn apply_pi_profile_for_home(
+    home_dir: &Path,
+    id: &str,
+) -> Result<crate::pi_startup::PiApplyResult, String> {
     let profile = load_profile_by_id(home_dir, id)?;
     let config_path = pi_config_path_for_home(home_dir)?;
 
-    let current = PiCurrentConfig {
-        providers: profile.providers,
-    };
-    let s = serde_json::to_string_pretty(&current)
-        .map_err(|e| format!("Failed to serialize Pi config: {e}"))?;
-    storage::atomic_write(&config_path, s.as_bytes())?;
+    let live = crate::pi_merge::read_live_config_for_merge(&config_path)?;
+    let before = crate::pi_merge::providers_from_document(&live)?;
+    let merged = crate::pi_merge::merge_pi_config(&live, &profile.providers, false)?;
+    storage::atomic_write(&config_path, merged.as_bytes())?;
     set_active_pi_profile_id_for_home(home_dir, id)?;
-    Ok(())
+
+    // Reconcile against what was written, not the profile: the merge unions the
+    // models a surviving provider already had, so a dropped model may well
+    // still be there.
+    let after = crate::pi_merge::providers_from_document(&merged)?;
+    let mut result =
+        crate::pi_startup::reconcile_startup_model_for_home(home_dir, &before, &after)?;
+    result.id = profile.id;
+    result.applied_providers = crate::pi_startup::sorted_provider_ids(&after);
+    Ok(result)
 }
 
 /// Get the status of `~/.pi/agent/models.json`.
@@ -881,6 +994,7 @@ pub fn read_pi_current_config_for_home(home_dir: &Path) -> Result<PiCurrentConfi
     let config_path = pi_config_path_for_home(home_dir)?;
     if !config_path.exists() {
         return Ok(PiCurrentConfig {
+            schema: None,
             providers: HashMap::new(),
         });
     }
@@ -927,8 +1041,55 @@ pub fn set_active_pi_profile_id(id: &str) -> Result<(), String> {
     set_active_pi_profile_id_for_home(&system_home_dir()?, id)
 }
 
-pub fn apply_pi_profile(id: &str) -> Result<(), String> {
+pub fn apply_pi_profile(id: &str) -> Result<crate::pi_startup::PiApplyResult, String> {
     apply_pi_profile_for_home(&system_home_dir()?, id)
+}
+
+/// Read the startup model selection from `~/.pi/agent/settings.json`.
+pub fn read_pi_settings() -> Result<crate::pi_settings::PiSettingsStatus, String> {
+    read_pi_settings_for_home(&system_home_dir()?)
+}
+
+/// Read the startup model selection from a given home directory.
+pub fn read_pi_settings_for_home(
+    home_dir: &Path,
+) -> Result<crate::pi_settings::PiSettingsStatus, String> {
+    crate::pi_settings::read_pi_settings_for_home(home_dir)
+}
+
+/// Write the startup model selection, keeping every other settings key.
+pub fn save_pi_settings(settings: crate::pi_settings::PiSettings) -> Result<(), String> {
+    save_pi_settings_for_home(&system_home_dir()?, &settings)
+}
+
+/// Write the startup model selection for a given home directory.
+pub fn save_pi_settings_for_home(
+    home_dir: &Path,
+    settings: &crate::pi_settings::PiSettings,
+) -> Result<(), String> {
+    crate::pi_settings::save_pi_settings_for_home(home_dir, settings)
+}
+
+/// Clear the startup model selection so pi picks the model itself again.
+pub fn clear_pi_settings() -> Result<(), String> {
+    clear_pi_settings_for_home(&system_home_dir()?)
+}
+
+/// Clear the startup model selection for a given home directory.
+pub fn clear_pi_settings_for_home(home_dir: &Path) -> Result<(), String> {
+    crate::pi_settings::clear_pi_settings_for_home(home_dir)
+}
+
+/// List what the startup model fields can point at (models.json + catalog).
+pub fn list_pi_startup_options() -> Result<crate::pi_startup::StartupOptions, String> {
+    list_pi_startup_options_for_home(&system_home_dir()?)
+}
+
+/// List what the startup model fields can point at for a given home directory.
+pub fn list_pi_startup_options_for_home(
+    home_dir: &Path,
+) -> Result<crate::pi_startup::StartupOptions, String> {
+    crate::pi_startup::list_startup_options_for_home(home_dir)
 }
 
 pub fn get_pi_config_status() -> Result<PiConfigStatus, String> {

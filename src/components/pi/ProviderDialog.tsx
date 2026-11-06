@@ -94,6 +94,18 @@ function validateJson(str: string): { valid: boolean; error: string | null } {
   }
 }
 
+/** Bundle the rarely-edited per-model provider tuning into one JSON object. */
+function advancedModelJSON(model: PiModel): string {
+  const bundle: Record<string, unknown> = {}
+  if (model.inputLimits != null) bundle.inputLimits = model.inputLimits
+  if (model.promptCache != null) bundle.promptCache = model.promptCache
+  if (model.samplingParams != null) bundle.samplingParams = model.samplingParams
+  if (model.samplingParamsByThinkingLevel != null) {
+    bundle.samplingParamsByThinkingLevel = model.samplingParamsByThinkingLevel
+  }
+  return Object.keys(bundle).length ? JSON.stringify(bundle, null, 2) : ''
+}
+
 interface ProviderFormProps {
   editingProviderId: string | null
   currentProfile: PiProfile | null
@@ -150,6 +162,12 @@ function ProviderForm({
     Record<number, string | null>
   >({})
   const [modelCostErrors, setModelCostErrors] = useState<
+    Record<number, string | null>
+  >({})
+  const [modelAdvancedDrafts, setModelAdvancedDrafts] = useState<
+    Record<number, string>
+  >({})
+  const [modelAdvancedErrors, setModelAdvancedErrors] = useState<
     Record<number, string | null>
   >({})
 
@@ -268,6 +286,29 @@ function ProviderForm({
       updated[index] = { ...model, compat: null }
       setModels(updated)
     }
+  }
+
+  const handleModelAdvancedChange = (index: number, value: string) => {
+    setModelAdvancedDrafts(prev => ({ ...prev, [index]: value }))
+    const result = validateJson(value)
+    setModelAdvancedErrors(prev => ({ ...prev, [index]: result.error }))
+    if (value.trim() && !result.valid) return
+    const parsed = value.trim()
+      ? (JSON.parse(value) as Record<string, unknown>)
+      : {}
+    const updated = [...models]
+    const model = updated[index]
+    if (!model) return
+    updated[index] = {
+      ...model,
+      inputLimits: (parsed.inputLimits ?? null) as PiModel['inputLimits'],
+      promptCache: (parsed.promptCache ?? null) as PiModel['promptCache'],
+      samplingParams: (parsed.samplingParams ??
+        null) as PiModel['samplingParams'],
+      samplingParamsByThinkingLevel: (parsed.samplingParamsByThinkingLevel ??
+        null) as PiModel['samplingParamsByThinkingLevel'],
+    }
+    setModels(updated)
   }
 
   const handleModelCostChange = (
@@ -776,6 +817,18 @@ function ProviderForm({
                     onChange={val => handleModelCompatChange(index, val)}
                     error={modelCompatErrors[index] ?? null}
                     placeholder='{"supportsDeveloperRole": true}'
+                  />
+                  {/* inputLimits / promptCache / samplingParams bundle */}
+                  <JsonField
+                    label={t('pi.provider.modelAdvanced')}
+                    value={
+                      modelAdvancedDrafts[index] ?? advancedModelJSON(model)
+                    }
+                    onChange={val => handleModelAdvancedChange(index, val)}
+                    error={modelAdvancedErrors[index] ?? null}
+                    placeholder={
+                      '{"samplingParams": {"temperature": 0.2}, "promptCache": {"short": 60}}'
+                    }
                   />
                 </div>
               ))}

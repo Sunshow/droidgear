@@ -1555,9 +1555,53 @@ async setActivePiProfileId(id: string) : Promise<Result<null, string>> {
 /**
  * Apply a profile to `~/.pi/agent/models.json`
  */
-async applyPiProfile(id: string) : Promise<Result<null, string>> {
+async applyPiProfile(id: string) : Promise<Result<PiApplyResult, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("apply_pi_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Read the startup model selection from `~/.pi/agent/settings.json`
+ */
+async readPiSettings() : Promise<Result<PiSettingsStatus, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("read_pi_settings") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Save the startup model selection, keeping every other settings key
+ */
+async savePiSettings(settings: PiSettings) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_pi_settings", { settings }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Clear the startup model selection so pi picks the model itself again
+ */
+async clearPiSettings() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("clear_pi_settings") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * List what the startup model fields can point at (models.json + pi catalog)
+ */
+async listPiStartupOptions() : Promise<Result<StartupOptions, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_pi_startup_options") };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -1676,9 +1720,31 @@ async setActiveOmpProfileId(id: string) : Promise<Result<null, string>> {
 /**
  * Apply model roles to `~/.omp/agent/config.yml`
  */
-async applyOmpProfile(id: string) : Promise<Result<null, string>> {
+async applyOmpProfile(id: string) : Promise<Result<OmpApplyResult, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("apply_omp_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * List the `provider/model-id` values an OMP model role can point at
+ */
+async listOmpRoleOptions() : Promise<Result<OmpRoleOptions, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_omp_role_options") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Build a models.yml provider entry from a channel (pure: no disk or network)
+ */
+async prepareOmpChannelImport(input: OmpChannelImportInput) : Promise<Result<OmpChannelImportResult, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("prepare_omp_channel_import", { input }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -1714,7 +1780,7 @@ async readOmpCustomProviders() : Promise<Result<OmpCustomProviders, string>> {
     else return { status: "error", error: e  as any };
 }
 },
-async saveOmpCustomProvider(providerId: string, provider: OmpCustomProvider) : Promise<Result<null, string>> {
+async saveOmpCustomProvider(providerId: string, provider: OmpCustomProvider) : Promise<Result<OmpRoleReconcile, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("save_omp_custom_provider", { providerId, provider }) };
 } catch (e) {
@@ -1722,7 +1788,7 @@ async saveOmpCustomProvider(providerId: string, provider: OmpCustomProvider) : P
     else return { status: "error", error: e  as any };
 }
 },
-async deleteOmpCustomProvider(providerId: string) : Promise<Result<null, string>> {
+async deleteOmpCustomProvider(providerId: string) : Promise<Result<OmpRoleReconcile, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("delete_omp_custom_provider", { providerId }) };
 } catch (e) {
@@ -3556,16 +3622,17 @@ reasoningEffort?: string | null }
  * 
  * apply 时：
  * - `is_default` 的条目 → 写入 config.yaml 的 `model.default` / `model.provider`；
- * - 解析出 `custom:<name>` 且带 base_url 的条目 → 写入 `custom_providers` 列表；
+ * - 解析出 `custom:<name>` 且带 base_url 的条目 → upsert 进 `providers` 字典
+ * （api / api_key / default_model，其余字段保留原值）；
  * - 裸 `custom`（无 name）→ base_url/api_key 直接写入 `model` 节。
  */
 export type HermesModelConfig = { 
 /**
- * 配置名称（对应 `custom_providers[].name`，也是 `custom:<name>` 的引用名）。
+ * 配置名称（对应 `providers` 字典的 key，也是 `custom:<name>` 的引用名）。
  */
 name?: string | null; 
 /**
- * 模型 ID（写入 `model.default` 或 `custom_providers[].model`）。
+ * 模型 ID（写入 `model.default` 或 `providers.<name>.default_model`）。
  */
 default?: string | null; 
 /**
@@ -3661,11 +3728,45 @@ export type ModelTestResult = { modelId: string; modelName: string; diagnostics:
 /**
  * OMP agent configuration (from `~/.omp/agent/config.yml`).
  */
-export type OmpAgentConfig = { modelRoles?: OmpModelRoles | null; theme?: OmpTheme | null; steeringMode?: string | null; followUpMode?: string | null; interruptMode?: string | null; symbolPreset?: string | null; setupVersion?: number | null }
+export type OmpAgentConfig = { modelRoles?: OmpModelRoles | null; 
+/**
+ * Named snapshots of role assignments, written as `modelPresets`.
+ */
+modelPresets?: Partial<{ [key in string]: JsonValue }> | null; 
+/**
+ * Fallback thinking level (`auto` when OMP decides per model).
+ */
+defaultThinkingLevel?: string | null; theme?: OmpTheme | null; steeringMode?: string | null; followUpMode?: string | null; interruptMode?: string | null; symbolPreset?: string | null; setupVersion?: number | null }
+/**
+ * What one apply wrote plus the advisory notes for the roles OMP will not be
+ * able to resolve (a profile can pin a provider that models.yml no longer
+ * carries; the apply does not silently rewrite that choice, it reports it).
+ */
+export type OmpApplyResult = { id: string; roles: OmpModelRoles; warnings: string[] }
 /**
  * A cached model entry from `models.db` (read-only).
  */
-export type OmpCachedModel = { id: string; name?: string | null; api?: string | null; provider?: string | null; baseUrl?: string | null; reasoning?: boolean; input?: string[]; cost?: OmpModelCost | null; contextWindow?: number; maxTokens?: number; thinking?: OmpThinkingConfig | null }
+export type OmpCachedModel = { id: string; name?: string | null; api?: string | null; provider?: string | null; baseUrl?: string | null; reasoning?: boolean; input?: string[]; cost?: OmpModelCost | null; contextWindow?: number; maxContextWindow: number; maxTokens?: number; thinking?: OmpThinkingConfig | null }
+/**
+ * The resolved channel/token pair plus the models the caller selected.
+ * 
+ * Channel and model discovery stays in the caller (GUI command or TUI action)
+ * so this module never talks to the network.
+ */
+export type OmpChannelImportInput = { channelName: string; channelType?: string; baseUrl: string; platform?: string | null; apiKey: string; tokenName?: string; providerId?: string; modelIds?: string[]; channelModels?: OmpChannelModel[]; existingProviderIds?: string[]; 
+/**
+ * The live provider entry when re-importing into an existing id.
+ */
+existing?: OmpCustomProvider | null }
+/**
+ * The provider entry the caller saves.
+ */
+export type OmpChannelImportResult = { providerId: string; provider: OmpCustomProvider }
+/**
+ * One model listed by a channel token. `name` is the display name the channel
+ * returned; the vendored registry wins when it knows the id.
+ */
+export type OmpChannelModel = { id: string; name?: string | null }
 /**
  * Full OMP configuration status.
  */
@@ -3681,7 +3782,7 @@ export type OmpCurrentConfig = { agentConfig?: OmpAgentConfig; providerModels?: 
 /**
  * A model declared in `models.yml`.
  */
-export type OmpCustomModel = { id: string; name?: string | null; api?: string | null; baseUrl?: string | null; reasoning?: boolean | null; thinking?: OmpThinkingConfig | null; input?: string[] | null; cost?: OmpModelCost | null; contextWindow?: number | null; maxTokens?: number | null; headers?: Partial<{ [key in string]: string }> | null; compat?: JsonValue | null; remoteCompaction?: JsonValue | null }
+export type OmpCustomModel = { id: string; name?: string | null; api?: string | null; baseUrl?: string | null; reasoning?: boolean | null; thinking?: OmpThinkingConfig | null; input?: string[] | null; imageInputDecoder?: string | null; cost?: OmpModelCost | null; contextWindow?: number | null; maxContextWindow?: number | null; maxTokens?: number | null; omitMaxOutputTokens?: boolean | null; preferWebsockets?: boolean | null; headers?: Partial<{ [key in string]: string }> | null; compat?: JsonValue | null; remoteCompaction?: JsonValue | null }
 /**
  * A provider declared in `~/.omp/agent/models.yml`.
  */
@@ -3700,8 +3801,13 @@ export type OmpCustomProviders = { providers: OmpCustomProviderEntry[] }
 export type OmpModelCost = { input?: number; output?: number; cacheRead?: number; cacheWrite?: number }
 /**
  * OMP model roles — which model handles which role.
+ * 
+ * Upstream groups chat roles (`default`, `smol`, `slow`, `vision`, `plan`,
+ * `commit`, `tiny`, `memory`, `task`, `advisor`) and model-kind roles (`image`,
+ * `web`, `speech`, `dictation`, `judge`). Roles this build does not model are
+ * kept in `extra` so an apply never drops them.
  */
-export type OmpModelRoles = { default?: string | null; smol?: string | null; slow?: string | null; plan?: string | null; commit?: string | null }
+export type OmpModelRoles = { default?: string | null; smol?: string | null; slow?: string | null; vision?: string | null; plan?: string | null; commit?: string | null; tiny?: string | null; memory?: string | null; task?: string | null; advisor?: string | null; image?: string | null; web?: string | null; speech?: string | null; dictation?: string | null; judge?: string | null }
 /**
  * OMP profile (stored in DroidGear) — snapshot of model role assignments.
  */
@@ -3709,7 +3815,18 @@ export type OmpProfile = { id: string; name: string; description?: string | null
 /**
  * Model role assignments (what gets written to config.yml on apply).
  */
-modelRoles?: OmpModelRoles }
+modelRoles?: OmpModelRoles; 
+/**
+ * Fallback thinking level written to config.yml. `None` leaves the live
+ * value untouched (older profiles predate the field); an empty string
+ * clears the key.
+ */
+defaultThinkingLevel?: string | null; 
+/**
+ * Named role snapshots written as config.yml `modelPresets`. `None` leaves
+ * the live value untouched.
+ */
+modelPresets?: Partial<{ [key in string]: JsonValue }> | null }
 /**
  * A provider's cached model list from `models.db`.
  */
@@ -3718,6 +3835,20 @@ export type OmpProviderModels = { providerId: string; models: OmpCachedModel[] }
  * Result of validating an OMP provider through HTTP connectivity testing.
  */
 export type OmpProviderTestResult = { success: boolean; providerId: string; modelId: string; latencyMs: number; responseText?: string | null; error?: string | null }
+/**
+ * One role a models.yml write made unresolvable, plus where it moved.
+ * `to == None` means the role was cleared.
+ */
+export type OmpRoleAdjustment = { role: string; from: string; to?: string | null; reason: string }
+/**
+ * The list of values a role input can pick from: models.yml merged with the
+ * cached catalog, provider ids alphabetical, models.yml model order preserved.
+ */
+export type OmpRoleOptions = { providers: string[]; models: Partial<{ [key in string]: string[] }> }
+/**
+ * The repair pass. `adjusted` is true when config.yml was rewritten.
+ */
+export type OmpRoleReconcile = { adjusted: boolean; adjustments: OmpRoleAdjustment[]; thinking?: OmpThinkingAdjustment | null; roles: OmpModelRoles }
 export type OmpSessionDetail = { summary: OmpSessionSummary; messages: OmpSessionMessage[] }
 export type OmpSessionMessage = { id: string; role: string; content: ContentBlock[]; timestamp: string; isActiveBranch: boolean }
 export type OmpSessionSummary = { id: string; title: string; project: string; model: string; modelProvider: string; modifiedAt: number; messageCount: number; tokenUsage: OmpTokenUsage; path: string }
@@ -3725,6 +3856,12 @@ export type OmpSessionSummary = { id: string; title: string; project: string; mo
  * OMP theme configuration.
  */
 export type OmpTheme = { dark?: string | null; light?: string | null }
+/**
+ * A `defaultThinkingLevel` reset: the model the default role now points at
+ * cannot express the level, so config.yml falls back to `auto` instead of
+ * silently sending an unsupported effort.
+ */
+export type OmpThinkingAdjustment = { from: string; to: string; reason: string }
 /**
  * OMP thinking/reasoning configuration.
  */
@@ -3807,21 +3944,40 @@ export type OutputStructure = "flat" |
  */
 "nested"
 /**
+ * What one apply wrote: the providers now in models.json and the startup
+ * selection that came out of the reconcile pass.
+ */
+export type PiApplyResult = { id: string; appliedProviders: string[]; startup: PiSettings; startupAdjusted: boolean; startupReasons: string[] }
+/**
  * Pi compatibility configuration. Unknown fields are retained for newer pi versions.
  */
-export type PiCompatConfig = { supportsStore?: boolean | null; supportsDeveloperRole?: boolean | null; supportsReasoningEffort?: boolean | null; reasoningEffortMap?: Partial<{ [key in string]: JsonValue }> | null; supportsUsageInStreaming?: boolean | null; maxTokensField?: string | null; requiresToolResultName?: boolean | null; requiresAssistantAfterToolResult?: boolean | null; requiresThinkingAsText?: boolean | null; requiresReasoningContentOnAssistantMessages?: boolean | null; thinkingFormat?: string | null; cacheControlFormat?: string | null; supportsStrictMode?: boolean | null; supportsLongCacheRetention?: boolean | null; supportsEagerToolInputStreaming?: boolean | null; forceAdaptiveThinking?: boolean | null; openRouterRouting?: JsonValue | null; vercelGatewayRouting?: JsonValue | null }
+export type PiCompatConfig = { supportsStore?: boolean | null; supportsDeveloperRole?: boolean | null; supportsReasoningEffort?: boolean | null; reasoningEffortMap?: Partial<{ [key in string]: JsonValue }> | null; supportsUsageInStreaming?: boolean | null; maxTokensField?: string | null; requiresToolResultName?: boolean | null; requiresAssistantAfterToolResult?: boolean | null; requiresThinkingAsText?: boolean | null; requiresReasoningContentOnAssistantMessages?: boolean | null; thinkingFormat?: string | null; cacheControlFormat?: string | null; supportsStrictMode?: boolean | null; supportsLongCacheRetention?: boolean | null; supportsEagerToolInputStreaming?: boolean | null; 
+/**
+ * Force adaptive thinking (thinking.type: adaptive + output_config.effort)
+ * regardless of model ID. Required by Anthropic-compatible upstreams for
+ * models like claude-opus-5-5.
+ */
+forceAdaptiveThinking?: boolean | null; openRouterRouting?: JsonValue | null; vercelGatewayRouting?: JsonValue | null; supportsFinishReason?: boolean | null; requiresNonNullAssistantContent?: boolean | null; chatTemplateKwargs?: JsonValue | null; chatTemplateArgs?: JsonValue | null; zaiToolStream?: boolean | null; thinkingTokenBudgetField?: string | null; supportsThinkingTokenBudget?: boolean | null; supportsOpenaiGrammarTools?: boolean | null; supportsMidConvoSystemMessages?: boolean | null; supportsMidConvoToolAdditions?: boolean | null; sendSessionAffinityHeaders?: boolean | null; sessionAffinityFormat?: string | null; promptCacheKeyMode?: string | null; vllmPriority?: number | null; supportsAdditionalTools?: boolean | null; supportsToolSearch?: boolean | null; supportsExplicitPromptCacheMode?: boolean | null; supportsMidConvoEffort?: boolean | null; supportsMaxOutputTokens?: boolean | null; supportsCacheControlOnTools?: boolean | null; supportsTemperature?: boolean | null; allowEmptySignature?: boolean | null; supportsStrictTools?: boolean | null; supportsMidConvoToolChanges?: boolean | null; supportsMessageThreads?: boolean | null; allowedFallbackModels?: JsonValue | null }
 /**
  * Pi config status
  */
 export type PiConfigStatus = { configExists: boolean; configPath: string }
 /**
  * Current Pi configuration (from `~/.pi/agent/models.json`)
+ * 
+ * The optional `$schema` root key is modeled so the GUI can show it; every
+ * other unknown root key survives the lossless apply merge.
  */
-export type PiCurrentConfig = { providers?: Partial<{ [key in string]: PiProviderConfig }> }
+export type PiCurrentConfig = { $schema?: string | null; providers?: Partial<{ [key in string]: PiProviderConfig }> }
 /**
  * Pi model definition
  */
-export type PiModel = { id: string; name?: string | null; api?: string | null; reasoning?: boolean; thinkingLevelMap?: Partial<{ [key in string]: string | null }> | null; input?: string[]; contextWindow?: number; maxTokens?: number; cost?: PiModelCost | null; headers?: Partial<{ [key in string]: string }> | null; compat?: PiCompatConfig | null }
+export type PiModel = { id: string; 
+/**
+ * Operation discriminator (`chat` | `image` | `classifier`); omitted means
+ * chat (upstream models-configuration.md).
+ */
+type?: string | null; name?: string | null; api?: string | null; baseUrl?: string | null; reasoning?: boolean; thinkingLevelMap?: Partial<{ [key in string]: string | null }> | null; input?: string[]; inputLimits?: JsonValue | null; contextWindow?: number; maxTokens?: number; cost?: PiModelCost | null; promptCache?: JsonValue | null; samplingParams?: Partial<{ [key in string]: JsonValue }> | null; samplingParamsByThinkingLevel?: Partial<{ [key in string]: JsonValue }> | null; headers?: Partial<{ [key in string]: string }> | null; compat?: PiCompatConfig | null }
 /**
  * Pi model cost configuration
  */
@@ -3833,7 +3989,7 @@ export type PiModelCostTier = { inputTokensAbove: number; input: number; output:
 /**
  * Pi model override (subset of PiModel fields for overriding built-in models)
  */
-export type PiModelOverride = { name?: string | null; api?: string | null; reasoning?: boolean | null; thinkingLevelMap?: Partial<{ [key in string]: string | null }> | null; input?: string[] | null; contextWindow?: number | null; maxTokens?: number | null; cost?: PiModelCost | null; headers?: Partial<{ [key in string]: string }> | null; compat?: PiCompatConfig | null }
+export type PiModelOverride = { name?: string | null; api?: string | null; baseUrl?: string | null; reasoning?: boolean | null; thinkingLevelMap?: Partial<{ [key in string]: string | null }> | null; input?: string[] | null; inputLimits?: JsonValue | null; contextWindow?: number | null; maxTokens?: number | null; cost?: PiModelCost | null; promptCache?: JsonValue | null; samplingParams?: Partial<{ [key in string]: JsonValue }> | null; samplingParamsByThinkingLevel?: Partial<{ [key in string]: JsonValue }> | null; headers?: Partial<{ [key in string]: string }> | null; compat?: PiCompatConfig | null }
 /**
  * Pi profile (stored in DroidGear)
  */
@@ -3841,7 +3997,7 @@ export type PiProfile = { id: string; name: string; description?: string | null;
 /**
  * Pi provider configuration
  */
-export type PiProviderConfig = { baseUrl?: string | null; api?: string | null; apiKey?: string | null; oauth?: string | null; headers?: Partial<{ [key in string]: string }> | null; authHeader?: boolean | null; models: PiModel[]; modelOverrides?: Partial<{ [key in string]: PiModelOverride }> | null; compat?: PiCompatConfig | null }
+export type PiProviderConfig = { name?: string | null; baseUrl?: string | null; api?: string | null; apiKey?: string | null; oauth?: string | null; headers?: Partial<{ [key in string]: string }> | null; authHeader?: boolean | null; models: PiModel[]; modelOverrides?: Partial<{ [key in string]: PiModelOverride }> | null; compat?: PiCompatConfig | null }
 /**
  * Result of validating a provider through Pi's own CLI runtime.
  */
@@ -3849,6 +4005,18 @@ export type PiProviderTestResult = { success: boolean; providerId: string; model
 export type PiSessionDetail = { summary: PiSessionSummary; messages: PiSessionMessage[] }
 export type PiSessionMessage = { id: string; role: string; content: ContentBlock[]; timestamp: string; isActiveBranch: boolean }
 export type PiSessionSummary = { id: string; title: string; project: string; model: string; modelProvider: string; modifiedAt: number; messageCount: number; tokenUsage: PiTokenUsage; path: string }
+/**
+ * The startup model selection DroidGear edits.
+ * 
+ * An empty field means "let pi pick automatically" and is written as a
+ * removed key, because upstream validates both `""` and `null`.
+ */
+export type PiSettings = { defaultProvider?: string | null; defaultModel?: string | null; defaultThinkingLevel?: string | null }
+/**
+ * [`PiSettings`] plus the document's location and state, so the GUI and the
+ * TUI render one shape.
+ */
+export type PiSettingsStatus = { defaultProvider?: string | null; defaultModel?: string | null; defaultThinkingLevel?: string | null; settingsExists: boolean; settingsPath: string }
 export type PiTokenUsage = { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheCreationTokens: number; reasoningTokens: number; totalTokens: number; cost: number }
 export type PortableUpdateInfo = { version: string; body: string | null; pubDate: string | null; url: string; signature: string; sha256: string; releaseUrl: string }
 /**
@@ -3995,6 +4163,11 @@ content: string;
  * Last modified timestamp in milliseconds
  */
 modifiedAt: number }
+/**
+ * What the startup model fields can point at, so the GUI pickers and the TUI
+ * offer the same choices instead of asking users to type ids from memory.
+ */
+export type StartupOptions = { providers: string[]; models: Partial<{ [key in string]: string[] }> }
 /**
  * Telegram channel configuration
  */

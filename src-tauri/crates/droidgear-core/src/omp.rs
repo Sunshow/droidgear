@@ -19,6 +19,11 @@ use crate::{paths, storage};
 // ============================================================================
 
 /// OMP model roles — which model handles which role.
+///
+/// Upstream groups chat roles (`default`, `smol`, `slow`, `vision`, `plan`,
+/// `commit`, `tiny`, `memory`, `task`, `advisor`) and model-kind roles (`image`,
+/// `web`, `speech`, `dictation`, `judge`). Roles this build does not model are
+/// kept in `extra` so an apply never drops them.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct OmpModelRoles {
@@ -29,9 +34,29 @@ pub struct OmpModelRoles {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub slow: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub vision: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub plan: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub commit: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tiny: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub task: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub advisor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub web: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub speech: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dictation: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub judge: Option<String>,
     #[serde(flatten)]
     #[specta(skip)]
     pub extra: HashMap<String, serde_json::Value>,
@@ -53,6 +78,12 @@ pub struct OmpTheme {
 pub struct OmpAgentConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_roles: Option<OmpModelRoles>,
+    /// Named snapshots of role assignments, written as `modelPresets`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_presets: Option<HashMap<String, serde_json::Value>>,
+    /// Fallback thinking level (`auto` when OMP decides per model).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_thinking_level: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub theme: Option<OmpTheme>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -121,11 +152,19 @@ pub struct OmpCustomModel {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub input: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_input_decoder: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cost: Option<OmpModelCost>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context_window: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_context_window: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub omit_max_output_tokens: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prefer_websockets: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub headers: Option<HashMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -222,6 +261,8 @@ pub struct OmpCachedModel {
     pub cost: Option<OmpModelCost>,
     #[serde(default = "default_context_window")]
     pub context_window: u32,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub max_context_window: u32,
     #[serde(default = "default_max_tokens")]
     pub max_tokens: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -241,6 +282,10 @@ fn default_context_window() -> u32 {
 
 fn default_max_tokens() -> u32 {
     16384
+}
+
+fn is_zero(value: &u32) -> bool {
+    *value == 0
 }
 
 /// A provider's cached model list from `models.db`.
@@ -317,6 +362,15 @@ pub struct OmpProfile {
     /// Model role assignments (what gets written to config.yml on apply).
     #[serde(default)]
     pub model_roles: OmpModelRoles,
+    /// Fallback thinking level written to config.yml. `None` leaves the live
+    /// value untouched (older profiles predate the field); an empty string
+    /// clears the key.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_thinking_level: Option<String>,
+    /// Named role snapshots written as config.yml `modelPresets`. `None` leaves
+    /// the live value untouched.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_presets: Option<HashMap<String, serde_json::Value>>,
 }
 
 // ============================================================================
@@ -428,7 +482,8 @@ pub fn read_omp_custom_providers_for_home(home_dir: &Path) -> Result<OmpCustomPr
     Ok(OmpCustomProviders { providers })
 }
 
-fn validate_custom_provider(provider: &OmpCustomProvider) -> Result<(), String> {
+/// Validate one provider entry against OMP's schema rules.
+pub fn validate_omp_custom_provider(provider: &OmpCustomProvider) -> Result<(), String> {
     let present = |value: Option<&str>| value.is_some_and(|s| !s.trim().is_empty());
     if !matches!(
         provider.auth.as_deref(),
@@ -465,13 +520,14 @@ pub fn save_omp_custom_provider_for_home(
     home_dir: &Path,
     provider_id: &str,
     mut provider: OmpCustomProvider,
-) -> Result<(), String> {
+) -> Result<crate::omp_roles::OmpRoleReconcile, String> {
     let provider_id = provider_id.trim();
     if provider_id.is_empty() {
         return Err("OMP provider ID cannot be empty".to_string());
     }
-    validate_custom_provider(&provider)?;
+    validate_omp_custom_provider(&provider)?;
     let mut config = read_models_yml(home_dir)?;
+    let before = config.providers.clone();
     if let Some(old) = config.providers.get(provider_id) {
         let old: OmpCustomProvider = serde_json::from_value(old.clone())
             .map_err(|e| format!("Invalid OMP provider '{provider_id}': {e}"))?;
@@ -492,16 +548,46 @@ pub fn save_omp_custom_provider_for_home(
     let value = serde_json::to_value(provider)
         .map_err(|e| format!("Failed to serialize OMP provider: {e}"))?;
     config.providers.insert(provider_id.to_string(), value);
-    write_models_yml(home_dir, &config)
+    write_models_yml(home_dir, &config)?;
+    crate::omp_roles::reconcile_model_roles_for_home(home_dir, &before, &config.providers)
 }
 
 pub fn delete_omp_custom_provider_for_home(
     home_dir: &Path,
     provider_id: &str,
-) -> Result<(), String> {
+) -> Result<crate::omp_roles::OmpRoleReconcile, String> {
     let mut config = read_models_yml(home_dir)?;
+    let before = config.providers.clone();
     config.providers.remove(provider_id);
-    write_models_yml(home_dir, &config)
+    write_models_yml(home_dir, &config)?;
+    crate::omp_roles::reconcile_model_roles_for_home(home_dir, &before, &config.providers)
+}
+
+/// Read `~/.omp/agent/config.yml` (used by the reconcile pass and the TUI).
+pub fn read_omp_agent_config_for_home(home_dir: &Path) -> Result<OmpAgentConfig, String> {
+    read_config_yml(home_dir)
+}
+
+/// Write `~/.omp/agent/config.yml` (used by the reconcile pass).
+pub fn write_omp_agent_config_for_home(
+    home_dir: &Path,
+    config: &OmpAgentConfig,
+) -> Result<(), String> {
+    write_config_yml(home_dir, config)
+}
+
+/// The untyped `providers` map of models.yml, which the role reconcile compares
+/// before/after a write.
+pub fn read_omp_models_yml_value_for_home(
+    home_dir: &Path,
+) -> Result<HashMap<String, serde_json::Value>, String> {
+    Ok(read_models_yml(home_dir)?.providers)
+}
+
+/// OMP's cached provider catalog from models.db (empty when the DB is missing).
+pub fn read_model_cache_for_home(home_dir: &Path) -> Result<Vec<OmpProviderModels>, String> {
+    let path = omp_models_db_path_for_home(home_dir)?;
+    read_model_cache_from_db(&path)
 }
 
 fn validate_profile_id(id: &str) -> Result<(), String> {
@@ -779,6 +865,8 @@ pub fn create_default_omp_profile_for_home(home_dir: &Path) -> Result<OmpProfile
         created_at: now.clone(),
         updated_at: now,
         model_roles: OmpModelRoles::default(),
+        default_thinking_level: None,
+        model_presets: None,
     };
 
     write_profile_file(home_dir, &profile)?;
@@ -813,16 +901,61 @@ pub fn set_active_omp_profile_id_for_home(home_dir: &Path, id: &str) -> Result<(
 // Apply + Config Status + Read Current Config
 // ============================================================================
 
+/// What one apply wrote plus the advisory notes for the roles OMP will not be
+/// able to resolve (a profile can pin a provider that models.yml no longer
+/// carries; the apply does not silently rewrite that choice, it reports it).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct OmpApplyResult {
+    pub id: String,
+    pub roles: OmpModelRoles,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub warnings: Vec<String>,
+}
+
 /// Apply a profile: write model roles to `~/.omp/agent/config.yml`.
-pub fn apply_omp_profile_for_home(home_dir: &Path, id: &str) -> Result<(), String> {
+///
+/// Roles the config.yml write does not model are kept (the merge folds the
+/// profile's known roles over the live map), `defaultThinkingLevel` and
+/// `modelPresets` are applied only when the profile carries them, and the
+/// receipt reports roles OMP will not be able to resolve.
+pub fn apply_omp_profile_for_home(home_dir: &Path, id: &str) -> Result<OmpApplyResult, String> {
     let profile = load_profile_by_id(home_dir, id)?;
 
-    // Read current config.yml, update only modelRoles
     let mut config = read_config_yml(home_dir)?;
-    config.model_roles = Some(profile.model_roles);
+    let mut roles = config.model_roles.clone().unwrap_or_default();
+    for name in crate::omp_roles::OMP_ROLE_NAMES {
+        crate::omp_roles::set_role_value(
+            &mut roles,
+            name,
+            crate::omp_roles::role_value(&profile.model_roles, name),
+        );
+    }
+    config.model_roles = Some(roles.clone());
+    if let Some(level) = profile.default_thinking_level.as_ref() {
+        let level = level.trim();
+        config.default_thinking_level = if level.is_empty() {
+            None
+        } else {
+            Some(level.to_string())
+        };
+    }
+    if profile.model_presets.is_some() {
+        config.model_presets = profile.model_presets.clone();
+    }
     write_config_yml(home_dir, &config)?;
     set_active_omp_profile_id_for_home(home_dir, id)?;
-    Ok(())
+
+    let warnings = crate::omp_roles::validate_model_roles_for_home(
+        home_dir,
+        &roles,
+        config.default_thinking_level.as_deref(),
+    )?;
+    Ok(OmpApplyResult {
+        id: profile.id,
+        roles,
+        warnings,
+    })
 }
 
 /// Get the status of OMP config files.
@@ -1058,8 +1191,13 @@ pub fn set_active_omp_profile_id(id: &str) -> Result<(), String> {
     set_active_omp_profile_id_for_home(&system_home_dir()?, id)
 }
 
-pub fn apply_omp_profile(id: &str) -> Result<(), String> {
+pub fn apply_omp_profile(id: &str) -> Result<OmpApplyResult, String> {
     apply_omp_profile_for_home(&system_home_dir()?, id)
+}
+
+/// List the `provider/model-id` values a role input can pick from.
+pub fn list_omp_role_options() -> Result<crate::omp_roles::OmpRoleOptions, String> {
+    crate::omp_roles::list_omp_role_options_for_home(&system_home_dir()?)
 }
 
 pub fn get_omp_config_status() -> Result<OmpConfigStatus, String> {
@@ -1076,11 +1214,13 @@ pub fn read_omp_custom_providers() -> Result<OmpCustomProviders, String> {
 pub fn save_omp_custom_provider(
     provider_id: &str,
     provider: OmpCustomProvider,
-) -> Result<(), String> {
+) -> Result<crate::omp_roles::OmpRoleReconcile, String> {
     save_omp_custom_provider_for_home(&system_home_dir()?, provider_id, provider)
 }
 
-pub fn delete_omp_custom_provider(provider_id: &str) -> Result<(), String> {
+pub fn delete_omp_custom_provider(
+    provider_id: &str,
+) -> Result<crate::omp_roles::OmpRoleReconcile, String> {
     delete_omp_custom_provider_for_home(&system_home_dir()?, provider_id)
 }
 
@@ -1105,6 +1245,8 @@ mod tests {
             created_at: "2026-01-01T00:00:00Z".to_string(),
             updated_at: "2026-01-01T00:00:00Z".to_string(),
             model_roles: OmpModelRoles::default(),
+            default_thinking_level: None,
+            model_presets: None,
         }
     }
 
@@ -1121,6 +1263,8 @@ mod tests {
                 slow: Some("anthropic/claude-opus-4-6".to_string()),
                 ..Default::default()
             },
+            default_thinking_level: None,
+            model_presets: None,
         }
     }
 

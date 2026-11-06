@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
+import { waitFor } from '@testing-library/react'
 
 const { addProviderMock, updateProviderMock } = vi.hoisted(() => ({
   addProviderMock: vi.fn(),
@@ -61,6 +62,15 @@ function selectText(index: number): string {
   return combobox.textContent ?? ''
 }
 
+// awaitSelectText waits for the select's trigger to show `pattern` instead of
+// reading it synchronously after a click (Radix re-renders the trigger on the
+// next tick, which is a real race under parallel test load).
+async function awaitSelectText(index: number, pattern: RegExp) {
+  await waitFor(() => {
+    expect(selectText(index)).toMatch(pattern)
+  })
+}
+
 describe('ProviderDialog context window tier linkage', () => {
   it('links the auto-compact preset when a context window preset is picked and saves both values', async () => {
     const user = userEvent.setup()
@@ -73,18 +83,18 @@ describe('ProviderDialog context window tier linkage', () => {
     )
 
     // Default: not set on both fields.
-    expect(selectText(1)).toContain('Not set')
-    expect(selectText(2)).toContain('Not set')
+    await awaitSelectText(1, /Not set/)
+    await awaitSelectText(2, /Not set/)
 
     // Picking the 272K context window links the 250K auto-compact preset.
     await pickOption(user, 1, /272K/)
-    expect(selectText(1)).toContain('272K')
-    expect(selectText(2)).toContain('250K')
+    await awaitSelectText(1, /272K/)
+    await awaitSelectText(2, /250K/)
 
     // Switching to the 1M tier re-links the 900K auto-compact preset.
     await pickOption(user, 1, /1M/)
-    expect(selectText(1)).toContain('1M')
-    expect(selectText(2)).toContain('900K')
+    await awaitSelectText(1, /1M/)
+    await awaitSelectText(2, /900K/)
 
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -108,13 +118,13 @@ describe('ProviderDialog context window tier linkage', () => {
     )
 
     await pickOption(user, 1, /272K/)
-    expect(selectText(2)).toContain('250K')
+    await awaitSelectText(2, /250K/)
 
     // The user may still hand-pick a different auto-compact tier.
     await pickOption(user, 2, /900K/)
-    expect(selectText(2)).toContain('900K')
+    await awaitSelectText(2, /900K/)
 
     // The context window selection stays untouched.
-    expect(selectText(1)).toContain('272K')
+    await awaitSelectText(1, /272K/)
   })
 })

@@ -8,6 +8,9 @@ import {
   type OmpCustomProvider,
   type OmpCustomProviderEntry,
   type OmpProviderTestResult,
+  type OmpApplyResult,
+  type OmpRoleOptions,
+  type OmpRoleReconcile,
 } from '@/lib/bindings'
 
 interface OmpState {
@@ -19,23 +22,26 @@ interface OmpState {
   configStatus: OmpConfigStatus | null
   liveConfig: OmpCurrentConfig | null
   customProviders: OmpCustomProviderEntry[]
+  /** Values a model role can point at (models.yml + OMP's cached catalog). */
+  roleOptions: OmpRoleOptions | null
 
   loadProfiles: () => Promise<void>
   loadActiveProfileId: () => Promise<void>
   loadConfigStatus: () => Promise<void>
   loadLiveConfig: () => Promise<void>
   loadCustomProviders: () => Promise<void>
+  loadRoleOptions: () => Promise<void>
   selectProfile: (id: string) => void
   createProfile: (name: string) => Promise<void>
   saveProfile: () => Promise<void>
   deleteProfile: (id: string) => Promise<void>
   duplicateProfile: (id: string, newName: string) => Promise<void>
-  applyProfile: (id: string) => Promise<void>
+  applyProfile: (id: string) => Promise<OmpApplyResult | null>
   saveCustomProvider: (
     providerId: string,
     provider: OmpCustomProvider
-  ) => Promise<void>
-  deleteCustomProvider: (providerId: string) => Promise<void>
+  ) => Promise<OmpRoleReconcile | null>
+  deleteCustomProvider: (providerId: string) => Promise<OmpRoleReconcile | null>
   testProvider: (providerId: string) => Promise<OmpProviderTestResult | null>
   setError: (error: string | null) => void
 }
@@ -51,6 +57,7 @@ export const useOmpStore = create<OmpState>()(
       configStatus: null,
       liveConfig: null,
       customProviders: [],
+      roleOptions: null,
       loadProfiles: async () => {
         set({ isLoading: true }, undefined, 'omp/loadProfiles/start')
         try {
@@ -153,6 +160,20 @@ export const useOmpStore = create<OmpState>()(
         }
       },
 
+      // The role pickers read one merged list from the service layer (models.yml
+      // plus OMP's cached catalog), the same one `dg omp roles candidates`
+      // prints — no second copy of the merge rules in React.
+      loadRoleOptions: async () => {
+        try {
+          const result = await commands.listOmpRoleOptions()
+          if (result.status === 'ok') {
+            set({ roleOptions: result.data }, undefined, 'omp/loadRoleOptions')
+          }
+        } catch {
+          // The pickers degrade to free text when the catalog is unreadable.
+        }
+      },
+
       saveCustomProvider: async (providerId, provider) => {
         const result = await commands.saveOmpCustomProvider(
           providerId,
@@ -164,10 +185,12 @@ export const useOmpStore = create<OmpState>()(
             undefined,
             'omp/saveCustomProvider/error'
           )
-          return
+          return null
         }
         await get().loadCustomProviders()
         await get().loadLiveConfig()
+        await get().loadRoleOptions()
+        return result.data
       },
 
       deleteCustomProvider: async providerId => {
@@ -178,10 +201,12 @@ export const useOmpStore = create<OmpState>()(
             undefined,
             'omp/deleteCustomProvider/error'
           )
-          return
+          return null
         }
         await get().loadCustomProviders()
         await get().loadLiveConfig()
+        await get().loadRoleOptions()
+        return result.data
       },
 
       selectProfile: id => {
@@ -243,11 +268,12 @@ export const useOmpStore = create<OmpState>()(
         const result = await commands.applyOmpProfile(id)
         if (result.status !== 'ok') {
           set({ error: result.error }, undefined, 'omp/applyProfile/error')
-          return
+          return null
         }
         set({ activeProfileId: id }, undefined, 'omp/applyProfile/success')
         await get().loadConfigStatus()
         await get().loadLiveConfig()
+        return result.data
       },
 
       testProvider: async providerId => {

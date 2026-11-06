@@ -898,6 +898,189 @@ fn omp_input_action_variants_exist() {
     let _update_role = app::InputAction::OmpUpdateModelRole {
         role: "default".to_string(),
     };
+    let _thinking = app::InputAction::OmpUpdateDefaultThinkingLevel;
+    let _presets = app::InputAction::OmpUpdateModelPresets;
+    let _transport = app::InputAction::OmpSetCustomProviderTransport {
+        provider_id: "p".to_string(),
+    };
+    let _models = app::InputAction::OmpSetCustomProviderModels {
+        provider_id: "p".to_string(),
+    };
+}
+
+#[test]
+fn omp_profile_fields_cover_every_role_plus_thinking_and_presets() {
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    let mut roles = droidgear_core::omp::OmpModelRoles::default();
+    droidgear_core::omp_roles::set_role_value(&mut roles, "judge", Some("acme/m1".to_string()));
+    app.omp_detail = Some(droidgear_core::omp::OmpProfile {
+        id: "profile".to_string(),
+        name: "Profile".to_string(),
+        description: None,
+        created_at: "2026-01-01T00:00:00Z".to_string(),
+        updated_at: "2026-01-01T00:00:00Z".to_string(),
+        model_roles: roles,
+        default_thinking_level: Some("high".to_string()),
+        model_presets: None,
+    });
+
+    // Index 2 is the first role, so "judge" (the 15th) sits at 16.
+    app.omp_detail_field_index = 16;
+    super::keys_omp::handle_omp_profile_key(&mut app, KeyCode::Char('e'));
+    match app.modal.take() {
+        Some(app::Modal::Input {
+            action: app::InputAction::OmpUpdateModelRole { role },
+            value,
+            ..
+        }) => {
+            assert_eq!(role, "judge");
+            assert_eq!(value, "acme/m1");
+        }
+        other => panic!("expected the judge role editor, got {other:?}"),
+    }
+
+    app.omp_detail_field_index = 17;
+    super::keys_omp::handle_omp_profile_key(&mut app, KeyCode::Char('e'));
+    match app.modal.take() {
+        Some(app::Modal::Input { action, value, .. }) => {
+            assert!(matches!(
+                action,
+                app::InputAction::OmpUpdateDefaultThinkingLevel
+            ));
+            assert_eq!(value, "high");
+        }
+        other => panic!("expected the thinking-level editor, got {other:?}"),
+    }
+
+    app.omp_detail_field_index = 18;
+    super::keys_omp::handle_omp_profile_key(&mut app, KeyCode::Char('e'));
+    assert!(matches!(
+        app.modal.take(),
+        Some(app::Modal::Input {
+            action: app::InputAction::OmpUpdateModelPresets,
+            ..
+        })
+    ));
+}
+
+#[test]
+fn pi_model_fields_cover_the_upstream_additions() {
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.pi_detail_id = Some("profile".to_string());
+    app.pi_detail = Some(droidgear_core::pi::PiProfile {
+        id: "profile".to_string(),
+        name: "Profile".to_string(),
+        description: None,
+        created_at: "2026-01-01T00:00:00Z".to_string(),
+        updated_at: "2026-01-01T00:00:00Z".to_string(),
+        providers: HashMap::from([(
+            "provider".to_string(),
+            droidgear_core::pi::PiProviderConfig {
+                name: Some("Acme".to_string()),
+                models: vec![droidgear_core::pi::PiModel {
+                    id: "m1".to_string(),
+                    model_type: Some("chat".to_string()),
+                    base_url: Some("https://acme.test".to_string()),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+        )]),
+    });
+    app.pi_provider_index = 0;
+
+    let expectations: [(usize, fn(&app::InputAction) -> bool, &str); 6] = [
+        (
+            7,
+            |action| matches!(action, app::InputAction::PiSetModelType { .. }),
+            "chat",
+        ),
+        (
+            8,
+            |action| matches!(action, app::InputAction::PiSetModelApi { .. }),
+            "",
+        ),
+        (
+            9,
+            |action| matches!(action, app::InputAction::PiSetModelBaseUrl { .. }),
+            "https://acme.test",
+        ),
+        (
+            10,
+            |action| matches!(action, app::InputAction::PiSetModelInputLimits { .. }),
+            "",
+        ),
+        (
+            11,
+            |action| matches!(action, app::InputAction::PiSetModelPromptCache { .. }),
+            "",
+        ),
+        (
+            12,
+            |action| matches!(action, app::InputAction::PiSetModelSamplingParams { .. }),
+            "",
+        ),
+    ];
+    for (field_index, matches_action, expected_value) in expectations {
+        app.pi_model_field_index = field_index;
+        super::keys_pi::handle_pi_model_key(&mut app, KeyCode::Char('e'));
+        match app.modal.take() {
+            Some(app::Modal::Input { action, value, .. }) => {
+                assert!(
+                    matches_action(&action),
+                    "field {field_index} routed to {action:?}"
+                );
+                assert_eq!(value, expected_value, "field {field_index} value");
+            }
+            other => panic!("expected an input for field {field_index}, got {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn pi_profile_list_opens_the_startup_model_editor() {
+    let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
+    app.pi_profiles = vec![droidgear_core::pi::PiProfile {
+        id: "profile".to_string(),
+        name: "Profile".to_string(),
+        description: None,
+        created_at: "2026-01-01T00:00:00Z".to_string(),
+        updated_at: "2026-01-01T00:00:00Z".to_string(),
+        providers: HashMap::new(),
+    }];
+
+    super::keys_pi::handle_pi_key(&mut app, KeyCode::Char('D'));
+    assert!(matches!(
+        app.modal.take(),
+        Some(app::Modal::Input {
+            action: app::InputAction::PiSetDefaultProvider,
+            ..
+        })
+    ));
+    super::keys_pi::handle_pi_key(&mut app, KeyCode::Char('M'));
+    assert!(matches!(
+        app.modal.take(),
+        Some(app::Modal::Input {
+            action: app::InputAction::PiSetDefaultModel,
+            ..
+        })
+    ));
+    super::keys_pi::handle_pi_key(&mut app, KeyCode::Char('T'));
+    assert!(matches!(
+        app.modal.take(),
+        Some(app::Modal::Input {
+            action: app::InputAction::PiSetDefaultThinkingLevel,
+            ..
+        })
+    ));
+    super::keys_pi::handle_pi_key(&mut app, KeyCode::Char('x'));
+    assert!(matches!(
+        app.modal.take(),
+        Some(app::Modal::Confirm {
+            action: app::ConfirmAction::PiClearDefaults,
+            ..
+        })
+    ));
 }
 
 #[test]

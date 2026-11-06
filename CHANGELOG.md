@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.3.10
+
+**New Features / 新功能**
+
+- Pi upstream alignment (GUI + TUI): model `type`, `baseUrl`, `inputLimits`, `promptCache`, `samplingParams` / `samplingParamsByThinkingLevel`, provider `name`, and the newer `compat` flags are modeled. The last three model fields share one advanced-JSON editor per model, and applying a profile now merges over the live `models.json`, so unknown keys and the optional `$schema` root key survive / Pi 上游对齐（GUI + TUI）：模型 `type`、`baseUrl`、`inputLimits`、`promptCache`、`samplingParams` / `samplingParamsByThinkingLevel`、Provider `name` 与新增 `compat` 字段均进入模型；后三个模型字段各有一个高级 JSON 编辑器；应用 Profile 改为合并写入 `models.json`，未知键与可选的 `$schema` 根键得以保留
+- Pi startup model (GUI + TUI): a default-model card and the TUI `D` / `M` / `T` / `x` keys edit `defaultProvider`, `defaultModel` and `defaultThinkingLevel` in `~/.pi/agent/settings.json` as a read-modify-write that keeps every other key (`retry`, `theme`, `compaction`, `$schema` …); blank removes the key so Pi picks automatically, and the thinking level is validated against the upstream enum / Pi 启动模型（GUI + TUI）：默认模型卡片与 TUI 的 `D` / `M` / `T` / `x` 按键读写 `~/.pi/agent/settings.json` 的 `defaultProvider`、`defaultModel`、`defaultThinkingLevel`，采用读-改-写保留其余键（`retry`、`theme`、`compaction`、`$schema` 等）；留空即删除该键交回 Pi 自动选择，思考级别按上游枚举校验
+- Pi no longer strands the startup model: applying a profile or writing the startup selection runs one reconcile pass that only repairs a value the write made unresolvable (providers known to Pi's own catalog are untouched), re-points it at the first available provider/model, clears it when nothing is left, drops a thinking level the new model cannot express, and says so in the apply receipt and the GUI toast / Pi 不再让启动模型悬空：应用 Profile 或写入启动选择时统一走一次修复，只修复本次写入导致失效的值（Pi 自身 catalog 已知的 Provider 一律不动），改指到第一个可用的 provider/model，无候选则清空，丢弃新模型无法表达的思考级别，并在回执与 GUI 提示中说明原因
+- OMP upstream alignment (GUI + TUI): all 15 model roles, `defaultThinkingLevel`, `modelPresets` (JSON editor), model `maxContextWindow` / `imageInputDecoder` / `omitMaxOutputTokens` / `preferWebsockets`, and provider `transport`; role inputs and the TUI model editor list the combinations `models.yml` and OMP's cached catalog know / OMP 上游对齐（GUI + TUI）：完整 15 个模型角色、`defaultThinkingLevel`、`modelPresets`（JSON 编辑器）、模型 `maxContextWindow` / `imageInputDecoder` / `omitMaxOutputTokens` / `preferWebsockets`，以及 Provider `transport`；角色输入框与 TUI 模型编辑器列出 `models.yml` 与 OMP 缓存 catalog 已知的组合
+- OMP role repair: saving or deleting a custom provider (or shrinking its model list) re-points roles the write made unresolvable — models.yml first, then OMP's cached catalog — clears a role with nothing left, resets an inexpressible `defaultThinkingLevel` to `auto`, and reports the repair in a GUI toast / TUI toast; applying a profile reports roles OMP will not be able to resolve instead of failing at the next OMP start / OMP 角色修复：保存或删除自定义 Provider（或缩减模型列表）时，把本次写入导致失效的角色改指到第一个可用组合（优先 models.yml，其次 OMP 缓存 catalog），无候选则清空，把无法表达的 `defaultThinkingLevel` 复位为 `auto`，并在 GUI / TUI 的提示中说明修复内容；应用 Profile 会报告 OMP 无法解析的角色，而不是等到下次启动才报错
+- OMP provider-level channel import (GUI): a new three-step dialog picks a channel and one of its tokens, selects the models to import and writes the provider into `~/.omp/agent/models.yml`. Protocol, base URL and per-model specs are inferred by one shared core routine that the TUI's `i` action already used, so the two surfaces cannot drift / OMP Provider 级渠道导入（GUI）：新增三步对话框选择渠道与令牌、勾选模型后写入 `~/.omp/agent/models.yml`。协议、base URL 与模型参数由 TUI `i` 已使用的同一份核心逻辑推断，两个界面不会各自漂移
+- Codex: `wire_api = "chat"` was removed upstream (Feb 2026) so the option is disabled with an explanation, and an apply that still ships it warns instead of letting Codex refuse to start / Codex：上游已移除 `wire_api = "chat"`（2026-02），该选项改为禁用并附说明；应用仍带该协议的 Profile 会给出告警，而不是让 Codex 启动失败
+
+**Bug Fixes / 问题修复**
+
+- Pi `models.json` writes no longer drop upstream fields or `$schema` (the apply used to rebuild the file from the profile alone) / Pi 写 `models.json` 不再丢失上游字段或 `$schema`（此前应用会按 Profile 整体重建文件）
+- OMP `config.yml` applies merge the profile's known roles over the live map instead of replacing it, and `defaultThinkingLevel` / `modelPresets` are written only when the profile carries them, so older profiles keep the live values / OMP 应用 `config.yml` 改为把 Profile 已知角色合并进实时角色表，且仅在 Profile 带有值时才写 `defaultThinkingLevel` / `modelPresets`，旧 Profile 不会覆盖实时值
+
 ## v1.3.9
 
 **New Features / 新功能**

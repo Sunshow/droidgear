@@ -99,6 +99,12 @@ npm run rust:fmt:check   # Check Rust formatting
 npm run rust:clippy      # Rust linter (warnings = errors)
 npm run rust:bindings    # Regenerate tauri-specta TypeScript bindings
 
+# Regenerate bindings after changing a `#[tauri::command]` signature or a
+# `specta::Type` struct — the file is generated, never hand-edit it. On Windows
+# the app crate's lib test harness needs the Common-Controls v6 manifest that
+# `src-tauri/build.rs` embeds; without it `cargo test --lib` (and therefore this
+# command) dies at startup with STATUS_ENTRYPOINT_NOT_FOUND.
+
 ## All Commands (Quick Reference)
 
 | Category | Command | Description |

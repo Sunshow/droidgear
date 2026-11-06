@@ -132,6 +132,8 @@ Configuration remains ordinary `~/.factory/mcp.json`: this preset stores a nonse
 - **Profile Management** - Multi-profile support with one-click apply to `~/.pi/agent/models.json`
 - **Live Config Reading** - Load existing configuration from Pi's live config
 - **Registry-Driven Models** - Enrich Pi provider models from the built-in model registry, with provider-neutral thinking level mapping. Models whose Anthropic profile is `anthropic-adaptive` (such as `claude-opus-5-5`) get `compat.forceAdaptiveThinking`; an explicit opt-out already stored on the model is kept
+- **Upstream Field Alignment** - Model `type`, `baseUrl`, `inputLimits`, `promptCache`, `samplingParams` (including per thinking level), provider `name`, and every `compat` flag are editable; applying a profile merges over the live file, so unknown keys and `$schema` survive
+- **Startup Model** - A default-model card (GUI) and the TUI `D` / `M` / `T` / `x` keys read and write `defaultProvider` / `defaultModel` / `defaultThinkingLevel` in `~/.pi/agent/settings.json`; an apply that strands the startup model re-points it at the first available model and says why
 
 ### Dsh (DeepSeek Harness) Support
 
@@ -157,7 +159,9 @@ Configuration remains ordinary `~/.factory/mcp.json`: this preset stores a nonse
 ### OMP (Oh My Pi) Support
 
 - **Custom Providers** - Read and write custom providers and models in the official `~/.omp/agent/models.yml` (GUI and TUI CRUD), update models and providers from a channel, and preserve unrelated providers and unknown fields
-- **Model Roles** - Manage model role assignments in `~/.omp/agent/config.yml`, and load them from the live config
+- **Model Roles** - Manage all 15 model roles in `~/.omp/agent/config.yml` (including `vision`, `memory`, `image`, `judge` …), `defaultThinkingLevel`, and `modelPresets`, and load them from the live config; deleting a provider or shrinking a model list repairs roles that would dangle
+- **Channel Import** - Create or update a provider from a channel in three steps (channel, token, models); protocol, base URL and model specs are inferred by the same core routine the TUI uses
+- **Model Fields** - Edit `maxContextWindow`, `imageInputDecoder`, `omitMaxOutputTokens` and `preferWebsockets` per model, plus the provider `transport`
 - **Session History** - Browse `~/.omp/agent/sessions` JSONL logs (GUI): list or project-grouped views, active-branch rendering with thinking blocks, follow new messages, hide empty sessions, and delete. The list loads in batches as you scroll
 
 ### Other Features
@@ -208,10 +212,10 @@ The TUI version supports the following configuration management features:
 - **OpenCode Profiles**: Provider/Auth configuration management
 - **OpenClaw Profiles**: Configuration management and apply (with Subagents/Helpers nav entries)
 - **Hermes Profiles**: Configuration management and apply
-- **Pi Profiles**: Provider/Model configuration management and apply
+- **Pi Profiles**: Provider/Model configuration management and apply, with `D` / `M` / `T` / `x` for the startup model
 - **Dsh**: Visual profile configuration (`c`), plus `llm-pi-ai.providers` and credential management (channel import, model fetching, the official DeepSeek API key, default reasoning, and the default model)
 - **Copilot Profiles**: BYOK profile configuration and apply (with channel import and temporary run)
-- **OMP**: Custom provider CRUD and channel import (`models.yml`), plus model roles in `config.yml`
+- **OMP**: Custom provider CRUD, channel import and model JSON editing (`models.yml`), plus the 15 `config.yml` roles, default thinking level and model presets
 - **Sessions**: Session browsing and management
 - **Paths**: Path override configuration (for server environments)
 - **Channels**: Proxy platform and credential management
