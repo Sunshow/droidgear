@@ -183,10 +183,10 @@ pub struct PiModel {
     pub cost: Option<PiModelCost>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt_cache: Option<serde_json::Value>,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub sampling_params: HashMap<String, serde_json::Value>,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub sampling_params_by_thinking_level: HashMap<String, serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sampling_params: Option<HashMap<String, serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sampling_params_by_thinking_level: Option<HashMap<String, serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub headers: Option<HashMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -212,8 +212,8 @@ impl Default for PiModel {
             max_tokens: default_max_tokens(),
             cost: None,
             prompt_cache: None,
-            sampling_params: HashMap::new(),
-            sampling_params_by_thinking_level: HashMap::new(),
+            sampling_params: None,
+            sampling_params_by_thinking_level: None,
             headers: None,
             compat: None,
             extra: HashMap::new(),
@@ -247,10 +247,10 @@ pub struct PiModelOverride {
     pub cost: Option<PiModelCost>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt_cache: Option<serde_json::Value>,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub sampling_params: HashMap<String, serde_json::Value>,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub sampling_params_by_thinking_level: HashMap<String, serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sampling_params: Option<HashMap<String, serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sampling_params_by_thinking_level: Option<HashMap<String, serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub headers: Option<HashMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]

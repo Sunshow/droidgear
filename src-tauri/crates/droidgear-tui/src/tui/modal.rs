@@ -4909,8 +4909,9 @@ pub(super) fn run_input_action(
                 &provider_id,
                 model_index,
                 |model| {
-                    model.sampling_params = params.clone();
-                    model.sampling_params_by_thinking_level = by_level.clone();
+                    model.sampling_params = (!params.is_empty()).then(|| params.clone());
+                    model.sampling_params_by_thinking_level =
+                        (!by_level.is_empty()).then(|| by_level.clone());
                 },
             )?;
             app.set_toast("Saved", false);

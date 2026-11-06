@@ -3559,30 +3559,35 @@ fn draw_pi_model(frame: &mut Frame, app: &app::App, area: Rect) {
         Some(value) => serde_json::to_string(value).unwrap_or_else(|_| "(invalid)".to_string()),
         None => "(not set)".to_string(),
     };
-    let sampling_summary = if model.sampling_params.is_empty()
-        && model.sampling_params_by_thinking_level.is_empty()
-    {
-        "(not set)".to_string()
-    } else {
-        let mut parts: Vec<String> = model
-            .sampling_params
-            .iter()
-            .map(|(key, value)| format!("{key}={value}"))
-            .collect();
-        parts.sort();
-        if !model.sampling_params_by_thinking_level.is_empty() {
-            let mut levels: Vec<&String> = model.sampling_params_by_thinking_level.keys().collect();
-            levels.sort();
-            parts.push(format!(
-                "by-thinking:{}",
-                levels
-                    .into_iter()
-                    .map(String::as_str)
-                    .collect::<Vec<_>>()
-                    .join("|")
-            ));
+    let sampling_summary = {
+        let params = model.sampling_params.as_ref();
+        let by_level = model.sampling_params_by_thinking_level.as_ref();
+        if params.is_none() && by_level.is_none() {
+            "(not set)".to_string()
+        } else {
+            let mut parts: Vec<String> = params
+                .map(|params| {
+                    params
+                        .iter()
+                        .map(|(key, value)| format!("{key}={value}"))
+                        .collect()
+                })
+                .unwrap_or_default();
+            parts.sort();
+            if let Some(by_level) = by_level {
+                let mut levels: Vec<&String> = by_level.keys().collect();
+                levels.sort();
+                parts.push(format!(
+                    "by-thinking:{}",
+                    levels
+                        .into_iter()
+                        .map(String::as_str)
+                        .collect::<Vec<_>>()
+                        .join("|")
+                ));
+            }
+            parts.join(" ")
         }
-        parts.join(" ")
     };
 
     let fields: Vec<(&str, String)> = vec![

@@ -613,22 +613,16 @@ pub(super) fn json_field_value(value: Option<&serde_json::Value>) -> String {
 /// one JSON object so a single input can cover both fields.
 fn sampling_params_value(model: &droidgear_core::pi::PiModel) -> String {
     let mut object = serde_json::Map::new();
-    if !model.sampling_params.is_empty() {
+    if let Some(params) = model.sampling_params.as_ref() {
         object.insert(
             "samplingParams".to_string(),
-            serde_json::Value::Object(model.sampling_params.clone().into_iter().collect()),
+            serde_json::Value::Object(params.clone().into_iter().collect()),
         );
     }
-    if !model.sampling_params_by_thinking_level.is_empty() {
+    if let Some(by_level) = model.sampling_params_by_thinking_level.as_ref() {
         object.insert(
             "samplingParamsByThinkingLevel".to_string(),
-            serde_json::Value::Object(
-                model
-                    .sampling_params_by_thinking_level
-                    .clone()
-                    .into_iter()
-                    .collect(),
-            ),
+            serde_json::Value::Object(by_level.clone().into_iter().collect()),
         );
     }
     if object.is_empty() {

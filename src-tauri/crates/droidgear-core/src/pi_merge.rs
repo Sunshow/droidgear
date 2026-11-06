@@ -174,10 +174,10 @@ fn merge_pi_model(existing: Option<&PiModel>, imported: &PiModel) -> PiModel {
     if imported.prompt_cache.is_some() {
         out.prompt_cache = imported.prompt_cache.clone();
     }
-    if !imported.sampling_params.is_empty() {
+    if imported.sampling_params.is_some() {
         out.sampling_params = imported.sampling_params.clone();
     }
-    if !imported.sampling_params_by_thinking_level.is_empty() {
+    if imported.sampling_params_by_thinking_level.is_some() {
         out.sampling_params_by_thinking_level = imported.sampling_params_by_thinking_level.clone();
     }
     out.compat = merge_pi_compat(out.compat.take(), imported.compat.as_ref());
