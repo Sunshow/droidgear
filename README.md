@@ -132,6 +132,8 @@ GUI 的 MCP「快速添加」卡片或 TUI MCP 列表的 `b` 键会打开百智�
 - **Profile 管理** - 多 Profile 支持，一键应用到 `~/.pi/agent/models.json`
 - **实时配置读取** - 支持从 Pi 的 live config 加载现有配置
 - **模型注册表驱动** - 从内置模型注册表丰富 Pi Provider 模型，支持与 Provider 无关的思考级别映射。Anthropic 编码为 `anthropic-adaptive` 的模型（如 `claude-opus-5-5`）会写入 `compat.forceAdaptiveThinking`，已显式关闭的配置会保留
+- **上游字段对齐** - 模型 `type`、`baseUrl`、`inputLimits`、`promptCache`、`samplingParams`（含按思考级别）、Provider `name` 与全部 `compat` 开关均可读写；应用 Profile 为合并写入，未知键与 `$schema` 保留
+- **启动模型** - 默认模型卡片（GUI）与 TUI 的 `D` / `M` / `T` / `x` 按键读写 `~/.pi/agent/settings.json` 的 `defaultProvider` / `defaultModel` / `defaultThinkingLevel`；应用 Profile 后若默认模型失效，会自动改指到第一个可用模型并说明原因
 
 ### Dsh（DeepSeek Harness）支持
 
@@ -157,7 +159,9 @@ GUI 的 MCP「快速添加」卡片或 TUI MCP 列表的 `b` 键会打开百智�
 ### OMP（Oh My Pi）支持
 
 - **自定义 Provider** - 按官方 `~/.omp/agent/models.yml` 读写自定义 Provider 与模型（GUI 与 TUI 增删改），支持从渠道更新模型和 Provider，并保留其他 Provider 与未知字段
-- **模型角色** - 管理 `~/.omp/agent/config.yml` 中的模型角色，并可从当前配置加载
+- **模型角色** - 管理 `~/.omp/agent/config.yml` 中全部 15 个模型角色（含 `vision`、`memory`、`image`、`judge` 等）、`defaultThinkingLevel` 与 `modelPresets`，并可从当前配置加载；删除 Provider 或缩减模型列表时自动修复失效角色
+- **渠道导入** - 从渠道创建或更新 Provider：三步选择渠道、令牌与模型，协议、Base URL 与模型参数由与 TUI 共享的核心逻辑推断
+- **模型字段** - 按模型编辑 `maxContextWindow`、`imageInputDecoder`、`omitMaxOutputTokens`、`preferWebsockets`，Provider 支持 `transport`
 - **会话历史** - 浏览 `~/.omp/agent/sessions` 的 JSONL 日志（GUI）：列表或按项目分组、渲染当前分支与思考内容、跟随新消息、隐藏空会话与删除，滚动时分批加载
 
 ### 其他功能
@@ -207,10 +211,10 @@ TUI 版本支持以下配置管理功能：
 - **OpenCode Profile**：Provider/Auth 配置管理
 - **OpenClaw Profile**：配置管理与应用（含 Subagents/Helpers 导航入口）
 - **Hermes Profile**：配置管理与应用
-- **Pi Profile**：Provider/Model 配置管理与应用
+- **Pi Profile**：Provider/Model 配置管理与应用，`D` / `M` / `T` / `x` 编辑启动模型
 - **Dsh**：Profile 可视化配置（按 `c`）、`llm-pi-ai.providers` 与凭据管理（含渠道导入、模型拉取、官方 DeepSeek API Key、默认思考强度与默认模型）
 - **Copilot Profile**：BYOK Profile 配置管理与应用（含渠道导入、临时运行）
-- **OMP**：自定义 Provider（`models.yml`）增删改与渠道导入，以及 `config.yml` 模型角色
+- **OMP**：自定义 Provider（`models.yml`）增删改与渠道导入、模型字段 JSON 编辑，以及 `config.yml` 的 15 个模型角色、默认思考级别与模型预设
 - **Sessions**：会话浏览与管理
 - **Paths**：路径覆盖配置（适配服务器环境）
 - **Channels**：代理平台与凭据管理
