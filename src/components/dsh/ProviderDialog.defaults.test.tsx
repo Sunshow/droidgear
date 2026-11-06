@@ -77,17 +77,22 @@ describe('ProviderDialog defaults', () => {
       'gpt-5'
     )
 
-    // Suggested from the registry capabilities of gpt-5.
-    expect(screen.getByLabelText('Default reasoning effort')).toHaveTextContent(
-      'High'
-    )
-    expect(screen.getByRole('checkbox', { name: 'Text' })).toBeDisabled()
-    expect(screen.getByRole('checkbox', { name: 'Image' })).toBeChecked()
-    expect(
-      screen.getByText(
-        'Suggested High from the current models; you can change it'
-      )
-    ).toBeInTheDocument()
+    // Suggested from the registry capabilities of gpt-5. The suggestion lands
+    // on the tick after the model ID is typed, so wait for it instead of
+    // reading the form synchronously (parallel test load makes that racy, and
+    // Save would then snapshot a half-filled model).
+    await waitFor(() => {
+      expect(
+        screen.getByLabelText('Default reasoning effort')
+      ).toHaveTextContent('High')
+      expect(screen.getByRole('checkbox', { name: 'Text' })).toBeDisabled()
+      expect(screen.getByRole('checkbox', { name: 'Image' })).toBeChecked()
+      expect(
+        screen.getByText(
+          'Suggested High from the current models; you can change it'
+        )
+      ).toBeInTheDocument()
+    })
 
     await user.click(
       screen.getByRole('button', { name: 'Set as default model' })
@@ -136,7 +141,9 @@ describe('ProviderDialog defaults', () => {
 
     // Registry suggests image, then the user disables it.
     await user.click(screen.getByRole('checkbox', { name: 'Image' }))
-    expect(screen.getByRole('checkbox', { name: 'Image' })).not.toBeChecked()
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox', { name: 'Image' })).not.toBeChecked()
+    })
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     await waitFor(() => {

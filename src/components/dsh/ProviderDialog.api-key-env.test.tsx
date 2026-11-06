@@ -92,15 +92,19 @@ describe('ProviderDialog credential reference', () => {
 
     const providerIdInput = screen.getByLabelText('Provider ID')
     await user.type(providerIdInput, 'my-provider')
-    expect(
-      screen.getByText('Credential ref: MY_PROVIDER_API_KEY')
-    ).toBeInTheDocument()
+    await waitFor(() => {
+      expect(
+        screen.getByText('Credential ref: MY_PROVIDER_API_KEY')
+      ).toBeInTheDocument()
+    })
 
     await user.clear(providerIdInput)
     await user.type(providerIdInput, 'other-provider')
-    expect(
-      screen.getByText('Credential ref: OTHER_PROVIDER_API_KEY')
-    ).toBeInTheDocument()
+    await waitFor(() => {
+      expect(
+        screen.getByText('Credential ref: OTHER_PROVIDER_API_KEY')
+      ).toBeInTheDocument()
+    })
 
     await user.click(screen.getByRole('button', { name: 'Save' }))
 

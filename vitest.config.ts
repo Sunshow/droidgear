@@ -11,6 +11,11 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    // Heavy dialogs (ProviderDialog with the model registry) run close to 1s
+    // alone and past 5s when the whole suite saturates the machine; the
+    // default 5s budget turned that load into intermittent "timed out"
+    // failures rather than real assertion failures.
+    testTimeout: 15000,
     env: {
       DROIDGEAR_DISABLE_UPDATE_CHECK: '',
     },
