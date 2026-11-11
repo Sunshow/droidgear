@@ -2,7 +2,7 @@
 
 这份文档回答一个问题：除了现有的「模型服务商 / API Key」，还能从 DeepSeek Harness（下称 DSH）的本地配置里扒出什么，做成 Dsh 页的可视化配置。
 
-基线版本：**DSH 0.2.1-rc.2**（与已安装的 `DeepSeek Harness.app` 一致，源码 git tag `dsh-v0.2.1-rc.2`）。DSH 的 rc 之间会删改配置键，本文所有结论都带源码出处，升级 DSH 后需要复核。
+基线版本：**DSH 0.2.2-rc.1**（与已安装的 `DeepSeek Harness.app` 一致，源码 git tag `dsh-v0.2.2-rc.1`）。DSH 的 rc 之间会删改配置键，本文所有结论都带源码出处，升级 DSH 后需要复核。
 
 相关文档：
 
@@ -14,7 +14,7 @@
 
 1. **写回目标只有一个**：`~/.dsh/profiles/<profile>/cordis.patch.yml`。DSH 自己的设置 UI 也是写它（经 `ctx.configEditor`）。
 2. **`settings.yaml` 已废**：0.2.1 只在启动时把它一次性导入 profile patch，然后改名 `settings.yaml.imported`。DroidGear 现有的「legacy 判断」结论正确，但**无 profile 时回退写 `settings.yaml` 的代码路径应当删除**。
-3. **能扒的很多**：desktop profile 有 170 个活动条目，其中 84 个声明配置、共 353 个字段（A 档 47 / B 档 50 / C 档 256）。DSH 自带 UI 只覆盖其中约 40 个 volatile 字段 + 4 张插件卡，其余字段只能手改 YAML——这正是 Dsh 页的价值空间。
+3. **能扒的很多**：desktop profile 有 178 个活动条目，其中 92 个声明配置、schema 共 392 个字段（A 档 44 / B 档 49 / C 档 299）。DSH 自带 UI 只覆盖其中约 40 个 volatile 字段 + 4 张插件卡，其余字段只能手改 YAML——这正是 Dsh 页的价值空间。
 4. **DSH 没有自动表单**：0.2.1 的设置页全是手写 React，`autoGenerate` 只是元数据、没有客户端消费。schema 只存在于运行时 `settings.describe()`，**文件里没有**。所以 DroidGear 不能「反射」schema，只能内置一份从 DSH 源码生成的 schema 快照。
 5. **不要调运行中的桌面实例 API**：`/api/settings/*` 用 launch-token → 签名 cookie 鉴权，桌面版 token 不落盘，外部进程无受支持凭据；自己拉 `dsh web` sidecar 抓 token 可行，但拿到的是 owner 全权限。
 6. **推荐路线**：直读/直写 profile patch + 镜像 DSH 的写入协议（同一把 `<profile>/package.json.lock`、随机临时文件、YAML Document 保注释/`!!js`、整段 config 替换、删除 config = 恢复默认、空文件必须写 `[]`）。
@@ -44,10 +44,11 @@ desktop profile 的 bundle 组合（`~/.dsh/profiles/desktop/package.json`，官
 
 | 顺序 | bundle                                             | 作用                                                         |
 | ---- | -------------------------------------------------- | ------------------------------------------------------------ |
-| 1    | `@deepseek-ai/dsh-base`                            | 共享核心（96 个 insert）                                     |
-| 2    | `@deepseek-ai/dsh-web-app`                         | Web/desktop 表面 + 4 个 preset patch（90 insert、26 行覆盖） |
-| 3    | `@deepseek-ai/dsh-experimental-agent-team-profile` | desktop 专属 Agent Teams（3 insert、4 disable）              |
-| 4    | `@deepseek-ai/dsh-experimental-auto-review`        | desktop 专属自动审查（1 insert）                             |
+| 1    | `@deepseek-ai/dsh-base`                            | 共享核心（97 行 patch）                                      |
+| 2    | `@deepseek-ai/dsh-web-app`                         | Web/desktop 表面 + 4 个 preset patch（123 行 patch）         |
+| 3    | `@deepseek-ai/dsh-experimental-agent-team-profile` | desktop 专属 Agent Teams（6 行 patch）                       |
+| 4    | `@deepseek-ai/dsh-experimental-auto-review`        | desktop 专属自动审查（1 行 patch）                           |
+| 5    | `@deepseek-ai/dsh-subagent-codex`                  | Codex 子智能体 provider + 全局 `subagent_codex` 工具（2 行） |
 
 desktop 没有独立的 bundle 包；desktop/web 差异靠 web-app 层里 `profileContext?.name === 'desktop'` 的条件行表达。
 
@@ -311,7 +312,7 @@ cd src-tauri && cargo test -p droidgear-tui
 
 ## 10. 数据来源与再生成
 
-Schema 快照与文档结论来自 DSH 0.2.1-rc.2 源码（`docs/config-catalog.zh.md` 的生成式 TS 声明、四个 bundle 的 patch 文件、各包的 schemastery 定义与 JSDoc）；本机 profile 实测只用于验证行为，不参与生成。
+Schema 快照与文档结论来自 DSH 0.2.2-rc.1 源码（`docs/config-catalog.zh.md` 的生成式 TS 声明、五个 bundle 的 patch 文件、各包的 schemastery 定义与 JSDoc）；本机 profile 实测只用于验证行为，不参与生成。
 
 升级 DSH 后：
 
