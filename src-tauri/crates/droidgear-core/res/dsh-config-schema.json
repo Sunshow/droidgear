@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "dshVersion": "0.2.1-rc.2",
-  "generatedAt": "2026-10-22",
-  "source": "deepseek-ai/deepseek-harness@dsh-v0.2.1-rc.2",
-  "generator": "node scripts/gen-dsh-config-schema.mjs --dsh <deepseek-harness-checkout> --version 0.2.1-rc.2  (reads DSH bundle patches + docs/config-catalog.zh.md + schemastery sources; never hand-edit the output)",
+  "dshVersion": "0.2.2-rc.1",
+  "generatedAt": "2026-11-11",
+  "source": "deepseek-ai/deepseek-harness@dsh-v0.2.2-rc.1",
+  "generator": "node scripts/gen-dsh-config-schema.mjs --dsh <deepseek-harness-checkout> --version 0.2.2-rc.1  (reads DSH bundle patches + docs/config-catalog.zh.md + schemastery sources; never hand-edit the output)",
   "bundles": {
     "@deepseek-ai/dsh-base": {
       "entries": [
@@ -410,11 +410,26 @@
         },
         {
           "id": "fs-observation-policy",
-          "name": "@deepseek-ai/dsh-fs-observation-policy"
+          "name": "@deepseek-ai/dsh-fs-observation-policy",
+          "disabledByProfileOs": {
+            "desktop": {
+              "darwin": true,
+              "win32": true,
+              "linux": true
+            },
+            "web": {
+              "darwin": true,
+              "win32": true,
+              "linux": true
+            }
+          }
         },
         {
           "id": "tool-fs",
-          "name": "@deepseek-ai/dsh-tool-fs"
+          "name": "@deepseek-ai/dsh-tool-fs",
+          "config": {
+            "applyPatch": false
+          }
         },
         {
           "id": "tool-fs-search",
@@ -502,10 +517,6 @@
         {
           "id": "tool-subagent-control",
           "name": "@deepseek-ai/dsh-tool-subagent-control"
-        },
-        {
-          "id": "tool-subagent-list-agents",
-          "name": "@deepseek-ai/dsh-tool-subagent-control/list-agents"
         },
         {
           "id": "tool-subagent",
@@ -636,6 +647,26 @@
           "name": "@deepseek-ai/dsh-tools"
         },
         {
+          "id": "tool-executor-native",
+          "name": "@deepseek-ai/dsh-tool-executor-native"
+        },
+        {
+          "id": "tool-executor-ptc",
+          "name": "@deepseek-ai/dsh-tool-executor-ptc",
+          "disabledByProfileOs": {
+            "desktop": {
+              "darwin": true,
+              "win32": true,
+              "linux": true
+            },
+            "web": {
+              "darwin": true,
+              "win32": true,
+              "linux": true
+            }
+          }
+        },
+        {
           "id": "system-prompt",
           "name": "@deepseek-ai/dsh-system-prompt",
           "config": {
@@ -676,14 +707,6 @@
           "config": {
             "path": ":memory:",
             "openAt": "never"
-          }
-        },
-        {
-          "id": "tools",
-          "config": {
-            "mode": {
-              "$js": "process.env.DSH_TOOLS_MODE"
-            }
           }
         },
         {
@@ -760,6 +783,14 @@
             "iconTimeoutMs": 10000,
             "launchWatchMs": 1000
           }
+        },
+        {
+          "id": "ui-file-actions",
+          "name": "@deepseek-ai/dsh-client-ui-file-actions"
+        },
+        {
+          "id": "ui-context-menu",
+          "name": "@deepseek-ai/dsh-client-ui-context-menu"
         },
         {
           "id": "ui-open-in-app",
@@ -1007,6 +1038,10 @@
           "name": "@deepseek-ai/dsh-client-ui-approval"
         },
         {
+          "id": "message-quotes",
+          "name": "@deepseek-ai/dsh-message-quotes"
+        },
+        {
           "id": "ui-chat",
           "name": "@deepseek-ai/dsh-client-ui-chat"
         },
@@ -1019,12 +1054,20 @@
           "name": "@deepseek-ai/dsh-client-ui-attachment"
         },
         {
+          "id": "ui-file-drag",
+          "name": "@deepseek-ai/dsh-client-ui-file-drag"
+        },
+        {
           "id": "ui-tool",
           "name": "@deepseek-ai/dsh-client-ui-tool"
         },
         {
           "id": "ui-cordis",
           "name": "@deepseek-ai/dsh-client-ui-cordis"
+        },
+        {
+          "id": "deliverable-file-references",
+          "name": "@deepseek-ai/dsh-deliverable-file-references"
         },
         {
           "id": "ui-deliverables",
@@ -1087,16 +1130,16 @@
           "name": "@deepseek-ai/dsh-client-ui-model-selection"
         },
         {
-          "id": "ui-deepseek-model-label-1017",
-          "name": "@deepseek-ai/dsh-client-ui-deepseek-model-label-1017"
-        },
-        {
           "id": "ui-permission",
           "name": "@deepseek-ai/dsh-client-ui-permission-presets"
         },
         {
           "id": "ui-agent-preset",
           "name": "@deepseek-ai/dsh-client-ui-agent-preset"
+        },
+        {
+          "id": "entry-customization",
+          "name": "@deepseek-ai/dsh-client-ui-entry-customization"
         },
         {
           "id": "ui-settings-session-log",
@@ -1360,21 +1403,6 @@
           }
         },
         {
-          "id": "tool-subagent-list-agents",
-          "disabledByProfileOs": {
-            "desktop": {
-              "darwin": true,
-              "win32": true,
-              "linux": true
-            },
-            "web": {
-              "darwin": true,
-              "win32": true,
-              "linux": true
-            }
-          }
-        },
-        {
           "id": "tool-subagent",
           "disabledByProfileOs": {
             "desktop": {
@@ -1527,7 +1555,10 @@
               },
               {
                 "id": "tool-fs",
-                "name": "@deepseek-ai/dsh-tool-fs"
+                "name": "@deepseek-ai/dsh-tool-fs",
+                "config": {
+                  "applyPatch": false
+                }
               },
               {
                 "id": "tool-fs-search",
@@ -1618,16 +1649,13 @@
                     "name": "@deepseek-ai/dsh-tool-subagent-control"
                   },
                   {
-                    "id": "tool-subagent-list-agents",
-                    "name": "@deepseek-ai/dsh-tool-subagent-control/list-agents"
-                  },
-                  {
                     "id": "tool-subagent",
                     "name": "@deepseek-ai/dsh-tool-subagent",
                     "config": {
                       "provider": "spawn",
                       "toolName": "subagent",
-                      "modelSelectionSettings": true
+                      "modelSelection": true,
+                      "modelDiscovery": true
                     }
                   },
                   {
@@ -1677,7 +1705,9 @@
               {
                 "id": "tool-plugin-manager",
                 "name": "@deepseek-ai/dsh-plugin-manager/tools",
-                "disabled": true
+                "disabled": {
+                  "$js": "!ctx.get('profileContext')"
+                }
               },
               {
                 "id": "tool-plugin-market",
@@ -1728,7 +1758,10 @@
               },
               {
                 "id": "tool-fs",
-                "name": "@deepseek-ai/dsh-tool-fs"
+                "name": "@deepseek-ai/dsh-tool-fs",
+                "config": {
+                  "applyPatch": false
+                }
               },
               {
                 "id": "tool-fs-search",
@@ -1819,16 +1852,13 @@
                     "name": "@deepseek-ai/dsh-tool-subagent-control"
                   },
                   {
-                    "id": "tool-subagent-list-agents",
-                    "name": "@deepseek-ai/dsh-tool-subagent-control/list-agents"
-                  },
-                  {
                     "id": "tool-subagent",
                     "name": "@deepseek-ai/dsh-tool-subagent",
                     "config": {
                       "provider": "spawn",
                       "toolName": "subagent",
-                      "modelSelectionSettings": true
+                      "modelSelection": true,
+                      "modelDiscovery": true
                     }
                   },
                   {
@@ -1874,11 +1904,8 @@
                 }
               },
               {
-                "id": "tool-presentation",
-                "name": "@deepseek-ai/dsh-agent-tool-presentation",
-                "config": {
-                  "mode": "ptc"
-                }
+                "id": "tool-executor-ptc",
+                "name": "@deepseek-ai/dsh-tool-executor-ptc"
               },
               {
                 "id": "present",
@@ -2042,7 +2069,10 @@
               },
               {
                 "id": "tool-fs",
-                "name": "@deepseek-ai/dsh-tool-fs"
+                "name": "@deepseek-ai/dsh-tool-fs",
+                "config": {
+                  "applyPatch": false
+                }
               },
               {
                 "id": "tool-fs-search",
@@ -2125,16 +2155,13 @@
                     "name": "@deepseek-ai/dsh-tool-subagent-control"
                   },
                   {
-                    "id": "tool-subagent-list-agents",
-                    "name": "@deepseek-ai/dsh-tool-subagent-control/list-agents"
-                  },
-                  {
                     "id": "tool-subagent",
                     "name": "@deepseek-ai/dsh-tool-subagent",
                     "config": {
                       "provider": "spawn",
                       "toolName": "subagent",
-                      "modelSelectionSettings": true
+                      "modelSelection": true,
+                      "modelDiscovery": true
                     }
                   },
                   {
@@ -2237,21 +2264,6 @@
           }
         },
         {
-          "id": "tool-subagent-list-agents",
-          "disabledByProfileOs": {
-            "desktop": {
-              "darwin": true,
-              "win32": true,
-              "linux": true
-            },
-            "web": {
-              "darwin": true,
-              "win32": true,
-              "linux": true
-            }
-          }
-        },
-        {
           "id": "tool-subagent",
           "disabledByProfileOs": {
             "desktop": {
@@ -2310,6 +2322,23 @@
         {
           "id": "auto-review",
           "name": "@deepseek-ai/dsh-experimental-auto-review"
+        }
+      ]
+    },
+    "@deepseek-ai/dsh-subagent-codex": {
+      "entries": [
+        {
+          "id": "subagent-codex",
+          "name": "@deepseek-ai/dsh-subagent-codex"
+        },
+        {
+          "id": "tool-subagent-codex",
+          "name": "@deepseek-ai/dsh-tool-subagent",
+          "config": {
+            "provider": "codex",
+            "toolName": "subagent_codex",
+            "maxDepth": "provider-managed"
+          }
         }
       ]
     }
@@ -2376,6 +2405,17 @@
           "description": "Maximum duration of the GitHub repository connection check before installation, in milliseconds."
         },
         {
+          "name": "gitTransportTimeoutMs",
+          "kind": "number",
+          "default": 5000,
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "C",
+          "description": "Maximum duration of each HTTP(S) and SSH access probe of a self-hosted Git repository before installation, in milliseconds."
+        },
+        {
           "name": "idleTimeoutMs",
           "kind": "number",
           "default": 600000,
@@ -2409,13 +2449,83 @@
           "secret": false,
           "tier": "C",
           "description": "Registries asked in turn, as http(s) URLs, while the one before is unreachable or holds no copy of the package. A registry outside this set and `registry` is asked alone, and so is the one pnpm's own configuration names unless that is npm's own registry or one of these."
+        },
+        {
+          "name": "versionListLimit",
+          "kind": "number",
+          "default": 20,
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "C",
+          "description": "How many of the newest versions above the installed one a version listing reads and returns."
+        },
+        {
+          "name": "versionLookupConcurrency",
+          "kind": "number",
+          "default": 4,
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "C",
+          "description": "How many single-version registry lookups a version listing runs at once."
+        },
+        {
+          "name": "detailMaxBytes",
+          "kind": "number",
+          "default": 1048576,
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "C",
+          "description": "Largest bundle detail document, and largest locale file read for one, in bytes."
+        },
+        {
+          "name": "detailImageMaxBytes",
+          "kind": "number",
+          "default": 5242880,
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "C",
+          "description": "Largest image served beside a bundle detail document, in bytes."
+        },
+        {
+          "name": "detailFetchTimeoutMs",
+          "kind": "number",
+          "default": 15000,
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "C",
+          "description": "Deadline of one npm file CDN request for an offered bundle's detail document."
+        },
+        {
+          "name": "detailNpmFileSources",
+          "kind": "json",
+          "default": [
+            "jsdelivr",
+            "unpkg",
+            "npmmirror"
+          ],
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "C",
+          "description": "npm file CDNs that offered bundles are read from, in order; a read's `npmFileSources` moves the CDNs it names first."
         }
       ]
     },
     "timer": {
       "package": "@deepseek-ai/cordis-plugin-timer",
       "tier": "C",
-      "description": "",
+      "description": "Timer service for cordis",
       "fields": []
     },
     "hmr": {
@@ -2573,6 +2683,20 @@
           "secret": false,
           "tier": "C",
           "description": "Buffered uplink frame bytes one logical stream may hold before it fails with `gateway/uplink-overflow`."
+        },
+        {
+          "name": "websocketCompression",
+          "kind": "enum",
+          "default": "deflate",
+          "nullable": false,
+          "enumValues": [
+            "none",
+            "deflate"
+          ],
+          "volatile": false,
+          "secret": false,
+          "tier": "C",
+          "description": "Per-message compression for the Remote stream WebSocket; `'none'` disables the extension."
         }
       ]
     },
@@ -2833,23 +2957,21 @@
       "description": "This policy executor has no config; providers own `retryPolicy`.",
       "fields": [
         {
-          "name": "mode",
-          "kind": "enum",
+          "name": "lastUsed",
+          "kind": "json",
           "default": null,
-          "nullable": false,
-          "enumValues": [
-            "always"
-          ],
+          "nullable": true,
+          "enumValues": [],
           "volatile": false,
           "secret": false,
           "tier": "C",
           "description": ""
         },
         {
-          "name": "backoff",
+          "name": "pending",
           "kind": "json",
           "default": null,
-          "nullable": false,
+          "nullable": true,
           "enumValues": [],
           "volatile": false,
           "secret": false,
@@ -3160,13 +3282,13 @@
         {
           "name": "maxImageBytes",
           "kind": "number",
-          "default": 20971520,
+          "default": 52428800,
           "nullable": false,
           "enumValues": [],
           "volatile": false,
           "secret": false,
           "tier": "B",
-          "description": "Maximum encoded bytes accepted for one submitted image. Default: 20 MiB."
+          "description": "Maximum encoded bytes accepted for one submitted image. Default: 50 MiB."
         },
         {
           "name": "maxImagesPerMessage",
@@ -3204,13 +3326,13 @@
         {
           "name": "maxImageDimension",
           "kind": "number",
-          "default": 8192,
+          "default": 65535,
           "nullable": false,
           "enumValues": [],
           "volatile": false,
           "secret": false,
           "tier": "C",
-          "description": "Maximum intrinsic width and maximum intrinsic height accepted for one submitted image. Default: 8192px."
+          "description": "Maximum intrinsic width and maximum intrinsic height accepted for one submitted image. Default: 65,535px."
         },
         {
           "name": "normalizedImageMaxPixels",
@@ -3629,6 +3751,17 @@
           "secret": false,
           "tier": "C",
           "description": "Absolute fallback root for agentless calls and sessions without a cwd (default: `process.cwd()`). Normal agent calls use their session cwd instead."
+        },
+        {
+          "name": "additionalWritableRoots",
+          "kind": "json",
+          "default": [],
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "A",
+          "description": "Extra physical absolute directories that `workspace-write` may also write under (default: none). The supervisor names them explicitly; there is no automatic repository or gitfile discovery. Entries are execution-world paths: this service validates absoluteness and detaches the list, while the enforcing host rejects missing, non-directory, or symlinked paths. They grant nothing under `read-only`."
         }
       ]
     },
@@ -3870,12 +4003,6 @@
         }
       ]
     },
-    "fs-observation-policy": {
-      "package": "@deepseek-ai/dsh-fs-observation-policy",
-      "tier": "C",
-      "description": "File-context policy plugin for the DeepSeek Harness — observed-state, read-before-edit, and version-guarded write/edit added over the ctx.fs provider seam through the fs/* event gate (no service API)",
-      "fields": []
-    },
     "skill": {
       "package": "@deepseek-ai/dsh-skill",
       "tier": "C",
@@ -4036,12 +4163,24 @@
           "nullable": false,
           "enumValues": [
             "per-call",
-            "persistent-in-memory"
+            "persistent-in-memory",
+            "vm-script"
           ],
           "volatile": false,
           "secret": false,
           "tier": "C",
-          "description": "per-call starts fresh processes; persistent-in-memory retains a REPL per owner under the same file policy."
+          "description": "per-call uses fresh async function bodies; vm-script uses VM contexts; persistent-in-memory retains a REPL per owner."
+        },
+        {
+          "name": "scriptPersistence",
+          "kind": "boolean",
+          "default": false,
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "C",
+          "description": "Retain a Script process and context per stateOwner; only supported with executionMode: vm-script."
         },
         {
           "name": "timeoutMs",
@@ -4096,7 +4235,7 @@
           "volatile": false,
           "secret": false,
           "tier": "C",
-          "description": "Maximum control frame, outstanding argument and queued control-output bytes."
+          "description": "Maximum control message, outstanding binding-argument and queued control-output bytes."
         },
         {
           "name": "maxPendingCalls",
@@ -4499,34 +4638,14 @@
     "tools": {
       "package": "@deepseek-ai/dsh-tools",
       "tier": "B",
-      "description": "Plugin config: how the registered tools are presented to the model.",
-      "fields": [
-        {
-          "name": "mode",
-          "kind": "enum",
-          "default": "native",
-          "nullable": false,
-          "enumValues": [
-            "native",
-            "ptc"
-          ],
-          "volatile": false,
-          "secret": false,
-          "tier": "B",
-          "description": "Model presentation. `native` (default) sends every visible schema; `ptc` sends only `run_code` plus a generated SDK prompt and collapses the executor to the same surface (a model-direct call may only name `run_code`; `run_code` SDK sub-dispatches keep every visible tool). PTC mode requires a `ctx.ptcRuntime` whose `language` has a registered SDK renderer (TypeScript or Python) and fails prompt assembly when it is absent or has no renderer. Under `ptc`, native names in `toolOrder` are invalid."
-        },
-        {
-          "name": "maxParallelSubCalls",
-          "kind": "number",
-          "default": 10,
-          "nullable": false,
-          "enumValues": [],
-          "volatile": false,
-          "secret": false,
-          "tier": "C",
-          "description": "Concurrency cap for a `run_code` program's overlapping sub-calls (default 10, the loop scheduler's own default). Sub-calls follow the native scheduling contract — only calls whose tools classify concurrency-safe overlap; exclusive calls form barriers — so `1` restores strictly serial dispatch. Must be a positive integer."
-        }
-      ]
+      "description": "Tool registry and execution pipeline for the DeepSeek Harness",
+      "fields": []
+    },
+    "tool-executor-native": {
+      "package": "@deepseek-ai/dsh-tool-executor-native",
+      "tier": "C",
+      "description": "Native tool execution plugin",
+      "fields": []
     },
     "system-prompt": {
       "package": "@deepseek-ai/dsh-system-prompt",
@@ -4615,7 +4734,7 @@
           "volatile": false,
           "secret": false,
           "tier": "C",
-          "description": "Agents created or resumed at plugin startup."
+          "description": "Agents created or resumed at plugin startup; a resumed agent records its configured route as the Session's model selection."
         }
       ]
     },
@@ -4723,7 +4842,7 @@
             {
               "id": "deepseek-flash",
               "name": "DeepSeek-V4.1-Flash",
-              "contextWindow": 1000000,
+              "contextWindow": 1048576,
               "inputModalities": [
                 "text",
                 "image"
@@ -4735,7 +4854,7 @@
               "id": "deepseek-v4-pro",
               "name": "DeepSeek-V4-Pro",
               "description": "Stronger agentic coding, knowledge, and difficult reasoning; suited to complex or quality-critical tasks at higher cost.",
-              "contextWindow": 1000000
+              "contextWindow": 1048576
             }
           ],
           "nullable": false,
@@ -4876,6 +4995,28 @@
           "secret": false,
           "tier": "B",
           "description": "Provider-owned model-request retry policy; omission uses normal mode with five retries."
+        },
+        {
+          "name": "modelsTimeoutMs",
+          "kind": "number",
+          "default": 5000,
+          "nullable": false,
+          "enumValues": [],
+          "volatile": true,
+          "secret": false,
+          "tier": "A",
+          "description": "Deadline of one listing request, which also bounds a first-use wait (default five seconds)."
+        },
+        {
+          "name": "modelsMaxAgeMs",
+          "kind": "number",
+          "default": 600000,
+          "nullable": false,
+          "enumValues": [],
+          "volatile": true,
+          "secret": false,
+          "tier": "A",
+          "description": "Listing refresh interval after first use; failures retry at the same interval (default ten minutes). Zero refreshes on each access and disables automatic refresh."
         },
         {
           "name": "apiKeyEnv",
@@ -5110,7 +5251,7 @@
           "volatile": true,
           "secret": false,
           "tier": "C",
-          "description": "Listing age after which the next access refreshes it in the background; a failed load retries after the same age (default ten minutes)."
+          "description": "Listing refresh interval after first use; failures retry at the same interval (default ten minutes). Zero refreshes on each access and disables automatic refresh."
         },
         {
           "name": "modelOverrides",
@@ -5409,6 +5550,30 @@
           "secret": false,
           "tier": "C",
           "description": "Early-failure watch window per launch, in milliseconds: a launcher still running when the window closes counts as launched and keeps running, so this bounds how long the open route holds a successful launch, not how long an application may live."
+        }
+      ]
+    },
+    "ui-file-actions": {
+      "package": "@deepseek-ai/dsh-client-ui-file-actions",
+      "tier": "C",
+      "description": "Original-file saving and image clipboard actions for Web and Desktop",
+      "fields": []
+    },
+    "ui-context-menu": {
+      "package": "@deepseek-ai/dsh-client-ui-context-menu",
+      "tier": "C",
+      "description": "Maximum time to prepare each contribution before omitting its pending actions.",
+      "fields": [
+        {
+          "name": "resolutionTimeoutMs",
+          "kind": "number",
+          "default": 1000,
+          "nullable": false,
+          "enumValues": [],
+          "volatile": true,
+          "secret": false,
+          "tier": "C",
+          "description": ""
         }
       ]
     },
@@ -5836,6 +6001,17 @@
           "secret": false,
           "tier": "C",
           "description": "Retained delivery records per task; omission defaults to 200. The older of this cap and the window wins, and the newest records survive."
+        },
+        {
+          "name": "newSessionIntervalSeconds",
+          "kind": "number",
+          "default": 60,
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "C",
+          "description": "Shortest spacing, in seconds, from the occurrence of one delivery to the next delivery of one task whose target creates a Session at every delivery; omission defaults to 60. Timed and manual deliveries both wait for it."
         }
       ]
     },
@@ -6780,7 +6956,7 @@
     "ui-sidebar-files": {
       "package": "@deepseek-ai/dsh-client-ui-sidebar-files",
       "tier": "C",
-      "description": "Workspace file tree tab type for the right Sidebar: lazy directory listing over the workspaceFiles Remote namespace, opening files into the Sidebar",
+      "description": "The workspace files page and one workspace directory tree per pane beside docked and floating file previews, listed lazily over the workspaceFiles Remote namespace",
       "fields": []
     },
     "ui-settings": {
@@ -6910,6 +7086,12 @@
       "description": "Approval composer takeover over the scoped Remote Event waterfall",
       "fields": []
     },
+    "message-quotes": {
+      "package": "@deepseek-ai/dsh-message-quotes",
+      "tier": "C",
+      "description": "Selected-text quotation and Markdown blockquote presentation",
+      "fields": []
+    },
     "ui-chat": {
       "package": "@deepseek-ai/dsh-client-ui-chat",
       "tier": "A",
@@ -6928,6 +7110,20 @@
           "secret": false,
           "tier": "A",
           "description": "Independent collapse timing; absence preserves completion-time folding."
+        },
+        {
+          "name": "foldedReplies",
+          "kind": "enum",
+          "default": "all",
+          "nullable": false,
+          "enumValues": [
+            "all",
+            "final"
+          ],
+          "volatile": true,
+          "secret": false,
+          "tier": "A",
+          "description": "Replies kept visible in a folded Turn; absence keeps every reply."
         },
         {
           "name": "linkOpening",
@@ -6989,6 +7185,12 @@
       "description": "Dynamic attachment presentation plugin for conversation input, message-image, and trajectory image slots",
       "fields": []
     },
+    "ui-file-drag": {
+      "package": "@deepseek-ai/dsh-client-ui-file-drag",
+      "tier": "C",
+      "description": "Application-owned file drag transfers and localized failure feedback",
+      "fields": []
+    },
     "ui-tool": {
       "package": "@deepseek-ai/dsh-client-ui-tool",
       "tier": "C",
@@ -6999,6 +7201,12 @@
       "package": "@deepseek-ai/dsh-client-ui-cordis",
       "tier": "C",
       "description": "Cordis dynamic-plugin definition card: the keyed cordis_define tool row with its run/stop switch",
+      "fields": []
+    },
+    "deliverable-file-references": {
+      "package": "@deepseek-ai/dsh-deliverable-file-references",
+      "tier": "C",
+      "description": "Shared model guidance for file links and deliverables across DeepSeek Harness hosts",
       "fields": []
     },
     "ui-deliverables": {
@@ -7147,12 +7355,6 @@
       "description": "Model selection over the shared model catalog, Session projection, and session.selectModel",
       "fields": []
     },
-    "ui-deepseek-model-label-1017": {
-      "package": "@deepseek-ai/dsh-client-ui-deepseek-model-label-1017",
-      "tier": "C",
-      "description": "Temporary 1017 release badge for official DeepSeek Flash model labels",
-      "fields": []
-    },
     "ui-permission": {
       "package": "@deepseek-ai/dsh-client-ui-permission-presets",
       "tier": "C",
@@ -7163,6 +7365,12 @@
       "package": "@deepseek-ai/dsh-client-ui-agent-preset",
       "tier": "C",
       "description": "Agent-preset surfaces: the default for later sessions, this session's seat, and the composition editor",
+      "fields": []
+    },
+    "entry-customization": {
+      "package": "@deepseek-ai/dsh-client-ui-entry-customization",
+      "tier": "C",
+      "description": "Customize plugin entries in the left sidebar, conversation views, and right sidebar, and quickly create new plugins.",
       "fields": []
     },
     "ui-settings-session-log": {
@@ -7216,8 +7424,20 @@
     "ui-trajectory": {
       "package": "@deepseek-ai/dsh-client-ui-trajectory",
       "tier": "C",
-      "description": "Trajectory event ledger with an interactive timing overview: pure-consumer plugin registering into the conversation ViewMap (no service)",
-      "fields": []
+      "description": "Count limit for each live Session's transient tool results.",
+      "fields": [
+        {
+          "name": "maxResultsPerSession",
+          "kind": "number",
+          "default": 1000,
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "C",
+          "description": "Maximum retained results per Session, including values awaiting a result event."
+        }
+      ]
     },
     "agent-preset-registry": {
       "package": "@deepseek-ai/dsh-agent-preset-registry",
@@ -7598,6 +7818,167 @@
       "tier": "C",
       "description": "Per-tool LLM authorization review for the DeepSeek Harness Auto permission preset",
       "fields": []
+    },
+    "subagent-codex": {
+      "package": "@deepseek-ai/dsh-subagent-codex",
+      "tier": "B",
+      "description": "Deployment-owned model, permission, environment, and process-release settings.",
+      "fields": [
+        {
+          "name": "providerName",
+          "kind": "string",
+          "default": "codex",
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "B",
+          "description": "Provider name on `ctx.subagents` (default `codex`)."
+        },
+        {
+          "name": "model",
+          "kind": "string",
+          "default": null,
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "B",
+          "description": "Native Codex model fixed for this instance; omitted to inherit Codex settings."
+        },
+        {
+          "name": "env",
+          "kind": "json",
+          "default": {},
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "B",
+          "description": "Explicit environment entries layered over the subprocess seam's credential-scrubbed parent environment."
+        },
+        {
+          "name": "permissionMode",
+          "kind": "enum",
+          "default": "never",
+          "nullable": false,
+          "enumValues": [
+            "never",
+            "approve-for-me",
+            "dangerously-bypass-approvals-and-sandbox"
+          ],
+          "volatile": false,
+          "secret": false,
+          "tier": "B",
+          "description": "Native non-interactive permission mode fixed for this Provider instance."
+        },
+        {
+          "name": "disposeGraceMs",
+          "kind": "number",
+          "default": 3000,
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "B",
+          "description": "Grace in milliseconds between app-server managed-range termination tiers."
+        }
+      ]
+    },
+    "tool-subagent-codex": {
+      "package": "@deepseek-ai/dsh-tool-subagent",
+      "tier": "B",
+      "description": "Config: which registered provider this tool delegates to, plus child defaults.",
+      "fields": [
+        {
+          "name": "provider",
+          "kind": "string",
+          "default": null,
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "B",
+          "description": "The `ctx.subagents` provider name to start runs on (e.g. `spawn`, `acp`)."
+        },
+        {
+          "name": "toolName",
+          "kind": "string",
+          "default": "subagent",
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "B",
+          "description": "Model-facing tool name (default `subagent`). Each loaded instance must use a distinct name."
+        },
+        {
+          "name": "modelSelection",
+          "kind": "boolean",
+          "default": false,
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "B",
+          "description": "Expose optional child `provider`, `model`, and `reasoning_effort` fields. Requires provider `agentOptions` support. Execution enforces the Session policy, or restricts explicit selection to the current parent route."
+        },
+        {
+          "name": "modelDiscovery",
+          "kind": "boolean",
+          "default": false,
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "B",
+          "description": "Register the shared `list_subagent_models` tool for this scope. Enable on only one instance per scope; defaults to false and does not enable model selection. Discovery is removed when this instance unloads."
+        },
+        {
+          "name": "agentOptions",
+          "kind": "json",
+          "default": null,
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "B",
+          "description": "Agent options applied to every child; omitted fields use child-loop defaults."
+        },
+        {
+          "name": "agentPreset",
+          "kind": "string",
+          "default": null,
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "B",
+          "description": "Default independent preset; omission inherits the parent when the model makes no selection."
+        },
+        {
+          "name": "allowedAgentPresets",
+          "kind": "json",
+          "default": null,
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "B",
+          "description": "Non-empty allowlist exposing agent_preset to the model; omission disables model selection."
+        },
+        {
+          "name": "maxDepth",
+          "kind": "json",
+          "default": null,
+          "nullable": false,
+          "enumValues": [],
+          "volatile": false,
+          "secret": false,
+          "tier": "B",
+          "description": "Maximum child depth: a non-negative safe integer (`0` forbids delegation), or `'provider-managed'` to send no cap. A numeric cap requires the provider's `depthLimit` capability (mount fails loud otherwise). The provider checks the calling agent's current depth at every start; the tool remains model-visible so runtime policy owns rejection. `'provider-managed'` is for an out-of-process provider whose recursion budget belongs to the child runtime or its own deployment. Omission reads the current Host subagent depth setting (default `1`) at each delegation."
+        }
+      ]
     }
   }
 }
