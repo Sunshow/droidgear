@@ -138,15 +138,22 @@ fn baizhi_preset_rejects_malformed_file_or_shape_without_changing_bytes() {
 }
 
 #[test]
-fn baizhi_preset_write_failure_preserves_original_file() {
+fn baizhi_preset_save_is_not_blocked_by_a_stale_temp_entry() {
+    // Saves used to go through a fixed `mcp.tmp` sibling, so a leftover entry
+    // with that name (or a concurrent writer) made every save fail.
     let temp = TempDir::new().unwrap();
     let factory = temp.path().join(".factory");
     std::fs::create_dir_all(factory.join("mcp.tmp")).unwrap();
-    let contents = "{\"mcpServers\":{},\"unknown\":true}\n";
     let path = factory.join("mcp.json");
-    std::fs::write(&path, contents).unwrap();
-    assert!(mcp::save_baizhi_preset_for_home(temp.path()).is_err());
-    assert_eq!(std::fs::read_to_string(&path).unwrap(), contents);
+    std::fs::write(&path, "{\"mcpServers\":{},\"unknown\":true}\n").unwrap();
+
+    mcp::save_baizhi_preset_for_home(temp.path()).unwrap();
+
+    let saved: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    assert_eq!(saved["unknown"], true);
+    assert_eq!(saved["mcpServers"].as_object().unwrap().len(), 1);
+    assert!(factory.join("mcp.tmp").is_dir());
 }
 
 #[test]

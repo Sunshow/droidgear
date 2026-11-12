@@ -167,33 +167,7 @@ fn env_file_copy_path(runtime_dir_path: &Path) -> PathBuf {
 }
 
 fn write_private_file(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    if let Some(parent) = path.parent() {
-        if !parent.exists() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| format!("Failed to create directory: {e}"))?;
-        }
-    }
-
-    let temp_path = path.with_extension("tmp");
-    std::fs::write(&temp_path, bytes).map_err(|e| format!("Failed to write file: {e}"))?;
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-
-        let mut perms = std::fs::metadata(&temp_path)
-            .map_err(|e| format!("Failed to read file metadata: {e}"))?
-            .permissions();
-        perms.set_mode(0o600);
-        std::fs::set_permissions(&temp_path, perms)
-            .map_err(|e| format!("Failed to set file permissions: {e}"))?;
-    }
-
-    std::fs::rename(&temp_path, path).map_err(|e| {
-        let _ = std::fs::remove_file(&temp_path);
-        format!("Failed to finalize file: {e}")
-    })?;
-    Ok(())
+    crate::storage::atomic_write_private(path, bytes)
 }
 
 fn write_overlay_file(

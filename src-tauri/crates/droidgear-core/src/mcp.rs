@@ -102,19 +102,11 @@ fn write_mcp_file_for_home(home_dir: &Path, config: &Value) -> Result<(), String
         config_path
     };
 
-    let temp_path = actual_path.with_extension("tmp");
     let json_content = serde_json::to_string_pretty(config)
         .map_err(|e| format!("Failed to serialize MCP config: {e}"))?;
 
-    std::fs::write(&temp_path, json_content)
-        .map_err(|e| format!("Failed to write MCP config file: {e}"))?;
-
-    std::fs::rename(&temp_path, &actual_path).map_err(|e| {
-        let _ = std::fs::remove_file(&temp_path);
-        format!("Failed to finalize MCP config file: {e}")
-    })?;
-
-    Ok(())
+    crate::storage::atomic_write(&actual_path, json_content.as_bytes())
+        .map_err(|e| format!("Failed to write MCP config file: {e}"))
 }
 
 fn system_home_dir() -> Result<PathBuf, String> {
