@@ -69,7 +69,7 @@ Automatically saves and restores window position, size, and state (maximized, et
 
 - Window state is saved when the app closes
 - State is restored when the app opens
-- Only applies to windows listed in capabilities (main window only, not quick-panes)
+- Only applies to windows listed in capabilities (main window only)
 
 **No frontend code needed** - works automatically.
 

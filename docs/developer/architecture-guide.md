@@ -90,7 +90,6 @@ Event-Driven Bridge
 | Command System       | [command-system.md](./command-system.md)         |
 | Keyboard Shortcuts   | [keyboard-shortcuts.md](./keyboard-shortcuts.md) |
 | Native Menus         | [menus.md](./menus.md)                           |
-| Quick Panes          | [quick-panes.md](./quick-panes.md)               |
 | Data Persistence     | [data-persistence.md](./data-persistence.md)     |
 | Internationalization | [i18n-patterns.md](./i18n-patterns.md)           |
 | Cross-Platform       | [cross-platform.md](./cross-platform.md)         |
@@ -149,8 +148,6 @@ listen('data-updated', ({ payload }) => {
   setData(payload.value)
 })
 ```
-
-See [quick-panes.md](./quick-panes.md) for a complete implementation example.
 
 ## Security Architecture
 

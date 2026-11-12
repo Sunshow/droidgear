@@ -18,11 +18,10 @@ Tailwind v4 uses CSS-based configuration instead of `tailwind.config.js`.
 ```
 src/
 ├── App.css              # Main window styles + Tailwind imports
-├── quick-pane.css       # Quick pane window styles
 └── theme-variables.css  # Shared theme variables (colors, radii)
 ```
 
-**Multi-window theming**: `theme-variables.css` is imported by both `App.css` and `quick-pane.css` so all windows share the same theme tokens. When adding new color variables, add them to `theme-variables.css`.
+**Theme tokens**: `theme-variables.css` is imported by `App.css`. When adding new color variables, add them to `theme-variables.css`.
 
 ### Structure
 
