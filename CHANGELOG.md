@@ -1,5 +1,31 @@
 # Changelog
 
+## v1.4.0
+
+**New Features / 新功能**
+
+- DSH configuration covers the Codex subagent bundle: `@deepseek-ai/dsh-subagent-codex` — the `subagent-codex` provider and the `subagent_codex` tool entry — is part of the baked-in schema snapshot instead of being silently skipped by `compose_entries`, and both entries are curated as tier B so the advanced page renders them editable (tier C is read-only there and would leave `permissionMode` without a control). The snapshot is regenerated against DSH 0.2.2-rc.1, the installed version, with 178 entries / 392 fields / 177 desktop-darwin active / DSH 配置覆盖 Codex 子代理 bundle：`@deepseek-ai/dsh-subagent-codex`——`subagent-codex` Provider 与 `subagent_codex` 工具条目——进入内置 Schema 快照，不再被 `compose_entries` 静默跳过；两者编为 B 级以便高级页可编辑（C 级在该页只读，`permissionMode` 将没有控件）。快照按当前安装的 DSH 0.2.2-rc.1 重新生成，共 178 条目 / 392 字段 / 177 个 desktop-darwin 生效项
+
+**Bug Fixes / 问题修复**
+
+- Pi no longer crashes at startup when a provider has no models: an empty `models` list was serialized without the key while the binding declared `models: PiModel[]`, so restoring the Pi page made the provider card call `.some()` on undefined and took the whole app down through the root error boundary. The list is always written (as `[]`, which Pi treats exactly like an omitted key), the binding is regenerated as optional, and the card guards a missing list — with regression tests for API-key providers, OAuth providers, empty lists and blank model IDs / Pi 在 Provider 没有模型时不再启动崩溃：空 `models` 列表序列化时省略该键，而绑定声明为 `models: PiModel[]`，恢复 Pi 页时 Provider 卡片对 undefined 调用 `.some()`，经根错误边界拖垮整个应用。现在始终写入 `models`（`[]`，Pi 将其视同省略该键），绑定重新生成为可选，卡片也对缺失列表做了防御，并补充了 API Key 型、OAuth 型、空列表与空模型 ID 的回归测试
+- A corrupt auth-profile manifest now fails the operation instead of being read as an empty list, so the next save, switch, delete or rename can no longer rewrite `profiles.json` without the existing profiles. A missing manifest still means "no profiles yet". Both the Factory and Codex stores are fixed / 认证 Profile 清单损坏时现在报错，而不是读成空清单，后续保存、切换、删除或重命名不再重写 `profiles.json` 丢掉已有 Profile。清单缺失仍表示「尚无 Profile」。Factory 与 Codex 两个存储均已修复
+- Every config write goes through the shared atomic writer (unique temp name, cleanup on failure): Factory settings, MCP config, DroidGear settings, export templates, the Claude runtime overlay, the channel list, channel auth and spec updates. Two writers (GUI and TUI) can no longer clobber each other's `<name>.tmp`, and a stale `mcp.tmp` no longer blocks every save. Channel auth files hold API keys, so they are now written owner-only on Unix / 所有配置写入统一走共享原子写入器（唯一临时名、失败清理）：Factory 设置、MCP 配置、DroidGear 设置、导出模板、Claude 运行时覆盖、渠道列表、渠道认证与规格更新。GUI 与 TUI 两个写入者不再互相覆盖 `<name>.tmp`，遗留的 `mcp.tmp` 也不再阻塞保存。渠道认证文件存放 API Key，在 Unix 上改为仅所有者可读写
+- Session deletion is confined to the tool's own sessions directory: Droid deleted whatever path it was given, and the Codex and Dsh guards compared path prefixes lexically, so `<sessions>/../other` passed the check — and Dsh then removed the whole parent directory. Both sides are canonicalized through a shared storage helper, as the Pi and OMP modules already did / 会话删除限定在工具自己的会话目录内：Droid 会删除传入的任意路径，Codex 与 Dsh 的校验只做字面前缀比较，`<sessions>/../other` 得以通过——Dsh 进而删除整个上级目录。现在两侧路径均通过共享存储助手规范化，与 Pi、OMP 模块保持一致
+
+**Improvements / 改进**
+
+- CI now runs `check:all` (typecheck, lint, ast-grep, format, Rust fmt/clippy/test, vitest and the production build) on every pull request and on main, so a change can no longer merge with failing tests / CI 在每次 Pull Request 与推送到 main 时运行 `check:all`（类型检查、Lint、ast-grep、格式、Rust fmt/clippy/test、vitest 与生产构建），测试失败的改动不再能被合并
+- Test counts now reflect real coverage: 17 TUI tests that only bound enum variants to unused locals were removed (96 behavioural TUI tests remain), as was the placeholder `add()` test / 测试数量只反映真实覆盖：移除 17 个仅把枚举变体绑定到未使用局部变量的 TUI 测试（保留 96 个行为测试），以及 `add()` 占位测试
+
+**Refactoring / 重构**
+
+- Removed 45 public `droidgear-core` functions that nothing referenced (system-home path wrappers, the unused `*_for_home` profile and settings accessors, and similar). Some of those accessors had already drifted from the live code, and no behaviour changes / 移除 45 个无人引用的 `droidgear-core` 公有函数（系统 home 路径包装、未使用的 `*_for_home` Profile 与设置访问器等），其中部分已与实时代码产生偏差，无行为变化
+
+**Documentation / 文档**
+
+- Removed template leftovers that described features the app does not have: `USING_THIS_TEMPLATE.md` and the `/init` command that pointed at it, the quick-pane developer doc, and the Quick Pane sections of the user guide (`quick-pane.html` / `quick-pane.css` / `quick-pane-main.tsx` do not exist here). Developer docs that linked to them are fixed / 移除描述不存在功能的模板残留：`USING_THIS_TEMPLATE.md` 与指向它的 `/init` 命令、quick-pane 开发文档，以及用户指南中的 Quick Pane 章节（本仓库并不存在 `quick-pane.html` / `quick-pane.css` / `quick-pane-main.tsx`）。指向它们的开发文档已修正
+
 ## v1.3.10
 
 **New Features / 新功能**
