@@ -45,35 +45,6 @@ fn claude_clamp_indices_does_not_panic_on_empty_files() {
 }
 
 #[test]
-fn claude_screen_variants_exist() {
-    let _claude = app::Screen::ClaudeSettings;
-    let _claude_detail = app::Screen::ClaudeSettingsDetail;
-}
-
-#[test]
-fn claude_confirm_action_variants_exist() {
-    let _apply = app::ConfirmAction::ClaudeSettingsApply {
-        name: "test".to_string(),
-    };
-    let _delete = app::ConfirmAction::ClaudeSettingsDelete {
-        name: "test".to_string(),
-    };
-}
-
-#[test]
-fn claude_input_action_variants_exist() {
-    let _create = app::InputAction::ClaudeSettingsCreateFile;
-    let _dup = app::InputAction::ClaudeSettingsDuplicate {
-        name: "x".to_string(),
-    };
-    let _edit = app::InputAction::ClaudeSettingsEditField { field_index: 0 };
-    let _reasoning = app::SelectAction::ClaudeSettingsSetReasoningEffort;
-    let _thinking = app::SelectAction::ClaudeSettingsSetThinkingMode;
-    let _perm = app::SelectAction::ClaudeSettingsSetPermissionsDefaultMode;
-    let _bypass = app::SelectAction::ClaudeSettingsSetDisableBypass;
-}
-
-#[test]
 fn claude_run_action_variant_exists() {
     let action = super::Action::RunClaudeRun {
         name: "my-settings".to_string(),
@@ -436,83 +407,8 @@ fn hermes_clamp_indices_does_not_panic_on_empty_profiles() {
 }
 
 #[test]
-fn hermes_screen_variants_exist() {
-    // Validates M2-TUI-APP-001: Screen enum includes Hermes, HermesProfile, HermesProvider
-    let _hermes = app::Screen::Hermes;
-    let _hermes_profile = app::Screen::HermesProfile;
-    let _hermes_provider = app::Screen::HermesProvider;
-}
-
-#[test]
-fn hermes_confirm_action_variants_exist() {
-    // Validates M2-TUI-APP-004: ConfirmAction includes Hermes variants
-    let _apply = app::ConfirmAction::HermesApply {
-        id: "test".to_string(),
-    };
-    let _delete = app::ConfirmAction::HermesDelete {
-        id: "test".to_string(),
-    };
-    let _delete_model = app::ConfirmAction::HermesDeleteModel {
-        id: "test".to_string(),
-        model_index: 0,
-    };
-}
-
-#[test]
-fn hermes_input_action_variants_exist() {
-    // Validates M2-TUI-APP-005: InputAction includes Hermes-specific variants
-    let _create = app::InputAction::HermesCreateProfile;
-    let _dup = app::InputAction::HermesDuplicate {
-        id: "x".to_string(),
-    };
-    let _name = app::InputAction::HermesSetProfileName {
-        id: "x".to_string(),
-    };
-    let _desc = app::InputAction::HermesSetProfileDescription {
-        id: "x".to_string(),
-    };
-    let _model_name = app::InputAction::HermesSetModelName {
-        id: "x".to_string(),
-        model_index: 0,
-    };
-    let _model = app::InputAction::HermesSetModelDefault {
-        id: "x".to_string(),
-        model_index: 0,
-    };
-    let _prov = app::InputAction::HermesSetModelProvider {
-        id: "x".to_string(),
-        model_index: 0,
-    };
-    let _url = app::InputAction::HermesSetModelBaseUrl {
-        id: "x".to_string(),
-        model_index: 0,
-    };
-    let _key = app::InputAction::HermesSetModelApiKey {
-        id: "x".to_string(),
-        model_index: 0,
-    };
-    let _import_key = app::InputAction::HermesImportSetApiKey {
-        id: "x".to_string(),
-        model_index: 0,
-    };
-    let _import_channel = app::SelectAction::HermesImportFromChannel {
-        profile_id: "x".to_string(),
-        model_index: 0,
-    };
-}
-
-#[test]
 fn sanitize_terminal_for_direct_exec_is_callable() {
     super::utils::sanitize_terminal_for_direct_exec().unwrap();
-}
-
-#[test]
-fn pi_screen_variants_exist() {
-    let _pi = app::Screen::Pi;
-    let _pi_profile = app::Screen::PiProfile;
-    let _pi_provider = app::Screen::PiProvider;
-    let _pi_model = app::Screen::PiModel;
-    let _pi_sessions = app::Screen::PiSessions;
 }
 
 #[test]
@@ -615,101 +511,6 @@ fn pi_sessions_key_routes_view_and_delete_actions() {
 }
 
 #[test]
-fn pi_confirm_action_variants_exist() {
-    let _apply = app::ConfirmAction::PiApply {
-        id: "test".to_string(),
-    };
-    let _session_delete = app::ConfirmAction::PiSessionDelete {
-        path: "/tmp/session.jsonl".to_string(),
-    };
-    let _delete = app::ConfirmAction::PiDelete {
-        id: "test".to_string(),
-    };
-    let _del_prov = app::ConfirmAction::PiDeleteProvider {
-        profile_id: "p".to_string(),
-        provider_id: "prov".to_string(),
-    };
-    let _del_model = app::ConfirmAction::PiDeleteModel {
-        profile_id: "p".to_string(),
-        provider_id: "prov".to_string(),
-        model_index: 0,
-    };
-}
-
-#[test]
-fn pi_input_action_variants_exist() {
-    let _create = app::InputAction::PiCreateProfile;
-    let _dup = app::InputAction::PiDuplicate {
-        id: "x".to_string(),
-    };
-    let _name = app::InputAction::PiSetProfileName {
-        id: "x".to_string(),
-    };
-    let _desc = app::InputAction::PiSetProfileDescription {
-        id: "x".to_string(),
-    };
-    let _add_prov = app::InputAction::PiAddProvider {
-        profile_id: "x".to_string(),
-    };
-    let _base_url = app::InputAction::PiSetProviderBaseUrl {
-        profile_id: "x".to_string(),
-        provider_id: "y".to_string(),
-    };
-    let _api_key = app::InputAction::PiSetProviderApiKey {
-        profile_id: "x".to_string(),
-        provider_id: "y".to_string(),
-    };
-    let _add_model = app::InputAction::PiAddModel {
-        profile_id: "x".to_string(),
-        provider_id: "y".to_string(),
-    };
-    let _set_id = app::InputAction::PiSetModelId {
-        profile_id: "x".to_string(),
-        provider_id: "y".to_string(),
-        model_index: 0,
-    };
-    let _set_name = app::InputAction::PiSetModelName {
-        profile_id: "x".to_string(),
-        provider_id: "y".to_string(),
-        model_index: 0,
-    };
-    let _set_ctx = app::InputAction::PiSetModelContextWindow {
-        profile_id: "x".to_string(),
-        provider_id: "y".to_string(),
-        model_index: 0,
-    };
-    let _set_max = app::InputAction::PiSetModelMaxTokens {
-        profile_id: "x".to_string(),
-        provider_id: "y".to_string(),
-        model_index: 0,
-    };
-    let _set_cost = app::InputAction::PiSetModelCost {
-        profile_id: "x".to_string(),
-        provider_id: "y".to_string(),
-        model_index: 0,
-    };
-    let _sel_api = app::SelectAction::PiSetProviderApi {
-        profile_id: "x".to_string(),
-        provider_id: "y".to_string(),
-    };
-}
-
-#[test]
-fn omp_screen_variants_exist() {
-    let _omp = app::Screen::Omp;
-    let _omp_profile = app::Screen::OmpProfile;
-}
-
-#[test]
-fn dsh_screen_variants_exist() {
-    let _dsh_desktop = app::Screen::DshDesktop;
-    let _dsh_web = app::Screen::DshWeb;
-    let _dsh_provider = app::Screen::DshProvider;
-    let _dsh_model = app::Screen::DshModel;
-    let _dsh_sessions = app::Screen::DshSessions;
-}
-
-#[test]
 fn dsh_is_in_dsh_nav_group() {
     for screen in [
         app::Screen::DshDesktop,
@@ -792,65 +593,6 @@ fn dsh_sessions_key_routes_view_and_delete_actions() {
 }
 
 #[test]
-fn dsh_action_variants_exist() {
-    let _add = app::InputAction::DshAddProvider;
-    let _add_channel = app::InputAction::DshAddProviderFromChannel;
-    let _import_key = app::InputAction::DshImportSetApiKey {
-        provider_id: "x".to_string(),
-    };
-    let _import_channel = app::SelectAction::DshImportFromChannel {
-        provider_id: "x".to_string(),
-    };
-    let _import_toggle = app::SelectAction::DshImportToggleModel {
-        provider_id: "x".to_string(),
-    };
-    let _add_fetched = app::SelectAction::DshAddFetchedModels {
-        provider_id: "x".to_string(),
-    };
-    let _set_display = app::InputAction::DshSetProviderDisplayName {
-        provider_id: "x".to_string(),
-    };
-    let _set_base = app::InputAction::DshSetProviderBaseUrl {
-        provider_id: "x".to_string(),
-    };
-    let _set_env = app::InputAction::DshSetProviderApiKeyEnv {
-        provider_id: "x".to_string(),
-    };
-    let _set_key = app::InputAction::DshSetProviderApiKey {
-        provider_id: "x".to_string(),
-    };
-    let _add_model = app::InputAction::DshAddModel {
-        provider_id: "x".to_string(),
-    };
-    let _set_model_id = app::InputAction::DshSetModelId {
-        provider_id: "x".to_string(),
-        model_index: 0,
-    };
-    let _set_model_name = app::InputAction::DshSetModelName {
-        provider_id: "x".to_string(),
-        model_index: 0,
-    };
-    let _set_ctx = app::InputAction::DshSetModelContextWindow {
-        provider_id: "x".to_string(),
-        model_index: 0,
-    };
-    let _set_max = app::InputAction::DshSetModelMaxTokens {
-        provider_id: "x".to_string(),
-        model_index: 0,
-    };
-    let _sel_api = app::SelectAction::DshSetProviderApi {
-        provider_id: "x".to_string(),
-    };
-    let _del_provider = app::ConfirmAction::DshDeleteProvider {
-        provider_id: "x".to_string(),
-    };
-    let _del_model = app::ConfirmAction::DshDeleteModel {
-        provider_id: "x".to_string(),
-        model_index: 0,
-    };
-}
-
-#[test]
 fn omp_is_in_omp_nav_group() {
     let group = app::App::group_of_screen(app::Screen::Omp).expect("Omp should be a nav item");
     assert_eq!(app::App::nav_groups()[group].label, "OMP");
@@ -874,38 +616,6 @@ fn omp_clamp_indices_does_not_panic_on_empty_profiles() {
     let mut app = app::App::new(PathBuf::from("/tmp/test-home"));
     app.clamp_indices();
     assert_eq!(app.omp_index, 0);
-}
-
-#[test]
-fn omp_confirm_action_variants_exist() {
-    let _apply = app::ConfirmAction::OmpApply {
-        id: "test".to_string(),
-    };
-    let _delete = app::ConfirmAction::OmpDelete {
-        id: "test".to_string(),
-    };
-    let _test_all = app::ConfirmAction::OmpTestAll;
-}
-
-#[test]
-fn omp_input_action_variants_exist() {
-    let _create = app::InputAction::OmpCreateProfile;
-    let _dup = app::InputAction::OmpDuplicate {
-        id: "x".to_string(),
-    };
-    let _update_name = app::InputAction::OmpUpdateProfileName;
-    let _update_desc = app::InputAction::OmpUpdateProfileDescription;
-    let _update_role = app::InputAction::OmpUpdateModelRole {
-        role: "default".to_string(),
-    };
-    let _thinking = app::InputAction::OmpUpdateDefaultThinkingLevel;
-    let _presets = app::InputAction::OmpUpdateModelPresets;
-    let _transport = app::InputAction::OmpSetCustomProviderTransport {
-        provider_id: "p".to_string(),
-    };
-    let _models = app::InputAction::OmpSetCustomProviderModels {
-        provider_id: "p".to_string(),
-    };
 }
 
 #[test]
@@ -1337,41 +1047,6 @@ fn list_claude_temporary_run_targets_lists_index_name_and_id() {
     assert!(output.contains("(global)"));
     assert!(output.contains("run claude -n <name>"));
     assert!(output.contains("run claude --preview -n <name>"));
-}
-
-#[test]
-fn pi_import_from_channel_action_variants_exist() {
-    let _import = app::SelectAction::PiImportFromChannel {
-        profile_id: "x".to_string(),
-        provider_id: "y".to_string(),
-    };
-    let _set_key = app::InputAction::PiImportSetApiKey {
-        profile_id: "x".to_string(),
-        provider_id: "y".to_string(),
-    };
-}
-
-#[test]
-fn pi_add_provider_from_channel_action_variants_exist() {
-    let _select = app::SelectAction::PiAddProviderFromChannel {
-        profile_id: "x".to_string(),
-        provider_id: "y".to_string(),
-    };
-    let _input = app::InputAction::PiAddProviderFromChannel {
-        profile_id: "x".to_string(),
-    };
-}
-
-#[test]
-fn pi_import_set_token_action_exists() {
-    let _set_token = app::SelectAction::PiImportSetToken {
-        profile_id: "x".to_string(),
-        provider_id: "y".to_string(),
-    };
-    let _toggle = app::SelectAction::PiImportToggleModel {
-        profile_id: "x".to_string(),
-        provider_id: "y".to_string(),
-    };
 }
 
 #[test]
