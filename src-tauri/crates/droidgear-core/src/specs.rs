@@ -214,7 +214,7 @@ pub fn update_spec_for_home(
         return Err("Spec file not found".to_string());
     }
 
-    fs::write(&path_buf, content).map_err(|e| format!("Failed to write file: {e}"))?;
+    crate::storage::atomic_write(&path_buf, content.as_bytes())?;
     read_spec(path)
 }
 

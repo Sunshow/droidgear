@@ -118,22 +118,10 @@ pub fn read_droidgear_settings_from_path_internal(path: &Path) -> Result<Value, 
 }
 
 fn write_droidgear_settings_to_path(path: &Path, settings: &Value) -> Result<(), String> {
-    if let Some(parent) = path.parent() {
-        if !parent.exists() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| format!("Failed to create .droidgear directory: {e}"))?;
-        }
-    }
-
-    let temp_path = path.with_extension("tmp");
     let content = serde_json::to_string_pretty(settings)
         .map_err(|e| format!("Failed to serialize settings: {e}"))?;
-    std::fs::write(&temp_path, content).map_err(|e| format!("Failed to write settings: {e}"))?;
-    std::fs::rename(&temp_path, path).map_err(|e| {
-        let _ = std::fs::remove_file(&temp_path);
-        format!("Failed to finalize settings: {e}")
-    })?;
-    Ok(())
+    crate::storage::atomic_write(path, content.as_bytes())
+        .map_err(|e| format!("Failed to write settings: {e}"))
 }
 
 /// Public wrapper for writing droidgear settings to a path

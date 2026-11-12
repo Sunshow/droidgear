@@ -167,14 +167,8 @@ pub fn save_export_templates(templates: &[ExportTemplate]) -> Result<(), String>
     let content = serde_yaml::to_string(&config)
         .map_err(|e| format!("Failed to serialize export templates: {e}"))?;
 
-    let path = config_path()?;
-    let temp_path = path.with_extension("tmp");
-    fs::write(&temp_path, &content)
-        .map_err(|e| format!("Failed to write export templates: {e}"))?;
-    fs::rename(&temp_path, &path)
-        .map_err(|e| format!("Failed to finalize export templates: {e}"))?;
-
-    Ok(())
+    crate::storage::atomic_write(&config_path()?, content.as_bytes())
+        .map_err(|e| format!("Failed to write export templates: {e}"))
 }
 
 // ============================================================================
@@ -654,12 +648,8 @@ fn render_toml(records: &[ExportRecord], path: &Path) -> Result<(), String> {
 
 /// Atomic file write: temp file + rename.
 fn write_atomic(path: &Path, content: &str) -> Result<(), String> {
-    let temp_path = path.with_extension("tmp");
-    fs::write(&temp_path, content)
-        .map_err(|e| format!("Failed to write to '{}': {e}", temp_path.display()))?;
-    fs::rename(&temp_path, path)
-        .map_err(|e| format!("Failed to rename temp file to '{}': {e}", path.display()))?;
-    Ok(())
+    crate::storage::atomic_write(path, content.as_bytes())
+        .map_err(|e| format!("Failed to write to '{}': {e}", path.display()))
 }
 
 // ============================================================================

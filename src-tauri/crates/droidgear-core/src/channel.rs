@@ -120,8 +120,8 @@ fn read_channels_from_file(path: &Path) -> Result<Vec<Channel>, String> {
 fn write_channels_to_file(path: &Path, channels: &[Channel]) -> Result<(), String> {
     let content = serde_json::to_string_pretty(channels)
         .map_err(|e| format!("Failed to serialize channels: {e}"))?;
-    fs::write(path, content).map_err(|e| format!("Failed to write channels file: {e}"))?;
-    Ok(())
+    crate::storage::atomic_write(path, content.as_bytes())
+        .map_err(|e| format!("Failed to write channels file: {e}"))
 }
 
 fn read_channel_auth_for_home(
@@ -149,8 +149,9 @@ fn write_channel_auth_for_home(
     let path = auth_file_path_for_home(home_dir, channel_id);
     let content =
         serde_json::to_string_pretty(auth).map_err(|e| format!("Failed to serialize auth: {e}"))?;
-    fs::write(&path, content).map_err(|e| format!("Failed to write auth file: {e}"))?;
-    Ok(())
+    // Channel auth holds API keys: keep it owner-only on Unix.
+    crate::storage::atomic_write_private(&path, content.as_bytes())
+        .map_err(|e| format!("Failed to write auth file: {e}"))
 }
 
 fn delete_channel_auth_for_home(home_dir: &Path, channel_id: &str) -> Result<(), String> {

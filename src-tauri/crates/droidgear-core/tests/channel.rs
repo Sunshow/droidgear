@@ -47,6 +47,27 @@ fn channels_api_key_auth_roundtrip_and_delete() {
     assert_eq!(key, None);
 }
 
+#[cfg(unix)]
+#[test]
+fn channels_auth_file_is_owner_only_and_leaves_no_temp_files() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let temp = TempDir::new().unwrap();
+    let home = temp.path();
+    channel::save_channel_api_key_for_home(home, "c1", "sk-test").unwrap();
+
+    let auth_dir = home.join(".droidgear/auth");
+    let auth_file = auth_dir.join("c1.json");
+    let mode = std::fs::metadata(&auth_file).unwrap().permissions().mode();
+    assert_eq!(mode & 0o777, 0o600);
+
+    let names: Vec<String> = std::fs::read_dir(&auth_dir)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().to_string())
+        .collect();
+    assert_eq!(names, vec!["c1.json".to_string()]);
+}
+
 #[test]
 fn channels_credentials_roundtrip_and_delete() {
     let temp = TempDir::new().unwrap();
