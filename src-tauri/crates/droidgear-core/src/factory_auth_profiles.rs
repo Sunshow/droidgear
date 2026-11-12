@@ -73,15 +73,17 @@ fn ensure_dir(dir: &Path) -> Result<(), String> {
 // Manifest I/O
 // ============================================================================
 
-fn read_manifest(home_dir: &Path) -> ProfilesManifest {
+/// A missing manifest means "no profiles yet". An unreadable or malformed one is
+/// an error: treating it as empty would let the next write drop every profile.
+fn read_manifest(home_dir: &Path) -> Result<ProfilesManifest, String> {
     let path = manifest_path_for_home(home_dir);
     if !path.exists() {
-        return ProfilesManifest::default();
+        return Ok(ProfilesManifest::default());
     }
-    std::fs::read_to_string(&path)
-        .ok()
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_default()
+    let content = std::fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read profiles manifest {}: {e}", path.display()))?;
+    serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse profiles manifest {}: {e}", path.display()))
 }
 
 fn write_manifest(home_dir: &Path, manifest: &ProfilesManifest) -> Result<(), String> {
@@ -148,7 +150,7 @@ fn auth_files_exist(dir: &Path) -> bool {
 // ============================================================================
 
 pub fn list_profiles_for_home(home_dir: &Path) -> Result<AuthProfileState, String> {
-    let manifest = read_manifest(home_dir);
+    let manifest = read_manifest(home_dir)?;
     Ok(AuthProfileState {
         active: manifest.active,
         profiles: manifest.profiles,
@@ -156,7 +158,7 @@ pub fn list_profiles_for_home(home_dir: &Path) -> Result<AuthProfileState, Strin
 }
 
 pub fn get_active_profile_for_home(home_dir: &Path) -> Result<Option<String>, String> {
-    Ok(read_manifest(home_dir).active)
+    Ok(read_manifest(home_dir)?.active)
 }
 
 pub fn save_current_as_profile_for_home(
@@ -174,7 +176,7 @@ pub fn save_current_as_profile_for_home(
     let profile_dir = profile_dir_for_home(home_dir, name);
     copy_auth_files(&factory_home, &profile_dir)?;
 
-    let mut manifest = read_manifest(home_dir);
+    let mut manifest = read_manifest(home_dir)?;
 
     if !manifest.profiles.iter().any(|p| p.name == name) {
         manifest.profiles.push(AuthProfile {
@@ -196,7 +198,7 @@ pub fn save_current_as_profile_for_home(
 pub fn switch_profile_for_home(home_dir: &Path, name: &str) -> Result<(), String> {
     validate_profile_name(name)?;
 
-    let manifest = read_manifest(home_dir);
+    let manifest = read_manifest(home_dir)?;
     if !manifest.profiles.iter().any(|p| p.name == name) {
         return Err(format!("Profile '{name}' not found"));
     }
@@ -228,7 +230,7 @@ pub fn switch_profile_for_home(home_dir: &Path, name: &str) -> Result<(), String
 pub fn delete_profile_for_home(home_dir: &Path, name: &str) -> Result<(), String> {
     validate_profile_name(name)?;
 
-    let mut manifest = read_manifest(home_dir);
+    let mut manifest = read_manifest(home_dir)?;
     if !manifest.profiles.iter().any(|p| p.name == name) {
         return Err(format!("Profile '{name}' not found"));
     }
@@ -250,7 +252,7 @@ pub fn delete_profile_for_home(home_dir: &Path, name: &str) -> Result<(), String
 pub fn rename_profile_for_home(home_dir: &Path, name: &str, new_label: &str) -> Result<(), String> {
     validate_profile_name(name)?;
 
-    let mut manifest = read_manifest(home_dir);
+    let mut manifest = read_manifest(home_dir)?;
     let profile = manifest
         .profiles
         .iter_mut()
@@ -307,6 +309,24 @@ mod tests {
         std::fs::create_dir_all(&factory_dir).unwrap();
         std::fs::write(factory_dir.join(AUTH_KEY_FILE), "test-key-data").unwrap();
         std::fs::write(factory_dir.join(AUTH_TOKEN_FILE), "test-token-data").unwrap();
+    }
+
+    #[test]
+    fn corrupt_manifest_is_an_error_and_is_not_overwritten() {
+        let tmp = TempDir::new().unwrap();
+        setup_factory_home(tmp.path());
+        let manifest_path = manifest_path_for_home(tmp.path());
+        std::fs::create_dir_all(manifest_path.parent().unwrap()).unwrap();
+        std::fs::write(&manifest_path, "{ truncated").unwrap();
+
+        let err = list_profiles_for_home(tmp.path()).unwrap_err();
+        assert!(err.contains("Failed to parse profiles manifest"));
+        assert!(save_current_as_profile_for_home(tmp.path(), "acct-1", "Account 1").is_err());
+        assert!(delete_profile_for_home(tmp.path(), "acct-1").is_err());
+        assert_eq!(
+            std::fs::read_to_string(&manifest_path).unwrap(),
+            "{ truncated"
+        );
     }
 
     #[test]

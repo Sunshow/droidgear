@@ -194,15 +194,17 @@ fn ensure_dir(dir: &Path) -> Result<(), String> {
 // Manifest I/O
 // ============================================================================
 
-fn read_manifest(home_dir: &Path) -> ProfilesManifest {
+/// A missing manifest means "no profiles yet". An unreadable or malformed one is
+/// an error: treating it as empty would let the next write drop every profile.
+fn read_manifest(home_dir: &Path) -> Result<ProfilesManifest, String> {
     let path = manifest_path_for_home(home_dir);
     if !path.exists() {
-        return ProfilesManifest::default();
+        return Ok(ProfilesManifest::default());
     }
-    std::fs::read_to_string(&path)
-        .ok()
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_default()
+    let content = std::fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read profiles manifest {}: {e}", path.display()))?;
+    serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse profiles manifest {}: {e}", path.display()))
 }
 
 fn write_manifest(home_dir: &Path, manifest: &ProfilesManifest) -> Result<(), String> {
@@ -310,7 +312,7 @@ fn read_active_codex_profile_id(home_dir: &Path) -> Option<String> {
 // ============================================================================
 
 pub fn list_profiles_for_home(home_dir: &Path) -> Result<CodexAuthProfileState, String> {
-    let manifest = read_manifest(home_dir);
+    let manifest = read_manifest(home_dir)?;
 
     let is_current_official = if auth_json_exists(home_dir) {
         read_live_auth(home_dir)
@@ -366,7 +368,7 @@ pub fn save_current_as_profile_for_home(
     let active_codex_id = read_active_codex_profile_id(home_dir);
     let (model, model_reasoning_effort) = read_live_model_snapshot(home_dir);
 
-    let mut manifest = read_manifest(home_dir);
+    let mut manifest = read_manifest(home_dir)?;
 
     if !manifest.profiles.iter().any(|p| p.name == name) {
         manifest.profiles.push(CodexAuthProfile {
@@ -396,7 +398,7 @@ pub fn save_current_as_profile_for_home(
 pub fn switch_profile_for_home(home_dir: &Path, name: &str) -> Result<(), String> {
     validate_profile_name(name)?;
 
-    let manifest = read_manifest(home_dir);
+    let manifest = read_manifest(home_dir)?;
     if !manifest.profiles.iter().any(|p| p.name == name) {
         return Err(format!("Profile '{name}' not found"));
     }
@@ -446,7 +448,7 @@ pub fn switch_profile_for_home(home_dir: &Path, name: &str) -> Result<(), String
     std::fs::copy(&target_auth_path, &live_auth_path)
         .map_err(|e| format!("Failed to copy profile auth to live location: {e}"))?;
 
-    let mut manifest = read_manifest(home_dir);
+    let mut manifest = read_manifest(home_dir)?;
     manifest.active = Some(name.to_string());
 
     // Apply the associated CodexProfile (config.toml only) if one was stored
@@ -484,7 +486,7 @@ pub fn switch_profile_for_home(home_dir: &Path, name: &str) -> Result<(), String
 pub fn restore_auth_file_for_home(home_dir: &Path, name: &str) -> Result<(), String> {
     validate_profile_name(name)?;
 
-    let manifest = read_manifest(home_dir);
+    let manifest = read_manifest(home_dir)?;
     let profile = manifest
         .profiles
         .iter()
@@ -509,7 +511,7 @@ pub fn restore_auth_file_for_home(home_dir: &Path, name: &str) -> Result<(), Str
     std::fs::copy(&target_auth_path, &live_auth_path)
         .map_err(|e| format!("Failed to restore auth profile '{name}': {e}"))?;
 
-    let mut manifest = read_manifest(home_dir);
+    let mut manifest = read_manifest(home_dir)?;
     manifest.active = Some(name.to_string());
     write_manifest(home_dir, &manifest)?;
 
@@ -522,7 +524,7 @@ pub fn restore_auth_file_for_home(home_dir: &Path, name: &str) -> Result<(), Str
 /// externally (e.g., by CodexProfile apply with auth mode conflict), making
 /// no saved profile match the current live auth.
 pub fn clear_active_for_home(home_dir: &Path) -> Result<(), String> {
-    let mut manifest = read_manifest(home_dir);
+    let mut manifest = read_manifest(home_dir)?;
     manifest.active = None;
     write_manifest(home_dir, &manifest)
 }
@@ -530,7 +532,7 @@ pub fn clear_active_for_home(home_dir: &Path) -> Result<(), String> {
 pub fn delete_profile_for_home(home_dir: &Path, name: &str) -> Result<(), String> {
     validate_profile_name(name)?;
 
-    let mut manifest = read_manifest(home_dir);
+    let mut manifest = read_manifest(home_dir)?;
     if !manifest.profiles.iter().any(|p| p.name == name) {
         return Err(format!("Profile '{name}' not found"));
     }
@@ -552,7 +554,7 @@ pub fn delete_profile_for_home(home_dir: &Path, name: &str) -> Result<(), String
 pub fn rename_profile_for_home(home_dir: &Path, name: &str, new_label: &str) -> Result<(), String> {
     validate_profile_name(name)?;
 
-    let mut manifest = read_manifest(home_dir);
+    let mut manifest = read_manifest(home_dir)?;
     let profile = manifest
         .profiles
         .iter_mut()
@@ -697,6 +699,24 @@ mod tests {
             serde_json::to_string_pretty(&auth).unwrap(),
         )
         .unwrap();
+    }
+
+    #[test]
+    fn corrupt_manifest_is_an_error_and_is_not_overwritten() {
+        let tmp = TempDir::new().unwrap();
+        setup_official_auth(tmp.path());
+        let manifest_path = manifest_path_for_home(tmp.path());
+        std::fs::create_dir_all(manifest_path.parent().unwrap()).unwrap();
+        std::fs::write(&manifest_path, "{ truncated").unwrap();
+
+        let err = list_profiles_for_home(tmp.path()).unwrap_err();
+        assert!(err.contains("Failed to parse profiles manifest"));
+        assert!(save_current_as_profile_for_home(tmp.path(), "acct-1", "Account 1").is_err());
+        assert!(clear_active_for_home(tmp.path()).is_err());
+        assert_eq!(
+            std::fs::read_to_string(&manifest_path).unwrap(),
+            "{ truncated"
+        );
     }
 
     #[test]
