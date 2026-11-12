@@ -8,13 +8,12 @@ Welcome! This guide covers the core features available in the app.
 
 ### Global Shortcuts
 
-| Shortcut        | Mac          | Windows/Linux | Action                |
-| --------------- | ------------ | ------------- | --------------------- |
-| Command Palette | Cmd+K        | Ctrl+K        | Open command palette  |
-| Preferences     | Cmd+,        | Ctrl+,        | Open preferences      |
-| Quick Pane      | Configurable | Configurable  | Open quick entry pane |
-| Left Sidebar    | Cmd+1        | Ctrl+1        | Toggle left sidebar   |
-| Right Sidebar   | Cmd+2        | Ctrl+2        | Toggle right sidebar  |
+| Shortcut        | Mac   | Windows/Linux | Action               |
+| --------------- | ----- | ------------- | -------------------- |
+| Command Palette | Cmd+K | Ctrl+K        | Open command palette |
+| Preferences     | Cmd+, | Ctrl+,        | Open preferences     |
+| Left Sidebar    | Cmd+1 | Ctrl+1        | Toggle left sidebar  |
+| Right Sidebar   | Cmd+2 | Ctrl+2        | Toggle right sidebar |
 
 ## Core Features
 
@@ -22,19 +21,12 @@ Welcome! This guide covers the core features available in the app.
 
 Press **Cmd+K** to open the command palette - a quick way to find and run any action. Start typing to search through available commands.
 
-### Quick Pane
-
-The Quick Pane is a small floating window that can be summoned with a global keyboard shortcut, even when the app is in the background. Use it for quick data entry or actions without switching to the main window.
-
-Configure the Quick Pane shortcut in **Preferences → Keyboard Shortcuts**.
-
 ### Preferences
 
 Press **Cmd+,** to open preferences:
 
 - **Theme**: Light, Dark, or System
 - **Language**: Select your preferred language
-- **Keyboard Shortcuts**: Customize the Quick Pane shortcut
 - **Paths**: [Configure custom paths](./config-paths.md) for Droid/Factory, OpenCode, and Codex
 
 ### Native Menus
