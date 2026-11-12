@@ -1,6 +1,24 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+/// Resolve `path` and require it to live inside `root`.
+///
+/// Both sides are canonicalized first, so `..` segments and symlinks cannot be
+/// used to point a destructive operation (e.g. deleting a session) at a file
+/// outside the directory it is supposed to be confined to.
+pub fn canonicalize_within(root: &Path, path: &Path) -> Result<std::path::PathBuf, String> {
+    let root = root
+        .canonicalize()
+        .map_err(|e| format!("Directory not found: {e}"))?;
+    let resolved = path
+        .canonicalize()
+        .map_err(|e| format!("File not found: {e}"))?;
+    if !resolved.starts_with(&root) {
+        return Err("File not found inside the expected directory".to_string());
+    }
+    Ok(resolved)
+}
+
 /// Replace `path` atomically.
 ///
 /// Writes a sibling temporary file with a unique suffix, then renames it over

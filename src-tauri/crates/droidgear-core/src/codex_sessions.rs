@@ -863,10 +863,14 @@ pub fn get_codex_session_detail(session_path: &str) -> Result<CodexSessionDetail
 
 pub fn delete_codex_session_for_home(home_dir: &Path, session_path: &str) -> Result<(), String> {
     let sessions_dir = codex_sessions_dir_for_home(home_dir)?;
-    let jsonl_path = PathBuf::from(session_path);
-
     // Safety guard: only delete files inside the codex sessions directory.
-    if !jsonl_path.starts_with(&sessions_dir) || !jsonl_path.exists() {
+    // Canonicalize both sides so `..` segments and symlinks cannot escape it.
+    let sessions_dir = sessions_dir
+        .canonicalize()
+        .map_err(|_| "Session file not found".to_string())?;
+    let jsonl_path = crate::storage::canonicalize_within(&sessions_dir, Path::new(session_path))
+        .map_err(|_| "Session file not found".to_string())?;
+    if !jsonl_path.is_file() {
         return Err("Session file not found".to_string());
     }
 
@@ -1096,6 +1100,20 @@ mod tests {
 
         let err =
             delete_codex_session_for_home(&fixture.home, &outside.to_string_lossy()).unwrap_err();
+        assert!(err.contains("not found"));
+        assert!(outside.exists());
+    }
+
+    #[test]
+    fn delete_rejects_parent_dir_traversal_out_of_sessions_dir() {
+        let fixture = Fixture::new(FULL_SESSION);
+        let outside = fixture.home.join(".codex/config.toml");
+        fs::write(&outside, "x").unwrap();
+        // Lexically starts with the sessions dir, but resolves outside it.
+        let sneaky = fixture.home.join(".codex/sessions/../config.toml");
+
+        let err =
+            delete_codex_session_for_home(&fixture.home, &sneaky.to_string_lossy()).unwrap_err();
         assert!(err.contains("not found"));
         assert!(outside.exists());
     }

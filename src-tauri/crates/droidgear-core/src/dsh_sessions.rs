@@ -739,10 +739,14 @@ pub fn get_dsh_session_detail(session_path: &str) -> Result<DshSessionDetail, St
 
 pub fn delete_dsh_session_for_home(home_dir: &Path, session_path: &str) -> Result<(), String> {
     let sessions_dir = dsh_sessions_dir_for_home(home_dir);
-    let log_path = PathBuf::from(session_path);
-
     // Safety guard: only delete logs inside the Dsh sessions directory.
-    if !log_path.starts_with(&sessions_dir) || !log_path.is_file() {
+    // Canonicalize both sides so `..` segments and symlinks cannot escape it.
+    let sessions_dir = sessions_dir
+        .canonicalize()
+        .map_err(|_| "Dsh session file not found".to_string())?;
+    let log_path = crate::storage::canonicalize_within(&sessions_dir, Path::new(session_path))
+        .map_err(|_| "Dsh session file not found".to_string())?;
+    if !log_path.is_file() {
         return Err("Dsh session file not found".to_string());
     }
 
@@ -1035,6 +1039,23 @@ mod tests {
         assert!(!fixture.session_dir.exists());
         assert!(!project_dir.exists());
         assert!(fixture.home.join(".dsh/sessions").exists());
+    }
+
+    #[test]
+    fn delete_rejects_parent_dir_traversal_out_of_sessions_dir() {
+        let fixture = Fixture::raw(FULL_SESSION);
+        // <home>/.dsh/other/proj/sess/log.jsonl, reached through `sessions/..`.
+        let victim_dir = fixture.home.join(".dsh/other/proj/sess");
+        fs::create_dir_all(&victim_dir).unwrap();
+        fs::write(victim_dir.join("log.jsonl"), "x").unwrap();
+        let sneaky = fixture
+            .home
+            .join(".dsh/sessions/../other/proj/sess/log.jsonl");
+
+        let err =
+            delete_dsh_session_for_home(&fixture.home, &sneaky.to_string_lossy()).unwrap_err();
+        assert!(err.contains("not found"));
+        assert!(victim_dir.join("log.jsonl").exists());
     }
 
     #[test]

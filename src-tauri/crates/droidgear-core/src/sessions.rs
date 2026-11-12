@@ -442,13 +442,18 @@ pub fn get_session_detail(session_path: &str) -> Result<SessionDetail, String> {
     get_session_detail_for_home(&_home_dir, session_path)
 }
 
-pub fn delete_session(session_path: &str) -> Result<(), String> {
-    let jsonl_path = PathBuf::from(format!("{session_path}.jsonl"));
-    let settings_path = PathBuf::from(format!("{session_path}.settings.json"));
-
-    if !jsonl_path.exists() {
+pub fn delete_session_for_home(home_dir: &Path, session_path: &str) -> Result<(), String> {
+    let sessions_dir = sessions_dir_for_home(home_dir)?;
+    // Safety guard: only delete files inside the Droid sessions directory.
+    let jsonl_path = crate::storage::canonicalize_within(
+        &sessions_dir,
+        Path::new(&format!("{session_path}.jsonl")),
+    )
+    .map_err(|_| "Session file not found".to_string())?;
+    if !jsonl_path.is_file() {
         return Err("Session file not found".to_string());
     }
+    let settings_path = jsonl_path.with_extension("settings.json");
 
     fs::remove_file(&jsonl_path).map_err(|e| format!("Failed to delete session: {e}"))?;
     if settings_path.exists() {
@@ -456,4 +461,49 @@ pub fn delete_session(session_path: &str) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+pub fn delete_session(session_path: &str) -> Result<(), String> {
+    delete_session_for_home(&system_home_dir()?, session_path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn write_session(home: &Path, id: &str) -> PathBuf {
+        let dir = home.join(".factory/sessions/-work-repo");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join(format!("{id}.jsonl")), "{}\n").unwrap();
+        fs::write(dir.join(format!("{id}.settings.json")), "{}").unwrap();
+        dir.join(id)
+    }
+
+    #[test]
+    fn delete_removes_session_and_settings_files() {
+        let temp = TempDir::new().unwrap();
+        let base = write_session(temp.path(), "abc");
+
+        delete_session_for_home(temp.path(), &base.to_string_lossy()).unwrap();
+
+        assert!(!base.with_extension("jsonl").exists());
+        assert!(!base.with_extension("settings.json").exists());
+    }
+
+    #[test]
+    fn delete_rejects_paths_outside_sessions_dir() {
+        let temp = TempDir::new().unwrap();
+        write_session(temp.path(), "abc");
+        let outside = temp.path().join("notes.jsonl");
+        fs::write(&outside, "x").unwrap();
+
+        let direct = temp.path().join("notes");
+        let traversal = temp.path().join(".factory/sessions/../../notes");
+        for path in [direct, traversal] {
+            let err = delete_session_for_home(temp.path(), &path.to_string_lossy()).unwrap_err();
+            assert!(err.contains("not found"));
+        }
+        assert!(outside.exists());
+    }
 }
