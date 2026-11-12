@@ -3997,7 +3997,7 @@ export type PiProfile = { id: string; name: string; description?: string | null;
 /**
  * Pi provider configuration
  */
-export type PiProviderConfig = { name?: string | null; baseUrl?: string | null; api?: string | null; apiKey?: string | null; oauth?: string | null; headers?: Partial<{ [key in string]: string }> | null; authHeader?: boolean | null; models: PiModel[]; modelOverrides?: Partial<{ [key in string]: PiModelOverride }> | null; compat?: PiCompatConfig | null }
+export type PiProviderConfig = { name?: string | null; baseUrl?: string | null; api?: string | null; apiKey?: string | null; oauth?: string | null; headers?: Partial<{ [key in string]: string }> | null; authHeader?: boolean | null; models?: PiModel[]; modelOverrides?: Partial<{ [key in string]: PiModelOverride }> | null; compat?: PiCompatConfig | null }
 /**
  * Result of validating a provider through Pi's own CLI runtime.
  */

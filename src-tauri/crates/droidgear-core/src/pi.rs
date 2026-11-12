@@ -278,7 +278,12 @@ pub struct PiProviderConfig {
     pub headers: Option<HashMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auth_header: Option<bool>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    // Always serialize `models`, even when empty. Older profiles and Pi's own
+    // models.json may omit the key for providers that rely on built-in models;
+    // deserialization already defaults it to an empty list. Keeping it in the
+    // payload guarantees the frontend always receives an array (the TS binding
+    // is derived from this struct), so consumers can't trip over `undefined`.
+    #[serde(default)]
     pub models: Vec<PiModel>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_overrides: Option<HashMap<String, PiModelOverride>>,
@@ -1446,6 +1451,24 @@ printf 'OK\n'
         assert!(json.contains("\"baseUrl\": \"http://localhost:11434/v1\""));
         assert!(json.contains("\"apiKey\": \"ollama\""));
         assert!(json.contains("\"authHeader\": false"));
+        // The frontend binding declares `models` as an array, so it must never
+        // be omitted even when the provider has no custom models.
+        assert!(json.contains("\"models\": []"));
+    }
+
+    #[test]
+    fn test_provider_without_models_deserializes_to_empty_list() {
+        let provider: PiProviderConfig = serde_json::from_value(serde_json::json!({
+            "baseUrl": "https://api.example.com",
+            "api": "openai-responses",
+            "apiKey": "sk-test"
+        }))
+        .unwrap();
+
+        assert!(provider.models.is_empty());
+        // Re-serializing normalizes the legacy payload for the frontend.
+        let json = serde_json::to_value(&provider).unwrap();
+        assert_eq!(json["models"], serde_json::json!([]));
     }
 
     #[test]

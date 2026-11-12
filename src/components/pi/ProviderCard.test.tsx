@@ -77,26 +77,62 @@ describe('Pi ProviderCard', () => {
     expect(tooltip).toHaveTextContent('Response: OK')
   })
 
-  it('disables testing until the provider has a model', () => {
+  it.each([
+    { name: 'missing provider configuration', config: undefined },
+    { name: 'empty provider configuration', config: {} },
+    {
+      name: 'API key without models',
+      config: { apiKey: 'sk-test' },
+    },
+    {
+      name: 'OAuth without models',
+      config: { oauth: 'radius' },
+    },
+    {
+      name: 'built-in model overrides without custom models',
+      config: {
+        modelOverrides: { 'built-in-model': { contextWindow: 64000 } },
+      },
+    },
+    { name: 'empty model list', config: { ...providerConfig, models: [] } },
+    {
+      name: 'blank model IDs',
+      config: { ...providerConfig, models: [{ id: '  ' }] },
+    },
+  ])('renders safely and disables testing for $name', async ({ config }) => {
+    const user = userEvent.setup()
+    const onEdit = vi.fn()
+    const onDelete = vi.fn()
+
     render(
       <ProviderCard
         providerId="empty-provider"
-        config={{ ...providerConfig, models: [] }}
-        onEdit={() => undefined}
-        onDelete={() => undefined}
+        config={config}
+        onEdit={onEdit}
+        onDelete={onDelete}
       />
     )
 
-    expect(
-      screen.getByRole('button', { name: 'Test Connection' })
-    ).toBeDisabled()
+    expect(screen.getByText('empty-provider')).toBeInTheDocument()
+    const testButton = screen.getByRole('button', { name: 'Test Connection' })
+    expect(testButton).toBeDisabled()
+    await user.click(testButton)
+    expect(commandMocks.testPiProviderConnection).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(onEdit).toHaveBeenCalledOnce()
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(onDelete).toHaveBeenCalledOnce()
   })
 
-  it('disables testing when every model ID is blank', () => {
+  it('enables testing when a valid model follows a blank model ID', () => {
     render(
       <ProviderCard
-        providerId="empty-provider"
-        config={{ ...providerConfig, models: [{ id: '  ' }] }}
+        providerId="test-provider"
+        config={{
+          ...providerConfig,
+          models: [{ id: '  ' }, { id: 'test-model' }],
+        }}
         onEdit={() => undefined}
         onDelete={() => undefined}
       />
@@ -104,6 +140,6 @@ describe('Pi ProviderCard', () => {
 
     expect(
       screen.getByRole('button', { name: 'Test Connection' })
-    ).toBeDisabled()
+    ).toBeEnabled()
   })
 })
