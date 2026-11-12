@@ -43,9 +43,8 @@ export function ProviderCard({
   const [testError, setTestError] = useState<string | null>(null)
 
   const hasApiKey = config?.apiKey && config.apiKey.length > 0
-  const canTest = Boolean(
-    config?.models.some(model => model.id.trim().length > 0)
-  )
+  const models = config?.models ?? []
+  const canTest = Boolean(models.some(model => model.id.trim().length > 0))
 
   const handleTestConnection = async () => {
     if (!config || !canTest || isTesting) return
@@ -101,10 +100,10 @@ export function ProviderCard({
         </div>
         <div className="text-sm text-muted-foreground mt-1 space-y-0.5">
           {config?.baseUrl && <div className="truncate">{config.baseUrl}</div>}
-          {config?.models && config.models.length > 0 && (
+          {models.length > 0 && (
             <div className="text-xs">
               {t('pi.providers.modelsCount', {
-                count: config.models.length,
+                count: models.length,
               })}
             </div>
           )}
