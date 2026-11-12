@@ -221,10 +221,6 @@ pub(crate) fn system_home_dir() -> Result<PathBuf, String> {
     dirs::home_dir().ok_or_else(|| "Failed to get home directory".to_string())
 }
 
-pub fn dsh_settings_path() -> Result<PathBuf, String> {
-    Ok(dsh_settings_path_for_home(&system_home_dir()?))
-}
-
 fn validate_provider_id(id: &str) -> Result<(), String> {
     let ok = id
         .chars()
@@ -1025,10 +1021,6 @@ pub fn get_dsh_config_status_for_profile(
 /// `~/.dsh/.credentials.yaml`
 pub fn dsh_credentials_path_for_home(home_dir: &Path) -> PathBuf {
     dsh_config_dir_for_home(home_dir).join(".credentials.yaml")
-}
-
-pub fn dsh_credentials_path() -> Result<PathBuf, String> {
-    Ok(dsh_credentials_path_for_home(&system_home_dir()?))
 }
 
 /// The credentials document layout understood by this build (mirrors DSH).

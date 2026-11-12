@@ -1204,10 +1204,6 @@ pub fn get_codex_profile(id: &str) -> Result<CodexProfile, String> {
     get_codex_profile_for_home(&system_home_dir()?, id)
 }
 
-pub fn resolve_codex_profile_selector(selector: &str) -> Result<CodexProfile, String> {
-    resolve_codex_profile_selector_for_home(&system_home_dir()?, selector)
-}
-
 pub fn save_codex_profile(profile: CodexProfile) -> Result<(), String> {
     save_codex_profile_for_home(&system_home_dir()?, profile)
 }
@@ -1230,10 +1226,6 @@ pub fn get_active_codex_profile_id() -> Result<Option<String>, String> {
 
 pub fn apply_codex_profile(id: &str) -> Result<(), String> {
     apply_codex_profile_for_home(&system_home_dir()?, id)
-}
-
-pub fn apply_codex_profile_config_only(id: &str) -> Result<(), String> {
-    apply_codex_profile_config_only_for_home(&system_home_dir()?, id)
 }
 
 pub fn get_codex_config_status() -> Result<CodexConfigStatus, String> {

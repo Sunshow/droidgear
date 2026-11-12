@@ -285,11 +285,6 @@ fn schema() -> &'static SchemaDoc {
     })
 }
 
-/// DSH version the embedded schema was generated from.
-pub fn dsh_schema_version() -> &'static str {
-    &schema().dsh_version
-}
-
 // ============================================================================
 // Composition
 // ============================================================================

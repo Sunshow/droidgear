@@ -654,10 +654,6 @@ pub fn detect_apply_auth_conflict(codex_profile_id: &str) -> Result<CodexAuthCon
     detect_apply_auth_conflict_for_home(&system_home_dir()?, codex_profile_id)
 }
 
-pub fn clear_active() -> Result<(), String> {
-    clear_active_for_home(&system_home_dir()?)
-}
-
 // ============================================================================
 // Tests
 // ============================================================================

@@ -781,14 +781,6 @@ pub fn active_profile_path() -> Result<PathBuf, String> {
     active_profile_path_for_home(&system_home_dir()?)
 }
 
-pub fn pi_config_dir() -> Result<PathBuf, String> {
-    pi_config_dir_for_home(&system_home_dir()?)
-}
-
-pub fn pi_config_path() -> Result<PathBuf, String> {
-    pi_config_path_for_home(&system_home_dir()?)
-}
-
 pub fn profile_path(id: &str) -> Result<PathBuf, String> {
     profile_path_for_home(&system_home_dir()?, id)
 }

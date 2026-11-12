@@ -25,17 +25,3 @@ pub fn write_json_object_file(path: &Path, obj: &HashMap<String, Value>) -> Resu
         serde_json::to_string_pretty(&v).map_err(|e| format!("Failed to serialize JSON: {e}"))?;
     storage::atomic_write(path, s.as_bytes())
 }
-
-pub fn read_json_value_file_or_empty_object(path: &Path) -> Value {
-    if !path.exists() {
-        return serde_json::json!({});
-    }
-    let s = match std::fs::read_to_string(path) {
-        Ok(s) => s,
-        Err(_) => return serde_json::json!({}),
-    };
-    if s.trim().is_empty() {
-        return serde_json::json!({});
-    }
-    serde_json::from_str(&s).unwrap_or(serde_json::json!({}))
-}
