@@ -644,22 +644,6 @@ fn build_temporary_run_preview_plan_for_home_with_env(
     })
 }
 
-pub fn build_temporary_run_debug_preview_for_home(
-    home_dir: &Path,
-    profile: &claude::ClaudeCodeProfile,
-    launcher_program: &str,
-    launcher_args: &[String],
-) -> Result<ClaudeTemporaryRunDebugPreview, String> {
-    let process_env: HashMap<String, String> = std::env::vars().collect();
-    build_temporary_run_debug_preview_for_home_with_env(
-        home_dir,
-        profile,
-        &process_env,
-        launcher_program,
-        launcher_args,
-    )
-}
-
 fn build_temporary_run_debug_preview_for_home_with_env(
     home_dir: &Path,
     profile: &claude::ClaudeCodeProfile,

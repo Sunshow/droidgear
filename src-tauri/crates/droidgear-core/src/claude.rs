@@ -197,14 +197,6 @@ pub fn active_profile_path() -> Result<PathBuf, String> {
     active_profile_path_for_home(&system_home_dir()?)
 }
 
-pub fn claude_config_dir() -> Result<PathBuf, String> {
-    claude_config_dir_for_home(&system_home_dir()?)
-}
-
-pub fn claude_settings_path() -> Result<PathBuf, String> {
-    claude_settings_path_for_home(&system_home_dir()?)
-}
-
 pub fn profile_path(id: &str) -> Result<PathBuf, String> {
     profile_path_for_home(&system_home_dir()?, id)
 }
@@ -784,10 +776,6 @@ pub fn list_claude_profiles() -> Result<Vec<ClaudeCodeProfile>, String> {
 
 pub fn get_claude_profile(id: &str) -> Result<ClaudeCodeProfile, String> {
     get_claude_profile_for_home(&system_home_dir()?, id)
-}
-
-pub fn resolve_claude_profile_selector(selector: &str) -> Result<ClaudeCodeProfile, String> {
-    resolve_claude_profile_selector_for_home(&system_home_dir()?, selector)
 }
 
 pub fn save_claude_profile(profile: ClaudeCodeProfile) -> Result<(), String> {

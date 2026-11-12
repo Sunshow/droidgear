@@ -38,10 +38,6 @@ pub mod specs;
 pub mod storage;
 pub mod trusted_folders;
 
-pub fn core_version() -> &'static str {
-    env!("CARGO_PKG_VERSION")
-}
-
 /// Helpers shared by this crate's unit tests.
 #[cfg(test)]
 pub(crate) mod test_support {

@@ -648,10 +648,6 @@ pub fn get_copilot_profile(id: &str) -> Result<CopilotProfile, String> {
     get_copilot_profile_for_home(&system_home_dir()?, id)
 }
 
-pub fn resolve_copilot_profile_selector(selector: &str) -> Result<CopilotProfile, String> {
-    resolve_copilot_profile_selector_for_home(&system_home_dir()?, selector)
-}
-
 pub fn save_copilot_profile(profile: CopilotProfile) -> Result<(), String> {
     save_copilot_profile_for_home(&system_home_dir()?, profile)
 }
