@@ -137,6 +137,11 @@ const ChannelDetail = lazy(() =>
     default: m.ChannelDetail,
   }))
 )
+const VideoPlaygroundPage = lazy(() =>
+  import('@/components/playground/video/VideoPlaygroundPage').then(m => ({
+    default: m.VideoPlaygroundPage,
+  }))
+)
 const ExportTemplatesPage = lazy(() =>
   import('@/components/export/ExportTemplatesPage').then(m => ({
     default: m.ExportTemplatesPage,
@@ -291,6 +296,10 @@ export function MainWindowContent({
           {openclawSubView === 'helpers' && <OpenClawHelpersPage />}
         </>
       )
+    }
+
+    if (currentView === 'playground') {
+      return <VideoPlaygroundPage />
     }
 
     // Channels view
