@@ -13,6 +13,7 @@ type NavigationView =
   | 'omp'
   | 'copilot'
   | 'dsh'
+  | 'playground'
 type ToolView =
   | 'droid'
   | 'opencode'
