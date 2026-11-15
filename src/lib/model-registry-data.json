@@ -88,6 +88,30 @@
     }
   },
   {
+    "id": "claude-fable-5-2",
+    "name": "Claude Fable 5.2",
+    "aliases": ["claude-fable-5.2"],
+    "platform": "anthropic-messages",
+    "reasoning": true,
+    "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh",
+      "max": "max"
+    },
+    "contextWindow": 1000000,
+    "maxOutputTokens": 128000,
+    "strictSampling": true,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-adaptive",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
     "id": "claude-haiku-4-5",
     "name": "Claude Haiku 4.5",
     "aliases": ["claude-haiku-4.5"],
@@ -1209,6 +1233,49 @@
     }
   },
   {
+    "id": "gemini-4-carbon",
+    "name": "Gemini 4 Carbon",
+    "aliases": [],
+    "platform": "gemini",
+    "reasoning": true,
+    "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null
+    },
+    "contextWindow": 1048576,
+    "maxOutputTokens": 65536,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
+    "id": "gemini-4-hydrogen",
+    "name": "Gemini 4 Hydrogen",
+    "aliases": [],
+    "platform": "gemini",
+    "reasoning": true,
+    "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh"
+    },
+    "contextWindow": 1048576,
+    "maxOutputTokens": 65536,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
     "id": "glm-4.5",
     "name": "GLM 4.5",
     "aliases": [],
@@ -2092,6 +2159,29 @@
     "strictSampling": true
   },
   {
+    "id": "gpt-6.1-terra",
+    "name": "GPT-6.1 Terra",
+    "aliases": [],
+    "platform": "openai-responses",
+    "reasoning": true,
+    "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh",
+      "max": "max"
+    },
+    "contextWindow": 1050000,
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
     "id": "gpt-oss-120b",
     "name": "GPT OSS 120B",
     "aliases": [],
@@ -2342,6 +2432,30 @@
     }
   },
   {
+    "id": "kimi-k3.1-pro",
+    "name": "Kimi K3.1 Pro",
+    "aliases": [],
+    "platform": "openai-completions",
+    "reasoning": true,
+    "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "medium": null,
+      "max": "max"
+    },
+    "contextWindow": 1048576,
+    "maxOutputTokens": 1048576,
+    "strictSampling": true,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "high", "max"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
     "id": "mimo-v2-flash",
     "name": "MiMo V2 Flash",
     "aliases": [],
@@ -2565,6 +2679,29 @@
     "maxOutputTokens": 131072,
     "reasoningConfig": {
       "efforts": ["none", "low", "medium", "high"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    }
+  },
+  {
+    "id": "minimax-m3.1-flash",
+    "name": "MiniMax M3.1 Flash",
+    "aliases": [],
+    "platform": "openai-completions",
+    "reasoning": true,
+    "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh",
+      "max": "max"
+    },
+    "contextWindow": 1000000,
+    "maxOutputTokens": 524288,
+    "reasoningConfig": {
+      "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
       "profiles": {
         "anthropic": "anthropic-output-config",
         "openai": "openai-reasoning",

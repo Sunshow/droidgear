@@ -220,6 +220,48 @@ describe('getSupportedEfforts', () => {
     ])
   })
 
+  it('returns gemini-4-hydrogen efforts with xhigh but no max', () => {
+    expect(getSupportedEfforts('gemini-4-hydrogen', 'openai')).toEqual([
+      'none',
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+    ])
+    expect(getSupportedEfforts('gemini-4-carbon', 'openai')).toEqual([
+      'none',
+      'low',
+      'medium',
+      'high',
+    ])
+  })
+
+  it('returns the GPT-6.1 Terra, Kimi K3.1 Pro and MiniMax M3.1 Flash efforts', () => {
+    expect(getSupportedEfforts('gpt-6.1-terra', 'openai')).toEqual([
+      'none',
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+      'max',
+    ])
+    // Kimi K3.1 Pro skips medium
+    expect(getSupportedEfforts('kimi-k3.1-pro', 'openai')).toEqual([
+      'none',
+      'low',
+      'high',
+      'max',
+    ])
+    expect(getSupportedEfforts('minimax-m3.1-flash', 'openai')).toEqual([
+      'none',
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+      'max',
+    ])
+  })
+
   it('returns gpt-6-astra full effort list with max', () => {
     expect(getSupportedEfforts('gpt-6-astra', 'openai')).toEqual([
       'low',
