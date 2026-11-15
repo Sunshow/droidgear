@@ -1,14 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Plus } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from '@/components/ui/resizable'
-import { usePlaygroundStore } from '@/store/playground-store'
+import {
+  usePlaygroundStore,
+  type VideoModelDraft,
+} from '@/store/playground-store'
 import { VideoCreatePanel } from './VideoCreatePanel'
 import { VideoModelDialog } from './VideoModelDialog'
 import { VideoModelManagerDialog } from './VideoModelManagerDialog'
@@ -19,19 +21,26 @@ export function VideoPlaygroundPage() {
   const { t } = useTranslation()
   const [addOpen, setAddOpen] = useState(false)
   const [manageOpen, setManageOpen] = useState(false)
+  const loadVideoModels = usePlaygroundStore(state => state.loadVideoModels)
+  const loadVideoTasks = usePlaygroundStore(state => state.loadVideoTasks)
+  const videoModelsLoaded = usePlaygroundStore(state => state.videoModelsLoaded)
+  const videoTasksLoaded = usePlaygroundStore(state => state.videoTasksLoaded)
+
+  useEffect(() => {
+    if (!videoModelsLoaded) void loadVideoModels()
+    if (!videoTasksLoaded) void loadVideoTasks()
+  }, [videoModelsLoaded, videoTasksLoaded, loadVideoModels, loadVideoTasks])
+
+  const handleSave = (draft: VideoModelDraft) =>
+    usePlaygroundStore.getState().addVideoModel(draft)
 
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between gap-2 border-b p-4">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold">
-              {t('playground.video.title')}
-            </h1>
-            <Badge variant="outline" className="text-amber-600">
-              {t('playground.demoBadge')}
-            </Badge>
-          </div>
+          <h1 className="text-xl font-semibold">
+            {t('playground.video.title')}
+          </h1>
           <p className="text-sm text-muted-foreground">
             {t('playground.video.description')}
           </p>
@@ -66,7 +75,10 @@ export function VideoPlaygroundPage() {
       <VideoModelDialog
         open={addOpen}
         onOpenChange={setAddOpen}
-        onSave={draft => usePlaygroundStore.getState().addVideoModel(draft)}
+        onSave={handleSave}
+        onSaveMany={drafts =>
+          usePlaygroundStore.getState().addVideoModels(drafts)
+        }
       />
       <VideoModelManagerDialog open={manageOpen} onOpenChange={setManageOpen} />
     </div>

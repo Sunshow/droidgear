@@ -1,114 +1,312 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  commands,
+  type VideoModel,
+  type VideoTaskSnapshot,
+} from '@/lib/bindings'
 import { usePlaygroundStore } from './playground-store'
 
+vi.mock('@/lib/bindings', () => ({
+  commands: {
+    loadVideoModels: vi.fn(),
+    saveVideoModels: vi.fn(),
+    loadVideoTasks: vi.fn(),
+    saveVideoTasks: vi.fn(),
+    createVideoTask: vi.fn(),
+    queryVideoTask: vi.fn(),
+  },
+}))
+
+vi.mock('sonner', () => ({
+  toast: { error: vi.fn(), success: vi.fn() },
+}))
+
 const initialState = usePlaygroundStore.getState()
+
+const model: VideoModel = {
+  id: 'vm_1',
+  name: 'Seedance',
+  modelId: 'doubao-seedance-2-0-mini-260615',
+  source: { kind: 'channel', channelId: 'ch_1', tokenId: 3 },
+  protocol: 'doubao',
+  durations: [5, 10],
+  resolutions: ['720p', '1080p'],
+  supportsImageInput: true,
+}
 
 const params = {
   prompt: 'a cat',
   duration: '5',
-  resolution: '1280x720',
+  resolution: '720p',
   imageUrl: '',
   extraJson: '',
 }
 
-async function refresh(taskId?: string) {
-  const pending = usePlaygroundStore.getState().refreshVideoTasks(taskId)
-  await vi.runAllTimersAsync()
-  await pending
+function snapshot(
+  overrides: Partial<VideoTaskSnapshot> = {}
+): VideoTaskSnapshot {
+  return {
+    id: 'task_1',
+    status: 'queued',
+    progress: 0,
+    videoUrl: null,
+    localPath: null,
+    error: null,
+    completedAt: null,
+    ...overrides,
+  }
 }
 
-describe('playground store (demo)', () => {
+const loadVideoModels = vi.mocked(commands.loadVideoModels)
+const saveVideoModels = vi.mocked(commands.saveVideoModels)
+const loadVideoTasks = vi.mocked(commands.loadVideoTasks)
+const saveVideoTasks = vi.mocked(commands.saveVideoTasks)
+const createVideoTask = vi.mocked(commands.createVideoTask)
+const queryVideoTask = vi.mocked(commands.queryVideoTask)
+
+async function seedModel() {
+  loadVideoModels.mockResolvedValue({ status: 'ok', data: [model] })
+  await usePlaygroundStore.getState().loadVideoModels()
+}
+
+describe('playground store', () => {
   beforeEach(() => {
-    vi.useFakeTimers()
+    vi.clearAllMocks()
     usePlaygroundStore.setState(initialState, true)
+    saveVideoModels.mockResolvedValue({ status: 'ok', data: null })
+    loadVideoModels.mockResolvedValue({ status: 'ok', data: [] })
+    saveVideoTasks.mockResolvedValue({ status: 'ok', data: null })
+    loadVideoTasks.mockResolvedValue({ status: 'ok', data: [] })
   })
 
-  afterEach(() => {
-    vi.useRealTimers()
+  it('loads persisted models and selects the first one', async () => {
+    await seedModel()
+
+    const state = usePlaygroundStore.getState()
+    expect(state.videoModels).toEqual([model])
+    expect(state.videoModelsLoaded).toBe(true)
+    expect(state.videoDraft.modelId).toBe('vm_1')
   })
 
-  it('adds a model and selects it in the create form', () => {
-    const model = usePlaygroundStore.getState().addVideoModel({
+  it('loads persisted tasks and selects the first one', async () => {
+    const persisted = {
+      ...snapshot({ id: 'task_persisted', status: 'completed' }),
+      modelId: 'vm_1',
+      modelName: 'Seedance',
+      model,
+      params,
+      createdAt: 1_700_000_000_000,
+      videoUrl: 'https://cdn.example/video.mp4',
+    }
+    loadVideoTasks.mockResolvedValue({ status: 'ok', data: [persisted] })
+
+    await usePlaygroundStore.getState().loadVideoTasks()
+
+    const state = usePlaygroundStore.getState()
+    expect(state.videoTasks).toEqual([persisted])
+    expect(state.videoTasksLoaded).toBe(true)
+    expect(state.selectedVideoTaskId).toBe('task_persisted')
+  })
+
+  it('adds a model, persists it, and selects it in the create form', async () => {
+    const created = await usePlaygroundStore.getState().addVideoModel({
       name: 'Test',
       modelId: 'test-video',
-      source: { kind: 'custom', baseUrl: 'https://x', apiKey: '' },
+      source: { kind: 'custom', baseUrl: 'https://x', apiKey: 'sk-x' },
+      protocol: 'new-api-videos',
       durations: [5],
       resolutions: [],
       supportsImageInput: false,
     })
 
-    const state = usePlaygroundStore.getState()
-    expect(state.videoModels.at(-1)?.id).toBe(model.id)
-    expect(state.videoDraft.modelId).toBe(model.id)
+    expect(created?.id).toBeTruthy()
+    expect(saveVideoModels).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: created?.id,
+        modelId: 'test-video',
+        protocol: 'new-api-videos',
+      }),
+    ])
+    expect(usePlaygroundStore.getState().videoDraft.modelId).toBe(created?.id)
   })
 
-  it('creates a queued task at the top of the list and selects it', () => {
-    const id = usePlaygroundStore
-      .getState()
-      .createVideoTask('demo-kling', params)
+  it('rolls back an added model when persistence fails', async () => {
+    saveVideoModels.mockResolvedValue({ status: 'error', error: 'disk full' })
 
-    const state = usePlaygroundStore.getState()
-    expect(state.videoTasks[0]).toMatchObject({
-      id,
-      status: 'queued',
-      modelName: 'Kling v2',
+    const created = await usePlaygroundStore.getState().addVideoModel({
+      name: 'Test',
+      modelId: 'test-video',
+      source: { kind: 'custom', baseUrl: 'https://x', apiKey: '' },
+      protocol: 'doubao',
+      durations: [],
+      resolutions: [],
+      supportsImageInput: false,
     })
-    expect(state.selectedVideoTaskId).toBe(id)
+
+    expect(created).toBeNull()
+    expect(usePlaygroundStore.getState().videoModels).toEqual([])
   })
 
-  it('advances a task to completed with a playable URL after refreshes', async () => {
-    const id = usePlaygroundStore
-      .getState()
-      .createVideoTask('demo-kling', params)
+  it('creates a task through the backend and selects it', async () => {
+    await seedModel()
+    createVideoTask.mockResolvedValue({
+      status: 'ok',
+      data: snapshot({ id: 'task_1' }),
+    })
 
-    for (let i = 0; i < 10; i++) await refresh(id)
+    const taskId = await usePlaygroundStore
+      .getState()
+      .createVideoTask('vm_1', params)
+
+    expect(taskId).toBe('task_1')
+    expect(createVideoTask).toHaveBeenCalledWith(
+      model,
+      'a cat',
+      5,
+      '720p',
+      null,
+      ''
+    )
+    const task = usePlaygroundStore
+      .getState()
+      .videoTasks.find(item => item.id === 'task_1')
+    expect(task).toMatchObject({
+      status: 'queued',
+      modelName: 'Seedance',
+    })
+    expect(usePlaygroundStore.getState().selectedVideoTaskId).toBe('task_1')
+    expect(saveVideoTasks).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 'task_1', status: 'queued' }),
+    ])
+  })
+
+  it('does not insert a task when the backend rejects the request', async () => {
+    await seedModel()
+    createVideoTask.mockResolvedValue({
+      status: 'error',
+      error: 'HTTP 400: bad prompt',
+    })
+
+    const taskId = await usePlaygroundStore
+      .getState()
+      .createVideoTask('vm_1', params)
+
+    expect(taskId).toBeNull()
+    expect(usePlaygroundStore.getState().videoTasks).toEqual([])
+  })
+
+  it('applies query results to the task', async () => {
+    await seedModel()
+    createVideoTask.mockResolvedValue({
+      status: 'ok',
+      data: snapshot({ id: 'task_1' }),
+    })
+    await usePlaygroundStore.getState().createVideoTask('vm_1', params)
+
+    queryVideoTask.mockResolvedValue({
+      status: 'ok',
+      data: snapshot({
+        id: 'task_1',
+        status: 'completed',
+        progress: 100,
+        localPath: '/tmp/video.mp4',
+        completedAt: 1_700_000_000_000,
+      }),
+    })
+
+    await usePlaygroundStore.getState().refreshVideoTasks('task_1')
 
     const task = usePlaygroundStore
       .getState()
-      .videoTasks.find(item => item.id === id)
-    expect(task?.status).toBe('completed')
-    expect(task?.progress).toBe(100)
-    expect(task?.videoUrl).toMatch(/\.mp4$/)
+      .videoTasks.find(item => item.id === 'task_1')
+    expect(task).toMatchObject({
+      status: 'completed',
+      progress: 100,
+      localPath: '/tmp/video.mp4',
+      completedAt: 1_700_000_000_000,
+    })
     expect(usePlaygroundStore.getState().lastRefreshedAt).not.toBeNull()
+    expect(saveVideoTasks).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 'task_1', status: 'completed' }),
+    ])
   })
 
-  it('refreshing one task leaves other running tasks untouched', async () => {
-    const first = usePlaygroundStore
-      .getState()
-      .createVideoTask('demo-kling', params)
-    const second = usePlaygroundStore
-      .getState()
-      .createVideoTask('demo-kling', params)
+  it('leaves a task untouched when a query fails', async () => {
+    await seedModel()
+    createVideoTask.mockResolvedValue({
+      status: 'ok',
+      data: snapshot({ id: 'task_1' }),
+    })
+    await usePlaygroundStore.getState().createVideoTask('vm_1', params)
+    queryVideoTask.mockResolvedValue({
+      status: 'error',
+      error: 'network down',
+    })
 
-    await refresh(first)
-
-    const tasks = usePlaygroundStore.getState().videoTasks
-    expect(tasks.find(t => t.id === first)?.status).toBe('in_progress')
-    expect(tasks.find(t => t.id === second)?.status).toBe('queued')
-  })
-
-  it('stops refreshing a cancelled task', async () => {
-    const id = usePlaygroundStore
-      .getState()
-      .createVideoTask('demo-kling', params)
-    usePlaygroundStore.getState().cancelVideoTask(id)
-
-    await refresh()
+    await usePlaygroundStore.getState().refreshVideoTasks('task_1')
 
     const task = usePlaygroundStore
       .getState()
-      .videoTasks.find(item => item.id === id)
+      .videoTasks.find(item => item.id === 'task_1')
+    expect(task?.status).toBe('queued')
+  })
+
+  it('stops polling a cancelled task', async () => {
+    await seedModel()
+    createVideoTask.mockResolvedValue({
+      status: 'ok',
+      data: snapshot({ id: 'task_1' }),
+    })
+    await usePlaygroundStore.getState().createVideoTask('vm_1', params)
+    await usePlaygroundStore.getState().cancelVideoTask('task_1')
+
+    await usePlaygroundStore.getState().refreshVideoTasks()
+
+    expect(queryVideoTask).not.toHaveBeenCalled()
+    const task = usePlaygroundStore
+      .getState()
+      .videoTasks.find(item => item.id === 'task_1')
     expect(task?.status).toBe('cancelled')
   })
 
-  it('clears the selection when the selected task is deleted', () => {
-    const id = usePlaygroundStore
-      .getState()
-      .createVideoTask('demo-kling', params)
-    usePlaygroundStore.getState().deleteVideoTask(id)
+  it('reruns a task after its model was deleted', async () => {
+    await seedModel()
+    createVideoTask.mockResolvedValue({
+      status: 'ok',
+      data: snapshot({ id: 'task_1' }),
+    })
+    await usePlaygroundStore.getState().createVideoTask('vm_1', params)
+    await usePlaygroundStore.getState().deleteVideoModel('vm_1')
+
+    createVideoTask.mockResolvedValue({
+      status: 'ok',
+      data: snapshot({ id: 'task_2' }),
+    })
+    const taskId = await usePlaygroundStore.getState().rerunVideoTask('task_1')
+
+    expect(taskId).toBe('task_2')
+    expect(createVideoTask).toHaveBeenLastCalledWith(
+      model,
+      'a cat',
+      5,
+      '720p',
+      null,
+      ''
+    )
+  })
+
+  it('clears the selection when the selected task is deleted', async () => {
+    await seedModel()
+    createVideoTask.mockResolvedValue({
+      status: 'ok',
+      data: snapshot({ id: 'task_1' }),
+    })
+    await usePlaygroundStore.getState().createVideoTask('vm_1', params)
+
+    await usePlaygroundStore.getState().deleteVideoTask('task_1')
 
     const state = usePlaygroundStore.getState()
-    expect(state.videoTasks.some(task => task.id === id)).toBe(false)
+    expect(state.videoTasks).toEqual([])
     expect(state.selectedVideoTaskId).toBeNull()
   })
 })

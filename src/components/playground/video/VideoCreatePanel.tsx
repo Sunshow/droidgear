@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Plus, Settings2, Sparkles } from 'lucide-react'
+import { Loader2, Plus, Settings2, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
@@ -28,24 +28,33 @@ export function VideoCreatePanel({
 }: VideoCreatePanelProps) {
   const { t } = useTranslation()
   const models = usePlaygroundStore(state => state.videoModels)
+  const modelsLoading = usePlaygroundStore(state => state.videoModelsLoading)
   const draft = usePlaygroundStore(state => state.videoDraft)
   const updateDraft = usePlaygroundStore(state => state.updateVideoDraft)
+  const isCreating = usePlaygroundStore(state => state.isCreating)
 
   const model = models.find(m => m.id === draft.modelId)
   const jsonValid = isJsonObjectOrEmpty(draft.extraJson)
   const canSubmit =
-    model !== undefined && draft.prompt.trim() !== '' && jsonValid
+    model !== undefined &&
+    draft.prompt.trim() !== '' &&
+    jsonValid &&
+    !isCreating
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!model || !canSubmit) return
-    usePlaygroundStore.getState().createVideoTask(model.id, {
-      prompt: draft.prompt.trim(),
-      duration: draft.duration,
-      resolution: draft.resolution,
-      imageUrl: draft.imageUrl.trim(),
-      extraJson: draft.extraJson,
-    })
-    toast.success(t('playground.video.create.submitted'))
+    const taskId = await usePlaygroundStore
+      .getState()
+      .createVideoTask(model.id, {
+        prompt: draft.prompt.trim(),
+        duration: draft.duration,
+        resolution: draft.resolution,
+        imageUrl: draft.imageUrl.trim(),
+        extraJson: draft.extraJson,
+      })
+    if (taskId) {
+      toast.success(t('playground.video.create.submitted'))
+    }
   }
 
   return (
@@ -64,7 +73,12 @@ export function VideoCreatePanel({
               {t('playground.video.manageModels')}
             </Button>
           </div>
-          {models.length === 0 ? (
+          {modelsLoading && models.length === 0 ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              {t('common.loading')}
+            </div>
+          ) : models.length === 0 ? (
             <Button
               variant="outline"
               className="justify-start"
@@ -120,7 +134,7 @@ export function VideoCreatePanel({
             onKeyDown={e => {
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault()
-                handleSubmit()
+                void handleSubmit()
               }
             }}
           />
@@ -222,9 +236,11 @@ export function VideoCreatePanel({
         <span className="text-xs text-muted-foreground">
           {t('playground.video.create.costHint')}
         </span>
-        <Button onClick={handleSubmit} disabled={!canSubmit}>
-          <Sparkles />
-          {t('playground.video.create.submit')}
+        <Button onClick={() => void handleSubmit()} disabled={!canSubmit}>
+          {isCreating ? <Loader2 className="animate-spin" /> : <Sparkles />}
+          {isCreating
+            ? t('playground.video.create.creating')
+            : t('playground.video.create.submit')}
         </Button>
       </div>
     </div>

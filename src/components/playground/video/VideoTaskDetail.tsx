@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { openUrl } from '@tauri-apps/plugin-opener'
+import { convertFileSrc } from '@tauri-apps/api/core'
+import { openPath, openUrl } from '@tauri-apps/plugin-opener'
 import {
   Ban,
   Check,
@@ -36,11 +37,15 @@ function VideoStage({ task }: { task: VideoTask }) {
   const { t } = useTranslation()
   const [loadFailed, setLoadFailed] = useState(false)
 
-  if (task.status === 'completed' && task.videoUrl && !loadFailed) {
+  const sourceUrl = task.localPath
+    ? convertFileSrc(task.localPath)
+    : task.videoUrl
+
+  if (task.status === 'completed' && sourceUrl && !loadFailed) {
     return (
       <video
-        key={task.videoUrl}
-        src={task.videoUrl}
+        key={sourceUrl}
+        src={sourceUrl}
         controls
         playsInline
         className="h-full w-full bg-black object-contain"
@@ -71,18 +76,25 @@ function VideoStage({ task }: { task: VideoTask }) {
         <span className="max-w-md text-destructive">{task.error}</span>
       </>
     )
-  } else if (loadFailed) {
+  } else if (task.status === 'completed' && task.error) {
     content = (
       <>
-        <VideoOff className="size-8 opacity-60" />
-        <span>{t('playground.video.detail.loadFailed')}</span>
+        <VideoOff className="size-8 text-destructive opacity-80" />
+        <span className="max-w-md text-destructive">{task.error}</span>
+      </>
+    )
+  } else if (task.status === 'cancelled') {
+    content = (
+      <>
+        <Ban className="size-8 opacity-60" />
+        <span>{t('playground.video.status.cancelled')}</span>
       </>
     )
   } else {
     content = (
       <>
-        <Ban className="size-8 opacity-60" />
-        <span>{t('playground.video.status.cancelled')}</span>
+        <VideoOff className="size-8 opacity-60" />
+        <span>{t('playground.video.detail.loadFailed')}</span>
       </>
     )
   }
@@ -120,7 +132,17 @@ export function VideoTaskDetail() {
   }
 
   const handleRerun = () => {
-    store.createVideoTask(task.modelId, task.params)
+    void store.rerunVideoTask(task.id)
+  }
+
+  const canQuery = active || task.status === 'completed'
+  const canOpen = Boolean(task.localPath || task.videoUrl)
+  const handleOpen = () => {
+    if (task.localPath) {
+      void openPath(task.localPath)
+    } else if (task.videoUrl) {
+      void openUrl(task.videoUrl)
+    }
   }
 
   const handleLoadParams = () => {
@@ -141,34 +163,32 @@ export function VideoTaskDetail() {
           {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
         </button>
         <div className="ms-auto flex items-center gap-1">
-          {active ? (
+          {canQuery && (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={isRefreshing}
+              onClick={() => void store.refreshVideoTasks(task.id)}
+            >
+              <RefreshCw className={isRefreshing ? 'animate-spin' : ''} />
+              {t('playground.video.detail.queryStatus')}
+            </Button>
+          )}
+          {active && (
+            <Button
+              variant="ghost"
+              size="sm"
+              title={t('playground.video.detail.cancelHint')}
+              onClick={() => void store.cancelVideoTask(task.id)}
+            >
+              <Ban />
+              {t('playground.video.detail.cancel')}
+            </Button>
+          )}
+          {!active && (
             <>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={isRefreshing}
-                onClick={() => void store.refreshVideoTasks(task.id)}
-              >
-                <RefreshCw className={isRefreshing ? 'animate-spin' : ''} />
-                {t('playground.video.detail.queryStatus')}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => store.cancelVideoTask(task.id)}
-              >
-                <Ban />
-                {t('playground.video.detail.cancel')}
-              </Button>
-            </>
-          ) : (
-            <>
-              {task.videoUrl && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => task.videoUrl && void openUrl(task.videoUrl)}
-                >
+              {canOpen && (
+                <Button variant="ghost" size="sm" onClick={handleOpen}>
                   <ExternalLink />
                   {t('playground.video.detail.openExternal')}
                 </Button>
@@ -183,7 +203,7 @@ export function VideoTaskDetail() {
             variant="ghost"
             size="icon-sm"
             title={t('common.delete')}
-            onClick={() => store.deleteVideoTask(task.id)}
+            onClick={() => void store.deleteVideoTask(task.id)}
           >
             <Trash2 />
           </Button>
@@ -212,6 +232,14 @@ export function VideoTaskDetail() {
           <MetaRow
             label={t('playground.video.create.model')}
             value={task.modelName}
+          />
+          <MetaRow
+            label={t('playground.video.detail.protocol')}
+            value={
+              task.model.protocol === 'doubao'
+                ? t('playground.video.modelDialog.protocolDoubao')
+                : t('playground.video.modelDialog.protocolNewApiVideos')
+            }
           />
           <MetaRow
             label={t('playground.video.create.duration')}

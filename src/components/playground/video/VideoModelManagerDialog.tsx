@@ -41,9 +41,14 @@ export function VideoModelManagerDialog({
 
   const handleSave = (draft: VideoModelDraft) => {
     const store = usePlaygroundStore.getState()
-    if (editing) store.updateVideoModel(editing.id, draft)
-    else store.addVideoModel(draft)
+    if (editing) void store.updateVideoModel(editing.id, draft)
+    else void store.addVideoModel(draft)
   }
+
+  const protocolLabel = (model: VideoModel) =>
+    model.protocol === 'doubao'
+      ? t('playground.video.modelDialog.protocolDoubao')
+      : t('playground.video.modelDialog.protocolNewApiVideos')
 
   return (
     <>
@@ -70,6 +75,7 @@ export function VideoModelManagerDialog({
                       <Badge variant="secondary" className="font-mono">
                         {model.modelId}
                       </Badge>
+                      <Badge variant="outline">{protocolLabel(model)}</Badge>
                     </div>
                     <p className="truncate text-xs text-muted-foreground">
                       {sourceLabel(model)}
@@ -95,7 +101,9 @@ export function VideoModelManagerDialog({
                     size="icon-sm"
                     title={t('common.delete')}
                     onClick={() =>
-                      usePlaygroundStore.getState().deleteVideoModel(model.id)
+                      void usePlaygroundStore
+                        .getState()
+                        .deleteVideoModel(model.id)
                     }
                   >
                     <Trash2 />
@@ -124,6 +132,9 @@ export function VideoModelManagerDialog({
         onOpenChange={setFormOpen}
         model={editing}
         onSave={handleSave}
+        onSaveMany={drafts =>
+          usePlaygroundStore.getState().addVideoModels(drafts)
+        }
       />
     </>
   )

@@ -1,172 +1,47 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
+import { toast } from 'sonner'
+import {
+  commands,
+  type VideoModel,
+  type VideoProtocol,
+  type VideoSource,
+  type VideoTaskParams,
+  type VideoTaskRecord,
+  type VideoTaskSnapshot,
+  type VideoTaskStatus,
+} from '@/lib/bindings'
+import i18n from '@/i18n/config'
 
-export type VideoModelSource =
-  | { kind: 'channel'; channelId: string }
-  | { kind: 'custom'; baseUrl: string; apiKey: string }
-
-export interface VideoModel {
-  id: string
-  name: string
-  /** Model name sent to the provider API */
-  modelId: string
-  source: VideoModelSource
-  durations: number[]
-  resolutions: string[]
-  supportsImageInput: boolean
+export type {
+  VideoModel,
+  VideoProtocol,
+  VideoSource,
+  VideoTaskParams,
+  VideoTaskStatus,
 }
 
 export type VideoModelDraft = Omit<VideoModel, 'id'>
-
-export type VideoTaskStatus =
-  | 'queued'
-  | 'in_progress'
-  | 'completed'
-  | 'failed'
-  | 'cancelled'
-
-export interface VideoTaskParams {
-  prompt: string
-  duration: string
-  resolution: string
-  imageUrl: string
-  extraJson: string
-}
+export type VideoTask = VideoTaskRecord
 
 export interface VideoDraft extends VideoTaskParams {
   modelId: string
-}
-
-export interface VideoTask {
-  id: string
-  modelId: string
-  /** Snapshot so the task still reads well after its model is deleted */
-  modelName: string
-  params: VideoTaskParams
-  status: VideoTaskStatus
-  progress: number
-  createdAt: number
-  completedAt: number | null
-  videoUrl: string | null
-  error: string | null
 }
 
 export function isActiveVideoTask(task: VideoTask): boolean {
   return task.status === 'queued' || task.status === 'in_progress'
 }
 
-// Demo-only: everything below the store types simulates provider behaviour so
-// the UI can be reviewed before real model calls exist.
-const DEMO_VIDEO_URL =
-  'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4'
-const DEMO_LATENCY_MS = 400
+function isTerminalVideoStatus(status: VideoTaskStatus): boolean {
+  return status === 'completed' || status === 'failed' || status === 'cancelled'
+}
 
 function newId(prefix: string): string {
   return `${prefix}_${crypto.randomUUID().slice(0, 8)}`
 }
 
-function advanceDemoTask(task: VideoTask, now: number): VideoTask {
-  if (task.status === 'queued') {
-    return { ...task, status: 'in_progress', progress: 5 }
-  }
-  if (task.status !== 'in_progress') return task
-  const progress = Math.min(
-    100,
-    task.progress + 15 + Math.floor(Math.random() * 20)
-  )
-  if (progress < 100) return { ...task, progress }
-  return {
-    ...task,
-    status: 'completed',
-    progress: 100,
-    completedAt: now,
-    videoUrl: DEMO_VIDEO_URL,
-  }
-}
-
-const DEMO_MODELS: VideoModel[] = [
-  {
-    id: 'demo-kling',
-    name: 'Kling v2',
-    modelId: 'kling-v2-master',
-    source: { kind: 'custom', baseUrl: 'https://api.example.com', apiKey: '' },
-    durations: [5, 10],
-    resolutions: ['1280x720', '720x1280', '1920x1080'],
-    supportsImageInput: true,
-  },
-  {
-    id: 'demo-veo',
-    name: 'Veo 3',
-    modelId: 'veo-3',
-    source: { kind: 'custom', baseUrl: 'https://api.example.com', apiKey: '' },
-    durations: [4, 8],
-    resolutions: ['1280x720', '720x1280'],
-    supportsImageInput: false,
-  },
-]
-
-function demoTasks(now: number): VideoTask[] {
-  const minute = 60_000
-  return [
-    {
-      id: 'task_demo0003',
-      modelId: 'demo-kling',
-      modelName: 'Kling v2',
-      params: {
-        prompt: '一只橘猫在雨后的窗台上伸懒腰，镜头缓慢推进，电影感光影',
-        duration: '5',
-        resolution: '1280x720',
-        imageUrl: '',
-        extraJson: '',
-      },
-      status: 'in_progress',
-      progress: 40,
-      createdAt: now - 2 * minute,
-      completedAt: null,
-      videoUrl: null,
-      error: null,
-    },
-    {
-      id: 'task_demo0002',
-      modelId: 'demo-veo',
-      modelName: 'Veo 3',
-      params: {
-        prompt: 'A drone shot over a misty mountain lake at sunrise',
-        duration: '8',
-        resolution: '1280x720',
-        imageUrl: '',
-        extraJson: '{\n  "negative_prompt": "blurry"\n}',
-      },
-      status: 'failed',
-      progress: 0,
-      createdAt: now - 12 * minute,
-      completedAt: now - 11 * minute,
-      videoUrl: null,
-      error: 'HTTP 400: content policy violation (demo error)',
-    },
-    {
-      id: 'task_demo0001',
-      modelId: 'demo-kling',
-      modelName: 'Kling v2',
-      params: {
-        prompt: '微距镜头下一朵花在风中轻轻摇曳',
-        duration: '5',
-        resolution: '1280x720',
-        imageUrl: '',
-        extraJson: '',
-      },
-      status: 'completed',
-      progress: 100,
-      createdAt: now - 30 * minute,
-      completedAt: now - 28 * minute,
-      videoUrl: DEMO_VIDEO_URL,
-      error: null,
-    },
-  ]
-}
-
 const EMPTY_DRAFT: VideoDraft = {
-  modelId: 'demo-kling',
+  modelId: '',
   prompt: '',
   duration: '',
   resolution: '',
@@ -174,24 +49,93 @@ const EMPTY_DRAFT: VideoDraft = {
   extraJson: '',
 }
 
+async function persistVideoModels(models: VideoModel[]): Promise<boolean> {
+  try {
+    const result = await commands.saveVideoModels(models)
+    if (result.status === 'error') {
+      toast.error(i18n.t('playground.video.errors.saveModels'), {
+        description: result.error,
+      })
+      return false
+    }
+    return true
+  } catch (error) {
+    toast.error(i18n.t('playground.video.errors.saveModels'), {
+      description: String(error),
+    })
+    return false
+  }
+}
+
+async function saveVideoTasks(tasks: VideoTask[]): Promise<boolean> {
+  try {
+    const result = await commands.saveVideoTasks(tasks)
+    if (result.status === 'error') {
+      toast.error(i18n.t('playground.video.errors.saveTasks'), {
+        description: result.error,
+      })
+      return false
+    }
+    return true
+  } catch (error) {
+    toast.error(i18n.t('playground.video.errors.saveTasks'), {
+      description: String(error),
+    })
+    return false
+  }
+}
+
+// Task writes are serialized and always persist the latest state, so a slow
+// refresh can never overwrite a task that was created meanwhile.
+let taskPersistChain: Promise<void> = Promise.resolve()
+let taskPersistScheduled = false
+
+// Deduplicate the initial task load. A create that arrives while the history
+// is still loading must wait for it, otherwise its first save would overwrite
+// the persisted history with just the new task.
+let videoTasksLoadPromise: Promise<void> | null = null
+
+function scheduleVideoTaskPersistence(): Promise<void> {
+  if (!taskPersistScheduled) {
+    taskPersistScheduled = true
+    taskPersistChain = taskPersistChain.then(async () => {
+      taskPersistScheduled = false
+      await saveVideoTasks(usePlaygroundStore.getState().videoTasks)
+    })
+  }
+  return taskPersistChain
+}
+
 interface PlaygroundState {
   videoModels: VideoModel[]
+  videoModelsLoaded: boolean
+  videoModelsLoading: boolean
   videoTasks: VideoTask[]
+  videoTasksLoaded: boolean
+  videoTasksLoading: boolean
   videoDraft: VideoDraft
   selectedVideoTaskId: string | null
   autoRefresh: boolean
   refreshIntervalSec: number
   isRefreshing: boolean
+  isCreating: boolean
   lastRefreshedAt: number | null
 
-  addVideoModel: (draft: VideoModelDraft) => VideoModel
-  updateVideoModel: (id: string, draft: VideoModelDraft) => void
-  deleteVideoModel: (id: string) => void
+  loadVideoModels: () => Promise<void>
+  loadVideoTasks: () => Promise<void>
+  addVideoModel: (draft: VideoModelDraft) => Promise<VideoModel | null>
+  addVideoModels: (drafts: VideoModelDraft[]) => Promise<VideoModel[]>
+  updateVideoModel: (id: string, draft: VideoModelDraft) => Promise<void>
+  deleteVideoModel: (id: string) => Promise<void>
   updateVideoDraft: (patch: Partial<VideoDraft>) => void
-  createVideoTask: (modelId: string, params: VideoTaskParams) => string
+  createVideoTask: (
+    modelId: string,
+    params: VideoTaskParams
+  ) => Promise<string | null>
+  rerunVideoTask: (taskId: string) => Promise<string | null>
   refreshVideoTasks: (taskId?: string) => Promise<void>
-  cancelVideoTask: (id: string) => void
-  deleteVideoTask: (id: string) => void
+  cancelVideoTask: (id: string) => Promise<void>
+  deleteVideoTask: (id: string) => Promise<void>
   selectVideoTask: (id: string | null) => void
   setAutoRefresh: (enabled: boolean) => void
   setRefreshIntervalSec: (seconds: number) => void
@@ -199,140 +143,458 @@ interface PlaygroundState {
 
 export const usePlaygroundStore = create<PlaygroundState>()(
   devtools(
-    (set, get) => ({
-      videoModels: DEMO_MODELS,
-      videoTasks: demoTasks(Date.now()),
-      videoDraft: EMPTY_DRAFT,
-      selectedVideoTaskId: 'task_demo0001',
-      autoRefresh: true,
-      refreshIntervalSec: 5,
-      isRefreshing: false,
-      lastRefreshedAt: null,
+    (set, get) => {
+      async function submitVideoTask(
+        model: VideoModel,
+        params: VideoTaskParams
+      ): Promise<string | null> {
+        if (get().isCreating) return null
+        set({ isCreating: true }, undefined, 'createVideoTask/start')
+        try {
+          // Wait for the persisted history before the first save; otherwise
+          // this task's save would replace the history with a single record.
+          if (!get().videoTasksLoaded) await get().loadVideoTasks()
 
-      addVideoModel: draft => {
-        const model: VideoModel = { ...draft, id: newId('vm') }
-        set(
-          state => ({
-            videoModels: [...state.videoModels, model],
-            videoDraft: { ...state.videoDraft, modelId: model.id },
-          }),
-          undefined,
-          'addVideoModel'
-        )
-        return model
-      },
+          const duration =
+            params.duration.trim() === '' ? null : Number(params.duration)
+          if (
+            duration !== null &&
+            (!Number.isFinite(duration) || duration <= 0)
+          ) {
+            toast.error(i18n.t('playground.video.errors.invalidDuration'))
+            return null
+          }
 
-      updateVideoModel: (id, draft) =>
-        set(
-          state => ({
-            videoModels: state.videoModels.map(m =>
-              m.id === id ? { ...draft, id } : m
-            ),
-          }),
-          undefined,
-          'updateVideoModel'
-        ),
+          const result = await commands.createVideoTask(
+            model,
+            params.prompt,
+            duration,
+            params.resolution.trim() || null,
+            params.imageUrl.trim() || null,
+            params.extraJson
+          )
+          if (result.status === 'error') {
+            toast.error(i18n.t('playground.video.errors.createTask'), {
+              description: result.error,
+            })
+            return null
+          }
 
-      deleteVideoModel: id =>
-        set(
-          state => ({
-            videoModels: state.videoModels.filter(m => m.id !== id),
-          }),
-          undefined,
-          'deleteVideoModel'
-        ),
-
-      updateVideoDraft: patch =>
-        set(
-          state => ({ videoDraft: { ...state.videoDraft, ...patch } }),
-          undefined,
-          'updateVideoDraft'
-        ),
-
-      createVideoTask: (modelId, params) => {
-        const model = get().videoModels.find(m => m.id === modelId)
-        const task: VideoTask = {
-          id: newId('task'),
-          modelId,
-          modelName: model?.name ?? modelId,
-          params,
-          status: 'queued',
-          progress: 0,
-          createdAt: Date.now(),
-          completedAt: null,
-          videoUrl: null,
-          error: null,
+          const snapshot = result.data
+          const now = Date.now()
+          const task: VideoTask = {
+            id: snapshot.id,
+            modelId: model.id,
+            modelName: model.name,
+            model,
+            params,
+            status: snapshot.status,
+            progress: snapshot.progress,
+            createdAt: now,
+            completedAt:
+              snapshot.completedAt ??
+              (isTerminalVideoStatus(snapshot.status) ? now : null),
+            videoUrl: snapshot.videoUrl,
+            localPath: snapshot.localPath,
+            error: snapshot.error,
+          }
+          set(
+            state => ({
+              videoTasks: [task, ...state.videoTasks],
+              selectedVideoTaskId: task.id,
+            }),
+            undefined,
+            'createVideoTask/success'
+          )
+          await scheduleVideoTaskPersistence()
+          return task.id
+        } catch (error) {
+          toast.error(i18n.t('playground.video.errors.createTask'), {
+            description: String(error),
+          })
+          return null
+        } finally {
+          set({ isCreating: false }, undefined, 'createVideoTask/done')
         }
-        set(
-          state => ({
-            videoTasks: [task, ...state.videoTasks],
-            selectedVideoTaskId: task.id,
-          }),
-          undefined,
-          'createVideoTask'
-        )
-        return task.id
-      },
+      }
 
-      refreshVideoTasks: async taskId => {
-        if (get().isRefreshing) return
-        set({ isRefreshing: true }, undefined, 'refreshVideoTasks/start')
-        await new Promise(resolve => setTimeout(resolve, DEMO_LATENCY_MS))
-        const now = Date.now()
+      function applySnapshots(
+        snapshots: Map<string, VideoTaskSnapshot>,
+        now: number
+      ): boolean {
+        const state = get()
+        if (snapshots.size === 0) {
+          set(
+            { isRefreshing: false, lastRefreshedAt: now },
+            undefined,
+            'refreshVideoTasks/none'
+          )
+          return false
+        }
+
+        const nextTasks = state.videoTasks.map(task => {
+          const snapshot = snapshots.get(task.id)
+          if (!snapshot) return task
+          return {
+            ...task,
+            status: snapshot.status,
+            progress: snapshot.progress,
+            completedAt:
+              snapshot.completedAt ??
+              (isTerminalVideoStatus(snapshot.status)
+                ? (task.completedAt ?? now)
+                : null),
+            videoUrl: snapshot.videoUrl ?? task.videoUrl,
+            localPath: snapshot.localPath ?? task.localPath,
+            error: snapshot.error,
+          }
+        })
+        const changed = nextTasks.some((task, index) => {
+          const previous = state.videoTasks[index]
+          return (
+            previous !== undefined &&
+            (task.status !== previous.status ||
+              task.completedAt !== previous.completedAt ||
+              task.videoUrl !== previous.videoUrl ||
+              task.localPath !== previous.localPath ||
+              task.error !== previous.error)
+          )
+        })
+
         set(
-          state => ({
-            videoTasks: state.videoTasks.map(task =>
-              taskId === undefined || task.id === taskId
-                ? advanceDemoTask(task, now)
-                : task
-            ),
-            isRefreshing: false,
-            lastRefreshedAt: now,
-          }),
+          { videoTasks: nextTasks, isRefreshing: false, lastRefreshedAt: now },
           undefined,
           'refreshVideoTasks/done'
         )
-      },
+        return changed
+      }
 
-      cancelVideoTask: id =>
-        set(
-          state => ({
-            videoTasks: state.videoTasks.map(task =>
-              task.id === id && isActiveVideoTask(task)
-                ? { ...task, status: 'cancelled', completedAt: Date.now() }
-                : task
-            ),
-          }),
-          undefined,
-          'cancelVideoTask'
-        ),
+      return {
+        videoModels: [],
+        videoModelsLoaded: false,
+        videoModelsLoading: false,
+        videoTasks: [],
+        videoTasksLoaded: false,
+        videoTasksLoading: false,
+        videoDraft: EMPTY_DRAFT,
+        selectedVideoTaskId: null,
+        autoRefresh: true,
+        refreshIntervalSec: 5,
+        isRefreshing: false,
+        isCreating: false,
+        lastRefreshedAt: null,
 
-      deleteVideoTask: id =>
-        set(
-          state => ({
-            videoTasks: state.videoTasks.filter(task => task.id !== id),
-            selectedVideoTaskId:
-              state.selectedVideoTaskId === id
-                ? null
-                : state.selectedVideoTaskId,
-          }),
-          undefined,
-          'deleteVideoTask'
-        ),
+        loadVideoModels: async () => {
+          if (get().videoModelsLoading) return
+          set({ videoModelsLoading: true }, undefined, 'loadVideoModels/start')
+          try {
+            const result = await commands.loadVideoModels()
+            if (result.status === 'error') {
+              set(
+                { videoModelsLoading: false },
+                undefined,
+                'loadVideoModels/error'
+              )
+              toast.error(i18n.t('playground.video.errors.loadModels'), {
+                description: result.error,
+              })
+              return
+            }
 
-      selectVideoTask: id =>
-        set({ selectedVideoTaskId: id }, undefined, 'selectVideoTask'),
+            const models = result.data
+            set(
+              state => {
+                const selectedStillExists = models.some(
+                  model => model.id === state.videoDraft.modelId
+                )
+                return {
+                  videoModels: models,
+                  videoModelsLoading: false,
+                  videoModelsLoaded: true,
+                  videoDraft: selectedStillExists
+                    ? state.videoDraft
+                    : {
+                        ...state.videoDraft,
+                        modelId: models[0]?.id ?? '',
+                        duration: '',
+                        resolution: '',
+                      },
+                }
+              },
+              undefined,
+              'loadVideoModels/success'
+            )
+          } catch (error) {
+            set(
+              { videoModelsLoading: false },
+              undefined,
+              'loadVideoModels/exception'
+            )
+            toast.error(i18n.t('playground.video.errors.loadModels'), {
+              description: String(error),
+            })
+          }
+        },
 
-      setAutoRefresh: enabled =>
-        set({ autoRefresh: enabled }, undefined, 'setAutoRefresh'),
+        loadVideoTasks: async () => {
+          if (get().videoTasksLoaded) return
+          if (videoTasksLoadPromise) {
+            await videoTasksLoadPromise
+            return
+          }
 
-      setRefreshIntervalSec: seconds =>
-        set(
-          { refreshIntervalSec: seconds },
-          undefined,
-          'setRefreshIntervalSec'
-        ),
-    }),
+          videoTasksLoadPromise = (async () => {
+            set({ videoTasksLoading: true }, undefined, 'loadVideoTasks/start')
+            try {
+              const result = await commands.loadVideoTasks()
+              if (result.status === 'error') {
+                set(
+                  { videoTasksLoading: false },
+                  undefined,
+                  'loadVideoTasks/error'
+                )
+                toast.error(i18n.t('playground.video.errors.loadTasks'), {
+                  description: result.error,
+                })
+                return
+              }
+
+              const current = get().videoTasks
+              const merged = [
+                ...current,
+                ...result.data.filter(
+                  task => !current.some(item => item.id === task.id)
+                ),
+              ]
+              set(
+                {
+                  videoTasks: merged,
+                  videoTasksLoading: false,
+                  videoTasksLoaded: true,
+                  selectedVideoTaskId:
+                    get().selectedVideoTaskId ?? merged[0]?.id ?? null,
+                },
+                undefined,
+                'loadVideoTasks/success'
+              )
+            } catch (error) {
+              set(
+                { videoTasksLoading: false },
+                undefined,
+                'loadVideoTasks/exception'
+              )
+              toast.error(i18n.t('playground.video.errors.loadTasks'), {
+                description: String(error),
+              })
+            }
+          })()
+
+          try {
+            await videoTasksLoadPromise
+          } finally {
+            videoTasksLoadPromise = null
+          }
+        },
+
+        addVideoModels: async drafts => {
+          if (drafts.length === 0) return []
+          const previousModels = get().videoModels
+          const previousDraft = get().videoDraft
+          const created = drafts.map(draft => ({ ...draft, id: newId('vm') }))
+          const first = created[0]
+          set(
+            {
+              videoModels: [...previousModels, ...created],
+              videoDraft: first
+                ? {
+                    ...previousDraft,
+                    modelId: first.id,
+                    duration: '',
+                    resolution: '',
+                  }
+                : previousDraft,
+            },
+            undefined,
+            'addVideoModels'
+          )
+
+          if (!(await persistVideoModels(get().videoModels))) {
+            set(
+              { videoModels: previousModels, videoDraft: previousDraft },
+              undefined,
+              'addVideoModels/rollback'
+            )
+            return []
+          }
+          return created
+        },
+
+        addVideoModel: async draft => {
+          const created = await get().addVideoModels([draft])
+          return created[0] ?? null
+        },
+
+        updateVideoModel: async (id, draft) => {
+          const previousModels = get().videoModels
+          const models = previousModels.map(model =>
+            model.id === id ? { ...draft, id } : model
+          )
+          set({ videoModels: models }, undefined, 'updateVideoModel')
+          if (!(await persistVideoModels(models))) {
+            set(
+              { videoModels: previousModels },
+              undefined,
+              'updateVideoModel/rollback'
+            )
+          }
+        },
+
+        deleteVideoModel: async id => {
+          const previousModels = get().videoModels
+          const previousDraft = get().videoDraft
+          const models = previousModels.filter(model => model.id !== id)
+          const draft =
+            previousDraft.modelId === id
+              ? {
+                  ...previousDraft,
+                  modelId: models[0]?.id ?? '',
+                  duration: '',
+                  resolution: '',
+                }
+              : previousDraft
+          set(
+            { videoModels: models, videoDraft: draft },
+            undefined,
+            'deleteVideoModel'
+          )
+          if (!(await persistVideoModels(models))) {
+            set(
+              { videoModels: previousModels, videoDraft: previousDraft },
+              undefined,
+              'deleteVideoModel/rollback'
+            )
+          }
+        },
+
+        updateVideoDraft: patch =>
+          set(
+            state => ({ videoDraft: { ...state.videoDraft, ...patch } }),
+            undefined,
+            'updateVideoDraft'
+          ),
+
+        createVideoTask: async (modelId, params) => {
+          const model = get().videoModels.find(item => item.id === modelId)
+          if (!model) {
+            toast.error(i18n.t('playground.video.errors.modelMissing'))
+            return null
+          }
+          return submitVideoTask(model, params)
+        },
+
+        rerunVideoTask: async taskId => {
+          const task = get().videoTasks.find(item => item.id === taskId)
+          if (!task) return null
+          const model =
+            get().videoModels.find(item => item.id === task.modelId) ??
+            task.model
+          return submitVideoTask(model, task.params)
+        },
+
+        refreshVideoTasks: async taskId => {
+          if (get().isRefreshing) return
+          const targets = get().videoTasks.filter(task =>
+            taskId === undefined ? isActiveVideoTask(task) : task.id === taskId
+          )
+          if (targets.length === 0) {
+            set(
+              { lastRefreshedAt: Date.now() },
+              undefined,
+              'refreshVideoTasks/none'
+            )
+            return
+          }
+
+          set({ isRefreshing: true }, undefined, 'refreshVideoTasks/start')
+          const snapshots = new Map<string, VideoTaskSnapshot>()
+          let failure: string | null = null
+          let changed = false
+          try {
+            for (const task of targets) {
+              try {
+                const result = await commands.queryVideoTask(
+                  task.model,
+                  task.id
+                )
+                if (result.status === 'error') {
+                  failure = result.error
+                  continue
+                }
+                snapshots.set(task.id, result.data)
+              } catch (error) {
+                failure = String(error)
+              }
+            }
+          } finally {
+            changed = applySnapshots(snapshots, Date.now())
+          }
+          if (changed) await scheduleVideoTaskPersistence()
+
+          if (failure && taskId !== undefined) {
+            toast.error(i18n.t('playground.video.errors.queryTask'), {
+              description: failure,
+            })
+          }
+        },
+
+        cancelVideoTask: async id => {
+          set(
+            state => ({
+              videoTasks: state.videoTasks.map(task =>
+                task.id === id && isActiveVideoTask(task)
+                  ? {
+                      ...task,
+                      status: 'cancelled',
+                      completedAt: Date.now(),
+                    }
+                  : task
+              ),
+            }),
+            undefined,
+            'cancelVideoTask'
+          )
+          await scheduleVideoTaskPersistence()
+        },
+
+        deleteVideoTask: async id => {
+          set(
+            state => ({
+              videoTasks: state.videoTasks.filter(task => task.id !== id),
+              selectedVideoTaskId:
+                state.selectedVideoTaskId === id
+                  ? null
+                  : state.selectedVideoTaskId,
+            }),
+            undefined,
+            'deleteVideoTask'
+          )
+          await scheduleVideoTaskPersistence()
+        },
+
+        selectVideoTask: id =>
+          set({ selectedVideoTaskId: id }, undefined, 'selectVideoTask'),
+
+        setAutoRefresh: enabled =>
+          set({ autoRefresh: enabled }, undefined, 'setAutoRefresh'),
+
+        setRefreshIntervalSec: seconds =>
+          set(
+            { refreshIntervalSec: seconds },
+            undefined,
+            'setRefreshIntervalSec'
+          ),
+      }
+    },
     { name: 'playground-store' }
   )
 )
