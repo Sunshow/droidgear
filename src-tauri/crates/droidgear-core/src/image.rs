@@ -883,10 +883,7 @@ fn classify_image(value: &str) -> Option<RawImage> {
 fn markdown_image_targets(text: &str) -> Vec<String> {
     let mut targets = Vec::new();
     let mut rest = text;
-    loop {
-        let Some(start) = rest.find("![") else {
-            break;
-        };
+    while let Some(start) = rest.find("![") {
         let after = &rest[start + 2..];
         let Some(label_end) = after.find("](") else {
             rest = after;
