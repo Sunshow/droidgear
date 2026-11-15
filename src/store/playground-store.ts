@@ -12,7 +12,7 @@ import {
   type VideoTaskStatus,
 } from '@/lib/bindings'
 import i18n from '@/i18n/config'
-import { parseImageUrls } from '@/lib/video-utils'
+import { parseImageUrls } from '@/lib/playground-utils'
 
 export type {
   VideoModel,

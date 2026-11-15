@@ -142,6 +142,11 @@ const VideoPlaygroundPage = lazy(() =>
     default: m.VideoPlaygroundPage,
   }))
 )
+const ImagePlaygroundPage = lazy(() =>
+  import('@/components/playground/image/ImagePlaygroundPage').then(m => ({
+    default: m.ImagePlaygroundPage,
+  }))
+)
 const ExportTemplatesPage = lazy(() =>
   import('@/components/export/ExportTemplatesPage').then(m => ({
     default: m.ExportTemplatesPage,
@@ -182,6 +187,7 @@ export function MainWindowContent({
   const openclawSubView = useUIStore(state => state.openclawSubView)
   const claudeSubView = useUIStore(state => state.claudeSubView)
   const hermesSubView = useUIStore(state => state.hermesSubView)
+  const playgroundSubView = useUIStore(state => state.playgroundSubView)
   const piSubView = useUIStore(state => state.piSubView)
   const ompSubView = useUIStore(state => state.ompSubView)
   const copilotSubView = useUIStore(state => state.copilotSubView)
@@ -299,7 +305,11 @@ export function MainWindowContent({
     }
 
     if (currentView === 'playground') {
-      return <VideoPlaygroundPage />
+      return playgroundSubView === 'image' ? (
+        <ImagePlaygroundPage />
+      ) : (
+        <VideoPlaygroundPage />
+      )
     }
 
     // Channels view

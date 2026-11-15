@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import i18n from '@/i18n/config'
 import userEvent from '@testing-library/user-event'
 
 const { commandMocks } = vi.hoisted(() => ({
@@ -15,7 +16,12 @@ vi.mock('@/lib/bindings', () => ({
 import type { Channel, ChannelToken } from '@/lib/bindings'
 import { useChannelStore } from '@/store/channel-store'
 import { render, screen, waitFor } from '@/test/test-utils'
-import { VideoModelImportDialog } from './VideoModelImportDialog'
+import { ModelImportDialog } from './model-import-dialog'
+import type { VideoModelDraft, VideoProtocol } from '@/store/playground-store'
+import {
+  buildImportedVideoModels,
+  videoProtocolOptions,
+} from '../video/video-protocol'
 
 const channel: Channel = {
   id: 'channel-1',
@@ -48,7 +54,7 @@ function seedChannel() {
   })
 }
 
-describe('VideoModelImportDialog', () => {
+describe('ModelImportDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     useChannelStore.setState({
@@ -70,11 +76,27 @@ describe('VideoModelImportDialog', () => {
     })
     const onImported = vi.fn()
     const onOpenChange = vi.fn()
+    const t = i18n.t.bind(i18n)
 
     render(
-      <VideoModelImportDialog
+      <ModelImportDialog<VideoModelDraft>
         open
         onOpenChange={onOpenChange}
+        title="Import video models"
+        description="Models come from the channel's /v1/models endpoint."
+        protocolLabel="Video protocol"
+        protocolHint="Sets the default for this import."
+        protocolOptions={videoProtocolOptions(t)}
+        defaultProtocol="sora"
+        buildDrafts={selection =>
+          buildImportedVideoModels({
+            ...selection,
+            protocols: selection.protocols as ReadonlyMap<
+              string,
+              VideoProtocol
+            >,
+          })
+        }
         onImported={onImported}
       />
     )

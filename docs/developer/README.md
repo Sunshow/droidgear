@@ -14,17 +14,17 @@ Technical documentation for building and extending this app. These docs describe
 
 ## Core Systems
 
-| Document                                                | Description                                               |
-| ------------------------------------------------------- | --------------------------------------------------------- |
-| [Command System](./command-system.md)                   | Unified action dispatch, command registration             |
-| [Keyboard Shortcuts](./keyboard-shortcuts.md)           | Global shortcut handling, platform modifiers              |
-| [Menus](./menus.md)                                     | Native menu building with i18n                            |
-| [Tauri Commands](./tauri-commands.md)                   | Type-safe Rust-TypeScript bridge (tauri-specta)           |
-| [Tauri Plugins](./tauri-plugins.md)                     | Plugin usage and configuration                            |
-| [Claude Code Profiles](./claude-code-profile-design.md) | Product and runtime design for Claude Code profiles       |
-| [Temporary Tool Runs](./temporary-tool-run-design.md)   | Design for launching tools with ephemeral config overlays |
-| [DSH Config Surfaces](./dsh-config-surfaces.zh.md)      | DeepSeek Harness local config model and Dsh page surfaces |
-| [Playground](./playground-design.zh.md)                 | Playground navigation, video page layout and interactions |
+| Document                                                | Description                                                     |
+| ------------------------------------------------------- | --------------------------------------------------------------- |
+| [Command System](./command-system.md)                   | Unified action dispatch, command registration                   |
+| [Keyboard Shortcuts](./keyboard-shortcuts.md)           | Global shortcut handling, platform modifiers                    |
+| [Menus](./menus.md)                                     | Native menu building with i18n                                  |
+| [Tauri Commands](./tauri-commands.md)                   | Type-safe Rust-TypeScript bridge (tauri-specta)                 |
+| [Tauri Plugins](./tauri-plugins.md)                     | Plugin usage and configuration                                  |
+| [Claude Code Profiles](./claude-code-profile-design.md) | Product and runtime design for Claude Code profiles             |
+| [Temporary Tool Runs](./temporary-tool-run-design.md)   | Design for launching tools with ephemeral config overlays       |
+| [DSH Config Surfaces](./dsh-config-surfaces.zh.md)      | DeepSeek Harness local config model and Dsh page surfaces       |
+| [Playground](./playground-design.zh.md)                 | Playground navigation, video/image page layout and interactions |
 
 - [GitHub Copilot BYOK](./copilot-byok.md) — Profiles, local configuration, and temporary launchers
 

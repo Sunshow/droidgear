@@ -3006,6 +3006,61 @@ async queryVideoTask(model: VideoModel, taskId: string) : Promise<Result<VideoTa
 }
 },
 /**
+ * Loads the image models configured for the Playground.
+ */
+async loadImageModels() : Promise<Result<ImageModel[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("load_image_models") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Persists the image models configured for the Playground.
+ */
+async saveImageModels(models: ImageModel[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_image_models", { models }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Loads persisted Playground image tasks.
+ */
+async loadImageTasks() : Promise<Result<ImageTaskRecord[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("load_image_tasks") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Persists Playground image tasks.
+ */
+async saveImageTasks(tasks: ImageTaskRecord[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_image_tasks", { tasks }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Generates images with the model's configured protocol.
+ */
+async createImageTask(model: ImageModel, taskId: string, prompt: string, size: string, quality: string, count: number, imageUrls: string[], extraJson: string) : Promise<Result<ImageTaskSnapshot, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("create_image_task", { model, taskId, prompt, size, quality, count, imageUrls, extraJson }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Tauri command: snap the main window to the default size, clear fullscreen,
  * re-center, and quarantine the saved state file so the next launch starts
  * fresh. Surfaced via the application menu and a global shortcut so users
@@ -3733,6 +3788,98 @@ models: HermesModelConfig[];
  * 选项：none, minimal, low, medium, high, xhigh, max, ultra
  */
 reasoningEffort?: string | null }
+/**
+ * One generated image, surfaced to the UI and stored with the task.
+ */
+export type ImageAsset = { 
+/**
+ * Absolute path of the decoded file under the playground media directory.
+ * Absent when the upstream only returned a link that could not be saved.
+ */
+localPath: string | null; 
+/**
+ * Remote URL, kept so the image can still be opened or re-downloaded.
+ */
+url: string | null; mimeType: string }
+/**
+ * An image model configured for the playground.
+ */
+export type ImageModel = { id: string; name: string; modelId: string; source: ImageSource; protocol: ImageProtocol; 
+/**
+ * Suggested size values. The meaning follows the protocol: `WxH` for
+ * Chat/Responses, `WxH`, `A:B` or `1K`/`2K`/`4K` for Google.
+ */
+sizes: string[]; 
+/**
+ * Suggested quality values (Responses: low/medium/high/auto, Google:
+ * 1K/2K/4K).
+ */
+qualities: string[]; 
+/**
+ * Whether the model accepts reference images.
+ */
+supportsImageInput: boolean }
+/**
+ * Image wire protocol used by a playground model.
+ */
+export type ImageProtocol = 
+/**
+ * OpenAI ChatCompletions (`/v1/chat/completions`).
+ */
+"chat" | 
+/**
+ * OpenAI Responses with the `image_generation` tool (`/v1/responses`).
+ */
+"responses" | 
+/**
+ * Gemini native `:generateContent` / `:predict`.
+ */
+"google"
+/**
+ * Where an image model gets its endpoint and credentials.
+ */
+export type ImageSource = 
+/**
+ * Reuse an existing channel. `token_id` is the token selected when the
+ * model was imported; `None` lets the resolver pick the first active one.
+ */
+{ kind: "channel"; channelId: string; tokenId: number | null } | 
+/**
+ * A standalone endpoint with its own API key.
+ */
+{ kind: "custom"; baseUrl: string; apiKey: string }
+/**
+ * Form values captured when an image task was submitted.
+ */
+export type ImageTaskParams = { prompt: string; size: string; quality: string; count: number; imageUrl: string; extraJson: string }
+/**
+ * A playground image task persisted under
+ * `~/.droidgear/playground/image_tasks.json`.
+ */
+export type ImageTaskRecord = { id: string; modelId: string; modelName: string; 
+/**
+ * Snapshot of the model at submit time. Custom API keys are stripped on
+ * disk and merged back from `image_secrets.json` on load.
+ */
+model: ImageModel; params: ImageTaskParams; status: ImageTaskStatus; images: ImageAsset[]; revisedPrompt: string | null; 
+/**
+ * Text the model returned together with the images (Gemini usually adds a
+ * short explanation).
+ */
+responseText: string | null; createdAt: number; completedAt: number | null; error: string | null }
+/**
+ * One protocol result, normalized for the playground UI.
+ */
+export type ImageTaskSnapshot = { images: ImageAsset[]; revisedPrompt: string | null; responseText: string | null; 
+/**
+ * Milliseconds since the Unix epoch.
+ */
+completedAt: number }
+/**
+ * Lifecycle of one playground image task. Generation is a single request, so
+ * a task only stays `running` while the request is in flight.
+ */
+export type ImageTaskStatus = "running" | "completed" | "failed"
 export type JsonValue = null | boolean | number | string | JsonValue[] | Partial<{ [key in string]: JsonValue }>
 /**
  * MCP server entry with name

@@ -2,11 +2,19 @@
 
 Playground 是 DroidGear 里的模型测试台：选一个模型，发一次真实请求，查看结果。它只读取渠道，不写任何工具的配置文件。
 
-**当前状态（P2）**：视频页已接入真实请求，支持三种上游协议：
+**当前状态（P3）**：视频页和图片页都已接入真实请求。
+
+视频页支持三种上游协议：
 
 - **New API Sora / OpenAI Videos**：`/v1/videos`、`/v1/videos/{id}`、`/v1/videos/{id}/content`。
 - **New API 原生**：`/v1/video/generations`、`/v1/video/generations/{task_id}`。
 - **Doubao / Ark**：`/api/v3/contents/generations/tasks` 系列任务接口。通过 New API 渠道访问时会自动加 `/doubao` 前缀。
+
+图片页支持三种上游协议：
+
+- **ChatCompletions**：`/v1/chat/completions`，图片从 `message.images` 或 `message.content` 里的 markdown data URL 提取。
+- **Responses**：`/v1/responses` + `image_generation` 工具，结果在 `image_generation_call.result`。
+- **Google**：`/v1beta/models/{model}:generateContent`（`imagen*` 模型用 `:predict`）。
 
 模型可以从渠道导入，也可以手填任意模型 ID；每个模型单独选择协议。模型和任务记录都保存在 `~/.droidgear/playground/`，重启后恢复。
 
@@ -18,12 +26,13 @@ Playground 是 DroidGear 里的模型测试台：选一个模型，发一次真�
 
 ## 范围
 
-| 项     | 结论                                                                                 |
-| ------ | ------------------------------------------------------------------------------------ |
-| 平台   | 只做桌面 GUI。TUI 暂不支持，这是对 AGENTS.md 规则 9（GUI/TUI 同步）的有意例外        |
-| 写配置 | 只写 `~/.droidgear/playground/`，不修改 `~/.factory`、`~/.codex` 等任何工具配置      |
-| 协议   | `sora`、`new-api` 与 `doubao`，见第 2 节                                             |
-| P2     | 视频页：渠道导入、协议选择、创建/查询/下载、进度刷新、`<video>` 预览、任务记录持久化 |
+| 项     | 结论                                                                                         |
+| ------ | -------------------------------------------------------------------------------------------- |
+| 平台   | 只做桌面 GUI。TUI 暂不支持，这是对 AGENTS.md 规则 9（GUI/TUI 同步）的有意例外                |
+| 写配置 | 只写 `~/.droidgear/playground/`，不修改 `~/.factory`、`~/.codex` 等任何工具配置              |
+| 协议   | 视频：`sora`、`new-api`、`doubao`（第 2 节）；图片：`chat`、`responses`、`google`（第 8 节） |
+| P2     | 视频页：渠道导入、协议选择、创建/查询/下载、进度刷新、`<video>` 预览、任务记录持久化         |
+| P3     | 图片页：渠道导入、协议选择、同步生成、多图结果、参考图、`<img>` 预览、任务记录持久化         |
 
 ## 1. 导航
 
@@ -32,6 +41,7 @@ Playground 是 DroidGear 里的模型测试台：选一个模型，发一次真�
 │ [渠道]  [Dsh ▾]  [⚗]              │  ⚗ = Playground，currentView = 'playground'
 ├──────────────────────────────────┤
 │  视频                          2  │  2 = 进行中的任务数
+│  图片                          1  │  1 = 生成中的图片任务数
 │                                  │
 │ ──────────────────────────────── │
 │ 用真实请求测试模型。                │
@@ -42,7 +52,8 @@ Playground 是 DroidGear 里的模型测试台：选一个模型，发一次真�
 - 不放进工具下拉菜单，因为下拉里每一项都是配置写入目标。
 - 在 Playground 时，工具按钮和在“渠道”时一样，点击直接回到上次的工具；进入 Playground 不改变 `lastToolView`。
 - 有进行中的任务且当前不在 Playground 时，图标右上角显示小圆点。
-- 后续场景（图像、对话等）在侧栏列表追加，未实现的不放占位。
+- 侧栏在“视频”下面追加“图片”，切换的是 `ui-store` 的 `playgroundSubView`（`video` / `image`），不重新进入 Playground，也不改变 `lastToolView`。
+- 后续场景（对话等）在侧栏列表追加，未实现的不放占位。
 
 ## 2. 协议
 
@@ -293,28 +304,44 @@ Playground 是 DroidGear 里的模型测试台：选一个模型，发一次真�
 ## 5. 代码结构
 
 ```
-src-tauri/crates/droidgear-core/src/video.rs   # 类型、持久化、凭据解析、三种协议客户端
-src-tauri/src/commands/video.rs                # Tauri 命令包装
-src/store/playground-store.ts                  # 视频模型、任务、草稿、刷新设置
+src-tauri/crates/droidgear-core/src/playground.rs # 渠道凭据、令牌缓存、HTTP 与文件助手（两个页面共用）
+src-tauri/crates/droidgear-core/src/video.rs      # 视频类型、持久化、三种协议客户端
+src-tauri/crates/droidgear-core/src/image.rs      # 图片类型、持久化、三种协议客户端
+src-tauri/src/commands/video.rs                   # 视频 Tauri 命令包装
+src-tauri/src/commands/image.rs                   # 图片 Tauri 命令包装
+src/store/playground-store.ts                     # 视频模型、任务、草稿、刷新设置
+src/store/image-playground-store.ts               # 图片模型、任务、草稿、提交与持久化
 src/components/playground/
-├── PlaygroundFeatureList.tsx                  # 侧栏
-└── video/
-    ├── VideoPlaygroundPage.tsx                # 页面骨架与三栏布局
-    ├── VideoCreatePanel.tsx                   # 创建区
-    ├── VideoReferenceImages.tsx               # 参考图宫格、URL/本地图片添加
-    ├── VideoModelToolbar.tsx                  # 页头模型下拉（含添加）、管理
-    ├── VideoTaskList.tsx                      # 任务列表、筛选、自动与手动刷新
-    ├── VideoTaskDetail.tsx                    # 任务详情与 <video> 预览
-    ├── VideoTaskStatus.tsx                    # 状态图标、徽标、进度条
-    ├── VideoModelDialog.tsx                   # 添加 / 编辑视频模型
-    ├── VideoModelImportDialog.tsx             # 渠道 → 令牌 → 模型批量导入
-    ├── VideoModelManagerDialog.tsx            # 模型列表管理
-    ├── video-protocol.ts                      # 共用时长/分辨率建议值、导入结果映射
-    └── video-format.ts                        # 时间格式化、列表解析、JSON 校验
-src/lib/video-utils.ts                         # 参考图按行解析
+├── PlaygroundFeatureList.tsx                     # 侧栏：视频 / 图片
+├── shared/
+│   ├── reference-images.tsx                      # 参考图宫格，URL/本地图片，两页共用
+│   ├── model-toolbar.tsx                         # 页头模型下拉（含添加）与管理
+│   ├── model-form-dialog.tsx                     # 添加/编辑模型的通用表单
+│   ├── model-import-dialog.tsx                   # 渠道 → 令牌 → 模型批量导入
+│   ├── model-manager-dialog.tsx                  # 模型列表管理
+│   └── format.ts                                 # 时间格式化、列表解析、JSON 校验
+├── video/
+│   ├── VideoPlaygroundPage.tsx                   # 页面骨架与三栏布局
+│   ├── VideoCreatePanel.tsx                      # 创建区
+│   ├── VideoTaskList.tsx                         # 任务列表、筛选、自动与手动刷新
+│   ├── VideoTaskDetail.tsx                       # 任务详情与 <video> 预览
+│   ├── VideoTaskStatus.tsx                       # 状态图标、徽标、进度条
+│   ├── VideoModelDialog.tsx                      # 视频模型表单（协议、时长、分辨率）
+│   ├── VideoModelManagerDialog.tsx               # 视频模型列表
+│   └── video-protocol.ts                         # 时长/分辨率建议值、协议标签、导入映射
+└── image/
+    ├── ImagePlaygroundPage.tsx                   # 页面骨架与三栏布局
+    ├── ImageCreatePanel.tsx                      # 创建区
+    ├── ImageTaskList.tsx                         # 任务列表与筛选
+    ├── ImageTaskDetail.tsx                       # 图片预览、缩略图与参数回显
+    ├── ImageTaskStatus.tsx                       # 状态图标与徽标
+    ├── ImageModelDialog.tsx                      # 图片模型表单（协议、尺寸、质量）
+    ├── ImageModelManagerDialog.tsx               # 图片模型列表
+    └── image-protocol.ts                         # 尺寸/质量建议值、协议标签、导入映射
+src/lib/playground-utils.ts                       # 参考图按行解析
 ```
 
-- 视图接入：`ui-store.ts` 的 `NavigationView` 增加 `'playground'`（不加入 `ToolView`）；`LeftSideBar.tsx` 加入口按钮和侧栏分支；`MainWindowContent.tsx` lazy 加载 `VideoPlaygroundPage`。
+- 视图接入：`ui-store.ts` 的 `NavigationView` 增加 `'playground'`（不加入 `ToolView`），并用 `playgroundSubView` 区分 `video` / `image`；`LeftSideBar.tsx` 加入口按钮、侧栏功能列表和进行中任务角标；`MainWindowContent.tsx` 按子视图 lazy 加载 `VideoPlaygroundPage` 或 `ImagePlaygroundPage`。
 - 状态必须放在 store：页面是 lazy 加载的，切换视图会卸载组件。草稿、任务和刷新设置放在组件 `useState` 里会在切出后丢失。
 - 自动刷新的定时器在 `VideoTaskList` 里，离开 Playground 页面后暂停，回到页面后恢复。
 
@@ -326,13 +353,17 @@ src/lib/video-utils.ts                         # 参考图按行解析
 | 自定义 API Key | `~/.droidgear/playground/video_secrets.json` | 0600，按模型 ID 存；读模型时合并回去          |
 | 下载的视频     | `~/.droidgear/playground/media/{taskId}.mp4` | Sora 内容；同名文件存在时直接复用             |
 | 任务           | `~/.droidgear/playground/video_tasks.json`   | 模型快照 + 参数 + 状态；自定义 API Key 不落盘 |
+| 图片模型       | `~/.droidgear/playground/image_models.json`  | 普通 JSON；自定义来源的 API Key 会被清空      |
+| 图片 API Key   | `~/.droidgear/playground/image_secrets.json` | 0600，按模型 ID 存；读模型时合并回去          |
+| 生成的图片     | `~/.droidgear/playground/media/images/`      | `{taskId}-{n}.{ext}`；同名文件存在时直接复用  |
+| 图片任务       | `~/.droidgear/playground/image_tasks.json`   | 模型快照 + 参数 + 图片路径/URL + 状态         |
 
-- New API Sora 内容通过 asset 协议播放。`tauri.conf.json` 需要 `assetProtocol.enable = true`，scope 限定在 `$HOME/.droidgear/playground/media/**`，CSP 的 `media-src` 需要包含 `asset: http://asset.localhost`。
+- New API Sora 内容通过 asset 协议播放。`tauri.conf.json` 需要 `assetProtocol.enable = true`，scope 限定在 `$HOME/.droidgear/playground/media/**`，CSP 的 `media-src` 需要包含 `asset: http://asset.localhost`；生成的图片同样走 asset 协议，所以 `img-src` 也要包含它。
 - 模型文件里旧的 `protocol: "new-api-videos"` 读取时映射成 `sora`；下一次保存自动改写。
 - 下载先写 `.part` 临时文件，完成后 rename；失败会清理临时文件。
 - 媒体目录不会自动清理。后续可以按任务删除或按 TTL 清理。
 
-## 7. 已知限制
+## 7. 视频页已知限制
 
 - 进行中任务的进度不会每次轮询都落盘；重启后以新的查询结果为准。
 - 删除自定义模型后，其历史任务在重启后不能再查询（自定义 API Key 不会复制到任务文件）；已经下载的视频仍可播放。
@@ -345,3 +376,115 @@ src/lib/video-utils.ts                         # 参考图按行解析
 - Sora 内容必须先下载才能播放，首次完成时会多花一次下载时间。
 - 没有做模型能力探测：模型是否支持参考图、哪些时长/分辨率合法，由用户配置。
 - TUI 未实现；这是有意例外。
+
+## 8. 图片页
+
+图片页复用了视频页的导航、三栏布局和模型管理方式，区别在于生成是**单次同步请求**：提交后等待上游返回图片，没有轮询。
+
+### 8.1 布局
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ 图片生成                                [模型 ▾] [管理] │
+├──────────────────┬───────────────────┬───────────────────┤
+│ 提示词            │ [全部|生成中|已完成|失败] │ [已完成] img_xxxx ⧉  [打开][在文件夹中显示][重跑][🗑] │
+│ […………………]        ├───────────────────┤                   │
+│ 尺寸/比例 [..]    │ ⟳ 一只橘猫…        │   <img object-contain> │
+│ 质量 [..]         │   Nano Banana ·    │   [缩略图][缩略图]   │
+│ 数量 [1]          │   17:03:21 · 2 张  ├───────────────────┤
+│ 参考图 […]        │ ✓ 微距镜头下的…    │ 提示词全文  [载入参数] │
+│ ▸ 高级参数 (JSON) │                   │ 模型 / 协议 / 尺寸 / │
+│                  │                   │ 质量 / 数量 / 时间… │
+├──────────────────┤                   │                   │
+│ 可能产生费用 [生成图片] │                │                   │
+└──────────────────┴───────────────────┴───────────────────┘
+     创建区 32%           任务列表             任务详情（三栏均可拖拽）
+```
+
+| 区域     | 内容与规则                                                                   |
+| -------- | ---------------------------------------------------------------------------- |
+| 页头     | 标题；右上角模型下拉（末项“添加图片模型”）和管理                             |
+| 创建区   | 提示词、尺寸/比例、质量、数量（仅支持多图的协议显示）、参考图、高级参数 JSON |
+| 任务列表 | 全部 / 生成中 / 已完成 / 失败；不轮询，图片返回后任务直接变为终态            |
+| 任务详情 | 状态、任务 ID、操作按钮、图片预览（多图有缩略图）、参数与模型回复回显        |
+
+### 8.2 三种协议
+
+| 协议                 | 创建                                                | 结果位置                                                                   |
+| -------------------- | --------------------------------------------------- | -------------------------------------------------------------------------- |
+| `chat`               | `POST {base}/v1/chat/completions`                   | `choices[].message.images[].image_url.url` 或 `content` 里的 markdown 图片 |
+| `responses`          | `POST {base}/v1/responses`                          | `output[].result`（`type = image_generation_call`）                        |
+| `google`             | `POST {base}/v1beta/models/{model}:generateContent` | `candidates[].content.parts[].inlineData.data`                             |
+| `google` + `imagen*` | `POST {base}/v1beta/models/{model}:predict`         | `predictions[].bytesBase64Encoded`                                         |
+
+- Base URL 归一化：Chat/Responses 会自动补 `/v1`，也接受直接粘贴的 `/v1/chat/completions` 或 `/v1/responses`；Google 会补 `/v1beta`，也接受已带 `/v1beta` 的地址。Google 的 OpenAI 兼容地址（`/v1beta/openai`）按 ChatCompletions 协议使用，Base URL 以 `/openai` 结尾时不会补 `/v1`。
+- Google 鉴权同时发送 `x-goog-api-key` 与 `Authorization: Bearer`：Gemini 原生端点读前者，New API 兼容网关通常读后者，二者兼发对上游无影响。
+- `imagen*` 模型按模型 ID 前缀识别，和 new-api 的判断一致。
+
+### 8.3 请求映射
+
+创建表单的字段在三种协议上落到不同位置：
+
+| 表单字段 | `chat`                                                | `responses`                            | `google`                                                       |
+| -------- | ----------------------------------------------------- | -------------------------------------- | -------------------------------------------------------------- |
+| prompt   | `messages[0].content[0].text`                         | `input[0].content[0].text`             | `contents[0].parts[0].text`                                    |
+| 参考图   | `messages[0].content[]` 的 `image_url`                | `input[0].content[]` 的 `input_image`  | `parts[].inlineData`（URL 先下载并转 base64）                  |
+| size     | `WxH` 发 `size`；`A:B` 发 `image_config.aspect_ratio` | `tools[0].size`                        | `generationConfig.imageConfig.aspectRatio`（`WxH` 会约成比例） |
+| quality  | 不发送，留给高级参数                                  | `tools[0].quality`                     | `generationConfig.imageConfig.imageSize`                       |
+| count    | `n`（>1 时）                                          | 只有一张，不发送                       | `imagen` 用 `parameters.sampleCount`                           |
+| 高级参数 | 合并进请求体                                          | 合并进请求体；`tools` 会与表单工具合并 | 合并进请求体；`generationConfig` 只补缺失键                    |
+
+- Chat 请求固定带 `modalities: ["image", "text"]`：OpenRouter 一类网关靠它开启图片输出；New API 的 Gemini 渠道会按自己的模型配置补 `responseModalities`，多余字段会被忽略。
+- Responses 的图片生成工具总会存在；高级参数里自己写了 `tools` 时保留用户的工具，再向其中合并尺寸/质量。
+- Google 的 `size` 支持组合写法，例如 `16:9 2K`：比例进 `aspectRatio`，`1K`/`2K`/`4K` 进 `imageSize`。
+- `imagen*` 不支持参考图，带上参考图会直接报错，提示改用 Gemini 图片模型。
+
+### 8.4 结果解析
+
+- **Chat**：先读 `message.images`（OpenRouter 的 `image_url` 结构），再扫 `message.content` 里的 `![alt](url)`；`data:` URL 直接解码，http(s) URL 尝试下载，失败时保留 URL 供界面直接渲染。部分网关会用 Images API 的 `data[].b64_json` 形状回复 chat，也一并兼容。
+- **Responses**：收集所有 `image_generation_call.result`；`revised_prompt` 会保存并展示。`status = failed` 的 item 直接返回错误。
+- **Google**：收集 `inlineData`/`inline_data`，以及 `:predict` 的 `predictions[].bytesBase64Encoded`；`promptFeedback.blockReason`、`finishReason`（`SAFETY` 等）和 `raiFilteredReason` 会转成可读错误。
+- 没有图片但有文字时，错误信息会带上模型回复的摘要；完全空响应返回 “The upstream returned no images.”。
+
+### 8.5 图片落盘与显示
+
+- 解码后的图片写到 `~/.droidgear/playground/media/images/{taskId}-{n}.{ext}`，任务记录只保存路径和 MIME，不保存 base64。
+- 远程 URL 会先下载再保存；下载失败时记录保留 URL，界面直接渲染远程图片。
+- 任务 ID 由前端生成（`img_` + 随机串）并传给 Rust，Rust 校验它只含字母数字、`-`、`_`、`.`，避免路径穿越。
+- 预览用 `convertFileSrc` + asset 协议；`tauri.conf.json` 的 `assetProtocol.scope` 已覆盖整个 `media/**`，CSP 的 `img-src` 增加 `asset: http://asset.localhost`。
+- 多图时详情页底部有缩略图切换，单图时只有预览。
+
+### 8.6 任务状态与交互
+
+| 状态   | 列表行   | 详情预览区                 | 操作                             |
+| ------ | -------- | -------------------------- | -------------------------------- |
+| 生成中 | 旋转图标 | 加载动画 + “正在生成图片…” | 删除                             |
+| 已完成 | 绿色对勾 | 图片预览 + 缩略图切换      | 打开、在文件夹中显示、重跑、删除 |
+| 失败   | 红色叹号 | 错误信息                   | 重跑、删除                       |
+
+- 提交后任务立即以“生成中”插入列表并落盘；命令返回后改成已完成/失败并再次落盘。
+- 没有“取消”按钮：生成是一个已经发出的 HTTP 请求，本地取消既停不下上游计费，也拿不回结果。等待期间按钮显示“生成中…”并禁用，避免重复提交；请求返回时若任务已被删除，结果会被丢弃。
+- 没有轮询：生成是一个请求，等待期间 UI 用 `isCreating` 显示“生成中…”，按钮同时禁用，避免重复提交。
+- 重启时仍为“生成中”的记录会被标记为失败，并提示“应用在图片生成完成前退出”（单次请求无法在重启后继续等待）。
+- “重新生成”用相同参数和模型快照新建任务；“载入参数”把任务参数回填创建表单。
+
+### 8.7 图片模型
+
+- 字段：显示名称、模型 ID、**图片协议**、来源（渠道 / 自定义地址）、尺寸建议、质量建议、是否支持参考图。
+- 尺寸/质量只是创建表单下拉里的建议值，可手输；默认值随协议变化（Chat：常见 `WxH` 与比例；Responses：`auto`/OpenAI 图片尺寸与 `low`/`medium`/`high`；Google：比例与 `1K`/`2K`/`4K`）。新增模型时切换协议会同步刷新这两组默认值。
+- 参考图开关决定创建区是否显示参考图宫格；模型不支持时 Rust 也会拒绝带参考图的请求。
+- 数量输入只在支持多图的协议显示：`chat` 总是显示；`google` 仅 `imagen*` 显示；`responses` 固定一张。
+- 渠道导入、令牌解析、密钥保存和视频页一致：模型只存 `channelId` 与 `tokenId`，调用时再从渠道存储解析。
+
+### 8.8 持久化
+
+见第 6 节表格中的 `image_*` 行。图片页的 secrets 与视频页分开（`image_secrets.json`），删除模型时只会清理自己的密钥文件；已经生成到磁盘的图片不会随任务删除而清理。
+
+### 8.9 已知限制
+
+- Responses 与 Gemini 图片模型（`imagen*` 除外）一次只生成一张图，数量字段对它们不显示。
+- ChatCompletions 没有统一的尺寸/质量参数名；Playground 只按 `WxH` → `size`、`A:B` → `image_config` 发送，其他写法需要放进高级参数。
+- Google 的参考图必须是可访问的 http(s) URL 或 data URL；本地文件在创建区已经转成 data URL，不受影响。URL 下载失败会中断本次生成。
+- 删除任务不会删除 `media/images/` 下的文件；媒体目录暂不自动清理。
+- 任务记录保存模型快照，但自定义端点的 API Key 不复制进任务文件；删除自定义模型后，历史任务不能再重跑（已生成的图片仍可查看）。
+- TUI 未实现图片页，与视频页一样是有意例外。

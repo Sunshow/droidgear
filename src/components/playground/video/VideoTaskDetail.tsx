@@ -21,7 +21,7 @@ import {
   usePlaygroundStore,
   type VideoTask,
 } from '@/store/playground-store'
-import { parseImageUrls } from '@/lib/video-utils'
+import { parseImageUrls } from '@/lib/playground-utils'
 import { formatDateTime } from './video-format'
 import { VideoTaskProgress, VideoTaskStatusBadge } from './VideoTaskStatus'
 
@@ -272,7 +272,7 @@ export function VideoTaskDetail() {
                     <img
                       key={`${index}-${url.slice(0, 40)}`}
                       src={url}
-                      alt={t('playground.video.create.imageAlt', {
+                      alt={t('playground.referenceImages.alt', {
                         index: index + 1,
                       })}
                       className="size-12 rounded border object-cover"

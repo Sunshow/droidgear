@@ -1188,6 +1188,7 @@ dependencies = [
 name = "droidgear-core"
 version = "0.0.0"
 dependencies = [
+ "base64 0.22.1",
  "chrono",
  "dirs 5.0.1",
  "filetime",

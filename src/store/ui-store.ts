@@ -50,6 +50,7 @@ export type OmpSubView = 'config' | 'sessions' | 'terminal'
 export type CopilotSubView = 'profiles' | 'terminal'
 export type DshSubView = 'desktop' | 'web' | 'sessions' | 'terminal'
 export type ChannelsSubView = 'detail' | 'export-templates'
+export type PlaygroundSubView = 'video' | 'image'
 
 export interface PendingUpdate {
   version: string
@@ -76,6 +77,7 @@ interface UIState {
   copilotSubView: CopilotSubView
   dshSubView: DshSubView
   channelsSubView: ChannelsSubView
+  playgroundSubView: PlaygroundSubView
   lastSpecExportPath: string | null
   pendingUpdate: PendingUpdate | null
   isUpdateInstalling: boolean
@@ -103,6 +105,7 @@ interface UIState {
   setCopilotSubView: (view: CopilotSubView) => void
   setDshSubView: (view: DshSubView) => void
   setChannelsSubView: (view: ChannelsSubView) => void
+  setPlaygroundSubView: (view: PlaygroundSubView) => void
   setLastSpecExportPath: (path: string) => void
   setPendingUpdate: (update: PendingUpdate | null) => void
   clearPendingUpdate: () => void
@@ -133,6 +136,7 @@ export const useUIStore = create<UIState>()(
         copilotSubView: 'profiles',
         dshSubView: 'desktop',
         channelsSubView: 'detail',
+        playgroundSubView: 'video',
         lastSpecExportPath: null,
         pendingUpdate: null,
         isUpdateInstalling: false,
@@ -246,6 +250,9 @@ export const useUIStore = create<UIState>()(
 
         setChannelsSubView: view =>
           set({ channelsSubView: view }, undefined, 'setChannelsSubView'),
+
+        setPlaygroundSubView: view =>
+          set({ playgroundSubView: view }, undefined, 'setPlaygroundSubView'),
 
         setLastSpecExportPath: path =>
           set({ lastSpecExportPath: path }, undefined, 'setLastSpecExportPath'),

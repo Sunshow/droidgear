@@ -20,6 +20,7 @@ pub mod dsh_sessions;
 pub mod env;
 pub mod factory_auth_profiles;
 pub mod hermes;
+pub mod image;
 pub mod mcp;
 pub mod notifications;
 pub mod omp;

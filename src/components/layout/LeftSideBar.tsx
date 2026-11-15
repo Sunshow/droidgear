@@ -53,6 +53,10 @@ import { useUIStore } from '@/store/ui-store'
 import { useChannelStore } from '@/store/channel-store'
 import { useModelStore } from '@/store/model-store'
 import { isActiveVideoTask, usePlaygroundStore } from '@/store/playground-store'
+import {
+  isRunningImageTask,
+  useImagePlaygroundStore,
+} from '@/store/image-playground-store'
 import type { Channel } from '@/lib/bindings'
 import { saveChannelAuth } from '@/lib/channel-utils'
 
@@ -85,9 +89,14 @@ export function LeftSideBar({ children, className }: LeftSideBarProps) {
   const selectChannel = useChannelStore(state => state.selectChannel)
   const channelHasChanges = useChannelStore(state => state.hasChanges)
   const modelHasChanges = useModelStore(state => state.hasChanges)
-  const playgroundActiveCount = usePlaygroundStore(
+  const videoPlaygroundActiveCount = usePlaygroundStore(
     state => state.videoTasks.filter(isActiveVideoTask).length
   )
+  const imagePlaygroundActiveCount = useImagePlaygroundStore(
+    state => state.imageTasks.filter(isRunningImageTask).length
+  )
+  const playgroundActiveCount =
+    videoPlaygroundActiveCount + imagePlaygroundActiveCount
 
   const [channelDialogOpen, setChannelDialogOpen] = useState(false)
   const [editingChannel, setEditingChannel] = useState<Channel | undefined>()

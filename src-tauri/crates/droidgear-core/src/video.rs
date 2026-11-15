@@ -21,20 +21,17 @@ use specta::Type;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, OnceLock};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use crate::channel::{self, Channel, ChannelToken, ChannelType};
+use crate::channel::ChannelType;
+use crate::playground::{self, authorized, format_api_error, send_json, snippet, ResolvedSource};
 
 const VIDEO_MODELS_FILE: &str = "video_models.json";
 const VIDEO_TASKS_FILE: &str = "video_tasks.json";
 const VIDEO_SECRETS_FILE: &str = "video_secrets.json";
-const VIDEO_MEDIA_DIR: &str = "media";
-const TOKEN_CACHE_TTL: Duration = Duration::from_secs(300);
 const CREATE_TIMEOUT: Duration = Duration::from_secs(120);
 const QUERY_TIMEOUT: Duration = Duration::from_secs(30);
 const CONTENT_TIMEOUT: Duration = Duration::from_secs(300);
-const MAX_ERROR_BODY_CHARS: usize = 500;
 
 // ============================================================================
 // Types
@@ -149,24 +146,20 @@ pub struct VideoTaskRecord {
 // Paths and persistence
 // ============================================================================
 
-fn playground_dir(home: &Path) -> PathBuf {
-    crate::paths::droidgear_dir_from_home(home).join("playground")
-}
-
 pub fn video_models_path_for_home(home: &Path) -> PathBuf {
-    playground_dir(home).join(VIDEO_MODELS_FILE)
+    playground::playground_dir(home).join(VIDEO_MODELS_FILE)
 }
 
 pub fn video_tasks_path_for_home(home: &Path) -> PathBuf {
-    playground_dir(home).join(VIDEO_TASKS_FILE)
+    playground::playground_dir(home).join(VIDEO_TASKS_FILE)
 }
 
 pub fn video_secrets_path_for_home(home: &Path) -> PathBuf {
-    playground_dir(home).join(VIDEO_SECRETS_FILE)
+    playground::playground_dir(home).join(VIDEO_SECRETS_FILE)
 }
 
 pub fn video_media_dir_for_home(home: &Path) -> PathBuf {
-    playground_dir(home).join(VIDEO_MEDIA_DIR)
+    playground::media_dir(home)
 }
 
 /// Loads playground video models, merging custom-endpoint API keys back in.
@@ -216,27 +209,15 @@ pub fn save_video_models_for_home(home: &Path, models: &[VideoModel]) -> Result<
         }
     }
 
-    let dir = playground_dir(home);
+    let dir = playground::playground_dir(home);
     fs::create_dir_all(&dir).map_err(|e| format!("Failed to create playground directory: {e}"))?;
 
-    let secrets_path = video_secrets_path_for_home(home);
-    if secrets.is_empty() {
-        if secrets_path.exists() {
-            fs::remove_file(&secrets_path)
-                .map_err(|e| format!("Failed to remove video secrets file: {e}"))?;
-        }
-    } else {
-        let content = serde_json::to_string_pretty(&secrets)
-            .map_err(|e| format!("Failed to serialize video secrets: {e}"))?;
-        crate::storage::atomic_write_private(&secrets_path, content.as_bytes())
-            .map_err(|e| format!("Failed to write video secrets: {e}"))?;
-    }
-
-    let content = serde_json::to_string_pretty(&sanitized)
-        .map_err(|e| format!("Failed to serialize video models: {e}"))?;
-    crate::storage::atomic_write(&video_models_path_for_home(home), content.as_bytes())
-        .map_err(|e| format!("Failed to write video models: {e}"))?;
-    Ok(())
+    playground::write_secrets(&video_secrets_path_for_home(home), &secrets, "video")?;
+    playground::write_json(
+        &video_models_path_for_home(home),
+        &sanitized,
+        "video models",
+    )
 }
 
 /// Loads persisted playground tasks and reattaches custom-endpoint API keys.
@@ -285,196 +266,29 @@ pub fn save_video_tasks_for_home(home: &Path, tasks: &[VideoTaskRecord]) -> Resu
         }
     }
 
-    let dir = playground_dir(home);
+    let dir = playground::playground_dir(home);
     fs::create_dir_all(&dir)
         .map_err(|error| format!("Failed to create playground directory: {error}"))?;
-    let content = serde_json::to_string_pretty(&sanitized)
-        .map_err(|error| format!("Failed to serialize video tasks: {error}"))?;
-    crate::storage::atomic_write(&video_tasks_path_for_home(home), content.as_bytes())
-        .map_err(|error| format!("Failed to write video tasks: {error}"))?;
-    Ok(())
+    playground::write_json(&video_tasks_path_for_home(home), &sanitized, "video tasks")
 }
 
 fn load_secrets_for_home(home: &Path) -> HashMap<String, String> {
-    let path = video_secrets_path_for_home(home);
-    if !path.exists() {
-        return HashMap::new();
-    }
-    match fs::read_to_string(&path) {
-        Ok(content) => match serde_json::from_str::<HashMap<String, String>>(&content) {
-            Ok(secrets) => secrets,
-            Err(error) => {
-                log::warn!("Video: failed to parse secrets file: {error}");
-                HashMap::new()
-            }
-        },
-        Err(error) => {
-            log::warn!("Video: failed to read secrets file: {error}");
-            HashMap::new()
-        }
-    }
+    playground::read_secrets(&video_secrets_path_for_home(home), "Video")
 }
 
 // ============================================================================
-// Channel credential resolution
+// Source resolution
 // ============================================================================
-
-struct CachedTokenKey {
-    key: String,
-    fetched_at: Instant,
-}
-
-static TOKEN_CACHE: OnceLock<Mutex<HashMap<String, CachedTokenKey>>> = OnceLock::new();
-
-struct ResolvedSource {
-    base_url: String,
-    api_key: String,
-    channel_type: Option<ChannelType>,
-}
-
-fn channel_uses_api_key(channel_type: &ChannelType) -> bool {
-    matches!(
-        channel_type,
-        ChannelType::CliProxyApi
-            | ChannelType::Ollama
-            | ChannelType::General
-            | ChannelType::DeepSeek
-    )
-}
-
-fn select_active_token(tokens: &[ChannelToken]) -> Option<&ChannelToken> {
-    tokens
-        .iter()
-        .find(|token| token.status == 1 && !token.key.trim().is_empty())
-        .or_else(|| tokens.iter().find(|token| !token.key.trim().is_empty()))
-}
-
-fn find_token_by_id(tokens: &[ChannelToken], id: f64) -> Option<&ChannelToken> {
-    tokens.iter().find(|token| (token.id - id).abs() < 0.5)
-}
-
-fn token_cache_get(key: &str) -> Option<String> {
-    let cache = TOKEN_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-    let mut cache = cache.lock().ok()?;
-    if let Some(entry) = cache.get(key) {
-        if entry.fetched_at.elapsed() < TOKEN_CACHE_TTL {
-            return Some(entry.key.clone());
-        }
-        cache.remove(key);
-    }
-    None
-}
-
-fn token_cache_put(key: String, token_key: String) {
-    if let Ok(mut cache) = TOKEN_CACHE
-        .get_or_init(|| Mutex::new(HashMap::new()))
-        .lock()
-    {
-        cache.insert(
-            key,
-            CachedTokenKey {
-                key: token_key,
-                fetched_at: Instant::now(),
-            },
-        );
-    }
-}
-
-async fn resolve_channel_api_key(
-    home: &Path,
-    channel: &Channel,
-    token_id: Option<f64>,
-) -> Result<String, String> {
-    if channel_uses_api_key(&channel.channel_type) {
-        let api_key = channel::get_channel_api_key_for_home(home, &channel.id)?.unwrap_or_default();
-        if api_key.trim().is_empty() {
-            return Err(format!(
-                "Channel '{}' has no API key. Add one under Channels.",
-                channel.name
-            ));
-        }
-        return Ok(api_key);
-    }
-
-    let cache_key = format!("{}:{token_id:?}", channel.id);
-    if let Some(api_key) = token_cache_get(&cache_key) {
-        return Ok(api_key);
-    }
-
-    let (username, password) = channel::get_channel_credentials_for_home(home, &channel.id)?
-        .ok_or_else(|| {
-            format!(
-                "Channel '{}' has no saved credentials. Add them under Channels.",
-                channel.name
-            )
-        })?;
-    let tokens = channel::fetch_channel_tokens(
-        channel.channel_type.clone(),
-        &channel.base_url,
-        &username,
-        &password,
-    )
-    .await?;
-
-    let token = match token_id {
-        Some(id) => find_token_by_id(&tokens, id).ok_or_else(|| {
-            "The token selected for this video model no longer exists. Re-import the model or choose another token."
-                .to_string()
-        })?,
-        None => select_active_token(&tokens).ok_or_else(|| {
-            format!("Channel '{}' has no active token.", channel.name)
-        })?,
-    };
-    let api_key = token.key.trim().to_string();
-    if api_key.is_empty() {
-        return Err(format!(
-            "Channel '{}' returned an empty token key.",
-            channel.name
-        ));
-    }
-    token_cache_put(cache_key, api_key.clone());
-    Ok(api_key)
-}
 
 async fn resolve_source(model: &VideoModel) -> Result<ResolvedSource, String> {
     match &model.source {
         VideoSource::Custom { base_url, api_key } => {
-            let base_url = base_url.trim();
-            if base_url.is_empty() {
-                return Err(format!(
-                    "Video model '{}' has no base URL. Edit it in Manage models.",
-                    model.name
-                ));
-            }
-            Ok(ResolvedSource {
-                base_url: base_url.to_string(),
-                api_key: api_key.trim().to_string(),
-                channel_type: None,
-            })
+            playground::resolve_custom_source(base_url, api_key)
         }
         VideoSource::Channel {
             channel_id,
             token_id,
-        } => {
-            let home = crate::paths::get_home_dir()?;
-            let channels = channel::load_channels_for_home(&home)?;
-            let channel = channels.iter().find(|item| item.id == *channel_id).ok_or_else(|| {
-                "The channel used by this video model no longer exists. Re-create the video model."
-                    .to_string()
-            })?;
-            if !channel.enabled {
-                return Err(format!(
-                    "Channel '{}' is disabled. Enable it or choose another channel.",
-                    channel.name
-                ));
-            }
-            let api_key = resolve_channel_api_key(&home, channel, *token_id).await?;
-            Ok(ResolvedSource {
-                base_url: channel.base_url.clone(),
-                api_key,
-                channel_type: Some(channel.channel_type.clone()),
-            })
-        }
+        } => playground::resolve_channel_source(channel_id, *token_id).await,
     }
 }
 
@@ -1092,77 +906,6 @@ fn parse_doubao_snapshot(
 }
 
 // ============================================================================
-// HTTP helpers
-// ============================================================================
-
-fn build_client() -> Result<reqwest::Client, String> {
-    reqwest::Client::builder()
-        .timeout(CREATE_TIMEOUT)
-        .build()
-        .map_err(|error| format!("Failed to create HTTP client: {error}"))
-}
-
-fn authorized(request: reqwest::RequestBuilder, api_key: &str) -> reqwest::RequestBuilder {
-    if api_key.trim().is_empty() {
-        request
-    } else {
-        request.bearer_auth(api_key)
-    }
-}
-
-fn snippet(body: &str) -> String {
-    let trimmed = body.trim();
-    if trimmed.is_empty() {
-        return "(empty response)".to_string();
-    }
-    let mut chars = trimmed.chars();
-    let prefix: String = chars.by_ref().take(MAX_ERROR_BODY_CHARS).collect();
-    if chars.next().is_some() {
-        format!("{prefix}…")
-    } else {
-        prefix
-    }
-}
-
-fn api_error_message(body: &str) -> Option<String> {
-    let value: Value = serde_json::from_str(body).ok()?;
-    if let Some(object) = value.as_object() {
-        for key in ["error", "message", "msg", "detail"] {
-            if let Some(message) = object.get(key).and_then(value_message) {
-                return Some(message);
-            }
-        }
-    }
-    value_message(&value)
-}
-
-fn format_api_error(status: reqwest::StatusCode, body: &str) -> String {
-    let message = api_error_message(body).unwrap_or_else(|| snippet(body));
-    format!("HTTP {}: {message}", status.as_u16())
-}
-
-async fn send_json(request: reqwest::RequestBuilder) -> Result<Value, String> {
-    let response = request
-        .send()
-        .await
-        .map_err(|error| format!("Request failed: {error}"))?;
-    let status = response.status();
-    let body = response
-        .text()
-        .await
-        .map_err(|error| format!("Failed to read response body: {error}"))?;
-    if !status.is_success() {
-        return Err(format_api_error(status, &body));
-    }
-    serde_json::from_str(&body).map_err(|error| {
-        format!(
-            "Failed to parse response as JSON: {error} (body: {})",
-            snippet(&body)
-        )
-    })
-}
-
-// ============================================================================
 // Public protocol operations
 // ============================================================================
 
@@ -1203,7 +946,7 @@ pub async fn create_video_task(
         extra,
     };
     let source = resolve_source(model).await?;
-    let client = build_client()?;
+    let client = playground::build_client(CREATE_TIMEOUT)?;
 
     match model.protocol {
         VideoProtocol::Sora => {
@@ -1242,7 +985,7 @@ pub async fn query_video_task(
 ) -> Result<VideoTaskSnapshot, String> {
     validate_task_id(task_id)?;
     let source = resolve_source(model).await?;
-    let client = build_client()?;
+    let client = playground::build_client(CREATE_TIMEOUT)?;
 
     match model.protocol {
         VideoProtocol::Sora => {
@@ -1818,43 +1561,6 @@ mod tests {
         assert_eq!(parse_progress(Some(&json!("42%"))), 42);
         assert_eq!(parse_progress(Some(&json!(150))), 100);
         assert_eq!(parse_progress(None), 0);
-    }
-
-    #[test]
-    fn token_selection_prefers_an_enabled_token() {
-        let tokens = vec![
-            ChannelToken {
-                id: 1.0,
-                name: "disabled".to_string(),
-                key: "sk-disabled".to_string(),
-                status: 2,
-                remain_quota: 0.0,
-                used_quota: 0.0,
-                unlimited_quota: true,
-                platform: None,
-                group_name: None,
-            },
-            ChannelToken {
-                id: 2.0,
-                name: "active".to_string(),
-                key: "sk-active".to_string(),
-                status: 1,
-                remain_quota: 0.0,
-                used_quota: 0.0,
-                unlimited_quota: true,
-                platform: None,
-                group_name: None,
-            },
-        ];
-        assert_eq!(
-            select_active_token(&tokens).map(|token| token.key.as_str()),
-            Some("sk-active")
-        );
-        assert_eq!(
-            find_token_by_id(&tokens, 2.0).map(|token| token.key.as_str()),
-            Some("sk-active")
-        );
-        assert!(find_token_by_id(&tokens, 99.0).is_none());
     }
 
     #[test]

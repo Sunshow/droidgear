@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next'
 import type { VideoModelDraft, VideoProtocol } from '@/store/playground-store'
 
 /** Suggested clip lengths. All three wires are free-input: Sora accepts
@@ -40,6 +41,32 @@ export function videoProtocolDefaults(
     durations: COMMON_VIDEO_DURATIONS,
     resolutions: COMMON_VIDEO_RESOLUTIONS,
   }
+}
+
+export function videoProtocolOptions(
+  t: TFunction
+): { value: VideoProtocol; label: string }[] {
+  return [
+    { value: 'sora', label: t('playground.video.modelDialog.protocolSora') },
+    {
+      value: 'new-api',
+      label: t('playground.video.modelDialog.protocolNewApi'),
+    },
+    {
+      value: 'doubao',
+      label: t('playground.video.modelDialog.protocolDoubao'),
+    },
+  ]
+}
+
+export function videoProtocolLabel(
+  t: TFunction,
+  protocol: VideoProtocol
+): string {
+  return (
+    videoProtocolOptions(t).find(option => option.value === protocol)?.label ??
+    t('playground.video.modelDialog.protocolSora')
+  )
 }
 
 /** Builds playground models from a channel's `/v1/models` selection.

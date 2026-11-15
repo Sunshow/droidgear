@@ -33,22 +33,52 @@ import {
   type ModelInfo,
 } from '@/lib/bindings'
 import { useChannelStore } from '@/store/channel-store'
-import type { VideoModelDraft, VideoProtocol } from '@/store/playground-store'
-import { buildImportedVideoModels } from './video-protocol'
 
-interface VideoModelImportDialogProps {
+export interface ModelImportSelection {
+  models: ModelInfo[]
+  selectedIds: ReadonlySet<string>
+  channelId: string
+  tokenId: number | null
+  protocols: ReadonlyMap<string, string>
+}
+
+export interface ProtocolOption {
+  value: string
+  label: string
+}
+
+interface ModelImportDialogProps<TDraft> {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onImported: (drafts: VideoModelDraft[]) => unknown
+  title: string
+  description: string
+  protocolLabel: string
+  protocolHint: string
+  protocolOptions: ProtocolOption[]
+  defaultProtocol: string
+  buildDrafts: (selection: ModelImportSelection) => TDraft[]
+  onImported: (drafts: TDraft[]) => unknown
 }
 
 type Step = 'channel' | 'token' | 'models'
 
-export function VideoModelImportDialog({
+/**
+ * Shared three-step channel import: channel, token, models. The caller decides
+ * how a selection becomes its own model drafts, so both Playground pages use
+ * one dialog.
+ */
+export function ModelImportDialog<TDraft>({
   open,
   onOpenChange,
+  title,
+  description,
+  protocolLabel,
+  protocolHint,
+  protocolOptions,
+  defaultProtocol,
+  buildDrafts,
   onImported,
-}: VideoModelImportDialogProps) {
+}: ModelImportDialogProps<TDraft>) {
   const { t } = useTranslation()
   const channels = useChannelStore(state => state.channels)
   const loadChannels = useChannelStore(state => state.loadChannels)
@@ -61,10 +91,11 @@ export function VideoModelImportDialog({
   const [tokenId, setTokenId] = useState<number | null>(null)
   const [models, setModels] = useState<ModelInfo[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [defaultProtocol, setDefaultProtocol] = useState<VideoProtocol>('sora')
-  const [modelProtocols, setModelProtocols] = useState<
-    Map<string, VideoProtocol>
-  >(new Map())
+  const [defaultProtocolState, setDefaultProtocolState] =
+    useState(defaultProtocol)
+  const [modelProtocols, setModelProtocols] = useState<Map<string, string>>(
+    new Map()
+  )
   const [search, setSearch] = useState('')
   const [isLoadingModels, setIsLoadingModels] = useState(false)
   const [isResolvingKey, setIsResolvingKey] = useState(false)
@@ -87,7 +118,7 @@ export function VideoModelImportDialog({
     setTokenId(null)
     setModels([])
     setSelectedIds(new Set())
-    setDefaultProtocol('sora')
+    setDefaultProtocolState(defaultProtocol)
     setModelProtocols(new Map())
     setSearch('')
     setError(null)
@@ -95,7 +126,7 @@ export function VideoModelImportDialog({
     setIsResolvingKey(false)
     setIsImporting(false)
     if (channels.length === 0) void loadChannels()
-  }, [open, channels.length, loadChannels])
+  }, [open, channels.length, loadChannels, defaultProtocol])
 
   useEffect(() => {
     if (step !== 'token' || !channel) return
@@ -142,7 +173,7 @@ export function VideoModelImportDialog({
         const result = await commands.getChannelApiKey(channel.id)
         if (result.status !== 'ok' || !result.data) {
           setError(
-            t('playground.video.import.missingApiKey', {
+            t('playground.import.missingApiKey', {
               channel: channel.name,
             })
           )
@@ -214,11 +245,11 @@ export function VideoModelImportDialog({
     if (!channel || selectedIds.size === 0) return
     setIsImporting(true)
     try {
-      const protocols = new Map<string, VideoProtocol>()
+      const protocols = new Map<string, string>()
       selectedIds.forEach(id => {
-        protocols.set(id, modelProtocols.get(id) ?? defaultProtocol)
+        protocols.set(id, modelProtocols.get(id) ?? defaultProtocolState)
       })
-      const drafts = buildImportedVideoModels({
+      const drafts = buildDrafts({
         models,
         selectedIds,
         channelId: channel.id,
@@ -238,17 +269,15 @@ export function VideoModelImportDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{t('playground.video.import.title')}</DialogTitle>
-          <DialogDescription>
-            {t('playground.video.import.description')}
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span
             className={step === 'channel' ? 'font-medium text-foreground' : ''}
           >
-            1. {t('playground.video.import.stepChannel')}
+            1. {t('playground.import.stepChannel')}
           </span>
           {!apiKeyAuth && (
             <>
@@ -258,7 +287,7 @@ export function VideoModelImportDialog({
                   step === 'token' ? 'font-medium text-foreground' : ''
                 }
               >
-                2. {t('playground.video.import.stepToken')}
+                2. {t('playground.import.stepToken')}
               </span>
             </>
           )}
@@ -266,7 +295,7 @@ export function VideoModelImportDialog({
           <span
             className={step === 'models' ? 'font-medium text-foreground' : ''}
           >
-            {apiKeyAuth ? 2 : 3}. {t('playground.video.import.stepModels')}
+            {apiKeyAuth ? 2 : 3}. {t('playground.import.stepModels')}
           </span>
         </div>
 
@@ -279,7 +308,7 @@ export function VideoModelImportDialog({
 
         {step === 'channel' && (
           <div className="grid gap-3">
-            <Label>{t('playground.video.import.channel')}</Label>
+            <Label>{t('playground.import.channel')}</Label>
             <Select
               value={channelId}
               onValueChange={value => {
@@ -290,9 +319,7 @@ export function VideoModelImportDialog({
             >
               <SelectTrigger className="w-full">
                 <SelectValue
-                  placeholder={t(
-                    'playground.video.modelDialog.channelPlaceholder'
-                  )}
+                  placeholder={t('playground.import.channelPlaceholder')}
                 />
               </SelectTrigger>
               <SelectContent>
@@ -310,11 +337,11 @@ export function VideoModelImportDialog({
             </Select>
             {channels.filter(item => item.enabled).length === 0 && (
               <p className="text-xs text-muted-foreground">
-                {t('playground.video.modelDialog.noChannels')}
+                {t('playground.import.noChannels')}
               </p>
             )}
             <p className="text-xs text-muted-foreground">
-              {t('playground.video.import.channelHint')}
+              {t('playground.import.channelHint')}
             </p>
           </div>
         )}
@@ -322,7 +349,7 @@ export function VideoModelImportDialog({
         {step === 'token' && (
           <div className="grid gap-3">
             <p className="text-sm text-muted-foreground">
-              {t('playground.video.import.tokenHint')}
+              {t('playground.import.tokenHint')}
             </p>
             {tokenFetchState?.isLoading && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -339,7 +366,7 @@ export function VideoModelImportDialog({
               !tokenFetchState?.error &&
               activeTokens.length === 0 && (
                 <p className="text-sm text-muted-foreground">
-                  {t('playground.video.import.noTokens')}
+                  {t('playground.import.noTokens')}
                 </p>
               )}
             <div className="max-h-72 divide-y overflow-auto rounded-md border">
@@ -359,7 +386,7 @@ export function VideoModelImportDialog({
                         token.groupName,
                         token.platform,
                         token.unlimitedQuota
-                          ? t('playground.video.import.unlimitedQuota')
+                          ? t('playground.import.unlimitedQuota')
                           : undefined,
                       ]
                         .filter(Boolean)
@@ -377,11 +404,11 @@ export function VideoModelImportDialog({
           <div className="grid gap-3">
             <div className="flex flex-wrap items-end gap-3">
               <div className="grid gap-1">
-                <Label>{t('playground.video.import.protocol')}</Label>
+                <Label>{protocolLabel}</Label>
                 <Select
-                  value={defaultProtocol}
+                  value={defaultProtocolState}
                   onValueChange={value => {
-                    setDefaultProtocol(value as VideoProtocol)
+                    setDefaultProtocolState(value)
                     setModelProtocols(new Map())
                   }}
                 >
@@ -389,15 +416,11 @@ export function VideoModelImportDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="sora">
-                      {t('playground.video.modelDialog.protocolSora')}
-                    </SelectItem>
-                    <SelectItem value="new-api">
-                      {t('playground.video.modelDialog.protocolNewApi')}
-                    </SelectItem>
-                    <SelectItem value="doubao">
-                      {t('playground.video.modelDialog.protocolDoubao')}
-                    </SelectItem>
+                    {protocolOptions.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -406,14 +429,12 @@ export function VideoModelImportDialog({
                 <Input
                   value={search}
                   onChange={event => setSearch(event.target.value)}
-                  placeholder={t('playground.video.import.searchPlaceholder')}
+                  placeholder={t('playground.import.searchPlaceholder')}
                   className="ps-8"
                 />
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {t('playground.video.import.protocolHint')}
-            </p>
+            <p className="text-xs text-muted-foreground">{protocolHint}</p>
 
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <button
@@ -423,11 +444,11 @@ export function VideoModelImportDialog({
                 disabled={filteredModels.length === 0}
               >
                 {allVisibleSelected
-                  ? t('playground.video.import.clearAll')
+                  ? t('playground.import.clearAll')
                   : t('common.selectAll')}
               </button>
               <span>
-                {t('playground.video.import.selectedCount', {
+                {t('playground.import.selectedCount', {
                   count: selectedIds.size,
                 })}
               </span>
@@ -442,8 +463,8 @@ export function VideoModelImportDialog({
               ) : filteredModels.length === 0 ? (
                 <p className="p-8 text-center text-sm text-muted-foreground">
                   {models.length === 0
-                    ? t('playground.video.import.empty')
-                    : t('playground.video.import.noMatch')}
+                    ? t('playground.import.empty')
+                    : t('playground.import.noMatch')}
                 </p>
               ) : (
                 filteredModels.map(model => (
@@ -452,12 +473,12 @@ export function VideoModelImportDialog({
                     className="flex items-start gap-3 border-b p-3 last:border-b-0 hover:bg-muted/50"
                   >
                     <Checkbox
-                      id={`video-import-${model.id}`}
+                      id={`playground-import-${model.id}`}
                       checked={selectedIds.has(model.id)}
                       onCheckedChange={() => toggleModel(model.id)}
                     />
                     <Label
-                      htmlFor={`video-import-${model.id}`}
+                      htmlFor={`playground-import-${model.id}`}
                       className="min-w-0 flex-1 cursor-pointer"
                     >
                       <span className="block truncate font-mono text-sm">
@@ -470,31 +491,29 @@ export function VideoModelImportDialog({
                       )}
                     </Label>
                     <Select
-                      value={modelProtocols.get(model.id) ?? defaultProtocol}
+                      value={
+                        modelProtocols.get(model.id) ?? defaultProtocolState
+                      }
                       onValueChange={value =>
                         setModelProtocols(previous => {
                           const next = new Map(previous)
-                          next.set(model.id, value as VideoProtocol)
+                          next.set(model.id, value)
                           return next
                         })
                       }
                     >
                       <SelectTrigger
                         className="h-8 w-44 shrink-0"
-                        aria-label={t('playground.video.import.protocol')}
+                        aria-label={protocolLabel}
                       >
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="sora">
-                          {t('playground.video.modelDialog.protocolSora')}
-                        </SelectItem>
-                        <SelectItem value="new-api">
-                          {t('playground.video.modelDialog.protocolNewApi')}
-                        </SelectItem>
-                        <SelectItem value="doubao">
-                          {t('playground.video.modelDialog.protocolDoubao')}
-                        </SelectItem>
+                        {protocolOptions.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -534,7 +553,7 @@ export function VideoModelImportDialog({
                 }
               >
                 {isImporting && <Loader2 className="animate-spin" />}
-                {t('playground.video.import.importCount', {
+                {t('playground.import.importCount', {
                   count: selectedIds.size,
                 })}
               </Button>

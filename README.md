@@ -167,10 +167,11 @@ GUI 的 MCP「快速添加」卡片或 TUI MCP 列表的 `b` 键会打开百智�
 ### Playground（模型测试台）
 
 - **视频生成** - 顶级视图，选一个视频模型发一次真实请求并预览结果；支持 New API Sora / OpenAI Videos、New API 原生与 Doubao / Ark 三种协议，每个模型独立选择
+- **图片生成** - 同一视图下的图片页，支持 OpenAI ChatCompletions、Responses（`image_generation` 工具）与 Google Gemini（`generateContent` / `imagen: predict`）三种协议；同步生成、多图缩略图切换，结果保存到本地
 - **模型来源** - 从渠道三步导入（渠道、令牌、模型），或手填模型 ID 并配置自定义地址与 API Key；条目只保存渠道与令牌 ID，换令牌或改 Base URL 无需重新导入，密钥单独存放且仅所有者可读写
-- **任务管理** - 创建、查询、取消与重跑任务，状态筛选、自动刷新间隔可选，完成后在 HTML5 播放器中预览，详情区可把参数回填到创建表单
-- **参考图** - 宫格添加，支持批量粘贴 URL 与本地图片（单张上限 20 MB），按协议映射为 `image` / `images` / Ark `reference_image`
-- **持久化** - 模型、密钥与任务记录保存在 `~/.droidgear/playground/`，重启后恢复任务列表并继续轮询进行中的任务
+- **任务管理** - 视频任务可创建、查询、取消与重跑，图片任务可重跑与载入参数；任务列表支持状态筛选，视频可自动刷新，完成后分别在 HTML5 播放器或图片预览区展示
+- **参考图** - 宫格添加，支持批量粘贴 URL 与本地图片（单张上限 20 MB）；视频按协议映射为 `image` / `images` / Ark `reference_image`，图片以 chat 图片块或 Gemini inlineData 发送
+- **持久化** - 模型、密钥与任务记录保存在 `~/.droidgear/playground/`，重启后恢复任务列表并继续轮询进行中的视频任务；生成的图片写入 `media/images/`
 - **只读渠道** - 仅读取渠道，不写任何工具的配置文件；暂不支持 TUI
 
 ### 其他功能
