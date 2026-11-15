@@ -41,7 +41,7 @@ pub async fn create_video_task(
     prompt: String,
     duration: Option<u32>,
     resolution: Option<String>,
-    image_url: Option<String>,
+    image_urls: Vec<String>,
     extra_json: String,
 ) -> Result<VideoTaskSnapshot, String> {
     video::create_video_task(
@@ -49,7 +49,7 @@ pub async fn create_video_task(
         &prompt,
         duration,
         resolution.as_deref(),
-        image_url.as_deref(),
+        image_urls,
         &extra_json,
     )
     .await

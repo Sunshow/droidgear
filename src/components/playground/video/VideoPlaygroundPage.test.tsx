@@ -1,3 +1,4 @@
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen } from '@/test/test-utils'
 import { commands, type VideoModel } from '@/lib/bindings'
@@ -78,8 +79,14 @@ describe('VideoPlaygroundPage', () => {
   it('shows the create form, task list, and the selected local video', () => {
     const { container } = render(<VideoPlaygroundPage />)
 
-    expect(screen.getAllByText('Add video model').length).toBeGreaterThan(0)
+    const modelPicker = screen.getByRole('combobox', { name: 'Model' })
+    expect(modelPicker).toHaveTextContent('Seedance')
+    expect(modelPicker).not.toHaveTextContent('doubao-seedance-2-0-mini-260615')
+    expect(screen.getByRole('button', { name: 'Manage' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Create task/ })).toBeDisabled()
+    expect(
+      screen.getByRole('button', { name: 'Query status' })
+    ).toBeInTheDocument()
 
     const video = container.querySelector('video')
     expect(video?.getAttribute('src')).toContain('asset://')
@@ -120,7 +127,72 @@ describe('VideoPlaygroundPage', () => {
     }
   })
 
-  it('shows the add-model entry when there are no models yet', () => {
+  it('allows free-form options and multiple Sora reference images', () => {
+    const sora: VideoModel = {
+      ...model,
+      protocol: 'sora',
+      durations: [4, 8, 12],
+      resolutions: ['1280x720'],
+    }
+    usePlaygroundStore.setState(
+      {
+        ...initialState,
+        videoModels: [sora],
+        videoModelsLoaded: true,
+        videoTasksLoaded: true,
+        videoTasks: [],
+        selectedVideoTaskId: null,
+        videoDraft: {
+          ...initialState.videoDraft,
+          modelId: sora.id,
+          prompt: 'a cat',
+          duration: '7',
+          resolution: '1280x720',
+          imageUrl: 'https://example.com/a.png\nhttps://example.com/b.png',
+        },
+      },
+      true
+    )
+
+    render(<VideoPlaygroundPage />)
+
+    expect(screen.getByRole('button', { name: /Create task/ })).toBeEnabled()
+    expect(
+      screen.getByRole('img', { name: 'Reference image 1' })
+    ).toHaveAttribute('src', 'https://example.com/a.png')
+    expect(
+      screen.getByRole('img', { name: 'Reference image 2' })
+    ).toHaveAttribute('src', 'https://example.com/b.png')
+  })
+
+  it('clears the create form but keeps the selected model', async () => {
+    usePlaygroundStore.setState(state => ({
+      videoDraft: {
+        ...state.videoDraft,
+        prompt: 'a cat',
+        duration: '5',
+        resolution: '720p',
+        imageUrl: 'https://example.com/cat.png',
+        extraJson: '{"seed":1}',
+      },
+    }))
+    const user = userEvent.setup({ delay: null })
+
+    render(<VideoPlaygroundPage />)
+
+    await user.click(screen.getByRole('button', { name: 'Clear form' }))
+
+    expect(usePlaygroundStore.getState().videoDraft).toMatchObject({
+      modelId: model.id,
+      prompt: '',
+      duration: '',
+      resolution: '',
+      imageUrl: '',
+      extraJson: '',
+    })
+  })
+
+  it('adds a model from the empty header dropdown', async () => {
     usePlaygroundStore.setState(
       {
         ...initialState,
@@ -132,12 +204,21 @@ describe('VideoPlaygroundPage', () => {
       },
       true
     )
+    const user = userEvent.setup({ delay: null })
 
     render(<VideoPlaygroundPage />)
 
-    expect(screen.getAllByText('Add video model').length).toBeGreaterThan(0)
+    expect(screen.getByRole('combobox', { name: 'Model' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Manage' })).toBeInTheDocument()
     expect(
       screen.getByText('No tasks yet. Create one on the left.')
     ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('combobox', { name: 'Model' }))
+    await user.click(
+      await screen.findByRole('option', { name: /Add video model/ })
+    )
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
   })
 })

@@ -61,8 +61,7 @@ export function VideoModelImportDialog({
   const [tokenId, setTokenId] = useState<number | null>(null)
   const [models, setModels] = useState<ModelInfo[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [defaultProtocol, setDefaultProtocol] =
-    useState<VideoProtocol>('new-api-videos')
+  const [defaultProtocol, setDefaultProtocol] = useState<VideoProtocol>('sora')
   const [modelProtocols, setModelProtocols] = useState<
     Map<string, VideoProtocol>
   >(new Map())
@@ -88,7 +87,7 @@ export function VideoModelImportDialog({
     setTokenId(null)
     setModels([])
     setSelectedIds(new Set())
-    setDefaultProtocol('new-api-videos')
+    setDefaultProtocol('sora')
     setModelProtocols(new Map())
     setSearch('')
     setError(null)
@@ -390,8 +389,11 @@ export function VideoModelImportDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="new-api-videos">
-                      {t('playground.video.modelDialog.protocolNewApiVideos')}
+                    <SelectItem value="sora">
+                      {t('playground.video.modelDialog.protocolSora')}
+                    </SelectItem>
+                    <SelectItem value="new-api">
+                      {t('playground.video.modelDialog.protocolNewApi')}
                     </SelectItem>
                     <SelectItem value="doubao">
                       {t('playground.video.modelDialog.protocolDoubao')}
@@ -484,10 +486,11 @@ export function VideoModelImportDialog({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="new-api-videos">
-                          {t(
-                            'playground.video.modelDialog.protocolNewApiVideos'
-                          )}
+                        <SelectItem value="sora">
+                          {t('playground.video.modelDialog.protocolSora')}
+                        </SelectItem>
+                        <SelectItem value="new-api">
+                          {t('playground.video.modelDialog.protocolNewApi')}
                         </SelectItem>
                         <SelectItem value="doubao">
                           {t('playground.video.modelDialog.protocolDoubao')}

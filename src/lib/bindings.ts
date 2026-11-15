@@ -2986,9 +2986,9 @@ async saveVideoTasks(tasks: VideoTaskRecord[]) : Promise<Result<null, string>> {
 /**
  * Submits a video generation task with the model's configured protocol.
  */
-async createVideoTask(model: VideoModel, prompt: string, duration: number | null, resolution: string | null, imageUrl: string | null, extraJson: string) : Promise<Result<VideoTaskSnapshot, string>> {
+async createVideoTask(model: VideoModel, prompt: string, duration: number | null, resolution: string | null, imageUrls: string[], extraJson: string) : Promise<Result<VideoTaskSnapshot, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("create_video_task", { model, prompt, duration, resolution, imageUrl, extraJson }) };
+    return { status: "ok", data: await TAURI_INVOKE("create_video_task", { model, prompt, duration, resolution, imageUrls, extraJson }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -4272,9 +4272,13 @@ export type VideoModel = { id: string; name: string; modelId: string; source: Vi
  */
 export type VideoProtocol = 
 /**
- * OpenAI Videos API served by New API (`/v1/videos`).
+ * New API's OpenAI-compatible Videos wire (`/v1/videos`).
  */
-"new-api-videos" | 
+"sora" | 
+/**
+ * New API's native video generation wire (`/v1/video/generations`).
+ */
+"new-api" | 
 /**
  * Doubao / Ark task API (`/api/v3/contents/generations/tasks`).
  */

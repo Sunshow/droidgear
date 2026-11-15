@@ -113,7 +113,7 @@ describe('playground store', () => {
       name: 'Test',
       modelId: 'test-video',
       source: { kind: 'custom', baseUrl: 'https://x', apiKey: 'sk-x' },
-      protocol: 'new-api-videos',
+      protocol: 'sora',
       durations: [5],
       resolutions: [],
       supportsImageInput: false,
@@ -124,7 +124,7 @@ describe('playground store', () => {
       expect.objectContaining({
         id: created?.id,
         modelId: 'test-video',
-        protocol: 'new-api-videos',
+        protocol: 'sora',
       }),
     ])
     expect(usePlaygroundStore.getState().videoDraft.modelId).toBe(created?.id)
@@ -164,7 +164,7 @@ describe('playground store', () => {
       'a cat',
       5,
       '720p',
-      null,
+      [],
       ''
     )
     const task = usePlaygroundStore
@@ -178,6 +178,56 @@ describe('playground store', () => {
     expect(saveVideoTasks).toHaveBeenCalledWith([
       expect.objectContaining({ id: 'task_1', status: 'queued' }),
     ])
+  })
+
+  it('splits reference images one per line for multi-image protocols', async () => {
+    await seedModel()
+    createVideoTask.mockResolvedValue({
+      status: 'ok',
+      data: snapshot({ id: 'task_multi' }),
+    })
+
+    const taskId = await usePlaygroundStore.getState().createVideoTask('vm_1', {
+      ...params,
+      imageUrl:
+        'https://example.com/frame-a.png\nhttps://example.com/frame-b.png',
+    })
+
+    expect(taskId).toBe('task_multi')
+    expect(createVideoTask).toHaveBeenCalledWith(
+      model,
+      'a cat',
+      5,
+      '720p',
+      ['https://example.com/frame-a.png', 'https://example.com/frame-b.png'],
+      ''
+    )
+  })
+
+  it('passes multiple reference images for the Sora protocol', async () => {
+    await seedModel()
+    const soraModel = { ...model, protocol: 'sora' as const }
+    usePlaygroundStore.setState({ videoModels: [soraModel] })
+    createVideoTask.mockResolvedValue({
+      status: 'ok',
+      data: snapshot({ id: 'task_sora' }),
+    })
+
+    const taskId = await usePlaygroundStore.getState().createVideoTask('vm_1', {
+      ...params,
+      imageUrl:
+        'https://example.com/frame-a.png\nhttps://example.com/frame-b.png',
+    })
+
+    expect(taskId).toBe('task_sora')
+    expect(createVideoTask).toHaveBeenCalledWith(
+      soraModel,
+      'a cat',
+      5,
+      '720p',
+      ['https://example.com/frame-a.png', 'https://example.com/frame-b.png'],
+      ''
+    )
   })
 
   it('does not insert a task when the backend rejects the request', async () => {
@@ -290,7 +340,7 @@ describe('playground store', () => {
       'a cat',
       5,
       '720p',
-      null,
+      [],
       ''
     )
   })

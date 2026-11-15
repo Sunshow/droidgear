@@ -12,6 +12,7 @@ import {
   type VideoTaskStatus,
 } from '@/lib/bindings'
 import i18n from '@/i18n/config'
+import { parseImageUrls } from '@/lib/video-utils'
 
 export type {
   VideoModel,
@@ -155,22 +156,24 @@ export const usePlaygroundStore = create<PlaygroundState>()(
           // this task's save would replace the history with a single record.
           if (!get().videoTasksLoaded) await get().loadVideoTasks()
 
-          const duration =
-            params.duration.trim() === '' ? null : Number(params.duration)
+          const rawDuration = params.duration.trim().replace(/s$/i, '')
+          const duration = rawDuration === '' ? null : Number(rawDuration)
           if (
             duration !== null &&
-            (!Number.isFinite(duration) || duration <= 0)
+            (!Number.isInteger(duration) || duration <= 0 || duration > 3600)
           ) {
             toast.error(i18n.t('playground.video.errors.invalidDuration'))
             return null
           }
+
+          const imageUrls = parseImageUrls(params.imageUrl)
 
           const result = await commands.createVideoTask(
             model,
             params.prompt,
             duration,
             params.resolution.trim() || null,
-            params.imageUrl.trim() || null,
+            imageUrls,
             params.extraJson
           )
           if (result.status === 'error') {

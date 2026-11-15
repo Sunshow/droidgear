@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { VideoProtocol } from '@/store/playground-store'
 import {
   buildImportedVideoModels,
+  COMMON_VIDEO_DURATIONS,
+  COMMON_VIDEO_RESOLUTIONS,
   videoProtocolDefaults,
 } from './video-protocol'
 
@@ -13,15 +15,21 @@ function protocolMap(
 }
 
 describe('videoProtocolDefaults', () => {
-  it('uses Ark resolution tiers for doubao', () => {
-    const defaults = videoProtocolDefaults('doubao')
-    expect(defaults.resolutions).toContain('720p')
-    expect(defaults.resolutions).toContain('1080p')
+  it('uses the same suggestion lists for every protocol', () => {
+    const sora = videoProtocolDefaults('sora')
+    const newApi = videoProtocolDefaults('new-api')
+    const doubao = videoProtocolDefaults('doubao')
+
+    expect(sora.durations).toEqual(COMMON_VIDEO_DURATIONS)
+    expect(newApi.durations).toEqual(COMMON_VIDEO_DURATIONS)
+    expect(doubao.resolutions).toEqual(COMMON_VIDEO_RESOLUTIONS)
+    expect(sora.resolutions).toEqual(COMMON_VIDEO_RESOLUTIONS)
   })
 
-  it('uses sizes for the New API videos wire', () => {
-    const defaults = videoProtocolDefaults('new-api-videos')
-    expect(defaults.resolutions).toContain('1280x720')
+  it('lists both resolution tiers and WxH sizes', () => {
+    expect(COMMON_VIDEO_RESOLUTIONS).toContain('720p')
+    expect(COMMON_VIDEO_RESOLUTIONS).toContain('1280x720')
+    expect(COMMON_VIDEO_RESOLUTIONS).toContain('1024x1792')
   })
 })
 
@@ -54,31 +62,32 @@ describe('buildImportedVideoModels', () => {
     })
   })
 
-  it('keeps the selected protocol for the whole batch', () => {
+  it('keeps the selected protocol and shared options for the batch', () => {
     const drafts = buildImportedVideoModels({
       models: [{ id: 'video-1', name: null }],
       selectedIds: new Set(['video-1']),
       channelId: 'ch_1',
       tokenId: null,
-      protocols: protocolMap(['video-1'], 'new-api-videos'),
+      protocols: protocolMap(['video-1'], 'new-api'),
     })
 
-    expect(drafts[0]?.protocol).toBe('new-api-videos')
-    expect(drafts[0]?.resolutions).toEqual(
-      videoProtocolDefaults('new-api-videos').resolutions
-    )
-    expect(drafts[0]?.supportsImageInput).toBe(false)
+    expect(drafts[0]?.protocol).toBe('new-api')
+    expect(drafts[0]?.durations).toEqual(COMMON_VIDEO_DURATIONS)
+    expect(drafts[0]?.resolutions).toEqual(COMMON_VIDEO_RESOLUTIONS)
+    expect(drafts[0]?.supportsImageInput).toBe(true)
   })
 
   it('allows a different protocol per model in the same import', () => {
     const protocols = new Map<string, VideoProtocol>([
       ['doubao-seedance-2-0-260128', 'doubao'],
-      ['sora-2', 'new-api-videos'],
+      ['sora-2', 'sora'],
+      ['kling-v3', 'new-api'],
     ])
     const drafts = buildImportedVideoModels({
       models: [
         { id: 'doubao-seedance-2-0-260128', name: null },
         { id: 'sora-2', name: null },
+        { id: 'kling-v3', name: null },
       ],
       selectedIds: new Set(protocols.keys()),
       channelId: 'ch_1',
@@ -88,9 +97,8 @@ describe('buildImportedVideoModels', () => {
 
     expect(drafts.map(draft => draft.protocol)).toEqual([
       'doubao',
-      'new-api-videos',
+      'sora',
+      'new-api',
     ])
-    expect(drafts[0]?.resolutions).toContain('720p')
-    expect(drafts[1]?.resolutions).toContain('1280x720')
   })
 })

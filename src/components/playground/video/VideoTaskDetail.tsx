@@ -21,6 +21,7 @@ import {
   usePlaygroundStore,
   type VideoTask,
 } from '@/store/playground-store'
+import { parseImageUrls } from '@/lib/video-utils'
 import { formatDateTime } from './video-format'
 import { VideoTaskProgress, VideoTaskStatusBadge } from './VideoTaskStatus'
 
@@ -123,6 +124,7 @@ export function VideoTaskDetail() {
   }
 
   const active = isActiveVideoTask(task)
+  const referenceImages = parseImageUrls(task.params.imageUrl)
   const store = usePlaygroundStore.getState()
 
   const handleCopyId = async () => {
@@ -151,18 +153,22 @@ export function VideoTaskDetail() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b px-4 py-2">
+      <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2">
         <VideoTaskStatusBadge status={task.status} />
         <button
           type="button"
           onClick={() => void handleCopyId()}
-          className="flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground"
-          title={t('common.copy')}
+          className="flex min-w-0 max-w-56 items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground"
+          title={task.id}
         >
-          {task.id}
-          {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
+          <span className="truncate">{task.id}</span>
+          {copied ? (
+            <Check className="size-3 shrink-0" />
+          ) : (
+            <Copy className="size-3 shrink-0" />
+          )}
         </button>
-        <div className="ms-auto flex items-center gap-1">
+        <div className="ms-auto flex flex-wrap items-center justify-end gap-1">
           {canQuery && (
             <Button
               variant="ghost"
@@ -236,9 +242,11 @@ export function VideoTaskDetail() {
           <MetaRow
             label={t('playground.video.detail.protocol')}
             value={
-              task.model.protocol === 'doubao'
-                ? t('playground.video.modelDialog.protocolDoubao')
-                : t('playground.video.modelDialog.protocolNewApiVideos')
+              task.model.protocol === 'new-api'
+                ? t('playground.video.modelDialog.protocolNewApi')
+                : task.model.protocol === 'doubao'
+                  ? t('playground.video.modelDialog.protocolDoubao')
+                  : t('playground.video.modelDialog.protocolSora')
             }
           />
           <MetaRow
@@ -255,10 +263,23 @@ export function VideoTaskDetail() {
               task.params.resolution || t('playground.video.create.default')
             }
           />
-          {task.params.imageUrl && (
+          {referenceImages.length > 0 && (
             <MetaRow
-              label={t('playground.video.create.imageUrl')}
-              value={task.params.imageUrl}
+              label={t('playground.video.create.imageUrls')}
+              value={
+                <div className="flex flex-wrap gap-1.5">
+                  {referenceImages.map((url, index) => (
+                    <img
+                      key={`${index}-${url.slice(0, 40)}`}
+                      src={url}
+                      alt={t('playground.video.create.imageAlt', {
+                        index: index + 1,
+                      })}
+                      className="size-12 rounded border object-cover"
+                    />
+                  ))}
+                </div>
+              }
             />
           )}
           <MetaRow

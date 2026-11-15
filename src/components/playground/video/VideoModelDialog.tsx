@@ -30,7 +30,10 @@ import type {
 } from '@/store/playground-store'
 import { parseList } from './video-format'
 import { VideoModelImportDialog } from './VideoModelImportDialog'
-import { videoProtocolDefaults } from './video-protocol'
+import {
+  COMMON_VIDEO_DURATIONS,
+  COMMON_VIDEO_RESOLUTIONS,
+} from './video-protocol'
 
 interface VideoModelDialogProps {
   open: boolean
@@ -58,8 +61,7 @@ function VideoModelForm({
   const channels = useChannelStore(state => state.channels)
   const loadChannels = useChannelStore(state => state.loadChannels)
 
-  const initialProtocol = model?.protocol ?? 'new-api-videos'
-  const initialDefaults = videoProtocolDefaults(initialProtocol)
+  const initialProtocol = model?.protocol ?? 'sora'
 
   const [name, setName] = useState(model?.name ?? '')
   const [modelId, setModelId] = useState(model?.modelId ?? '')
@@ -80,17 +82,14 @@ function VideoModelForm({
     model?.source.kind === 'custom' ? model.source.apiKey : ''
   )
   const [durations, setDurations] = useState(
-    model ? model.durations.join(', ') : initialDefaults.durations.join(', ')
+    model ? model.durations.join(', ') : COMMON_VIDEO_DURATIONS.join(', ')
   )
   const [resolutions, setResolutions] = useState(
-    model
-      ? model.resolutions.join(', ')
-      : initialDefaults.resolutions.join(', ')
+    model ? model.resolutions.join(', ') : COMMON_VIDEO_RESOLUTIONS.join(', ')
   )
   const [supportsImageInput, setSupportsImageInput] = useState(
-    model?.supportsImageInput ?? false
+    model?.supportsImageInput ?? true
   )
-  const [imageInputTouched, setImageInputTouched] = useState(Boolean(model))
   const [importOpen, setImportOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -102,21 +101,6 @@ function VideoModelForm({
   const sourceValid =
     sourceKind === 'channel' ? channelId !== '' : baseUrl.trim() !== ''
   const isValid = name.trim() !== '' && modelId.trim() !== '' && sourceValid
-
-  const handleProtocolChange = (next: VideoProtocol) => {
-    const previousDefaults = videoProtocolDefaults(protocol)
-    const nextDefaults = videoProtocolDefaults(next)
-    if (durations === previousDefaults.durations.join(', ')) {
-      setDurations(nextDefaults.durations.join(', '))
-    }
-    if (resolutions === previousDefaults.resolutions.join(', ')) {
-      setResolutions(nextDefaults.resolutions.join(', '))
-    }
-    if (!imageInputTouched) {
-      setSupportsImageInput(next === 'doubao')
-    }
-    setProtocol(next)
-  }
 
   const handleSave = async () => {
     const draft: VideoModelDraft = {
@@ -198,16 +182,17 @@ function VideoModelForm({
             <Label>{t('playground.video.modelDialog.protocol')}</Label>
             <Select
               value={protocol}
-              onValueChange={value =>
-                handleProtocolChange(value as VideoProtocol)
-              }
+              onValueChange={value => setProtocol(value as VideoProtocol)}
             >
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="new-api-videos">
-                  {t('playground.video.modelDialog.protocolNewApiVideos')}
+                <SelectItem value="sora">
+                  {t('playground.video.modelDialog.protocolSora')}
+                </SelectItem>
+                <SelectItem value="new-api">
+                  {t('playground.video.modelDialog.protocolNewApi')}
                 </SelectItem>
                 <SelectItem value="doubao">
                   {t('playground.video.modelDialog.protocolDoubao')}
@@ -313,9 +298,7 @@ function VideoModelForm({
                 id="vm-durations"
                 value={durations}
                 onChange={event => setDurations(event.target.value)}
-                placeholder={videoProtocolDefaults(protocol).durations.join(
-                  ', '
-                )}
+                placeholder={COMMON_VIDEO_DURATIONS.join(', ')}
               />
             </div>
             <div className="grid gap-2">
@@ -326,9 +309,7 @@ function VideoModelForm({
                 id="vm-resolutions"
                 value={resolutions}
                 onChange={event => setResolutions(event.target.value)}
-                placeholder={videoProtocolDefaults(protocol).resolutions.join(
-                  ', '
-                )}
+                placeholder={COMMON_VIDEO_RESOLUTIONS.join(', ')}
               />
             </div>
           </div>
@@ -343,10 +324,7 @@ function VideoModelForm({
             <Switch
               id="vm-image-input"
               checked={supportsImageInput}
-              onCheckedChange={checked => {
-                setImageInputTouched(true)
-                setSupportsImageInput(checked)
-              }}
+              onCheckedChange={setSupportsImageInput}
             />
           </div>
         </div>

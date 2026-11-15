@@ -1,34 +1,18 @@
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Loader2, Plus, Settings2, Sparkles } from 'lucide-react'
+import { Eraser, Loader2, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { IdPicker } from '@/components/ui/id-picker'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { usePlaygroundStore } from '@/store/playground-store'
 import { isJsonObjectOrEmpty } from './video-format'
+import { VideoReferenceImages } from './VideoReferenceImages'
 
-const AUTO = '__auto__'
-
-interface VideoCreatePanelProps {
-  onAddModel: () => void
-  onManageModels: () => void
-}
-
-export function VideoCreatePanel({
-  onAddModel,
-  onManageModels,
-}: VideoCreatePanelProps) {
+export function VideoCreatePanel() {
   const { t } = useTranslation()
   const models = usePlaygroundStore(state => state.videoModels)
-  const modelsLoading = usePlaygroundStore(state => state.videoModelsLoading)
   const draft = usePlaygroundStore(state => state.videoDraft)
   const updateDraft = usePlaygroundStore(state => state.updateVideoDraft)
   const isCreating = usePlaygroundStore(state => state.isCreating)
@@ -40,6 +24,12 @@ export function VideoCreatePanel({
     draft.prompt.trim() !== '' &&
     jsonValid &&
     !isCreating
+  const hasDraftContent =
+    draft.prompt.trim() !== '' ||
+    draft.duration.trim() !== '' ||
+    draft.resolution.trim() !== '' ||
+    draft.imageUrl.trim() !== '' ||
+    draft.extraJson.trim() !== ''
 
   const handleSubmit = async () => {
     if (!model || !canSubmit) return
@@ -61,67 +51,6 @@ export function VideoCreatePanel({
     <div className="flex h-full flex-col">
       <div className="min-h-0 flex-1 space-y-4 overflow-auto p-4">
         <div className="grid gap-2">
-          <div className="flex items-center justify-between">
-            <Label>{t('playground.video.create.model')}</Label>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2 text-xs"
-              onClick={onManageModels}
-            >
-              <Settings2 />
-              {t('playground.video.manageModels')}
-            </Button>
-          </div>
-          {modelsLoading && models.length === 0 ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
-              {t('common.loading')}
-            </div>
-          ) : models.length === 0 ? (
-            <Button
-              variant="outline"
-              className="justify-start"
-              onClick={onAddModel}
-            >
-              <Plus />
-              {t('playground.video.addModel')}
-            </Button>
-          ) : (
-            <Select
-              value={model ? draft.modelId : ''}
-              onValueChange={value => {
-                if (value === '__add__') {
-                  onAddModel()
-                  return
-                }
-                updateDraft({ modelId: value, duration: '', resolution: '' })
-              }}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue
-                  placeholder={t('playground.video.create.modelPlaceholder')}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {models.map(m => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.name}
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {m.modelId}
-                    </span>
-                  </SelectItem>
-                ))}
-                <SelectItem value="__add__" className="text-primary">
-                  <Plus />
-                  {t('playground.video.addModel')}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-        </div>
-
-        <div className="grid gap-2">
           <Label htmlFor="video-prompt">
             {t('playground.video.create.prompt')}
           </Label>
@@ -142,65 +71,57 @@ export function VideoCreatePanel({
 
         <div className="grid grid-cols-2 gap-3">
           <div className="grid gap-2">
-            <Label>{t('playground.video.create.duration')}</Label>
-            <Select
-              value={draft.duration || AUTO}
-              onValueChange={value =>
-                updateDraft({ duration: value === AUTO ? '' : value })
-              }
-              disabled={!model}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={AUTO}>
-                  {t('playground.video.create.default')}
-                </SelectItem>
-                {model?.durations.map(d => (
-                  <SelectItem key={d} value={String(d)}>
-                    {d}s
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="video-duration">
+              {t('playground.video.create.duration')}
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="video-duration"
+                value={draft.duration}
+                onChange={e => updateDraft({ duration: e.target.value })}
+                placeholder={model?.durations[0]?.toString() ?? '5'}
+                inputMode="numeric"
+                className="min-w-0 flex-1"
+              />
+              <IdPicker
+                label={t('playground.video.create.duration')}
+                value={draft.duration}
+                options={(model?.durations ?? []).map(String)}
+                onPick={value => updateDraft({ duration: value })}
+              />
+            </div>
           </div>
           <div className="grid gap-2">
-            <Label>{t('playground.video.create.resolution')}</Label>
-            <Select
-              value={draft.resolution || AUTO}
-              onValueChange={value =>
-                updateDraft({ resolution: value === AUTO ? '' : value })
-              }
-              disabled={!model}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={AUTO}>
-                  {t('playground.video.create.default')}
-                </SelectItem>
-                {model?.resolutions.map(r => (
-                  <SelectItem key={r} value={r}>
-                    {r}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="video-resolution">
+              {t('playground.video.create.resolution')}
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="video-resolution"
+                value={draft.resolution}
+                onChange={e => updateDraft({ resolution: e.target.value })}
+                placeholder={model?.resolutions[0] ?? '1280x720'}
+                className="min-w-0 flex-1 font-mono text-xs"
+              />
+              <IdPicker
+                label={t('playground.video.create.resolution')}
+                value={draft.resolution}
+                options={model?.resolutions ?? []}
+                onPick={value => updateDraft({ resolution: value })}
+              />
+            </div>
           </div>
         </div>
+        <p className="-mt-2 text-xs text-muted-foreground">
+          {t('playground.video.create.optionsHint')}
+        </p>
 
         {model?.supportsImageInput && (
           <div className="grid gap-2">
-            <Label htmlFor="video-image">
-              {t('playground.video.create.imageUrl')}
-            </Label>
-            <Input
-              id="video-image"
+            <Label>{t('playground.video.create.imageUrls')}</Label>
+            <VideoReferenceImages
               value={draft.imageUrl}
-              onChange={e => updateDraft({ imageUrl: e.target.value })}
-              placeholder="https://… / data:image/png;base64,…"
+              onChange={imageUrl => updateDraft({ imageUrl })}
             />
           </div>
         )}
@@ -236,12 +157,32 @@ export function VideoCreatePanel({
         <span className="text-xs text-muted-foreground">
           {t('playground.video.create.costHint')}
         </span>
-        <Button onClick={() => void handleSubmit()} disabled={!canSubmit}>
-          {isCreating ? <Loader2 className="animate-spin" /> : <Sparkles />}
-          {isCreating
-            ? t('playground.video.create.creating')
-            : t('playground.video.create.submit')}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            title={t('playground.video.create.clear')}
+            aria-label={t('playground.video.create.clear')}
+            disabled={!hasDraftContent}
+            onClick={() =>
+              updateDraft({
+                prompt: '',
+                duration: '',
+                resolution: '',
+                imageUrl: '',
+                extraJson: '',
+              })
+            }
+          >
+            <Eraser />
+          </Button>
+          <Button onClick={() => void handleSubmit()} disabled={!canSubmit}>
+            {isCreating ? <Loader2 className="animate-spin" /> : <Sparkles />}
+            {isCreating
+              ? t('playground.video.create.creating')
+              : t('playground.video.create.submit')}
+          </Button>
+        </div>
       </div>
     </div>
   )

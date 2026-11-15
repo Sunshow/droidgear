@@ -1,31 +1,44 @@
 import type { VideoModelDraft, VideoProtocol } from '@/store/playground-store'
 
+/** Suggested clip lengths. All three wires are free-input: Sora accepts
+ * 4/8/12, Kling 3-30, Wan 2-30 and Seedance up to 12/15/30, so this is only a
+ * shared suggestion list rather than a protocol-specific restriction. */
+export const COMMON_VIDEO_DURATIONS = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 30]
+
+/** Suggested resolutions. Tiers (480p/720p/1080p/4K) and common WxH sizes are
+ * listed together; the create form accepts free input as well. */
+export const COMMON_VIDEO_RESOLUTIONS = [
+  '480p',
+  '720p',
+  '1080p',
+  '4K',
+  '480x854',
+  '854x480',
+  '720x1280',
+  '1280x720',
+  '1024x1792',
+  '1792x1024',
+  '1080x1920',
+  '1920x1080',
+  '1024x1024',
+  '1280x960',
+  '960x1280',
+  '2160x3840',
+  '3840x2160',
+]
+
 export interface VideoProtocolDefaults {
   durations: number[]
   resolutions: string[]
 }
 
-/** Sensible create-form options for a protocol.
- *
- * Doubao expects resolution tiers (480p/720p/1080p); the OpenAI Videos wire
- * carries a size such as 1280x720. Both are only defaults: every model stores
- * the options the user configured.
- */
+/** Shared defaults for every protocol; the per-model lists can be edited. */
 export function videoProtocolDefaults(
-  protocol: VideoProtocol
+  _protocol?: VideoProtocol
 ): VideoProtocolDefaults {
-  switch (protocol) {
-    case 'doubao':
-      return {
-        durations: [5, 10],
-        resolutions: ['480p', '720p', '1080p'],
-      }
-    case 'new-api-videos':
-    default:
-      return {
-        durations: [5, 10],
-        resolutions: ['1280x720', '720x1280'],
-      }
+  return {
+    durations: COMMON_VIDEO_DURATIONS,
+    resolutions: COMMON_VIDEO_RESOLUTIONS,
   }
 }
 
@@ -33,7 +46,7 @@ export function videoProtocolDefaults(
  *
  * No model id is filtered or rewritten: any model the channel lists can be
  * added. Each selected model carries its own protocol so a channel can mix
- * doubao and generic video models in one import.
+ * Sora, New API and doubao models in one import.
  */
 export function buildImportedVideoModels(params: {
   models: { id: string; name: string | null }[]
@@ -42,23 +55,20 @@ export function buildImportedVideoModels(params: {
   tokenId: number | null
   protocols: ReadonlyMap<string, VideoProtocol>
 }): VideoModelDraft[] {
+  const defaults = videoProtocolDefaults()
   return params.models
     .filter(model => params.selectedIds.has(model.id))
-    .map(model => {
-      const protocol = params.protocols.get(model.id) ?? 'new-api-videos'
-      const defaults = videoProtocolDefaults(protocol)
-      return {
-        name: model.name?.trim() || model.id,
-        modelId: model.id,
-        source: {
-          kind: 'channel',
-          channelId: params.channelId,
-          tokenId: params.tokenId,
-        },
-        protocol,
-        durations: defaults.durations,
-        resolutions: defaults.resolutions,
-        supportsImageInput: protocol === 'doubao',
-      }
-    })
+    .map(model => ({
+      name: model.name?.trim() || model.id,
+      modelId: model.id,
+      source: {
+        kind: 'channel',
+        channelId: params.channelId,
+        tokenId: params.tokenId,
+      },
+      protocol: params.protocols.get(model.id) ?? 'sora',
+      durations: defaults.durations,
+      resolutions: defaults.resolutions,
+      supportsImageInput: true,
+    }))
 }

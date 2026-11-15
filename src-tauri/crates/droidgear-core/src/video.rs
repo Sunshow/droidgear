@@ -1,9 +1,10 @@
 //! Playground video models and protocol clients.
 //!
-//! Supports two upstream protocols:
+//! Supports three upstream protocols:
 //!
-//! - `new-api-videos`: the OpenAI Videos wire served by New API at
+//! - `sora`: New API's OpenAI-compatible Videos host protocol at
 //!   `/v1/videos`, `/v1/videos/{id}` and `/v1/videos/{id}/content`.
+//! - `new-api`: New API's native video wire at `/v1/video/generations`.
 //! - `doubao`: Ark's native task wire at
 //!   `/api/v3/contents/generations/tasks`. New API relays the same wire under
 //!   `/doubao`, so a New API channel gets that prefix automatically.
@@ -43,9 +44,12 @@ const MAX_ERROR_BODY_CHARS: usize = 500;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Type, PartialEq, Eq, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum VideoProtocol {
-    /// OpenAI Videos API served by New API (`/v1/videos`).
+    /// New API's OpenAI-compatible Videos wire (`/v1/videos`).
+    #[serde(alias = "new-api-videos")]
     #[default]
-    NewApiVideos,
+    Sora,
+    /// New API's native video generation wire (`/v1/video/generations`).
+    NewApi,
     /// Doubao / Ark task API (`/api/v3/contents/generations/tasks`).
     Doubao,
 }
@@ -484,7 +488,7 @@ fn trimmed(base: &str) -> &str {
 
 /// Base URL that ends at the collection of videos, e.g.
 /// `https://gateway.example/v1/videos`.
-fn new_api_videos_base(base: &str) -> String {
+fn sora_videos_base(base: &str) -> String {
     let base = trimmed(base);
     if base.ends_with("/v1/videos") {
         base.to_string()
@@ -492,6 +496,18 @@ fn new_api_videos_base(base: &str) -> String {
         format!("{base}/videos")
     } else {
         format!("{base}/v1/videos")
+    }
+}
+
+/// Base URL for New API's native generation endpoint.
+fn new_api_generations_base(base: &str) -> String {
+    let base = trimmed(base);
+    if base.ends_with("/v1/video/generations") {
+        base.to_string()
+    } else if base.ends_with("/v1") {
+        format!("{base}/video/generations")
+    } else {
+        format!("{base}/v1/video/generations")
     }
 }
 
@@ -540,8 +556,65 @@ struct CreateParams<'a> {
     prompt: &'a str,
     duration: Option<u32>,
     resolution: Option<&'a str>,
-    image_url: Option<&'a str>,
+    image_urls: Vec<&'a str>,
     extra: Map<String, Value>,
+}
+
+/// Resolution split into the shapes the three wires need.
+#[derive(Debug, Clone, Copy)]
+struct ResolutionInfo {
+    width: Option<u32>,
+    height: Option<u32>,
+    tier: Option<&'static str>,
+}
+
+fn parse_resolution(value: &str) -> ResolutionInfo {
+    let raw = value.trim();
+    let lower = raw.to_ascii_lowercase();
+    let tier = match lower.as_str() {
+        "480p" => Some(("480p", 854, 480)),
+        "720p" => Some(("720p", 1280, 720)),
+        "1080p" => Some(("1080p", 1920, 1080)),
+        "4k" | "2160p" => Some(("4k", 3840, 2160)),
+        _ => None,
+    };
+    if let Some((tier, width, height)) = tier {
+        return ResolutionInfo {
+            width: Some(width),
+            height: Some(height),
+            tier: Some(tier),
+        };
+    }
+
+    let normalized = raw.to_ascii_lowercase().replace('*', "x");
+    let mut parts = normalized.split('x');
+    if let (Some(width), Some(height), None) = (parts.next(), parts.next(), parts.next()) {
+        if let (Ok(width), Ok(height)) = (width.trim().parse::<u32>(), height.trim().parse::<u32>())
+        {
+            if width > 0 && height > 0 {
+                let longest = width.max(height);
+                let tier = if longest >= 3840 {
+                    Some("4k")
+                } else if longest >= 1920 {
+                    Some("1080p")
+                } else if longest >= 1280 {
+                    Some("720p")
+                } else {
+                    Some("480p")
+                };
+                return ResolutionInfo {
+                    width: Some(width),
+                    height: Some(height),
+                    tier,
+                };
+            }
+        }
+    }
+    ResolutionInfo {
+        width: None,
+        height: None,
+        tier: None,
+    }
 }
 
 fn parse_extra(extra_json: &str) -> Result<Map<String, Value>, String> {
@@ -555,21 +628,138 @@ fn parse_extra(extra_json: &str) -> Result<Map<String, Value>, String> {
     }
 }
 
-fn build_new_api_create_body(params: &CreateParams) -> Value {
+/// Doubao/Seedance video models need explicit roles on image contents when a
+/// request carries more than one image. Other vendors read the plain `images`
+/// array, so the role mapping is limited to this model family.
+fn is_doubao_video_model(model: &str) -> bool {
+    let model = model.to_ascii_lowercase();
+    model.contains("doubao") || model.contains("seedance")
+}
+
+fn image_content(url: &str, role: Option<&str>) -> Value {
+    let mut item = json!({
+        "type": "image_url",
+        "image_url": { "url": url }
+    });
+    if let Some(role) = role {
+        item["role"] = json!(role);
+    }
+    item
+}
+
+fn image_content_array(images: &[&str], role: &str) -> Value {
+    Value::Array(
+        images
+            .iter()
+            .map(|url| image_content(url, Some(role)))
+            .collect(),
+    )
+}
+
+fn build_sora_create_body(params: &CreateParams) -> Value {
     let mut body = params.extra.clone();
-    // The form owns these fields; advanced parameters cannot replace them.
     body.remove("model");
     body.remove("prompt");
     body.insert("model".to_string(), json!(params.model));
     body.insert("prompt".to_string(), json!(params.prompt));
     if let Some(duration) = params.duration {
-        body.insert("seconds".to_string(), json!(duration));
+        // OpenAI's VideoSeconds type is a string enum ("4", "8", "12").
+        body.insert("seconds".to_string(), json!(duration.to_string()));
     }
     if let Some(resolution) = params.resolution {
-        body.insert("size".to_string(), json!(resolution));
+        let info = parse_resolution(resolution);
+        let size = match (info.width, info.height) {
+            (Some(width), Some(height)) => format!("{width}x{height}"),
+            _ => resolution.to_string(),
+        };
+        body.insert("size".to_string(), json!(size));
     }
-    if let Some(image_url) = params.image_url {
-        body.insert("input_reference".to_string(), json!(image_url));
+    if !params.image_urls.is_empty() {
+        // New API's /v1/videos is a generic host protocol now that Sora is
+        // gone: vendor plugins read `image` for one frame and `images` for
+        // multiple frames.
+        body.remove("input_reference");
+        body.remove("image");
+        body.remove("images");
+        let doubao = is_doubao_video_model(params.model);
+        if doubao && params.image_urls.len() > 1 {
+            // Doubao's openai_video bridge drops roles when it turns `images`
+            // into Ark content, so send the role-bearing content directly.
+            let mut metadata = body
+                .get("metadata")
+                .and_then(Value::as_object)
+                .cloned()
+                .unwrap_or_default();
+            metadata.remove("content");
+            metadata.insert(
+                "content".to_string(),
+                image_content_array(&params.image_urls, "reference_image"),
+            );
+            body.insert("metadata".to_string(), Value::Object(metadata));
+        } else if doubao {
+            // The Doubao bridge reads images (not image) for this host.
+            body.insert("images".to_string(), json!(params.image_urls));
+        } else if let [image_url] = params.image_urls.as_slice() {
+            body.insert("image".to_string(), json!(image_url));
+        } else {
+            body.insert("images".to_string(), json!(params.image_urls));
+        }
+    }
+    Value::Object(body)
+}
+
+fn build_new_api_generation_body(params: &CreateParams) -> Value {
+    let mut body = params.extra.clone();
+    body.remove("model");
+    body.remove("prompt");
+    body.insert("model".to_string(), json!(params.model));
+    body.insert("prompt".to_string(), json!(params.prompt));
+
+    let mut metadata = body
+        .get("metadata")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+
+    if !params.image_urls.is_empty() {
+        body.remove("image");
+        body.remove("images");
+        if is_doubao_video_model(params.model) && params.image_urls.len() > 1 {
+            // The native New API path reaches the same Doubao bridge; Ark
+            // requires a role on every image when there are several.
+            metadata.remove("content");
+            metadata.insert(
+                "content".to_string(),
+                image_content_array(&params.image_urls, "reference_image"),
+            );
+        } else if let [image_url] = params.image_urls.as_slice() {
+            body.insert("image".to_string(), json!(image_url));
+        } else {
+            body.insert("images".to_string(), json!(params.image_urls));
+        }
+    }
+
+    if let Some(duration) = params.duration {
+        body.insert("duration".to_string(), json!(duration));
+        // TaskSubmitReq and the plugin hooks read `seconds`; the native
+        // documentation calls the same value `duration`.
+        body.insert("seconds".to_string(), json!(duration.to_string()));
+        metadata.insert("duration".to_string(), json!(duration));
+    }
+    if let Some(resolution) = params.resolution {
+        let info = parse_resolution(resolution);
+        if let (Some(width), Some(height)) = (info.width, info.height) {
+            body.insert("width".to_string(), json!(width));
+            body.insert("height".to_string(), json!(height));
+            body.insert("size".to_string(), json!(format!("{width}x{height}")));
+        }
+        metadata.insert(
+            "resolution".to_string(),
+            json!(info.tier.unwrap_or(resolution)),
+        );
+    }
+    if !metadata.is_empty() {
+        body.insert("metadata".to_string(), Value::Object(metadata));
     }
     Value::Object(body)
 }
@@ -580,11 +770,9 @@ fn build_doubao_create_body(params: &CreateParams) -> Value {
     body.remove("content");
 
     let mut content = Vec::new();
-    if let Some(image_url) = params.image_url {
-        content.push(json!({
-            "type": "image_url",
-            "image_url": { "url": image_url }
-        }));
+    let role = (params.image_urls.len() > 1).then_some("reference_image");
+    for image_url in &params.image_urls {
+        content.push(image_content(image_url, role));
     }
     content.push(json!({ "type": "text", "text": params.prompt }));
     body.insert("content".to_string(), Value::Array(content));
@@ -593,7 +781,11 @@ fn build_doubao_create_body(params: &CreateParams) -> Value {
         body.insert("duration".to_string(), json!(duration));
     }
     if let Some(resolution) = params.resolution {
-        body.insert("resolution".to_string(), json!(resolution));
+        let info = parse_resolution(resolution);
+        body.insert(
+            "resolution".to_string(),
+            json!(info.tier.unwrap_or(resolution)),
+        );
     }
     Value::Object(body)
 }
@@ -650,7 +842,10 @@ fn value_message(value: &Value) -> Option<String> {
                 .and_then(Value::as_str)
                 .map(str::trim)
                 .filter(|text| !text.is_empty());
-            let code = object.get("code").and_then(value_to_string);
+            let code = object
+                .get("code")
+                .and_then(value_to_string)
+                .filter(|code| code != "0");
             match (message, code) {
                 (Some(message), Some(code)) => Some(format!("{message} ({code})")),
                 (Some(message), None) => Some(message.to_string()),
@@ -672,7 +867,9 @@ fn extract_error(object: &Map<String, Value>) -> Option<String> {
 }
 
 fn find_video_url(object: &Map<String, Value>) -> Option<String> {
-    for key in ["video_url", "url"] {
+    // New API's native task fetch returns a TaskDto under `data`; its result is
+    // `result_url`, not the OpenAI `url` or the doubao `content.video_url`.
+    for key in ["video_url", "url", "result_url"] {
         if let Some(url) = object
             .get(key)
             .and_then(Value::as_str)
@@ -733,7 +930,7 @@ fn parse_completed_at(object: &Map<String, Value>) -> Option<i64> {
         .map(|seconds| seconds.saturating_mul(1000))
 }
 
-fn parse_new_api_snapshot(
+fn parse_sora_snapshot(
     body: &Value,
     expected_id: Option<&str>,
     require_status: bool,
@@ -742,6 +939,54 @@ fn parse_new_api_snapshot(
     let id = expected_id
         .map(str::to_string)
         .or_else(|| string_field(object, &["id", "task_id"]))
+        .ok_or_else(|| {
+            format!(
+                "The Sora video response did not include a task id: {}",
+                snippet(&body.to_string())
+            )
+        })?;
+    validate_task_id(&id)?;
+
+    let error = extract_error(object);
+    let status = match string_field(object, &["status"]) {
+        Some(raw) => {
+            map_status(&raw).ok_or_else(|| format!("Unrecognized video task status '{raw}'."))?
+        }
+        None if require_status => {
+            return Err(format!(
+                "The Sora video response did not include a status: {}",
+                snippet(&body.to_string())
+            ))
+        }
+        None if error.is_some() => VideoTaskStatus::Failed,
+        None => VideoTaskStatus::Queued,
+    };
+    let progress = progress_for(status, parse_progress(object.get("progress")));
+    let error = error.or_else(|| {
+        (status == VideoTaskStatus::Failed)
+            .then(|| "The video task failed without an error message.".to_string())
+    });
+
+    Ok(VideoTaskSnapshot {
+        id,
+        status,
+        progress,
+        video_url: find_video_url(object),
+        local_path: None,
+        error,
+        completed_at: parse_completed_at(object),
+    })
+}
+
+fn parse_new_api_generation_snapshot(
+    body: &Value,
+    expected_id: Option<&str>,
+    require_status: bool,
+) -> Result<VideoTaskSnapshot, String> {
+    let object = task_object(body)?;
+    let id = expected_id
+        .map(str::to_string)
+        .or_else(|| string_field(object, &["task_id", "id"]))
         .ok_or_else(|| {
             format!(
                 "The New API video response did not include a task id: {}",
@@ -764,17 +1009,28 @@ fn parse_new_api_snapshot(
         None if error.is_some() => VideoTaskStatus::Failed,
         None => VideoTaskStatus::Queued,
     };
-    let progress = progress_for(status, parse_progress(object.get("progress")));
+    let raw_progress = parse_progress(object.get("progress"));
+    let progress = if status == VideoTaskStatus::InProgress && raw_progress == 0 {
+        50
+    } else {
+        progress_for(status, raw_progress)
+    };
+    let video_url = find_video_url(object);
     let error = error.or_else(|| {
-        (status == VideoTaskStatus::Failed)
-            .then(|| "The video task failed without an error message.".to_string())
+        if status == VideoTaskStatus::Failed {
+            Some("The video task failed without an error message.".to_string())
+        } else if status == VideoTaskStatus::Completed && video_url.is_none() {
+            Some("The video task completed but no video URL was returned.".to_string())
+        } else {
+            None
+        }
     });
 
     Ok(VideoTaskSnapshot {
         id,
         status,
         progress,
-        video_url: find_video_url(object),
+        video_url,
         local_path: None,
         error,
         completed_at: parse_completed_at(object),
@@ -916,7 +1172,7 @@ pub async fn create_video_task(
     prompt: &str,
     duration: Option<u32>,
     resolution: Option<&str>,
-    image_url: Option<&str>,
+    image_urls: Vec<String>,
     extra_json: &str,
 ) -> Result<VideoTaskSnapshot, String> {
     let prompt = prompt.trim();
@@ -931,26 +1187,40 @@ pub async fn create_video_task(
             return Err("Duration must be at most 3600 seconds.".to_string());
         }
     }
+
+    let image_urls: Vec<&str> = image_urls
+        .iter()
+        .map(|url| url.trim())
+        .filter(|url| !url.is_empty())
+        .collect();
     let extra = parse_extra(extra_json)?;
     let params = CreateParams {
         model: &model.model_id,
         prompt,
         duration,
         resolution: resolution.map(str::trim).filter(|value| !value.is_empty()),
-        image_url: image_url.map(str::trim).filter(|value| !value.is_empty()),
+        image_urls,
         extra,
     };
     let source = resolve_source(model).await?;
     let client = build_client()?;
 
     match model.protocol {
-        VideoProtocol::NewApiVideos => {
-            let url = new_api_videos_base(&source.base_url);
-            let body = build_new_api_create_body(&params);
+        VideoProtocol::Sora => {
+            let url = sora_videos_base(&source.base_url);
+            let body = build_sora_create_body(&params);
             let request =
                 authorized(client.post(url).json(&body), &source.api_key).timeout(CREATE_TIMEOUT);
             let value = send_json(request).await?;
-            parse_new_api_snapshot(&value, None, false)
+            parse_sora_snapshot(&value, None, false)
+        }
+        VideoProtocol::NewApi => {
+            let url = new_api_generations_base(&source.base_url);
+            let body = build_new_api_generation_body(&params);
+            let request =
+                authorized(client.post(url).json(&body), &source.api_key).timeout(CREATE_TIMEOUT);
+            let value = send_json(request).await?;
+            parse_new_api_generation_snapshot(&value, None, false)
         }
         VideoProtocol::Doubao => {
             let url = doubao_tasks_base(&source.base_url, source.channel_type.as_ref());
@@ -963,8 +1233,9 @@ pub async fn create_video_task(
     }
 }
 
-/// Queries one video task. New API content is downloaded to the playground
-/// media directory because the content endpoint requires the channel's API key.
+/// Queries one video task. Sora content is downloaded to the playground media
+/// directory because its content endpoint requires the channel's API key. The
+/// native New API wire returns a direct `url`.
 pub async fn query_video_task(
     model: &VideoModel,
     task_id: &str,
@@ -974,12 +1245,12 @@ pub async fn query_video_task(
     let client = build_client()?;
 
     match model.protocol {
-        VideoProtocol::NewApiVideos => {
-            let base = new_api_videos_base(&source.base_url);
+        VideoProtocol::Sora => {
+            let base = sora_videos_base(&source.base_url);
             let url = format!("{base}/{task_id}");
             let request = authorized(client.get(url), &source.api_key).timeout(QUERY_TIMEOUT);
             let value = send_json(request).await?;
-            let mut snapshot = parse_new_api_snapshot(&value, Some(task_id), true)?;
+            let mut snapshot = parse_sora_snapshot(&value, Some(task_id), true)?;
             if snapshot.status == VideoTaskStatus::Completed {
                 match download_new_api_content(&client, &base, task_id, &source.api_key).await {
                     Ok(path) => snapshot.local_path = Some(path),
@@ -994,6 +1265,13 @@ pub async fn query_video_task(
                 }
             }
             Ok(snapshot)
+        }
+        VideoProtocol::NewApi => {
+            let base = new_api_generations_base(&source.base_url);
+            let url = format!("{base}/{task_id}");
+            let request = authorized(client.get(url), &source.api_key).timeout(QUERY_TIMEOUT);
+            let value = send_json(request).await?;
+            parse_new_api_generation_snapshot(&value, Some(task_id), true)
         }
         VideoProtocol::Doubao => {
             let base = doubao_tasks_base(&source.base_url, source.channel_type.as_ref());
@@ -1133,28 +1411,44 @@ mod tests {
             prompt: "a cat",
             duration: Some(5),
             resolution: Some("720p"),
-            image_url: Some("https://example.com/cat.png"),
+            image_urls: vec!["https://example.com/cat.png"],
             extra,
         }
     }
 
     #[test]
-    fn new_api_videos_base_normalizes_version_suffixes() {
+    fn sora_videos_base_normalizes_version_suffixes() {
         assert_eq!(
-            new_api_videos_base("https://gateway.example"),
+            sora_videos_base("https://gateway.example"),
             "https://gateway.example/v1/videos"
         );
         assert_eq!(
-            new_api_videos_base("https://gateway.example/"),
+            sora_videos_base("https://gateway.example/"),
             "https://gateway.example/v1/videos"
         );
         assert_eq!(
-            new_api_videos_base("https://gateway.example/v1"),
+            sora_videos_base("https://gateway.example/v1"),
             "https://gateway.example/v1/videos"
         );
         assert_eq!(
-            new_api_videos_base("https://gateway.example/v1/videos"),
+            sora_videos_base("https://gateway.example/v1/videos"),
             "https://gateway.example/v1/videos"
+        );
+    }
+
+    #[test]
+    fn new_api_generations_base_normalizes_version_suffixes() {
+        assert_eq!(
+            new_api_generations_base("https://gateway.example"),
+            "https://gateway.example/v1/video/generations"
+        );
+        assert_eq!(
+            new_api_generations_base("https://gateway.example/v1"),
+            "https://gateway.example/v1/video/generations"
+        );
+        assert_eq!(
+            new_api_generations_base("https://gateway.example/v1/video/generations"),
+            "https://gateway.example/v1/video/generations"
         );
     }
 
@@ -1182,46 +1476,192 @@ mod tests {
     }
 
     #[test]
-    fn new_api_body_maps_form_fields_and_keeps_extras() {
+    fn sora_body_maps_single_doubao_image_as_images() {
         let mut extra = Map::new();
         extra.insert("seed".to_string(), json!(42));
         extra.insert("seconds".to_string(), json!(99));
         extra.insert("prompt".to_string(), json!("ignored"));
-        let body = build_new_api_create_body(&sample_params(extra));
+        let body = build_sora_create_body(&sample_params(extra));
         assert_eq!(body["model"], "doubao-seedance-2-0-mini-260615");
         assert_eq!(body["prompt"], "a cat");
-        assert_eq!(body["seconds"], 5);
-        assert_eq!(body["size"], "720p");
-        assert_eq!(body["input_reference"], "https://example.com/cat.png");
+        assert_eq!(body["seconds"], "5");
+        assert_eq!(body["size"], "1280x720");
+        assert_eq!(body["images"], json!(["https://example.com/cat.png"]));
+        assert!(body.get("image").is_none());
+        assert!(body.get("input_reference").is_none());
         assert_eq!(body["seed"], 42);
     }
 
     #[test]
-    fn doubao_body_puts_image_before_text() {
+    fn sora_body_maps_single_non_doubao_image() {
+        let mut params = sample_params(Map::new());
+        params.model = "sora-2";
+        let body = build_sora_create_body(&params);
+        assert_eq!(body["image"], "https://example.com/cat.png");
+        assert!(body.get("images").is_none());
+        assert!(body.get("input_reference").is_none());
+    }
+
+    #[test]
+    fn sora_body_maps_doubao_multiple_images_with_roles() {
+        let mut params = sample_params(Map::new());
+        params.image_urls = vec![
+            "https://example.com/frame-a.png",
+            "https://example.com/frame-b.png",
+        ];
+        let body = build_sora_create_body(&params);
+        assert!(body.get("image").is_none());
+        assert!(body.get("images").is_none());
+        assert!(body.get("input_reference").is_none());
+        let content = body["metadata"]["content"].as_array().expect("content");
+        assert_eq!(content.len(), 2);
+        assert_eq!(content[0]["role"], "reference_image");
+        assert_eq!(content[1]["role"], "reference_image");
+        assert_eq!(
+            content[0]["image_url"]["url"],
+            "https://example.com/frame-a.png"
+        );
+    }
+
+    #[test]
+    fn sora_body_maps_non_doubao_multiple_images() {
+        let mut params = sample_params(Map::new());
+        params.model = "sora-2";
+        params.image_urls = vec![
+            "https://example.com/frame-a.png",
+            "https://example.com/frame-b.png",
+        ];
+        let body = build_sora_create_body(&params);
+        assert!(body.get("image").is_none());
+        assert_eq!(
+            body["images"],
+            json!([
+                "https://example.com/frame-a.png",
+                "https://example.com/frame-b.png"
+            ])
+        );
+        assert!(body.get("metadata").is_none() || body["metadata"].get("content").is_none());
+    }
+
+    #[test]
+    fn new_api_body_maps_single_image_and_resolution() {
+        let mut extra = Map::new();
+        extra.insert("seed".to_string(), json!(42));
+        extra.insert("seconds".to_string(), json!(99));
+        let body = build_new_api_generation_body(&sample_params(extra));
+        assert_eq!(body["model"], "doubao-seedance-2-0-mini-260615");
+        assert_eq!(body["prompt"], "a cat");
+        assert_eq!(body["image"], "https://example.com/cat.png");
+        assert!(body.get("images").is_none());
+        assert_eq!(body["duration"], 5);
+        assert_eq!(body["seconds"], "5");
+        assert_eq!(body["width"], 1280);
+        assert_eq!(body["height"], 720);
+        assert_eq!(body["size"], "1280x720");
+        assert_eq!(body["metadata"]["resolution"], "720p");
+        assert_eq!(body["metadata"]["duration"], 5);
+        assert_eq!(body["seed"], 42);
+    }
+
+    #[test]
+    fn new_api_body_maps_doubao_multiple_images_with_roles() {
+        let mut params = sample_params(Map::new());
+        params.image_urls = vec![
+            "https://example.com/frame-a.png",
+            "https://example.com/frame-b.png",
+        ];
+        let body = build_new_api_generation_body(&params);
+        assert!(body.get("image").is_none());
+        assert!(body.get("images").is_none());
+        let content = body["metadata"]["content"].as_array().expect("content");
+        assert_eq!(content.len(), 2);
+        assert_eq!(content[0]["role"], "reference_image");
+        assert_eq!(content[1]["role"], "reference_image");
+        assert_eq!(body["metadata"]["duration"], 5);
+        assert_eq!(body["metadata"]["resolution"], "720p");
+    }
+
+    #[test]
+    fn new_api_body_maps_non_doubao_multiple_images() {
+        let mut params = sample_params(Map::new());
+        params.model = "kling-v3";
+        params.image_urls = vec![
+            "https://example.com/frame-a.png",
+            "https://example.com/frame-b.png",
+        ];
+        let body = build_new_api_generation_body(&params);
+        assert!(body.get("image").is_none());
+        assert_eq!(
+            body["images"],
+            json!([
+                "https://example.com/frame-a.png",
+                "https://example.com/frame-b.png"
+            ])
+        );
+        assert!(body.get("metadata").is_none() || body["metadata"].get("content").is_none());
+    }
+
+    #[test]
+    fn doubao_body_puts_all_images_before_text() {
         let mut extra = Map::new();
         extra.insert("seed".to_string(), json!(7));
         extra.insert(
             "content".to_string(),
             json!([{ "type": "text", "text": "ignored" }]),
         );
-        let body = build_doubao_create_body(&sample_params(extra));
+        let mut params = sample_params(extra);
+        params.image_urls = vec![
+            "https://example.com/frame-a.png",
+            "https://example.com/frame-b.png",
+        ];
+        let body = build_doubao_create_body(&params);
         assert_eq!(body["model"], "doubao-seedance-2-0-mini-260615");
         assert_eq!(body["duration"], 5);
         assert_eq!(body["resolution"], "720p");
         assert_eq!(body["seed"], 7);
         let content = body["content"].as_array().expect("content array");
-        assert_eq!(content.len(), 2);
+        assert_eq!(content.len(), 3);
         assert_eq!(content[0]["type"], "image_url");
         assert_eq!(
             content[0]["image_url"]["url"],
-            "https://example.com/cat.png"
+            "https://example.com/frame-a.png"
         );
-        assert_eq!(content[1]["type"], "text");
-        assert_eq!(content[1]["text"], "a cat");
+        assert_eq!(content[0]["role"], "reference_image");
+        assert_eq!(content[1]["type"], "image_url");
+        assert_eq!(
+            content[1]["image_url"]["url"],
+            "https://example.com/frame-b.png"
+        );
+        assert_eq!(content[1]["role"], "reference_image");
+        assert_eq!(content[2]["type"], "text");
+        assert_eq!(content[2]["text"], "a cat");
     }
 
     #[test]
-    fn parses_new_api_task_objects() {
+    fn resolution_parser_handles_tiers_and_sizes() {
+        let tier = parse_resolution("720p");
+        assert_eq!(
+            (tier.width, tier.height, tier.tier),
+            (Some(1280), Some(720), Some("720p"))
+        );
+        let size = parse_resolution("1920x1080");
+        assert_eq!(
+            (size.width, size.height, size.tier),
+            (Some(1920), Some(1080), Some("1080p"))
+        );
+        let uppercase = parse_resolution("1280X720");
+        assert_eq!((uppercase.width, uppercase.height), (Some(1280), Some(720)));
+        let custom = parse_resolution("1024x1792");
+        assert_eq!(
+            (custom.width, custom.height, custom.tier),
+            (Some(1024), Some(1792), Some("720p"))
+        );
+        let unknown = parse_resolution("portrait");
+        assert_eq!((unknown.width, unknown.tier), (None, None));
+    }
+
+    #[test]
+    fn parses_sora_task_objects() {
         let body = json!({
             "id": "task_123",
             "object": "video",
@@ -1229,7 +1669,7 @@ mod tests {
             "progress": 40,
             "created_at": 1_700_000_000
         });
-        let snapshot = parse_new_api_snapshot(&body, None, true).expect("snapshot");
+        let snapshot = parse_sora_snapshot(&body, None, true).expect("snapshot");
         assert_eq!(snapshot.id, "task_123");
         assert_eq!(snapshot.status, VideoTaskStatus::InProgress);
         assert_eq!(snapshot.progress, 40);
@@ -1237,7 +1677,7 @@ mod tests {
     }
 
     #[test]
-    fn parses_new_api_errors_and_completion_timestamps() {
+    fn parses_sora_errors_and_completion_timestamps() {
         let body = json!({
             "id": "task_123",
             "status": "failed",
@@ -1245,7 +1685,7 @@ mod tests {
             "error": { "code": "content_policy", "message": "prompt rejected" },
             "completed_at": 1_700_000_100
         });
-        let snapshot = parse_new_api_snapshot(&body, Some("task_123"), true).expect("snapshot");
+        let snapshot = parse_sora_snapshot(&body, Some("task_123"), true).expect("snapshot");
         assert_eq!(snapshot.status, VideoTaskStatus::Failed);
         assert_eq!(snapshot.progress, 100);
         assert_eq!(
@@ -1253,6 +1693,68 @@ mod tests {
             Some("prompt rejected (content_policy)")
         );
         assert_eq!(snapshot.completed_at, Some(1_700_000_100_000));
+    }
+
+    #[test]
+    fn parses_new_api_generation_responses() {
+        let created = json!({ "task_id": "task_native", "status": "queued" });
+        let snapshot =
+            parse_new_api_generation_snapshot(&created, None, false).expect("create snapshot");
+        assert_eq!(snapshot.id, "task_native");
+        assert_eq!(snapshot.status, VideoTaskStatus::Queued);
+        assert_eq!(snapshot.progress, 0);
+
+        let completed = json!({
+            "task_id": "task_native",
+            "status": "completed",
+            "url": "https://cdn.example/native.mp4",
+            "format": "mp4",
+            "metadata": { "duration": 5, "width": 1280, "height": 720, "seed": 1 },
+            "error": { "code": 0, "message": "" }
+        });
+        let snapshot = parse_new_api_generation_snapshot(&completed, Some("task_native"), true)
+            .expect("query snapshot");
+        assert_eq!(snapshot.status, VideoTaskStatus::Completed);
+        assert_eq!(snapshot.progress, 100);
+        assert_eq!(
+            snapshot.video_url.as_deref(),
+            Some("https://cdn.example/native.mp4")
+        );
+        assert!(snapshot.error.is_none());
+
+        let wrapped = json!({
+            "code": "success",
+            "data": {
+                "task_id": "task_native",
+                "status": "SUCCESS",
+                "result_url": "https://cdn.example/wrapped.mp4",
+                "progress": "100%"
+            }
+        });
+        let snapshot = parse_new_api_generation_snapshot(&wrapped, Some("task_native"), true)
+            .expect("wrapped snapshot");
+        assert_eq!(snapshot.status, VideoTaskStatus::Completed);
+        assert_eq!(
+            snapshot.video_url.as_deref(),
+            Some("https://cdn.example/wrapped.mp4")
+        );
+        assert!(snapshot.error.is_none());
+
+        let running = json!({ "task_id": "task_native", "status": "in_progress" });
+        let snapshot = parse_new_api_generation_snapshot(&running, Some("task_native"), true)
+            .expect("running snapshot");
+        assert_eq!(snapshot.status, VideoTaskStatus::InProgress);
+        assert_eq!(snapshot.progress, 50);
+
+        let failed = json!({
+            "task_id": "task_native",
+            "status": "failed",
+            "error": { "code": 100, "message": "bad prompt" }
+        });
+        let snapshot = parse_new_api_generation_snapshot(&failed, Some("task_native"), true)
+            .expect("failed snapshot");
+        assert_eq!(snapshot.status, VideoTaskStatus::Failed);
+        assert_eq!(snapshot.error.as_deref(), Some("bad prompt (100)"));
     }
 
     #[test]
@@ -1405,13 +1907,13 @@ mod tests {
                 channel_id: "channel-1".to_string(),
                 token_id: Some(7.0),
             },
-            VideoProtocol::NewApiVideos,
+            VideoProtocol::Sora,
         );
 
         save_video_models_for_home(home, std::slice::from_ref(&model)).expect("save");
         let loaded = load_video_models_for_home(home).expect("load");
         assert_eq!(loaded.len(), 1);
-        assert_eq!(loaded[0].protocol, VideoProtocol::NewApiVideos);
+        assert_eq!(loaded[0].protocol, VideoProtocol::Sora);
         match &loaded[0].source {
             VideoSource::Channel {
                 channel_id,
@@ -1425,7 +1927,7 @@ mod tests {
     }
 
     #[test]
-    fn creates_a_new_api_task_over_http() {
+    fn creates_a_sora_task_over_http() {
         use std::io::{Read, Write};
         use std::net::TcpListener;
         use std::sync::mpsc;
@@ -1483,20 +1985,21 @@ mod tests {
             .enable_all()
             .build()
             .expect("runtime");
-        let model = sample_model(
+        let mut model = sample_model(
             VideoSource::Custom {
                 base_url: format!("http://127.0.0.1:{port}"),
                 api_key: "sk-test".to_string(),
             },
-            VideoProtocol::NewApiVideos,
+            VideoProtocol::Sora,
         );
+        model.model_id = "sora-2".to_string();
         let snapshot = runtime
             .block_on(create_video_task(
                 &model,
                 "a cat",
                 Some(5),
                 Some("1280x720"),
-                None,
+                vec!["https://example.com/cat.png".to_string()],
                 "",
             ))
             .expect("create task");
@@ -1511,10 +2014,27 @@ mod tests {
         assert!(request
             .to_ascii_lowercase()
             .contains("authorization: bearer sk-test"));
-        assert!(request.contains(r#""model":"doubao-seedance-2-0-mini-260615""#));
+        assert!(request.contains(r#""model":"sora-2""#));
         assert!(request.contains(r#""prompt":"a cat""#));
-        assert!(request.contains(r#""seconds":5"#));
+        assert!(request.contains(r#""seconds":"5""#));
         assert!(request.contains(r#""size":"1280x720""#));
+        assert!(request.contains(r#""image":"https://example.com/cat.png""#));
+        assert!(!request.contains("input_reference"));
+    }
+
+    #[test]
+    fn protocol_alias_accepts_the_old_protocol_name() {
+        let model = sample_model(
+            VideoSource::Custom {
+                base_url: "https://gateway.example".to_string(),
+                api_key: String::new(),
+            },
+            VideoProtocol::Sora,
+        );
+        let mut value = serde_json::to_value(model).expect("serialize model");
+        value["protocol"] = json!("new-api-videos");
+        let loaded: VideoModel = serde_json::from_value(value).expect("deserialize model");
+        assert_eq!(loaded.protocol, VideoProtocol::Sora);
     }
 
     fn sample_task(model: VideoModel, status: VideoTaskStatus) -> VideoTaskRecord {
@@ -1586,7 +2106,7 @@ mod tests {
                 channel_id: "channel-1".to_string(),
                 token_id: Some(9.0),
             },
-            VideoProtocol::NewApiVideos,
+            VideoProtocol::NewApi,
         );
         let mut task = sample_task(model, VideoTaskStatus::InProgress);
         task.completed_at = None;

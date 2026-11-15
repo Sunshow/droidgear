@@ -103,7 +103,7 @@ describe('VideoModelImportDialog', () => {
       expect.objectContaining({
         modelId: 'doubao-seedance-2-0-260128',
         name: 'Seedance 2.0',
-        protocol: 'new-api-videos',
+        protocol: 'sora',
         source: {
           kind: 'channel',
           channelId: 'channel-1',
