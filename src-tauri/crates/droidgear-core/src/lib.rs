@@ -37,6 +37,7 @@ pub mod sessions;
 pub mod specs;
 pub mod storage;
 pub mod trusted_folders;
+pub mod video;
 
 /// Helpers shared by this crate's unit tests.
 #[cfg(test)]

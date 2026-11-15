@@ -6,7 +6,7 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         codex_sessions, config, connectivity, copilot, droid_settings, dsh, dsh_config,
         dsh_sessions, env, factory_auth_profiles, hermes, mcp, notifications, omp, omp_sessions,
         openclaw, opencode, paths, pi, pi_sessions, preferences, recovery, sessions, specs,
-        updater, window,
+        updater, video, window,
     };
 
     Builder::<tauri::Wry>::new().commands(collect_commands![
@@ -285,6 +285,12 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         codex_sessions::set_codex_session_provider,
         codex_sessions::start_codex_sessions_watcher,
         codex_sessions::stop_codex_sessions_watcher,
+        video::load_video_models,
+        video::save_video_models,
+        video::load_video_tasks,
+        video::save_video_tasks,
+        video::create_video_task,
+        video::query_video_task,
         window::reset_window_state,
     ])
 }

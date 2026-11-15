@@ -17,6 +17,7 @@
     "core:webview:allow-create-webview-window",
     "core:event:default",
     "opener:default",
+    "opener:allow-open-path",
     "clipboard-manager:default",
     "dialog:default",
     "fs:default",

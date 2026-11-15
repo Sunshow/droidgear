@@ -2940,6 +2940,72 @@ async stopCodexSessionsWatcher() : Promise<Result<null, string>> {
 }
 },
 /**
+ * Loads the video models configured for the Playground.
+ */
+async loadVideoModels() : Promise<Result<VideoModel[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("load_video_models") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Persists the video models configured for the Playground.
+ */
+async saveVideoModels(models: VideoModel[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_video_models", { models }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Loads persisted Playground video tasks.
+ */
+async loadVideoTasks() : Promise<Result<VideoTaskRecord[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("load_video_tasks") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Persists Playground video tasks.
+ */
+async saveVideoTasks(tasks: VideoTaskRecord[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_video_tasks", { tasks }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Submits a video generation task with the model's configured protocol.
+ */
+async createVideoTask(model: VideoModel, prompt: string, duration: number | null, resolution: string | null, imageUrls: string[], extraJson: string) : Promise<Result<VideoTaskSnapshot, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("create_video_task", { model, prompt, duration, resolution, imageUrls, extraJson }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Queries a video generation task with the model's configured protocol.
+ */
+async queryVideoTask(model: VideoModel, taskId: string) : Promise<Result<VideoTaskSnapshot, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("query_video_task", { model, taskId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Tauri command: snap the main window to the default size, clear fullscreen,
  * re-center, and quarantine the saved state file so the next launch starts
  * fresh. Surfaced via the application menu and a global shortcut so users
@@ -4197,6 +4263,64 @@ export type TokenUsage = { inputTokens: number; outputTokens: number; cacheCreat
  */
 export type TrustedFolder = { path: string; trustedAt: string }
 export type UpdateChannel = "managed" | "portable"
+/**
+ * A video model configured for the playground.
+ */
+export type VideoModel = { id: string; name: string; modelId: string; source: VideoSource; protocol: VideoProtocol; durations: number[]; resolutions: string[]; supportsImageInput: boolean }
+/**
+ * Video wire protocol used by a playground model.
+ */
+export type VideoProtocol = 
+/**
+ * New API's OpenAI-compatible Videos wire (`/v1/videos`).
+ */
+"sora" | 
+/**
+ * New API's native video generation wire (`/v1/video/generations`).
+ */
+"new-api" | 
+/**
+ * Doubao / Ark task API (`/api/v3/contents/generations/tasks`).
+ */
+"doubao"
+/**
+ * Where a video model gets its endpoint and credentials.
+ */
+export type VideoSource = 
+/**
+ * Reuse an existing channel. `token_id` is the token selected when the
+ * model was imported; `None` lets the resolver pick the first active one.
+ */
+{ kind: "channel"; channelId: string; tokenId: number | null } | 
+/**
+ * A standalone endpoint with its own API key.
+ */
+{ kind: "custom"; baseUrl: string; apiKey: string }
+/**
+ * Form values captured when a video task was submitted.
+ */
+export type VideoTaskParams = { prompt: string; duration: string; resolution: string; imageUrl: string; extraJson: string }
+/**
+ * A playground task persisted under `~/.droidgear/playground/video_tasks.json`.
+ */
+export type VideoTaskRecord = { id: string; modelId: string; modelName: string; 
+/**
+ * Snapshot of the model at submit time. Custom API keys are stripped on
+ * disk and merged back from `video_secrets.json` on load.
+ */
+model: VideoModel; params: VideoTaskParams; status: VideoTaskStatus; progress: number; createdAt: number; completedAt: number | null; videoUrl: string | null; localPath: string | null; error: string | null }
+/**
+ * One protocol query result, normalized for the playground UI.
+ */
+export type VideoTaskSnapshot = { id: string; status: VideoTaskStatus; progress: number; videoUrl: string | null; localPath: string | null; error: string | null; 
+/**
+ * Milliseconds since the Unix epoch, when the upstream reports one.
+ */
+completedAt: number | null }
+/**
+ * Normalized task states shared by both upstream protocols.
+ */
+export type VideoTaskStatus = "queued" | "in_progress" | "completed" | "failed" | "cancelled"
 /**
  * WSL distribution info
  */
