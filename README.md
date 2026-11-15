@@ -164,6 +164,15 @@ GUI 的 MCP「快速添加」卡片或 TUI MCP 列表的 `b` 键会打开百智�
 - **模型字段** - 按模型编辑 `maxContextWindow`、`imageInputDecoder`、`omitMaxOutputTokens`、`preferWebsockets`，Provider 支持 `transport`
 - **会话历史** - 浏览 `~/.omp/agent/sessions` 的 JSONL 日志（GUI）：列表或按项目分组、渲染当前分支与思考内容、跟随新消息、隐藏空会话与删除，滚动时分批加载
 
+### Playground（模型测试台）
+
+- **视频生成** - 顶级视图，选一个视频模型发一次真实请求并预览结果；支持 New API Sora / OpenAI Videos、New API 原生与 Doubao / Ark 三种协议，每个模型独立选择
+- **模型来源** - 从渠道三步导入（渠道、令牌、模型），或手填模型 ID 并配置自定义地址与 API Key；条目只保存渠道与令牌 ID，换令牌或改 Base URL 无需重新导入，密钥单独存放且仅所有者可读写
+- **任务管理** - 创建、查询、取消与重跑任务，状态筛选、自动刷新间隔可选，完成后在 HTML5 播放器中预览，详情区可把参数回填到创建表单
+- **参考图** - 宫格添加，支持批量粘贴 URL 与本地图片（单张上限 20 MB），按协议映射为 `image` / `images` / Ark `reference_image`
+- **持久化** - 模型、密钥与任务记录保存在 `~/.droidgear/playground/`，重启后恢复任务列表并继续轮询进行中的任务
+- **只读渠道** - 仅读取渠道，不写任何工具的配置文件；暂不支持 TUI
+
 ### 其他功能
 
 - **自动更新** - 版本检查、自动更新提示和下载进度显示
