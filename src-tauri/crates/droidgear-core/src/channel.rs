@@ -5,6 +5,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use specta::Type;
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -434,6 +435,198 @@ pub fn fetch_channel_tokens_blocking(
     ))
 }
 
+/// Truncates a response body for logs and error messages.
+///
+/// Cuts on a character boundary: New API answers with localized text, and byte
+/// slicing would panic in the middle of a multi-byte character.
+fn body_snippet(body: &str) -> String {
+    const MAX_CHARS: usize = 300;
+    if body.chars().count() <= MAX_CHARS {
+        return body.to_string();
+    }
+    let mut snippet: String = body.chars().take(MAX_CHARS).collect();
+    snippet.push_str("...");
+    snippet
+}
+
+/// Reads a response body as JSON, logging a truncated copy when parsing fails.
+async fn read_json_body(response: reqwest::Response, what: &str) -> Result<Value, String> {
+    let status = response.status();
+    let body = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read {what} response body: {e}"))?;
+    serde_json::from_str(&body).map_err(|e| {
+        log::warn!(
+            "Channel: failed to parse {what} response, status={status}, body={}",
+            body_snippet(&body)
+        );
+        format!("Failed to parse {what} response: {e}")
+    })
+}
+
+/// Dashboard credentials for a New API server.
+///
+/// New API v1.0 replaced the dashboard session cookie plus the `New-Api-User`
+/// header with a short lived access token sent as `Authorization: Bearer`. Both
+/// are carried when the response provides them, so the same requests keep
+/// working against either generation of the server.
+struct NewApiAuth {
+    access_token: Option<String>,
+    user_id: Option<i64>,
+}
+
+impl NewApiAuth {
+    fn apply(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        let mut request = request;
+        if let Some(access_token) = self.access_token.as_deref() {
+            request = request.header(
+                reqwest::header::AUTHORIZATION,
+                format!("Bearer {access_token}"),
+            );
+        }
+        if let Some(user_id) = self.user_id {
+            request = request.header("New-Api-User", user_id.to_string());
+        }
+        request
+    }
+}
+
+/// Extracts the dashboard credentials from a successful login response.
+///
+/// New API v1.0 answers with an auth bundle (`data.access_token` plus
+/// `data.user`), older releases returned the user object directly as `data`, and
+/// accounts with second-step verification get a challenge instead.
+fn new_api_auth_from_login(login_data: &Value) -> Result<NewApiAuth, String> {
+    let data = login_data.get("data").filter(|data| !data.is_null());
+
+    let access_token = data
+        .and_then(|data| data.get("access_token"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|token| !token.is_empty())
+        .map(str::to_string);
+
+    // The user object sits directly under `data` before the auth rewrite and
+    // under `data.user` afterwards.
+    let user_id = data
+        .and_then(|data| data.get("id"))
+        .and_then(Value::as_i64)
+        .or_else(|| {
+            data.and_then(|data| data.get("user"))
+                .and_then(|user| user.get("id"))
+                .and_then(Value::as_i64)
+        });
+
+    if access_token.is_some() || user_id.is_some() {
+        return Ok(NewApiAuth {
+            access_token,
+            user_id,
+        });
+    }
+
+    // `require_2fa` is the pre-rewrite challenge field, `require_verification`
+    // the current one.
+    let needs_verification = ["require_2fa", "require_verification"].iter().any(|field| {
+        data.and_then(|data| data.get(*field))
+            .and_then(Value::as_bool)
+            == Some(true)
+    });
+    if needs_verification {
+        return Err(
+            "Login requires a second verification step (2FA or email code), which automatic key loading cannot complete; use a New API account without extra verification"
+                .to_string(),
+        );
+    }
+
+    let response_shape = data.map(Value::to_string).unwrap_or_else(|| "null".into());
+    Err(format!(
+        "Could not get user id from login response: {}",
+        body_snippet(&response_shape)
+    ))
+}
+
+/// Whether the site refuses plain-text passwords (`PASSWORD_LOGIN_ENCRYPTION_ENABLED`).
+///
+/// The rejection itself is a generic "Invalid parameters", so ask the dedicated
+/// endpoint when login fails and surface a usable reason instead.
+async fn new_api_password_encryption_required(client: &reqwest::Client, base: &str) -> bool {
+    let Ok(response) = client
+        .get(format!("{base}/api/user/login/encryption-key"))
+        .send()
+        .await
+    else {
+        return false;
+    };
+    if !response.status().is_success() {
+        return false;
+    }
+    response.json::<Value>().await.ok().and_then(|data| {
+        data.get("data")
+            .and_then(|data| data.get("enabled"))
+            .and_then(Value::as_bool)
+    }) == Some(true)
+}
+
+/// Logs into the New API dashboard and returns the credentials it granted.
+async fn new_api_login(
+    client: &reqwest::Client,
+    base: &str,
+    username: &str,
+    password: &str,
+) -> Result<NewApiAuth, String> {
+    let response = client
+        .post(format!("{base}/api/user/login"))
+        .json(&serde_json::json!({ "username": username, "password": password }))
+        .send()
+        .await
+        .map_err(|e| format!("Failed to login: {e}"))?;
+
+    let status = response.status();
+    let body = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read login response body: {e}"))?;
+
+    if !status.is_success() {
+        log::warn!(
+            "Channel: New API login failed, status={status}, body={}",
+            body_snippet(&body)
+        );
+        return Err(format!("Login failed {status}: {}", body_snippet(&body)));
+    }
+
+    let login_data: Value = serde_json::from_str(&body).map_err(|e| {
+        log::warn!(
+            "Channel: failed to parse login response, body={}",
+            body_snippet(&body)
+        );
+        format!("Failed to parse login response: {e}")
+    })?;
+
+    if login_data.get("success").and_then(Value::as_bool) != Some(true) {
+        let message = login_data
+            .get("message")
+            .and_then(Value::as_str)
+            .unwrap_or("Unknown error");
+        if new_api_password_encryption_required(client, base).await {
+            log::warn!("Channel: New API login rejected: password encryption is enabled");
+            return Err(
+                "Login failed: this New API site requires encrypted passwords (PASSWORD_LOGIN_ENCRYPTION_ENABLED), which is not supported"
+                    .to_string(),
+            );
+        }
+        log::warn!("Channel: New API login rejected: {message}");
+        return Err(format!("Login failed: {message}"));
+    }
+
+    let auth = new_api_auth_from_login(&login_data);
+    if let Err(err) = &auth {
+        log::warn!("Channel: unusable New API login response: {err}");
+    }
+    auth
+}
+
 async fn fetch_new_api_keys(
     base_url: &str,
     username: &str,
@@ -445,62 +638,19 @@ async fn fetch_new_api_keys(
         .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
 
     let base = base_url.trim_end_matches('/');
+    let auth = new_api_login(&client, base, username, password).await?;
 
-    // Login
-    let login_url = format!("{base}/api/user/login");
-    let login_response = client
-        .post(&login_url)
-        .json(&serde_json::json!({ "username": username, "password": password }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed to login: {e}"))?;
-
-    if !login_response.status().is_success() {
-        let status = login_response.status();
-        let body = login_response.text().await.unwrap_or_default();
-        return Err(format!("Login failed {status}: {body}"));
-    }
-
-    let login_data: Value = {
-        let body = login_response
-            .text()
-            .await
-            .map_err(|e| format!("Failed to read login response body: {e}"))?;
-        serde_json::from_str(&body).map_err(|e| {
-            let truncated = if body.len() > 500 {
-                format!("{}...", &body[..500])
-            } else {
-                body.clone()
-            };
-            log::warn!("Channel: failed to parse login response, body={truncated}");
-            format!("Failed to parse login response: {e}")
-        })?
-    };
-
-    if login_data.get("success").and_then(|v| v.as_bool()) != Some(true) {
-        let msg = login_data
-            .get("message")
-            .and_then(|v| v.as_str())
-            .unwrap_or("Unknown error");
-        return Err(format!("Login failed: {msg}"));
-    }
-
-    let user_id = login_data
-        .get("data")
-        .and_then(|d| d.get("id"))
-        .and_then(|v| v.as_i64())
-        .ok_or("Could not get user id from login response")?;
-
-    // Fetch tokens with pagination
+    // Fetch tokens with pagination. New API masks the key of every entry here,
+    // so the usable value is resolved separately below.
     let keys_url = format!("{base}/api/token");
     let page_size: usize = 100;
     let mut all_keys: Vec<ChannelToken> = Vec::new();
+    let mut masked_keys: Vec<(usize, i64)> = Vec::new();
     let mut page: usize = 1;
 
     loop {
-        let response = client
-            .get(&keys_url)
-            .header("New-Api-User", user_id.to_string())
+        let response = auth
+            .apply(client.get(&keys_url))
             .query(&[("p", page.to_string()), ("size", page_size.to_string())])
             .send()
             .await
@@ -509,24 +659,10 @@ async fn fetch_new_api_keys(
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(format!("API error {status}: {body}"));
+            return Err(format!("API error {status}: {}", body_snippet(&body)));
         }
 
-        let data: Value = {
-            let body = response
-                .text()
-                .await
-                .map_err(|e| format!("Failed to read response body: {e}"))?;
-            serde_json::from_str(&body).map_err(|e| {
-                let truncated = if body.len() > 500 {
-                    format!("{}...", &body[..500])
-                } else {
-                    body.clone()
-                };
-                log::warn!("Channel: failed to parse keys response, body={truncated}");
-                format!("Failed to parse response: {e}")
-            })?
-        };
+        let data = read_json_body(response, "keys").await?;
 
         let items: Vec<Value> = data
             .get("data")
@@ -537,64 +673,50 @@ async fn fetch_new_api_keys(
 
         let count = items.len();
 
-        for t in &items {
-            let token_id = match t.get("id").and_then(|v| v.as_i64()) {
+        for token in &items {
+            let token_id = match token.get("id").and_then(Value::as_i64) {
                 Some(id) => id,
                 None => continue,
             };
 
-            // Fetch unmasked key via POST /api/token/{id}/key
-            let raw_key = match client
-                .post(format!("{base}/api/token/{token_id}/key"))
-                .header("New-Api-User", user_id.to_string())
-                .send()
-                .await
-            {
-                Ok(resp) if resp.status().is_success() => {
-                    resp.json::<Value>().await.ok().and_then(|v| {
-                        v.get("data")
-                            .and_then(|d| d.get("key"))
-                            .and_then(|k| k.as_str())
-                            .map(String::from)
-                    })
-                }
-                _ => None,
+            let (Some(name), Some(status)) = (
+                token.get("name").and_then(Value::as_str),
+                token.get("status").and_then(Value::as_i64),
+            ) else {
+                continue;
             };
 
-            let key = match raw_key {
-                Some(k) if k.starts_with("sk-") => k,
-                Some(k) => format!("sk-{k}"),
-                None => {
-                    // Fallback to masked key from list
-                    match t.get("key").and_then(|v| v.as_str()) {
-                        Some(k) if k.starts_with("sk-") => k.to_string(),
-                        Some(k) => format!("sk-{k}"),
-                        None => continue,
-                    }
-                }
-            };
+            // Releases before the key split returned the full key here; newer
+            // ones return a mask such as `abcd**********wxyz`.
+            let list_key = token
+                .get("key")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|key| is_revealed_new_api_key(key));
 
-            if let (Some(name), Some(status)) = (
-                t.get("name").and_then(|v| v.as_str()),
-                t.get("status").and_then(|v| v.as_i64()),
-            ) {
-                all_keys.push(ChannelToken {
-                    id: token_id as f64,
-                    name: name.to_string(),
-                    key,
-                    status: status as i32,
-                    remain_quota: t
-                        .get("remain_quota")
-                        .and_then(|v| v.as_f64())
-                        .unwrap_or(0.0),
-                    used_quota: t.get("used_quota").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                    unlimited_quota: t
-                        .get("unlimited_quota")
-                        .and_then(|v| v.as_bool())
-                        .unwrap_or(false),
-                    platform: None,
-                    group_name: None,
-                });
+            all_keys.push(ChannelToken {
+                id: token_id as f64,
+                name: name.to_string(),
+                key: list_key.map(new_api_key_with_sk_prefix).unwrap_or_default(),
+                status: status as i32,
+                remain_quota: token
+                    .get("remain_quota")
+                    .and_then(Value::as_f64)
+                    .unwrap_or(0.0),
+                used_quota: token
+                    .get("used_quota")
+                    .and_then(Value::as_f64)
+                    .unwrap_or(0.0),
+                unlimited_quota: token
+                    .get("unlimited_quota")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false),
+                platform: None,
+                group_name: None,
+            });
+
+            if list_key.is_none() {
+                masked_keys.push((all_keys.len() - 1, token_id));
             }
         }
 
@@ -604,7 +726,188 @@ async fn fetch_new_api_keys(
         page += 1;
     }
 
+    if !masked_keys.is_empty() {
+        let token_ids: Vec<i64> = masked_keys.iter().map(|(_, token_id)| *token_id).collect();
+        let revealed = reveal_new_api_token_keys(&client, base, &auth, &token_ids).await;
+
+        for (index, token_id) in &masked_keys {
+            if let Some(key) = revealed.get(token_id) {
+                all_keys[*index].key = new_api_key_with_sk_prefix(key);
+            }
+        }
+
+        // A token left without a usable key would be copied as a mask.
+        let unresolved = all_keys.iter().filter(|token| token.key.is_empty()).count();
+        all_keys.retain(|token| !token.key.is_empty());
+
+        if all_keys.is_empty() {
+            return Err(format!(
+                "Failed to read API keys: New API rejected all {} key request(s)",
+                masked_keys.len()
+            ));
+        }
+        if unresolved > 0 {
+            log::warn!("Channel: dropped {unresolved} New API token(s) whose key was not revealed");
+        }
+    }
+
     Ok(all_keys)
+}
+
+/// Reveals the full API keys of tokens whose list entry is masked.
+///
+/// New API exposes `POST /api/token/batch/keys` (at most 100 ids per call) on
+/// the releases that mask keys, and `POST /api/token/:id/key` on all of them.
+/// The single-key route sits behind the strict critical rate limit, so the batch
+/// route is tried first and the single route only fills the gaps.
+async fn reveal_new_api_token_keys(
+    client: &reqwest::Client,
+    base: &str,
+    auth: &NewApiAuth,
+    token_ids: &[i64],
+) -> HashMap<i64, String> {
+    let mut revealed = reveal_new_api_token_keys_batch(client, base, auth, token_ids).await;
+
+    for token_id in token_ids {
+        if revealed.contains_key(token_id) {
+            continue;
+        }
+        if let Some(key) = reveal_new_api_token_key(client, base, auth, *token_id).await {
+            revealed.insert(*token_id, key);
+        }
+    }
+
+    revealed
+}
+
+async fn reveal_new_api_token_keys_batch(
+    client: &reqwest::Client,
+    base: &str,
+    auth: &NewApiAuth,
+    token_ids: &[i64],
+) -> HashMap<i64, String> {
+    let mut revealed = HashMap::new();
+
+    for chunk in token_ids.chunks(100) {
+        let response = auth
+            .apply(client.post(format!("{base}/api/token/batch/keys")))
+            .json(&serde_json::json!({ "ids": chunk }))
+            .send()
+            .await;
+
+        let response = match response {
+            Ok(response) => response,
+            Err(err) => {
+                log::warn!("Channel: batch key request failed: {err}");
+                break;
+            }
+        };
+
+        if !response.status().is_success() {
+            // Deployments that predate the endpoint answer 404; the caller falls
+            // back to the single-key route.
+            log::debug!(
+                "Channel: batch key endpoint unavailable (status={})",
+                response.status()
+            );
+            break;
+        }
+
+        let data = match response.json::<Value>().await {
+            Ok(data) => data,
+            Err(err) => {
+                log::warn!("Channel: failed to parse batch key response: {err}");
+                break;
+            }
+        };
+
+        if data.get("success").and_then(Value::as_bool) != Some(true) {
+            log::warn!("Channel: batch key request rejected by New API");
+            break;
+        }
+
+        revealed.extend(parse_new_api_batch_keys(&data));
+    }
+
+    revealed
+}
+
+/// Pulls `id -> key` out of a `POST /api/token/batch/keys` payload.
+fn parse_new_api_batch_keys(data: &Value) -> HashMap<i64, String> {
+    let Some(entries) = data
+        .get("data")
+        .and_then(|data| data.get("keys"))
+        .and_then(Value::as_object)
+    else {
+        return HashMap::new();
+    };
+
+    entries
+        .iter()
+        .filter_map(|(id, key)| {
+            let id = id.parse::<i64>().ok()?;
+            let key = key.as_str()?.trim();
+            is_revealed_new_api_key(key).then(|| (id, key.to_string()))
+        })
+        .collect()
+}
+
+async fn reveal_new_api_token_key(
+    client: &reqwest::Client,
+    base: &str,
+    auth: &NewApiAuth,
+    token_id: i64,
+) -> Option<String> {
+    let response = match auth
+        .apply(client.post(format!("{base}/api/token/{token_id}/key")))
+        .send()
+        .await
+    {
+        Ok(response) => response,
+        Err(err) => {
+            log::warn!("Channel: key request for token {token_id} failed: {err}");
+            return None;
+        }
+    };
+
+    if !response.status().is_success() {
+        log::warn!(
+            "Channel: key request for token {token_id} returned {}",
+            response.status()
+        );
+        return None;
+    }
+
+    let data = response.json::<Value>().await.ok()?;
+    parse_new_api_token_key(&data)
+}
+
+/// Pulls the full key out of a `POST /api/token/:id/key` payload. Older builds
+/// returned it directly as `data`, current ones wrap it as `data.key`.
+fn parse_new_api_token_key(data: &Value) -> Option<String> {
+    let key = match data.get("data") {
+        Some(Value::String(key)) => Some(key.as_str()),
+        Some(data) => data.get("key").and_then(Value::as_str),
+        None => None,
+    };
+    key.map(str::trim)
+        .filter(|key| is_revealed_new_api_key(key))
+        .map(str::to_string)
+}
+
+/// Whether a key taken from the token list is the real value. New API masks keys
+/// once it moves them behind the reveal endpoints (`abcd**********wxyz`).
+fn is_revealed_new_api_key(key: &str) -> bool {
+    !key.is_empty() && !key.contains('*')
+}
+
+/// New API stores token keys without the `sk-` prefix; clients expect it.
+fn new_api_key_with_sk_prefix(key: &str) -> String {
+    if key.starts_with("sk-") {
+        key.to_string()
+    } else {
+        format!("sk-{key}")
+    }
 }
 
 async fn fetch_sub2api_tokens(
@@ -627,7 +930,7 @@ async fn fetch_sub2api_tokens(
     if !login_response.status().is_success() {
         let status = login_response.status();
         let body = login_response.text().await.unwrap_or_default();
-        return Err(format!("Login failed {status}: {body}"));
+        return Err(format!("Login failed {status}: {}", body_snippet(&body)));
     }
 
     let login_data: Value = {
@@ -636,11 +939,7 @@ async fn fetch_sub2api_tokens(
             .await
             .map_err(|e| format!("Failed to read login response body: {e}"))?;
         serde_json::from_str(&body).map_err(|e| {
-            let truncated = if body.len() > 500 {
-                format!("{}...", &body[..500])
-            } else {
-                body.clone()
-            };
+            let truncated = body_snippet(&body);
             log::warn!("Channel: failed to parse login response (v1), body={truncated}");
             format!("Failed to parse login response: {e}")
         })?
@@ -711,7 +1010,7 @@ async fn fetch_sub2api_tokens(
         if !keys_response.status().is_success() {
             let status = keys_response.status();
             let body = keys_response.text().await.unwrap_or_default();
-            return Err(format!("API error {status}: {body}"));
+            return Err(format!("API error {status}: {}", body_snippet(&body)));
         }
 
         let keys_data: Value = {
@@ -720,11 +1019,7 @@ async fn fetch_sub2api_tokens(
                 .await
                 .map_err(|e| format!("Failed to read keys response body: {e}"))?;
             serde_json::from_str(&body).map_err(|e| {
-                let truncated = if body.len() > 500 {
-                    format!("{}...", &body[..500])
-                } else {
-                    body.clone()
-                };
+                let truncated = body_snippet(&body);
                 log::warn!("Channel: failed to parse keys response, body={truncated}");
                 format!("Failed to parse keys response: {e}")
             })?
@@ -863,9 +1158,10 @@ pub async fn fetch_models_by_api_key(
         if !status.is_success() {
             let body = response.text().await.unwrap_or_default();
             log::warn!(
-                "Channel: antigravity API error, url={claude_url} status={status} body={body}"
+                "Channel: antigravity API error, url={claude_url} status={status} body={}",
+                body_snippet(&body)
             );
-            return Err(format!("API error {status}: {body}"));
+            return Err(format!("API error {status}: {}", body_snippet(&body)));
         }
 
         let body = response
@@ -873,11 +1169,7 @@ pub async fn fetch_models_by_api_key(
             .await
             .map_err(|e| format!("Failed to read response body: {e}"))?;
         let data: Value = serde_json::from_str(&body).map_err(|e| {
-            let truncated = if body.len() > 500 {
-                format!("{}...", &body[..500])
-            } else {
-                body.clone()
-            };
+            let truncated = body_snippet(&body);
             log::warn!("Channel: failed to parse antigravity response, url={claude_url} status={status} body={truncated}");
             format!("Failed to parse response: {e}")
         })?;
@@ -915,8 +1207,11 @@ pub async fn fetch_models_by_api_key(
         let status = response.status();
         if !status.is_success() {
             let body = response.text().await.unwrap_or_default();
-            log::warn!("Channel: API error, url={url} status={status} body={body}");
-            last_error = format!("API error {status}: {body}");
+            log::warn!(
+                "Channel: API error, url={url} status={status} body={}",
+                body_snippet(&body)
+            );
+            last_error = format!("API error {status}: {}", body_snippet(&body));
 
             // 仅在候选端点不存在时回退（401/403 等说明端点存在但鉴权失败）
             let endpoint_missing = status == reqwest::StatusCode::NOT_FOUND
@@ -932,11 +1227,7 @@ pub async fn fetch_models_by_api_key(
             .await
             .map_err(|e| format!("Failed to read response body: {e}"))?;
         let data: Value = serde_json::from_str(&body).map_err(|e| {
-            let truncated = if body.len() > 500 {
-                format!("{}...", &body[..500])
-            } else {
-                body.clone()
-            };
+            let truncated = body_snippet(&body);
             log::warn!(
                 "Channel: failed to parse response, url={url} status={status} body={truncated}"
             );
@@ -1059,5 +1350,152 @@ mod tests {
             model_endpoint_urls("https://api.example.com/v1beta", Some("gemini")),
             vec!["https://api.example.com/v1beta/models".to_string()]
         );
+    }
+
+    /// Expects the login response to be rejected and returns the message.
+    fn new_api_login_error(login: &Value) -> String {
+        match new_api_auth_from_login(login) {
+            Ok(_) => panic!("expected the login response to be rejected"),
+            Err(err) => err,
+        }
+    }
+
+    fn new_api_auth_headers(auth: &NewApiAuth) -> reqwest::header::HeaderMap {
+        auth.apply(reqwest::Client::new().get("http://localhost/api/token"))
+            .build()
+            .unwrap()
+            .headers()
+            .clone()
+    }
+
+    #[test]
+    fn test_new_api_login_legacy_response_yields_user_id() {
+        let login = serde_json::json!({
+            "success": true,
+            "message": "",
+            "data": { "id": 42, "username": "u", "role": 1, "status": 1, "group": "default" }
+        });
+
+        let auth = new_api_auth_from_login(&login).unwrap();
+        assert_eq!(auth.user_id, Some(42));
+        assert!(auth.access_token.is_none());
+    }
+
+    #[test]
+    fn test_new_api_login_auth_bundle_yields_access_token() {
+        let login = serde_json::json!({
+            "success": true,
+            "message": "",
+            "data": {
+                "access_token": "jwt-token",
+                "token_type": "Bearer",
+                "access_expires_at": 1_730_000_000,
+                "session": { "sid": "sid-1" },
+                "user": { "id": 7, "username": "u" }
+            }
+        });
+
+        let auth = new_api_auth_from_login(&login).unwrap();
+        assert_eq!(auth.access_token.as_deref(), Some("jwt-token"));
+        assert_eq!(auth.user_id, Some(7));
+    }
+
+    #[test]
+    fn test_new_api_login_two_factor_challenge_is_reported() {
+        // `require_2fa` is the pre-rewrite challenge field, `require_verification`
+        // the current one.
+        for field in ["require_2fa", "require_verification"] {
+            let login = serde_json::json!({
+                "success": true,
+                "message": "need 2fa",
+                "data": { field: true, "flow_token": "flow-1", "expires_at": 1_730_000_000 }
+            });
+
+            let err = new_api_login_error(&login);
+            assert!(
+                err.contains("second verification step"),
+                "unexpected error: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_new_api_login_unknown_shape_names_the_cause() {
+        let login = serde_json::json!({ "success": true, "data": null });
+
+        let err = new_api_login_error(&login);
+        assert!(
+            err.contains("Could not get user id"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn test_new_api_auth_headers_cover_both_generations() {
+        let legacy = NewApiAuth {
+            access_token: None,
+            user_id: Some(9),
+        };
+        let headers = new_api_auth_headers(&legacy);
+        assert_eq!(headers.get("New-Api-User").unwrap(), "9");
+        assert!(headers.get(reqwest::header::AUTHORIZATION).is_none());
+
+        let current = NewApiAuth {
+            access_token: Some("jwt".to_string()),
+            user_id: Some(9),
+        };
+        let headers = new_api_auth_headers(&current);
+        assert_eq!(
+            headers.get(reqwest::header::AUTHORIZATION).unwrap(),
+            "Bearer jwt"
+        );
+        assert_eq!(headers.get("New-Api-User").unwrap(), "9");
+    }
+
+    #[test]
+    fn test_new_api_masked_key_is_not_reused() {
+        assert!(!is_revealed_new_api_key("abcd**********wxyz"));
+        assert!(!is_revealed_new_api_key(""));
+        assert!(is_revealed_new_api_key("A1b2C3d4"));
+    }
+
+    #[test]
+    fn test_new_api_key_adds_missing_sk_prefix() {
+        assert_eq!(new_api_key_with_sk_prefix("abc123"), "sk-abc123");
+        assert_eq!(new_api_key_with_sk_prefix("sk-abc123"), "sk-abc123");
+    }
+
+    #[test]
+    fn test_new_api_token_key_response_shapes() {
+        let wrapped = serde_json::json!({ "success": true, "data": { "key": "abc123" } });
+        assert_eq!(parse_new_api_token_key(&wrapped).as_deref(), Some("abc123"));
+
+        // Older builds return the key as `data` itself.
+        let flat = serde_json::json!({ "success": true, "data": "abc123" });
+        assert_eq!(parse_new_api_token_key(&flat).as_deref(), Some("abc123"));
+
+        let masked = serde_json::json!({ "success": true, "data": { "key": "abcd****wxyz" } });
+        assert_eq!(parse_new_api_token_key(&masked), None);
+    }
+
+    #[test]
+    fn test_new_api_batch_key_response_shapes() {
+        let payload = serde_json::json!({
+            "success": true,
+            "data": { "keys": { "3": "key3", "5": "key5", "7": "" } }
+        });
+
+        let keys = parse_new_api_batch_keys(&payload);
+        assert_eq!(keys.get(&3).map(String::as_str), Some("key3"));
+        assert_eq!(keys.get(&5).map(String::as_str), Some("key5"));
+        assert_eq!(keys.get(&7), None);
+    }
+
+    #[test]
+    fn test_body_snippet_truncates_on_char_boundary() {
+        let body = "错".repeat(400);
+        let snippet = body_snippet(&body);
+        assert!(snippet.ends_with("..."));
+        assert_eq!(snippet.chars().count(), 303);
     }
 }

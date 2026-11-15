@@ -245,3 +245,36 @@ suffix used for model endpoints:
 
 Apply this consistently when saving custom models and when fetching models
 via token-based discovery.
+
+## New API Dashboard Authentication
+
+New API changed how the dashboard authenticates its own API calls, so the
+channel client (`droidgear-core/src/channel.rs`) reads the login response to
+decide which credential to send:
+
+| Server generation        | Login response                       | Requests carry                         |
+| ------------------------ | ------------------------------------ | -------------------------------------- |
+| ≤ v1.0.0-rc.24           | `data.id` (user object)              | session cookie + `New-Api-User: <id>`  |
+| v1.0.0-rc.25+ and v1.0.0 | `data.access_token` + `data.user.id` | `Authorization: Bearer <access_token>` |
+
+`New-Api-User` no longer participates in authentication from rc.25 on, and the
+old `session` cookie is gone; sending both headers is harmless and keeps one
+code path for both generations.
+
+Two consequences matter when loading tokens:
+
+- `GET /api/token` returns **masked** keys (`abcd**********wxyz`) on every
+  release that has the reveal endpoints, so those tokens are resolved with
+  `POST /api/token/batch/keys` (≤100 ids per call) and, for anything the batch
+  route does not return, `POST /api/token/:id/key`. The single-key route sits
+  behind the strict critical rate limit (20 requests / 20 minutes by default),
+  so it must not be used as the primary path. Releases before the split return
+  full keys in the list and need no extra requests at all.
+- Accounts with second-step verification get a challenge instead of a session
+  (`data.require_2fa` before the auth rewrite, `data.require_verification`
+  after). Completing it needs a TOTP/email code, so key loading reports the
+  requirement instead of guessing.
+
+Sites with `PASSWORD_LOGIN_ENCRYPTION_ENABLED=true` also reject plain-text
+passwords; the client names that setting instead of echoing a generic
+"Invalid parameters".
