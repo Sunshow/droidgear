@@ -3061,6 +3061,19 @@ async createImageTask(model: ImageModel, taskId: string, prompt: string, size: s
 }
 },
 /**
+ * Saves a playground video or image wherever the user points the save dialog.
+ * 
+ * Returns the destination path, or `None` when the dialog was cancelled.
+ */
+async savePlaygroundMediaAs(sourcePath: string | null, sourceUrl: string | null, suggestedName: string) : Promise<Result<string | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_playground_media_as", { sourcePath, sourceUrl, suggestedName }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Tauri command: snap the main window to the default size, clear fullscreen,
  * re-center, and quarantine the saved state file so the next launch starts
  * fresh. Surfaced via the application menu and a global shortcut so users

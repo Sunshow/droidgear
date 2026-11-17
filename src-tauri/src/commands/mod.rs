@@ -30,6 +30,7 @@ pub mod opencode;
 pub mod paths;
 pub mod pi;
 pub mod pi_sessions;
+pub mod playground;
 pub mod preferences;
 pub mod recovery;
 pub mod sessions;

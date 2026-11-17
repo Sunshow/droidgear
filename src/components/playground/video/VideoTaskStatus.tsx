@@ -42,7 +42,7 @@ export function VideoTaskStatusIcon({
 export function VideoTaskStatusBadge({ status }: { status: VideoTaskStatus }) {
   const { t } = useTranslation()
   return (
-    <Badge variant="outline" className="gap-1">
+    <Badge variant="outline" className="min-w-24 gap-1">
       <VideoTaskStatusIcon status={status} className="size-3" />
       {t(`playground.video.status.${status}`)}
     </Badge>

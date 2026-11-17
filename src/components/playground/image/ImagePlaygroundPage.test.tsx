@@ -1,9 +1,14 @@
 import userEvent from '@testing-library/user-event'
+import { toast } from 'sonner'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@/test/test-utils'
 import { commands, type ImageModel, type ImageTaskRecord } from '@/lib/bindings'
 import { useImagePlaygroundStore } from '@/store/image-playground-store'
 import { ImagePlaygroundPage } from './ImagePlaygroundPage'
+
+vi.mock('sonner', () => ({
+  toast: { success: vi.fn(), error: vi.fn() },
+}))
 
 vi.mock('@/lib/bindings', () => ({
   commands: {
@@ -12,6 +17,7 @@ vi.mock('@/lib/bindings', () => ({
     loadImageTasks: vi.fn().mockResolvedValue({ status: 'ok', data: [] }),
     saveImageTasks: vi.fn().mockResolvedValue({ status: 'ok', data: null }),
     createImageTask: vi.fn(),
+    savePlaygroundMediaAs: vi.fn(),
   },
 }))
 
@@ -96,6 +102,28 @@ describe('ImagePlaygroundPage', () => {
 
     const image = screen.getByRole('img', { name: 'a cat' })
     expect(image.getAttribute('src')).toContain('asset://')
+  })
+
+  it('saves the selected image through the save dialog', async () => {
+    vi.mocked(commands.savePlaygroundMediaAs).mockResolvedValueOnce({
+      status: 'ok',
+      data: '/Users/me/Pictures/img_1-1.png',
+    })
+    const user = userEvent.setup({ delay: null })
+
+    render(<ImagePlaygroundPage />)
+    await user.click(screen.getByRole('button', { name: 'Save as' }))
+
+    expect(commands.savePlaygroundMediaAs).toHaveBeenCalledWith(
+      '/tmp/droidgear/image-0.png',
+      null,
+      'img_1-1.png'
+    )
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        'Saved to /Users/me/Pictures/img_1-1.png'
+      )
+    )
   })
 
   it('submits the form with the selected model and free-form options', async () => {

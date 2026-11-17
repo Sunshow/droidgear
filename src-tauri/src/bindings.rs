@@ -5,8 +5,8 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         channel, channel_export, claude, claude_settings, codex, codex_auth_profiles,
         codex_sessions, config, connectivity, copilot, droid_settings, dsh, dsh_config,
         dsh_sessions, env, factory_auth_profiles, hermes, image, mcp, notifications, omp,
-        omp_sessions, openclaw, opencode, paths, pi, pi_sessions, preferences, recovery, sessions,
-        specs, updater, video, window,
+        omp_sessions, openclaw, opencode, paths, pi, pi_sessions, playground, preferences,
+        recovery, sessions, specs, updater, video, window,
     };
 
     Builder::<tauri::Wry>::new().commands(collect_commands![
@@ -296,6 +296,7 @@ pub fn generate_bindings() -> Builder<tauri::Wry> {
         image::load_image_tasks,
         image::save_image_tasks,
         image::create_image_task,
+        playground::save_playground_media_as,
         window::reset_window_state,
     ])
 }

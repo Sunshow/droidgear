@@ -17,7 +17,10 @@
     "core:webview:allow-create-webview-window",
     "core:event:default",
     "opener:default",
-    "opener:allow-open-path",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [{ "path": "$HOME/.droidgear/playground/media/**" }]
+    },
     "clipboard-manager:default",
     "dialog:default",
     "fs:default",

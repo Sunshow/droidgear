@@ -1,9 +1,14 @@
 import userEvent from '@testing-library/user-event'
+import { toast } from 'sonner'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, render, screen } from '@/test/test-utils'
+import { act, render, screen, waitFor } from '@/test/test-utils'
 import { commands, type VideoModel } from '@/lib/bindings'
 import { usePlaygroundStore, type VideoTask } from '@/store/playground-store'
 import { VideoPlaygroundPage } from './VideoPlaygroundPage'
+
+vi.mock('sonner', () => ({
+  toast: { success: vi.fn(), error: vi.fn() },
+}))
 
 vi.mock('@/lib/bindings', () => ({
   commands: {
@@ -13,6 +18,7 @@ vi.mock('@/lib/bindings', () => ({
     saveVideoTasks: vi.fn().mockResolvedValue({ status: 'ok', data: null }),
     createVideoTask: vi.fn(),
     queryVideoTask: vi.fn(),
+    savePlaygroundMediaAs: vi.fn(),
   },
 }))
 
@@ -91,6 +97,45 @@ describe('VideoPlaygroundPage', () => {
     const video = container.querySelector('video')
     expect(video?.getAttribute('src')).toContain('asset://')
     expect(video?.hasAttribute('controls')).toBe(true)
+  })
+
+  it('saves the video through the save dialog and reports the destination', async () => {
+    vi.mocked(commands.savePlaygroundMediaAs).mockResolvedValueOnce({
+      status: 'ok',
+      data: '/Users/me/Downloads/task_1.mp4',
+    })
+    const user = userEvent.setup({ delay: null })
+
+    render(<VideoPlaygroundPage />)
+    await user.click(screen.getByRole('button', { name: 'Save as' }))
+
+    expect(commands.savePlaygroundMediaAs).toHaveBeenCalledWith(
+      '/tmp/droidgear/video.mp4',
+      null,
+      'task_1.mp4'
+    )
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        'Saved to /Users/me/Downloads/task_1.mp4'
+      )
+    )
+  })
+
+  it('reports a save failure instead of dropping it silently', async () => {
+    vi.mocked(commands.savePlaygroundMediaAs).mockResolvedValueOnce({
+      status: 'error',
+      error: 'The provider returned HTTP 403 for the media file.',
+    })
+    const user = userEvent.setup({ delay: null })
+
+    render(<VideoPlaygroundPage />)
+    await user.click(screen.getByRole('button', { name: 'Save as' }))
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'Could not save the file to the chosen location.'
+      )
+    )
   })
 
   it('polls running tasks on the auto refresh interval', async () => {

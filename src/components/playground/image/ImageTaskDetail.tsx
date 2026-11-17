@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { convertFileSrc } from '@tauri-apps/api/core'
-import { openPath, openUrl, revealItemInDir } from '@tauri-apps/plugin-opener'
+import { revealItemInDir } from '@tauri-apps/plugin-opener'
+import { toast } from 'sonner'
 import {
   Check,
   Copy,
-  ExternalLink,
+  Download,
   FolderOpen,
   ImageOff,
   ListRestart,
@@ -15,7 +16,9 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { parseImageUrls } from '@/lib/playground-utils'
+import { commands } from '@/lib/bindings'
+import { logger } from '@/lib/logger'
+import { mediaFileName, parseImageUrls } from '@/lib/playground-utils'
 import {
   isRunningImageTask,
   useImagePlaygroundStore,
@@ -28,9 +31,9 @@ import { ImageTaskStatusBadge } from './ImageTaskStatus'
 
 function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex gap-3 text-sm">
-      <span className="w-20 shrink-0 text-muted-foreground">{label}</span>
-      <span className="min-w-0 flex-1 break-all">{value}</span>
+    <div className="contents">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="min-w-0 break-all">{value}</span>
     </div>
   )
 }
@@ -170,12 +173,31 @@ export function ImageTaskDetail() {
     setTimeout(() => setCopied(false), 1500)
   }
 
-  const handleOpen = () => {
+  const reportSaveFailure = (error: unknown) => {
+    logger.error('Failed to save the image', { error })
+    toast.error(t('playground.image.detail.saveFailed'))
+  }
+  const handleSaveAs = async () => {
     if (!selectedAsset) return
-    if (selectedAsset.localPath) {
-      void openPath(selectedAsset.localPath)
-    } else if (selectedAsset.url) {
-      void openUrl(selectedAsset.url)
+    try {
+      const result = await commands.savePlaygroundMediaAs(
+        selectedAsset.localPath,
+        selectedAsset.url,
+        mediaFileName(
+          `${task.id}-${imageIndex + 1}`,
+          selectedAsset.localPath ?? selectedAsset.url,
+          'png'
+        )
+      )
+      if (result.status === 'error') {
+        reportSaveFailure(result.error)
+        return
+      }
+      if (result.data) {
+        toast.success(t('playground.image.detail.saved', { path: result.data }))
+      }
+    } catch (error) {
+      reportSaveFailure(error)
     }
   }
 
@@ -190,12 +212,12 @@ export function ImageTaskDetail() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2">
         <ImageTaskStatusBadge status={task.status} />
         <button
           type="button"
           onClick={() => void handleCopyId()}
-          className="flex min-w-0 max-w-56 items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground"
+          className="flex min-w-0 max-w-40 items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground"
           title={task.id}
         >
           <span className="truncate">{task.id}</span>
@@ -205,19 +227,28 @@ export function ImageTaskDetail() {
             <Copy className="size-3 shrink-0" />
           )}
         </button>
-        <div className="ms-auto flex flex-wrap items-center justify-end gap-1">
+        <div className="ms-auto flex shrink-0 items-center gap-1">
           {!running && (
             <>
               {selectedAsset && (
-                <Button variant="ghost" size="sm" onClick={handleOpen}>
-                  <ExternalLink />
-                  {t('playground.image.detail.openExternal')}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void handleSaveAs()}
+                >
+                  <Download />
+                  {t('playground.image.detail.saveAs')}
                 </Button>
               )}
               {selectedAsset?.localPath && (
-                <Button variant="ghost" size="sm" onClick={handleReveal}>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  title={t('playground.image.detail.reveal')}
+                  aria-label={t('playground.image.detail.reveal')}
+                  onClick={handleReveal}
+                >
                   <FolderOpen />
-                  {t('playground.image.detail.reveal')}
                 </Button>
               )}
               <Button
@@ -234,6 +265,7 @@ export function ImageTaskDetail() {
             variant="ghost"
             size="icon-sm"
             title={t('common.delete')}
+            aria-label={t('common.delete')}
             onClick={() => void store.deleteImageTask(task.id)}
           >
             <Trash2 />
@@ -264,7 +296,7 @@ export function ImageTaskDetail() {
           </Button>
         </div>
         <Separator />
-        <div className="space-y-1.5">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-1.5 text-sm">
           <MetaRow
             label={t('playground.image.create.model')}
             value={task.modelName}

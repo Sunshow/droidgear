@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { convertFileSrc } from '@tauri-apps/api/core'
-import { openPath, openUrl } from '@tauri-apps/plugin-opener'
+import { toast } from 'sonner'
 import {
   Ban,
   Check,
   Copy,
-  ExternalLink,
+  Download,
   ListRestart,
   Loader2,
   RefreshCw,
@@ -16,20 +16,22 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { commands } from '@/lib/bindings'
 import {
   isActiveVideoTask,
   usePlaygroundStore,
   type VideoTask,
 } from '@/store/playground-store'
-import { parseImageUrls } from '@/lib/playground-utils'
+import { logger } from '@/lib/logger'
+import { mediaFileName, parseImageUrls } from '@/lib/playground-utils'
 import { formatDateTime } from './video-format'
 import { VideoTaskProgress, VideoTaskStatusBadge } from './VideoTaskStatus'
 
 function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex gap-3 text-sm">
-      <span className="w-20 shrink-0 text-muted-foreground">{label}</span>
-      <span className="min-w-0 flex-1 break-all">{value}</span>
+    <div className="contents">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="min-w-0 break-all">{value}</span>
     </div>
   )
 }
@@ -138,12 +140,27 @@ export function VideoTaskDetail() {
   }
 
   const canQuery = active || task.status === 'completed'
-  const canOpen = Boolean(task.localPath || task.videoUrl)
-  const handleOpen = () => {
-    if (task.localPath) {
-      void openPath(task.localPath)
-    } else if (task.videoUrl) {
-      void openUrl(task.videoUrl)
+  const canSave = Boolean(task.localPath || task.videoUrl)
+  const reportSaveFailure = (error: unknown) => {
+    logger.error('Failed to save the video', { error })
+    toast.error(t('playground.video.detail.saveFailed'))
+  }
+  const handleSaveAs = async () => {
+    try {
+      const result = await commands.savePlaygroundMediaAs(
+        task.localPath,
+        task.videoUrl,
+        mediaFileName(task.id, task.localPath ?? task.videoUrl, 'mp4')
+      )
+      if (result.status === 'error') {
+        reportSaveFailure(result.error)
+        return
+      }
+      if (result.data) {
+        toast.success(t('playground.video.detail.saved', { path: result.data }))
+      }
+    } catch (error) {
+      reportSaveFailure(error)
     }
   }
 
@@ -153,12 +170,12 @@ export function VideoTaskDetail() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2">
         <VideoTaskStatusBadge status={task.status} />
         <button
           type="button"
           onClick={() => void handleCopyId()}
-          className="flex min-w-0 max-w-56 items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground"
+          className="flex min-w-0 max-w-40 items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground"
           title={task.id}
         >
           <span className="truncate">{task.id}</span>
@@ -168,16 +185,17 @@ export function VideoTaskDetail() {
             <Copy className="size-3 shrink-0" />
           )}
         </button>
-        <div className="ms-auto flex flex-wrap items-center justify-end gap-1">
+        <div className="ms-auto flex shrink-0 items-center gap-1">
           {canQuery && (
             <Button
               variant="ghost"
-              size="sm"
+              size="icon-sm"
               disabled={isRefreshing}
+              title={t('playground.video.detail.queryStatus')}
+              aria-label={t('playground.video.detail.queryStatus')}
               onClick={() => void store.refreshVideoTasks(task.id)}
             >
               <RefreshCw className={isRefreshing ? 'animate-spin' : ''} />
-              {t('playground.video.detail.queryStatus')}
             </Button>
           )}
           {active && (
@@ -193,10 +211,14 @@ export function VideoTaskDetail() {
           )}
           {!active && (
             <>
-              {canOpen && (
-                <Button variant="ghost" size="sm" onClick={handleOpen}>
-                  <ExternalLink />
-                  {t('playground.video.detail.openExternal')}
+              {canSave && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void handleSaveAs()}
+                >
+                  <Download />
+                  {t('playground.video.detail.saveAs')}
                 </Button>
               )}
               <Button variant="ghost" size="sm" onClick={handleRerun}>
@@ -209,6 +231,7 @@ export function VideoTaskDetail() {
             variant="ghost"
             size="icon-sm"
             title={t('common.delete')}
+            aria-label={t('common.delete')}
             onClick={() => void store.deleteVideoTask(task.id)}
           >
             <Trash2 />
@@ -234,7 +257,7 @@ export function VideoTaskDetail() {
           </Button>
         </div>
         <Separator />
-        <div className="space-y-1.5">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-1.5 text-sm">
           <MetaRow
             label={t('playground.video.create.model')}
             value={task.modelName}

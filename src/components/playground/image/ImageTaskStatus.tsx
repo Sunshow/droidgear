@@ -38,7 +38,7 @@ export function ImageTaskStatusIcon({
 export function ImageTaskStatusBadge({ status }: { status: ImageTaskStatus }) {
   const { t } = useTranslation()
   return (
-    <Badge variant="outline" className="gap-1">
+    <Badge variant="outline" className="min-w-24 gap-1">
       <ImageTaskStatusIcon status={status} className="size-3" />
       {t(`playground.image.status.${status}`)}
     </Badge>

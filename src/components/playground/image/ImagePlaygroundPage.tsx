@@ -60,11 +60,11 @@ export function ImagePlaygroundPage() {
         <ResizableHandle />
         <ResizablePanel defaultSize={68} minSize={40}>
           <ResizablePanelGroup direction="horizontal">
-            <ResizablePanel defaultSize={42} minSize={28}>
+            <ResizablePanel defaultSize={38} minSize={28}>
               <ImageTaskList />
             </ResizablePanel>
             <ResizableHandle />
-            <ResizablePanel defaultSize={58} minSize={35}>
+            <ResizablePanel defaultSize={62} minSize={35}>
               <ImageTaskDetail />
             </ResizablePanel>
           </ResizablePanelGroup>

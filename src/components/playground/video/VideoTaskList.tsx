@@ -158,10 +158,12 @@ export function VideoTaskList() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2 ps-6 text-xs text-muted-foreground">
-                    <span className="truncate">{task.modelName}</span>
-                    <span>·</span>
-                    <span>{formatClock(task.createdAt)}</span>
-                    <span className="ms-auto">
+                    <span className="min-w-0 truncate">{task.modelName}</span>
+                    <span className="shrink-0">·</span>
+                    <span className="shrink-0 tabular-nums">
+                      {formatClock(task.createdAt)}
+                    </span>
+                    <span className="ms-auto w-20 shrink-0 truncate text-end tabular-nums">
                       {task.status === 'in_progress'
                         ? `${task.progress}%`
                         : t(`playground.video.status.${task.status}`)}

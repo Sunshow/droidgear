@@ -89,10 +89,12 @@ export function ImageTaskList() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2 ps-6 text-xs text-muted-foreground">
-                    <span className="truncate">{task.modelName}</span>
-                    <span>·</span>
-                    <span>{formatClock(task.createdAt)}</span>
-                    <span className="ms-auto shrink-0">
+                    <span className="min-w-0 truncate">{task.modelName}</span>
+                    <span className="shrink-0">·</span>
+                    <span className="shrink-0 tabular-nums">
+                      {formatClock(task.createdAt)}
+                    </span>
+                    <span className="ms-auto w-20 shrink-0 truncate text-end tabular-nums">
                       {task.status === 'completed'
                         ? t('playground.image.list.imageCount', {
                             count: task.images.length,
