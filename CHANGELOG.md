@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.4.2
+
+**New Features / 新功能**
+
+- Playground image generation (GUI): a second page beside video that sends one real image request per model. Three upstream protocols are supported — OpenAI Chat Completions (`/v1/chat/completions` with image content), OpenAI Responses (`/v1/responses` with the `image_generation` tool) and Google Gemini native (`:predict` for Imagen / `generateContent`) — and each model stores its protocol and whether it takes reference images. Models, secrets and task history share the same `~/.droidgear/playground/` layout as video; decoded results land in `media/images/` and preview through the asset protocol. The reference-image grid, model form, channel import, manager and toolbar are shared with the video page; generation is synchronous, multiple outputs switch through thumbnails, and a task can be re-run or loaded back into the form. Covered by Rust protocol tests and Vitest page tests / Playground 图片生成（GUI）：与视频并列的第二页，按模型发一次真实图片请求。支持三种上游协议——OpenAI Chat Completions（`/v1/chat/completions` 图片内容）、OpenAI Responses（`/v1/responses` 的 `image_generation` 工具）与 Google Gemini 原生（Imagen 的 `:predict` / `generateContent`）——每个模型保存协议与是否支持参考图。模型、密钥与任务历史沿用 `~/.droidgear/playground/`；解码结果写入 `media/images/`，经 asset 协议预览。参考图宫格、模型表单、渠道导入、管理器与工具栏与视频页共用；生成同步完成，多图用缩略图切换，任务可重跑或回填表单。含 Rust 协议测试与 Vitest 页面测试
+- Playground Save As (GUI): finished videos and images use a native save dialog (`save_playground_media_as`) that copies the cached file or downloads the provider URL, so no extra fs / opener scope is required. The previous open-path action is replaced on both detail pages; open and save failures surface in the UI. Task status wording is unified as Running across video and image, and badge / list widths stay fixed so polling no longer reflows the layout / Playground 另存为（GUI）：完成的视频与图片改用系统另存为对话框（`save_playground_media_as`），复制缓存文件或下载上游 URL，无需扩大 fs / opener 权限。视频与图片详情页原先的打开路径改为另存为；打开与保存失败会在界面提示。任务状态文案统一为 Running，徽章与列表宽度固定，轮询时不再触发布局抖动
+
 ## v1.4.1
 
 **New Features / 新功能**
