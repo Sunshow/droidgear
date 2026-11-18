@@ -38,9 +38,28 @@ export function videoProtocolDefaults(
   _protocol?: VideoProtocol
 ): VideoProtocolDefaults {
   return {
-    durations: COMMON_VIDEO_DURATIONS,
-    resolutions: COMMON_VIDEO_RESOLUTIONS,
+    durations: [...COMMON_VIDEO_DURATIONS],
+    resolutions: [...COMMON_VIDEO_RESOLUTIONS],
   }
+}
+
+/**
+ * Options the create form's duration picker offers. The picker must never go
+ * dead for a selected model: duration is free-input anyway, so a model saved
+ * without its own list falls back to the shared suggestions.
+ */
+export function videoDurationOptions(durations: readonly number[]): string[] {
+  const source = durations.length > 0 ? durations : COMMON_VIDEO_DURATIONS
+  return source.map(String)
+}
+
+/** Counterpart of {@link videoDurationOptions} for resolutions. */
+export function videoResolutionOptions(
+  resolutions: readonly string[]
+): string[] {
+  return resolutions.length > 0
+    ? [...resolutions]
+    : [...COMMON_VIDEO_RESOLUTIONS]
 }
 
 export function videoProtocolOptions(

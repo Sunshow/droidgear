@@ -52,13 +52,21 @@ export function VideoModelDialog({
           key: 'durations',
           label: t('playground.video.modelDialog.durations'),
           placeholder: defaults.durations.join(', '),
-          initial: (model?.durations ?? defaults.durations).join(', '),
+          // A model saved with empty lists gets the shared suggestions back,
+          // matching what the create form's picker offers.
+          initial: (model?.durations.length
+            ? model.durations
+            : defaults.durations
+          ).join(', '),
         },
         {
           key: 'resolutions',
           label: t('playground.video.modelDialog.resolutions'),
           placeholder: defaults.resolutions.join(', '),
-          initial: (model?.resolutions ?? defaults.resolutions).join(', '),
+          initial: (model?.resolutions.length
+            ? model.resolutions
+            : defaults.resolutions
+          ).join(', '),
         },
       ]}
       optionsHint={t('playground.video.modelDialog.optionsHint')}

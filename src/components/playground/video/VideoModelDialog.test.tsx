@@ -99,4 +99,32 @@ describe('VideoModelDialog', () => {
       })
     )
   })
+
+  it('restores the shared suggestions for a model saved with empty lists', () => {
+    render(
+      <VideoModelDialog
+        open
+        onOpenChange={vi.fn()}
+        model={{
+          id: 'vm_1',
+          name: 'Seedance',
+          modelId: 'doubao-seedance-2-0-mini-260615',
+          source: { kind: 'channel', channelId: 'channel-1', tokenId: 1 },
+          protocol: 'doubao',
+          durations: [],
+          resolutions: [],
+          supportsImageInput: true,
+        }}
+        onSave={vi.fn()}
+        onSaveMany={vi.fn()}
+      />
+    )
+
+    expect(screen.getByLabelText('Durations (seconds)')).toHaveValue(
+      COMMON_VIDEO_DURATIONS.join(', ')
+    )
+    expect(screen.getByLabelText('Resolutions')).toHaveValue(
+      COMMON_VIDEO_RESOLUTIONS.join(', ')
+    )
+  })
 })

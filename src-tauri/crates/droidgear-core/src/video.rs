@@ -81,7 +81,12 @@ pub struct VideoModel {
     pub model_id: String,
     pub source: VideoSource,
     pub protocol: VideoProtocol,
+    /// Editable suggestion lists. Older files may predate them; defaulting
+    /// keeps the rest of the file (and its other models) loadable instead of
+    /// failing the whole model list over two optional presets.
+    #[serde(default)]
     pub durations: Vec<u32>,
+    #[serde(default)]
     pub resolutions: Vec<String>,
     pub supports_image_input: bool,
 }
@@ -1630,6 +1635,26 @@ mod tests {
             }
             other => panic!("unexpected source: {other:?}"),
         }
+    }
+
+    #[test]
+    fn loads_models_saved_without_the_preset_lists() {
+        let dir = tempfile::TempDir::new().expect("temp home");
+        let home = dir.path();
+        let path = video_models_path_for_home(home);
+        fs::create_dir_all(path.parent().expect("models dir")).expect("models dir");
+        fs::write(
+            &path,
+            r#"[{"id":"vm_1","name":"Seedance","modelId":"doubao-seedance",
+                "source":{"kind":"channel","channelId":"channel-1","tokenId":null},
+                "protocol":"doubao","supportsImageInput":true}]"#,
+        )
+        .expect("models file");
+
+        let loaded = load_video_models_for_home(home).expect("load");
+        assert_eq!(loaded.len(), 1);
+        assert!(loaded[0].durations.is_empty());
+        assert!(loaded[0].resolutions.is_empty());
     }
 
     #[test]

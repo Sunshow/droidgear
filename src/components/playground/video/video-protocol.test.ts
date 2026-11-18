@@ -4,7 +4,9 @@ import {
   buildImportedVideoModels,
   COMMON_VIDEO_DURATIONS,
   COMMON_VIDEO_RESOLUTIONS,
+  videoDurationOptions,
   videoProtocolDefaults,
+  videoResolutionOptions,
 } from './video-protocol'
 
 function protocolMap(
@@ -30,6 +32,21 @@ describe('videoProtocolDefaults', () => {
     expect(COMMON_VIDEO_RESOLUTIONS).toContain('720p')
     expect(COMMON_VIDEO_RESOLUTIONS).toContain('1280x720')
     expect(COMMON_VIDEO_RESOLUTIONS).toContain('1024x1792')
+  })
+})
+
+describe('picker suggestions', () => {
+  it('keeps the model lists when the model defines them', () => {
+    expect(videoDurationOptions([4, 8, 12])).toEqual(['4', '8', '12'])
+    expect(videoResolutionOptions(['1080p', '1920x1080'])).toEqual([
+      '1080p',
+      '1920x1080',
+    ])
+  })
+
+  it('falls back to the shared lists when the model has none', () => {
+    expect(videoDurationOptions([])).toEqual(COMMON_VIDEO_DURATIONS.map(String))
+    expect(videoResolutionOptions([])).toEqual(COMMON_VIDEO_RESOLUTIONS)
   })
 })
 

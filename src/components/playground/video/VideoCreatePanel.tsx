@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { usePlaygroundStore } from '@/store/playground-store'
 import { isJsonObjectOrEmpty } from './video-format'
 import { VideoReferenceImages } from './VideoReferenceImages'
+import { videoDurationOptions, videoResolutionOptions } from './video-protocol'
 
 export function VideoCreatePanel() {
   const { t } = useTranslation()
@@ -18,6 +19,10 @@ export function VideoCreatePanel() {
   const isCreating = usePlaygroundStore(state => state.isCreating)
 
   const model = models.find(m => m.id === draft.modelId)
+  // A model's own lists win; otherwise the shared presets keep the pickers
+  // usable, matching the free-input fields they sit next to.
+  const durationOptions = videoDurationOptions(model?.durations ?? [])
+  const resolutionOptions = videoResolutionOptions(model?.resolutions ?? [])
   const jsonValid = isJsonObjectOrEmpty(draft.extraJson)
   const canSubmit =
     model !== undefined &&
@@ -86,7 +91,7 @@ export function VideoCreatePanel() {
               <IdPicker
                 label={t('playground.video.create.duration')}
                 value={draft.duration}
-                options={(model?.durations ?? []).map(String)}
+                options={durationOptions}
                 onPick={value => updateDraft({ duration: value })}
               />
             </div>
@@ -106,7 +111,7 @@ export function VideoCreatePanel() {
               <IdPicker
                 label={t('playground.video.create.resolution')}
                 value={draft.resolution}
-                options={model?.resolutions ?? []}
+                options={resolutionOptions}
                 onPick={value => updateDraft({ resolution: value })}
               />
             </div>
