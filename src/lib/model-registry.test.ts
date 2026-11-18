@@ -138,6 +138,20 @@ describe('getSupportedEfforts', () => {
       'xhigh',
       'max',
     ])
+    expect(getSupportedEfforts('gpt-6.2-sol', 'openai')).toEqual([
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+      'max',
+    ])
+    expect(getSupportedEfforts('gpt-6.2-astra', 'openai')).toEqual([
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+      'max',
+    ])
     expect(getSupportedEfforts('gpt-6-luna', 'openai')).toEqual([
       'none',
       'low',

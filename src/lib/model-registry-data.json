@@ -2182,6 +2182,54 @@
     }
   },
   {
+    "id": "gpt-6.2-astra",
+    "name": "GPT-6.2 Astra",
+    "aliases": [],
+    "platform": "openai-responses",
+    "reasoning": true,
+    "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh",
+      "max": "max"
+    },
+    "contextWindow": 1050000,
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    },
+    "strictSampling": true
+  },
+  {
+    "id": "gpt-6.2-sol",
+    "name": "GPT-6.2 Sol",
+    "aliases": [],
+    "platform": "openai-responses",
+    "reasoning": true,
+    "input": ["text", "image"],
+    "thinkingLevelMap": {
+      "minimal": null,
+      "xhigh": "xhigh",
+      "max": "max"
+    },
+    "contextWindow": 1050000,
+    "maxOutputTokens": 128000,
+    "reasoningConfig": {
+      "efforts": ["low", "medium", "high", "xhigh", "max"],
+      "profiles": {
+        "anthropic": "anthropic-output-config",
+        "openai": "openai-reasoning",
+        "generic-chat-completion-api": "openai-reasoning"
+      }
+    },
+    "strictSampling": true
+  },
+  {
     "id": "gpt-oss-120b",
     "name": "GPT OSS 120B",
     "aliases": [],
