@@ -143,23 +143,20 @@ Claude Code 官方直接支持这些和本需求强相关的变量：
 
 官方当前文档明确写的是：
 
-- Opus 4.7：`low / medium / high / xhigh / max`
+- Fable 全系、Opus 5.5 / 5 / 4.8 / 4.7、Sonnet 5.5 / 5、Haiku 5.5：`low / medium / high / xhigh / max`
 - Opus 4.6、Sonnet 4.6：`low / medium / high / max`
 
 同时官方还写明：
 
-- `settings.effortLevel` 只接受 `low / medium / high / xhigh`
+- `settings.effortLevel` 只接受 `low / medium / high / xhigh`（`max` 不能持久化）
 - `--effort` 支持 `low / medium / high / xhigh / max`
 - `CLAUDE_CODE_EFFORT_LEVEL` 支持 `low / medium / high / xhigh / max / auto`
 - `max` 默认是 session-only，除非通过 `CLAUDE_CODE_EFFORT_LEVEL`
 
-因此这轮产品里原先把 `xhigh` 当成通用档位是错误的。
-
-正确理解应该是：
-
-- `xhigh` 只是 Opus 4.7 的特例能力
-- 它不是 Claude 系列的稳定共通档位
-- provider-first profile 不应该默认把它当通用选项暴露
+> 修订（2026-11）：早先“`xhigh` 只是 Opus 4.7 特例”的结论已经过期。当前官方档位表
+> 把 `xhigh` 给了 Fable 全系与 5.x 系列，只剩 Opus 4.6 / Sonnet 4.6 没有。
+> DroidGear 已恢复 `xhigh`，持久化语义见下方
+> [Apply semantics for effort](#apply-semantics-for-effort)。
 
 ### 6. Thinking 不只是一个 `alwaysThinkingEnabled`
 
@@ -249,45 +246,24 @@ interface ClaudeCodeProfile {
 - `reasoningEffort = null`：不管理 reasoning effort
 - `thinkingMode = inherit`：不管理 thinking 默认行为
 
-### Why `xhigh` is removed
+### Why `xhigh` was removed (superseded)
 
-文档必须明确修正：
-
-- `xhigh` 不再进入 DroidGear 的 Claude profile UI
-
-原因不是“官方完全没有这个值”，而是：
-
-- 官方只把它给 Opus 4.7
-- Sonnet 4.6 和 Opus 4.6 都没有
-- 我们这里做的是“provider-first + 自由 model name”
-- 不是“官方 Opus 4.7 专用 preset 配置器”
-
-所以 v1 暴露的 reasoning 选项应收敛为：
-
-- `inherit`
-- `low`
-- `medium`
-- `high`
-- `max`
-
-如果未来真的要支持：
-
-- “当 capability hint 明确是 Opus 4.7 时再解锁 `xhigh`”
-
-那应该在后续高级配置里做，不应该混进这轮通用面板。
+> 过期（2026-11）：本节结论已作废。官方后来把 `xhigh` 扩展到 Fable 全系与 5.x 系列，
+> DroidGear 已恢复该档位；对不支持 `xhigh` 的模型（Opus 4.6 / Sonnet 4.6），
+> Claude Code 会自行降级到 `high`。保留本节仅作为决策历史。
 
 ### What v1 should include
 
-| DroidGear field           | Claude 对应项                                                    | 说明                                     |
-| ------------------------- | ---------------------------------------------------------------- | ---------------------------------------- |
-| `name` / `description`    | DroidGear metadata                                               | 本地 profile 元数据                      |
-| `baseUrl`                 | `env.ANTHROPIC_BASE_URL`                                         | 自由输入，可空                           |
-| `bearerToken`             | `env.ANTHROPIC_AUTH_TOKEN`                                       | secret input，可空                       |
-| `model`                   | `env.ANTHROPIC_MODEL`                                            | 自由输入，可空                           |
-| `smallModel`              | `env.ANTHROPIC_DEFAULT_HAIKU_MODEL`                              | 自由输入，可空                           |
-| `smallModelUsesMainModel` | behavior flag                                                    | 勾上后 small model 直接使用主 model 名字 |
-| `reasoningEffort`         | `env.CLAUDE_CODE_EFFORT_LEVEL`                                   | UI 只暴露 `low / medium / high / max`    |
-| `thinkingMode`            | `alwaysThinkingEnabled` + `CLAUDE_CODE_DISABLE_THINKING` hygiene | 三态 `inherit / on / off`                |
+| DroidGear field           | Claude 对应项                                                                 | 说明                                        |
+| ------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------- |
+| `name` / `description`    | DroidGear metadata                                                            | 本地 profile 元数据                         |
+| `baseUrl`                 | `env.ANTHROPIC_BASE_URL`                                                      | 自由输入，可空                              |
+| `bearerToken`             | `env.ANTHROPIC_AUTH_TOKEN`                                                    | secret input，可空                          |
+| `model`                   | `env.ANTHROPIC_MODEL`                                                         | 自由输入，可空                              |
+| `smallModel`              | `env.ANTHROPIC_DEFAULT_HAIKU_MODEL`                                           | 自由输入，可空                              |
+| `smallModelUsesMainModel` | behavior flag                                                                 | 勾上后 small model 直接使用主 model 名字    |
+| `reasoningEffort`         | `modelSettings[model].effortLevel`（`max` 走 `env.CLAUDE_CODE_EFFORT_LEVEL`） | UI 暴露 `low / medium / high / xhigh / max` |
+| `thinkingMode`            | `alwaysThinkingEnabled` + `CLAUDE_CODE_DISABLE_THINKING` hygiene              | 三态 `inherit / on / off`                   |
 
 ### What v1 should explicitly exclude
 
@@ -410,57 +386,60 @@ Claude 官方当前只提供：
 
 ## Reasoning Design, Revised
 
-### Reasoning 只暴露稳定的四档
+### Reasoning 暴露五档
 
-UI 只暴露：
+UI 暴露：
 
 - `inherit`
 - `low`
 - `medium`
 - `high`
+- `xhigh`
 - `max`
 
-不暴露：
-
-- `xhigh`
-
 ### Apply semantics for effort
+
+Claude Code 的 effort 解析顺序是：
+
+1. `env.CLAUDE_CODE_EFFORT_LEVEL`
+2. 会话内 `/effort`、`/model` 滑杆
+3. 启动时 `--effort`
+4. `modelSettings[<model>].effortLevel` / 顶层 `effortLevel`
+5. 模型默认值
+
+env 排第一，所以一旦把普通档位写进 env，会话内调整 effort 会被完全压住。
+现在的语义改为“可被覆盖的默认值”：
 
 `reasoningEffort = null`
 
 - 删除 `env.CLAUDE_CODE_EFFORT_LEVEL`
+- 删除当前模型的 `modelSettings[<model>].effortLevel`
+- 删除顶层 `effortLevel`（旧式 `/effort` 落点）
 
-`reasoningEffort = low | medium | high`
+`reasoningEffort = low | medium | high | xhigh`
 
-- 写 `env.CLAUDE_CODE_EFFORT_LEVEL`
-- `low / medium` 清理 `env.CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING`
-- `high` 写 `env.CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = 1`
+- 写入 `modelSettings[<model>].effortLevel`；当前没有模型时退回顶层 `effortLevel`
+- `high / xhigh` 写 `env.CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = 1`，`low / medium` 清理
+- 不再写 `env.CLAUDE_CODE_EFFORT_LEVEL`
 
 `reasoningEffort = max`
 
-- 写 `env.CLAUDE_CODE_EFFORT_LEVEL = max`
+- `settings` 不接受 `max`，所以仍然写 `env.CLAUDE_CODE_EFFORT_LEVEL = max`，
+  UI 需要提示这是“锁定”，会覆盖会话内的 `/effort`
 - 写 `env.CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING = 1`
 
-这样做的原因是：
-
-- 这轮已经决定让 reasoning 和 provider/model 一起走统一 env contract
-- `max`、`high`、`medium`、`low` 都能走一套一致语义
-- 可以直接复用 `codex-remote-feishu` 里已经跑通的 runtime settings contract 设计
+模型 key 会规范化为 Claude Code 的 canonical ID：`claude-fable-5.2`、`claude-opus-5-5[1m]`
+分别写成 `claude-fable-5-2`、`claude-opus-5-5`；自定义网关 model ID 原样保留。
 
 ### Temporary Run semantics for effort
 
-Temporary Run 也不再单独走 `--effort`。
+Temporary Run 使用软默认，不锁 env：
 
-它应该和 provider/model 一起进入同一个受管 runtime env contract：
-
-- `env.CLAUDE_CODE_EFFORT_LEVEL`
-- `env.CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING`
-- 必要时清理 `env.CLAUDE_CODE_DISABLE_THINKING`
-
-这样做的好处是：
-
-- Apply 和 Temporary Run 的 reasoning 语义完全一致
-- 不需要同时维护 “profile 默认值” 和 “run-time flag” 两条路线
+- 普通档位写进 `--settings` overlay 的顶层 `effortLevel`
+  （官方说明：通过 `--settings` 传入的顶层 `effortLevel` 对所有模型生效）
+- `max` 通过启动参数 `--effort max` 传入（优先级低于会话内 `/effort`）
+- overlay 里对 `env.CLAUDE_CODE_EFFORT_LEVEL` 写 tombstone，确保用户的 live env 不会抢走档位
+- 仍然按 high / xhigh / max 写 `env.CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING`
 - 可以在 wrapper/shim 层一次性解决 inherited env 和 lower-layer settings 污染
 
 ## Capability Detection Boundary
@@ -525,11 +504,13 @@ Apply 的语义固定为：
 Apply 只改这些 key：
 
 - top-level `alwaysThinkingEnabled`
+- top-level `effortLevel`（仅在没有模型可归类时写入；`inherit` 会删除）
+- `modelSettings[<model>].effortLevel`（`low / medium / high / xhigh`）
 - `env.ANTHROPIC_BASE_URL`
 - `env.ANTHROPIC_AUTH_TOKEN`
 - `env.ANTHROPIC_MODEL`
 - `env.ANTHROPIC_DEFAULT_HAIKU_MODEL`
-- `env.CLAUDE_CODE_EFFORT_LEVEL`
+- `env.CLAUDE_CODE_EFFORT_LEVEL`（仅 `max`）
 - `env.CLAUDE_CODE_DISABLE_THINKING`
 - `env.MAX_THINKING_TOKENS`
 - `env.CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING`
@@ -566,6 +547,10 @@ Apply 还需要清理这些冲突键：
 - v1 已经决定由 `env` 承载 DroidGear 的受管 provider contract
 - top-level `model` / `effortLevel` 继续保留为用户自己的 live 默认层
 - 这样对现有 Claude 配置的侵入更小，也更符合“只动受管字段”的原则
+
+> 修订（2026-11）：`effortLevel` 的处理已调整。普通档位改为写入
+> `modelSettings[<model>].effortLevel`；顶层 `effortLevel` 只在没有模型可归类时写入，
+> 并在用户选择 `inherit` 时删除（否则面板无法表达“不设置”）。`model` 仍然不主动清理。
 
 ### Security caveat
 
@@ -836,14 +821,18 @@ temp run 不应直接复用，而应：
 
 具体建议：
 
+> 修订（2026-11）：以下结论中 reasoning 部分已被
+> [Reasoning Design, Revised](#reasoning-design-revised) 取代。
+
 - `reasoningEffort`
-  - v1 只暴露 `low / medium / high / max`
-  - 删除 `xhigh`
+  - 暴露 `low / medium / high / xhigh / max`（`xhigh` 已恢复）
+  - 普通档位写 `modelSettings`，`max` 才走 env（见上文）
 - `thinkingMode`
   - 继续保留 `inherit / on / off`
   - 但文档和实现都要明确：v1 不支持 fixed-budget / adaptive 专项配置
 - `Apply`
-  - provider / model / reasoning 统一走受管 `env` contract
+  - provider / model 走受管 `env` contract
+  - reasoning 走 `modelSettings`（`max` 例外走 env）
   - 只把 `alwaysThinkingEnabled` 留在 top-level
 - `Temporary Run`
   - 默认不额外导出 `CLAUDE_CONFIG_DIR`

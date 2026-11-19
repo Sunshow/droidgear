@@ -3250,7 +3250,7 @@ export type ClaudeConfigStatus = { settingsExists: boolean; settingsPath: string
  * Current Claude Code configuration read back from live settings.
  */
 export type ClaudeCurrentConfig = { baseUrl?: string | null; bearerToken?: string | null; model?: string | null; smallModelUsesMainModel?: boolean; smallModel?: string | null; reasoningEffort?: ClaudeReasoningEffort | null; thinkingMode?: ClaudeThinkingMode }
-export type ClaudeReasoningEffort = "low" | "medium" | "high" | "max"
+export type ClaudeReasoningEffort = "low" | "medium" | "high" | "xhigh" | "max"
 /**
  * Information about a single Claude settings file.
  */

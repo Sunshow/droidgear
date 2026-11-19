@@ -54,49 +54,82 @@ describe('setEnvString', () => {
 })
 
 describe('reasoning effort', () => {
-  it('returns inherit when no effort env is set', () => {
+  it('returns inherit when nothing is set', () => {
     expect(getReasoningEffort({})).toBe('inherit')
   })
 
-  it('round-trips low without setting adaptive flag', () => {
-    const draft: ClaudeSettingsDoc = {}
-    setReasoningEffort(draft, 'low')
-    expect(getReasoningEffort(draft)).toBe('low')
-    const env = draft.env as Record<string, unknown>
-    expect(env[CLAUDE_EFFORT_ENV]).toBe('low')
-    expect(env[CLAUDE_DISABLE_ADAPTIVE_ENV]).toBeUndefined()
-  })
-
-  it('sets adaptive flag for high', () => {
-    const draft: ClaudeSettingsDoc = {}
-    setReasoningEffort(draft, 'high')
-    const env = draft.env as Record<string, unknown>
-    expect(env[CLAUDE_EFFORT_ENV]).toBe('high')
-    expect(env[CLAUDE_DISABLE_ADAPTIVE_ENV]).toBe('1')
-  })
-
-  it('clears adaptive flag when downgrading from max to medium', () => {
+  it('saves low through xhigh per model without locking the env', () => {
     const draft: ClaudeSettingsDoc = {
+      env: { [CLAUDE_MODEL_ENV]: 'claude-fable-5.2' },
+    }
+    setReasoningEffort(draft, 'xhigh')
+
+    expect(draft.modelSettings).toEqual({
+      'claude-fable-5-2': { effortLevel: 'xhigh' },
+    })
+    const env = draft.env as Record<string, unknown>
+    expect(env[CLAUDE_EFFORT_ENV]).toBeUndefined()
+    expect(env[CLAUDE_DISABLE_ADAPTIVE_ENV]).toBe('1')
+    expect(getReasoningEffort(draft)).toBe('xhigh')
+  })
+
+  it('round-trips low without setting the adaptive flag', () => {
+    const draft: ClaudeSettingsDoc = {
+      env: { [CLAUDE_MODEL_ENV]: 'claude-sonnet-4-5' },
+    }
+    setReasoningEffort(draft, 'low')
+    const env = draft.env as Record<string, unknown>
+    expect(env[CLAUDE_EFFORT_ENV]).toBeUndefined()
+    expect(env[CLAUDE_DISABLE_ADAPTIVE_ENV]).toBeUndefined()
+    expect(getReasoningEffort(draft)).toBe('low')
+  })
+
+  it('keeps max on the env lock and drops the per-model entry', () => {
+    const draft: ClaudeSettingsDoc = {
+      env: { [CLAUDE_MODEL_ENV]: 'claude-sonnet-4-5' },
+      modelSettings: { 'claude-sonnet-4-5': { effortLevel: 'high' } },
+    }
+    setReasoningEffort(draft, 'max')
+    const env = draft.env as Record<string, unknown>
+    expect(env[CLAUDE_EFFORT_ENV]).toBe('max')
+    expect(env[CLAUDE_DISABLE_ADAPTIVE_ENV]).toBe('1')
+    expect(draft.modelSettings).toBeUndefined()
+    expect(getReasoningEffort(draft)).toBe('max')
+  })
+
+  it('clears model settings, env lock and legacy top-level key on inherit', () => {
+    const draft: ClaudeSettingsDoc = {
+      effortLevel: 'high',
       env: {
+        [CLAUDE_MODEL_ENV]: 'claude-opus-4-8',
         [CLAUDE_EFFORT_ENV]: 'max',
         [CLAUDE_DISABLE_ADAPTIVE_ENV]: '1',
       },
-    }
-    setReasoningEffort(draft, 'medium')
-    const env = draft.env as Record<string, unknown>
-    expect(env[CLAUDE_EFFORT_ENV]).toBe('medium')
-    expect(env[CLAUDE_DISABLE_ADAPTIVE_ENV]).toBeUndefined()
-  })
-
-  it('removes effort and adaptive keys when set to inherit', () => {
-    const draft: ClaudeSettingsDoc = {
-      env: {
-        [CLAUDE_EFFORT_ENV]: 'high',
-        [CLAUDE_DISABLE_ADAPTIVE_ENV]: '1',
-      },
+      modelSettings: { 'claude-opus-4-8': { effortLevel: 'high' } },
     }
     setReasoningEffort(draft, 'inherit')
-    expect(draft.env).toBeUndefined()
+
+    expect(draft.effortLevel).toBeUndefined()
+    expect(draft.modelSettings).toBeUndefined()
+    expect(draft.env).toEqual({ [CLAUDE_MODEL_ENV]: 'claude-opus-4-8' })
+    expect(getReasoningEffort(draft)).toBe('inherit')
+  })
+
+  it('uses top-level effortLevel when no model is known', () => {
+    const draft: ClaudeSettingsDoc = {}
+    setReasoningEffort(draft, 'high')
+    expect(draft.effortLevel).toBe('high')
+    expect(draft.modelSettings).toBeUndefined()
+    expect(getReasoningEffort(draft)).toBe('high')
+  })
+
+  it('prefers the per-model level over the legacy top-level key', () => {
+    const draft: ClaudeSettingsDoc = {
+      effortLevel: 'low',
+      env: { [CLAUDE_MODEL_ENV]: 'claude-fable-5-2' },
+      modelSettings: { 'claude-fable-5-2': { effortLevel: 'medium' } },
+    }
+    expect(getReasoningEffort(draft)).toBe('medium')
   })
 })
 

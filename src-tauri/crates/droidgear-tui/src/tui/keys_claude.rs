@@ -1,3 +1,5 @@
+use droidgear_core::claude;
+
 use super::*;
 
 pub(super) fn handle_claude_key(app: &mut app::App, code: KeyCode) -> Option<Action> {
@@ -313,6 +315,7 @@ pub(super) fn handle_claude_settings_detail_key(
                             "low".to_string(),
                             "medium".to_string(),
                             "high".to_string(),
+                            "xhigh".to_string(),
                             "max".to_string(),
                         ],
                         index: claude_reasoning_index(app),
@@ -627,19 +630,18 @@ fn toggle_claude_field(app: &mut app::App, idx: usize) {
 }
 
 fn claude_reasoning_index(app: &app::App) -> usize {
-    let val = app
+    let effort = app
         .claude_detail_json
         .as_ref()
-        .and_then(|j| j.get("env"))
-        .and_then(|e| e.get("CLAUDE_CODE_EFFORT_LEVEL"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("inherit");
-    match val {
-        "low" => 1,
-        "medium" => 2,
-        "high" => 3,
-        "max" => 4,
-        _ => 0,
+        .and_then(|json| json.as_object())
+        .and_then(claude::read_claude_reasoning_effort);
+    match effort {
+        None => 0,
+        Some(claude::ClaudeReasoningEffort::Low) => 1,
+        Some(claude::ClaudeReasoningEffort::Medium) => 2,
+        Some(claude::ClaudeReasoningEffort::High) => 3,
+        Some(claude::ClaudeReasoningEffort::Xhigh) => 4,
+        Some(claude::ClaudeReasoningEffort::Max) => 5,
     }
 }
 

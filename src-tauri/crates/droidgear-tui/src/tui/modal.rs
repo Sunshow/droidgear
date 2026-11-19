@@ -1,3 +1,5 @@
+use droidgear_core::claude;
+
 use super::*;
 
 pub(super) fn handle_modal_key(app: &mut app::App, code: KeyCode, modal: app::Modal) {
@@ -397,53 +399,18 @@ pub(super) fn run_select_action(
             let Some(ref mut json) = app.claude_detail_json else {
                 return Ok(());
             };
-            let obj = json.as_object_mut().unwrap();
-            let env = obj
-                .entry("env".to_string())
-                .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
-            if let Some(env_obj) = env.as_object_mut() {
-                match selected.as_deref() {
-                    Some("inherit") | None => {
-                        env_obj.remove("CLAUDE_CODE_EFFORT_LEVEL");
-                        env_obj.remove("CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING");
-                    }
-                    Some("low") => {
-                        env_obj.insert(
-                            "CLAUDE_CODE_EFFORT_LEVEL".to_string(),
-                            serde_json::Value::String("low".to_string()),
-                        );
-                        env_obj.remove("CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING");
-                    }
-                    Some("medium") => {
-                        env_obj.insert(
-                            "CLAUDE_CODE_EFFORT_LEVEL".to_string(),
-                            serde_json::Value::String("medium".to_string()),
-                        );
-                        env_obj.remove("CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING");
-                    }
-                    Some("high") => {
-                        env_obj.insert(
-                            "CLAUDE_CODE_EFFORT_LEVEL".to_string(),
-                            serde_json::Value::String("high".to_string()),
-                        );
-                        env_obj.insert(
-                            "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING".to_string(),
-                            serde_json::Value::String("1".to_string()),
-                        );
-                    }
-                    Some("max") => {
-                        env_obj.insert(
-                            "CLAUDE_CODE_EFFORT_LEVEL".to_string(),
-                            serde_json::Value::String("max".to_string()),
-                        );
-                        env_obj.insert(
-                            "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING".to_string(),
-                            serde_json::Value::String("1".to_string()),
-                        );
-                    }
-                    _ => {}
-                }
-            }
+            let Some(obj) = json.as_object_mut() else {
+                return Ok(());
+            };
+            let effort = match selected.as_deref() {
+                Some("low") => Some(claude::ClaudeReasoningEffort::Low),
+                Some("medium") => Some(claude::ClaudeReasoningEffort::Medium),
+                Some("high") => Some(claude::ClaudeReasoningEffort::High),
+                Some("xhigh") => Some(claude::ClaudeReasoningEffort::Xhigh),
+                Some("max") => Some(claude::ClaudeReasoningEffort::Max),
+                _ => None,
+            };
+            claude::set_claude_reasoning_effort(obj, None, effort);
             app.claude_detail_dirty = true;
             Ok(())
         }

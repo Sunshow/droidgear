@@ -81,6 +81,11 @@ impl From<&ClaudeTemporaryLaunchPlan> for ClaudeTemporaryRunPlan {
 struct ClaudeRuntimeSettingsOverlay {
     #[serde(skip_serializing_if = "Option::is_none")]
     always_thinking_enabled: Option<bool>,
+    /// Soft per-session default. `--settings` top-level `effortLevel` applies to
+    /// every model and, unlike the env var, can still be overridden by
+    /// `/effort` inside the session.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    effort_level: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     env: Option<HashMap<String, String>>,
 }
@@ -224,28 +229,38 @@ fn apply_reasoning_settings(
     env: &mut HashMap<String, String>,
     reasoning_effort: Option<claude::ClaudeReasoningEffort>,
 ) {
+    // The level itself is expressed through the `--settings` overlay
+    // (`effortLevel`) or through `--effort` for `max`, so the env var stays
+    // cleared: Claude Code ranks `CLAUDE_CODE_EFFORT_LEVEL` above `/effort`,
+    // and pinning it would ignore in-session adjustments.
+    set_env_or_tombstone(env, claude::CLAUDE_EFFORT_ENV, None);
+    let pinned = matches!(
+        reasoning_effort,
+        Some(
+            claude::ClaudeReasoningEffort::High
+                | claude::ClaudeReasoningEffort::Xhigh
+                | claude::ClaudeReasoningEffort::Max
+        )
+    );
+    set_env_or_tombstone(
+        env,
+        claude::CLAUDE_DISABLE_ADAPTIVE_ENV,
+        if pinned { Some("1") } else { None },
+    );
+}
+
+fn settings_overlay_effort_level(
+    reasoning_effort: Option<claude::ClaudeReasoningEffort>,
+) -> Option<String> {
     match reasoning_effort {
-        Some(claude::ClaudeReasoningEffort::Low) | Some(claude::ClaudeReasoningEffort::Medium) => {
-            env.insert(
-                claude::CLAUDE_EFFORT_ENV.to_string(),
-                claude::reasoning_effort_to_string(reasoning_effort.unwrap()).to_string(),
-            );
-            set_env_or_tombstone(env, claude::CLAUDE_DISABLE_ADAPTIVE_ENV, None);
-        }
-        Some(claude::ClaudeReasoningEffort::High) | Some(claude::ClaudeReasoningEffort::Max) => {
-            env.insert(
-                claude::CLAUDE_EFFORT_ENV.to_string(),
-                claude::reasoning_effort_to_string(reasoning_effort.unwrap()).to_string(),
-            );
-            env.insert(
-                claude::CLAUDE_DISABLE_ADAPTIVE_ENV.to_string(),
-                "1".to_string(),
-            );
-        }
-        None => {
-            set_env_or_tombstone(env, claude::CLAUDE_EFFORT_ENV, None);
-            set_env_or_tombstone(env, claude::CLAUDE_DISABLE_ADAPTIVE_ENV, None);
-        }
+        Some(
+            effort @ (claude::ClaudeReasoningEffort::Low
+            | claude::ClaudeReasoningEffort::Medium
+            | claude::ClaudeReasoningEffort::High
+            | claude::ClaudeReasoningEffort::Xhigh),
+        ) => Some(claude::reasoning_effort_to_string(effort).to_string()),
+        // `max` is session-only in settings, so the launcher passes `--effort max`.
+        Some(claude::ClaudeReasoningEffort::Max) | None => None,
     }
 }
 
@@ -253,6 +268,7 @@ fn build_runtime_settings_overlay(
     profile: &claude::ClaudeCodeProfile,
 ) -> ClaudeRuntimeSettingsOverlay {
     let mut env = HashMap::new();
+    let effort_level = settings_overlay_effort_level(profile.reasoning_effort);
 
     apply_profile_env_settings(&mut env, profile);
     apply_reasoning_settings(&mut env, profile.reasoning_effort);
@@ -260,6 +276,7 @@ fn build_runtime_settings_overlay(
     match profile.thinking_mode {
         claude::ClaudeThinkingMode::Inherit => ClaudeRuntimeSettingsOverlay {
             always_thinking_enabled: None,
+            effort_level,
             env: {
                 for key in claude::CLAUDE_CONFLICT_ENV_KEYS {
                     env.insert((*key).to_string(), String::new());
@@ -285,6 +302,7 @@ fn build_runtime_settings_overlay(
             }
             ClaudeRuntimeSettingsOverlay {
                 always_thinking_enabled: Some(true),
+                effort_level,
                 env: Some(env),
             }
         }
@@ -302,6 +320,7 @@ fn build_runtime_settings_overlay(
             }
             ClaudeRuntimeSettingsOverlay {
                 always_thinking_enabled: Some(false),
+                effort_level,
                 env: Some(env),
             }
         }
@@ -390,11 +409,23 @@ fn build_internal_launcher_payload_for_home_with_env(
             config_dir_env_override: config_dir_binding.env_override,
             inherited_env_file_source,
             child_program: "claude".to_string(),
-            child_args: Vec::new(),
+            child_args: child_args_for_profile(profile),
             settings_overlay: build_runtime_settings_overlay(profile),
         },
         warnings,
     ))
+}
+
+/// `max` is session-only in Claude Code's settings, so it travels as a launch
+/// flag. `/effort` in the session can still change it because `--effort` ranks
+/// below an in-session pick.
+fn child_args_for_profile(profile: &claude::ClaudeCodeProfile) -> Vec<String> {
+    match profile.reasoning_effort {
+        Some(claude::ClaudeReasoningEffort::Max) => {
+            vec!["--effort".to_string(), "max".to_string()]
+        }
+        _ => Vec::new(),
+    }
 }
 
 fn build_unset_env() -> Vec<String> {
@@ -1146,6 +1177,8 @@ mod tests {
     #[test]
     fn runtime_overlay_contains_managed_values_and_tombstones() {
         let overlay = build_runtime_settings_overlay(&make_profile());
+        // `max` cannot live in settings, so the launcher passes `--effort max`.
+        assert_eq!(overlay.effort_level, None);
         let env = overlay.env.unwrap();
 
         assert_eq!(overlay.always_thinking_enabled, Some(true));
@@ -1167,7 +1200,7 @@ mod tests {
         );
         assert_eq!(
             env.get(claude::CLAUDE_EFFORT_ENV).map(String::as_str),
-            Some("max")
+            Some("")
         );
         assert_eq!(
             env.get(claude::CLAUDE_DISABLE_ADAPTIVE_ENV)
@@ -1187,6 +1220,24 @@ mod tests {
         assert_eq!(
             env.get(claude::CLAUDE_API_KEY_ENV).map(String::as_str),
             Some("")
+        );
+    }
+
+    #[test]
+    fn runtime_overlay_sets_soft_effort_level_instead_of_env_lock() {
+        let mut profile = make_profile();
+        profile.reasoning_effort = Some(claude::ClaudeReasoningEffort::Xhigh);
+        let overlay = build_runtime_settings_overlay(&profile);
+        assert_eq!(overlay.effort_level.as_deref(), Some("xhigh"));
+        let env = overlay.env.unwrap();
+        assert_eq!(
+            env.get(claude::CLAUDE_EFFORT_ENV).map(String::as_str),
+            Some("")
+        );
+        assert_eq!(
+            env.get(claude::CLAUDE_DISABLE_ADAPTIVE_ENV)
+                .map(String::as_str),
+            Some("1")
         );
     }
 
@@ -1330,7 +1381,9 @@ mod tests {
         let overlay = read_overlay(&child.settings_overlay_path);
 
         assert_eq!(child.program, "claude");
-        assert_eq!(child.args[0], "--settings");
+        assert_eq!(child.args[0], "--effort");
+        assert_eq!(child.args[1], "max");
+        assert_eq!(child.args[2], "--settings");
         assert_eq!(child.env.len(), 1);
         assert_eq!(
             overlay
@@ -1483,7 +1536,10 @@ mod tests {
         assert_eq!(preview.program, test_launcher_program());
         assert_eq!(preview.args, test_launcher_args());
         assert_eq!(preview.child_program, "claude");
-        assert!(preview.child_args.is_empty());
+        assert_eq!(
+            preview.child_args,
+            vec!["--effort".to_string(), "max".to_string()]
+        );
         assert!(preview.env.is_empty());
         assert_eq!(
             preview.inherited_env_file_source.as_deref(),

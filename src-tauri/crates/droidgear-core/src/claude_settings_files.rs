@@ -231,22 +231,6 @@ fn build_settings_from_profile(profile: &claude::ClaudeCodeProfile) -> Value {
             Value::String(value),
         );
     }
-    if let Some(effort) = profile.reasoning_effort {
-        env.insert(
-            claude::CLAUDE_EFFORT_ENV.to_string(),
-            Value::String(claude::reasoning_effort_to_string(effort).to_string()),
-        );
-        if matches!(
-            effort,
-            claude::ClaudeReasoningEffort::High | claude::ClaudeReasoningEffort::Max
-        ) {
-            env.insert(
-                claude::CLAUDE_DISABLE_ADAPTIVE_ENV.to_string(),
-                Value::String("1".to_string()),
-            );
-        }
-    }
-
     match profile.thinking_mode {
         claude::ClaudeThinkingMode::On => {
             root.insert("alwaysThinkingEnabled".to_string(), Value::Bool(true));
@@ -264,6 +248,12 @@ fn build_settings_from_profile(profile: &claude::ClaudeCodeProfile) -> Value {
     if !env.is_empty() {
         root.insert("env".to_string(), Value::Object(env));
     }
+
+    claude::set_claude_reasoning_effort(
+        &mut root,
+        profile.model.as_deref(),
+        profile.reasoning_effort,
+    );
 
     Value::Object(root)
 }

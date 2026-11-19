@@ -964,6 +964,7 @@ const REASONING_VALUES: readonly ClaudeReasoningEffort[] = [
   'low',
   'medium',
   'high',
+  'xhigh',
   'max',
 ]
 
@@ -1006,6 +1007,11 @@ function ReasoningThinkingSection({ json, patchJson }: SectionProps) {
               ))}
             </SelectContent>
           </Select>
+          {effort === 'max' && (
+            <p className="text-muted-foreground text-xs">
+              {t('claude.reasoning.maxLocked')}
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">

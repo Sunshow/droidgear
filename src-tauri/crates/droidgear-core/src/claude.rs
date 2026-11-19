@@ -23,6 +23,7 @@ pub enum ClaudeReasoningEffort {
     Low,
     Medium,
     High,
+    Xhigh,
     Max,
 }
 
@@ -102,6 +103,8 @@ pub(crate) const CLAUDE_API_KEY_ENV: &str = "ANTHROPIC_API_KEY";
 pub(crate) const CLAUDE_MODEL_ENV: &str = "ANTHROPIC_MODEL";
 pub(crate) const CLAUDE_SMALL_MODEL_ENV: &str = "ANTHROPIC_DEFAULT_HAIKU_MODEL";
 pub(crate) const CLAUDE_EFFORT_ENV: &str = "CLAUDE_CODE_EFFORT_LEVEL";
+pub(crate) const CLAUDE_EFFORT_LEVEL_KEY: &str = "effortLevel";
+pub(crate) const CLAUDE_MODEL_SETTINGS_KEY: &str = "modelSettings";
 pub(crate) const CLAUDE_DISABLE_THINKING_ENV: &str = "CLAUDE_CODE_DISABLE_THINKING";
 pub(crate) const CLAUDE_MAX_THINKING_TOKENS_ENV: &str = "MAX_THINKING_TOKENS";
 pub(crate) const CLAUDE_DISABLE_ADAPTIVE_ENV: &str = "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING";
@@ -365,16 +368,18 @@ fn parse_reasoning_effort(value: &str) -> Option<ClaudeReasoningEffort> {
         "low" => Some(ClaudeReasoningEffort::Low),
         "medium" => Some(ClaudeReasoningEffort::Medium),
         "high" => Some(ClaudeReasoningEffort::High),
+        "xhigh" => Some(ClaudeReasoningEffort::Xhigh),
         "max" => Some(ClaudeReasoningEffort::Max),
         _ => None,
     }
 }
 
-pub(crate) fn reasoning_effort_to_string(effort: ClaudeReasoningEffort) -> &'static str {
+pub fn reasoning_effort_to_string(effort: ClaudeReasoningEffort) -> &'static str {
     match effort {
         ClaudeReasoningEffort::Low => "low",
         ClaudeReasoningEffort::Medium => "medium",
         ClaudeReasoningEffort::High => "high",
+        ClaudeReasoningEffort::Xhigh => "xhigh",
         ClaudeReasoningEffort::Max => "max",
     }
 }
@@ -397,52 +402,234 @@ fn remove_conflicting_env_keys(env: &mut serde_json::Map<String, Value>) {
     }
 }
 
-fn apply_reasoning_env(
-    env: &mut serde_json::Map<String, Value>,
-    reasoning_effort: Option<ClaudeReasoningEffort>,
-) {
-    match reasoning_effort {
-        Some(effort @ (ClaudeReasoningEffort::Low | ClaudeReasoningEffort::Medium)) => {
-            env.insert(
-                CLAUDE_EFFORT_ENV.to_string(),
-                Value::String(reasoning_effort_to_string(effort).to_string()),
-            );
-            remove_env_key(env, CLAUDE_DISABLE_ADAPTIVE_ENV);
+/// Canonical key used by Claude Code's `modelSettings` map.
+///
+/// Claude Code writes one entry per model under the model's canonical ID and
+/// matches aliases, date-suffixed IDs, `[1m]` variants and provider IDs to it.
+/// DroidGear normalizes catalog spellings (`claude-fable-5.2`,
+/// `claude-opus-5-5[1m]`) to that same canonical form so the saved level is
+/// picked up by the session. Custom gateway IDs are kept verbatim.
+pub fn normalize_claude_model_key(model: &str) -> Option<String> {
+    let without_suffix = model.replace("[1m]", "");
+    let trimmed = without_suffix.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if trimmed.to_ascii_lowercase().starts_with("claude-") {
+        Some(trimmed.to_ascii_lowercase().replace('.', "-"))
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+fn ensure_env_object(
+    root: &mut serde_json::Map<String, Value>,
+) -> &mut serde_json::Map<String, Value> {
+    let entry = root
+        .entry("env".to_string())
+        .or_insert_with(|| Value::Object(serde_json::Map::new()));
+    if !entry.is_object() {
+        *entry = Value::Object(serde_json::Map::new());
+    }
+    entry.as_object_mut().expect("env is an object")
+}
+
+fn env_string(root: &serde_json::Map<String, Value>, key: &str) -> Option<String> {
+    root.get("env")
+        .and_then(Value::as_object)
+        .and_then(|env| env.get(key))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+}
+
+/// Model Claude Code runs: `env.ANTHROPIC_MODEL` wins over top-level `model`.
+pub fn resolved_claude_model(root: &serde_json::Map<String, Value>) -> Option<String> {
+    env_string(root, CLAUDE_MODEL_ENV).or_else(|| {
+        root.get("model")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string)
+    })
+}
+
+/// Effective effort level, following Claude Code's resolution order:
+/// `env.CLAUDE_CODE_EFFORT_LEVEL` → `modelSettings[model].effortLevel` →
+/// top-level `effortLevel`.
+pub fn read_claude_reasoning_effort(
+    root: &serde_json::Map<String, Value>,
+) -> Option<ClaudeReasoningEffort> {
+    if let Some(value) = env_string(root, CLAUDE_EFFORT_ENV) {
+        return parse_reasoning_effort(&value);
+    }
+
+    if let Some(key) = resolved_claude_model(root)
+        .as_deref()
+        .and_then(normalize_claude_model_key)
+    {
+        if let Some(value) = root
+            .get(CLAUDE_MODEL_SETTINGS_KEY)
+            .and_then(Value::as_object)
+            .and_then(|settings| settings.get(&key))
+            .and_then(Value::as_object)
+            .and_then(|entry| entry.get(CLAUDE_EFFORT_LEVEL_KEY))
+            .and_then(Value::as_str)
+        {
+            if let Some(effort) = parse_reasoning_effort(value) {
+                return Some(effort);
+            }
         }
-        Some(effort @ (ClaudeReasoningEffort::High | ClaudeReasoningEffort::Max)) => {
+    }
+
+    root.get(CLAUDE_EFFORT_LEVEL_KEY)
+        .and_then(Value::as_str)
+        .and_then(parse_reasoning_effort)
+}
+
+fn remove_model_settings_effort(root: &mut serde_json::Map<String, Value>, key: &str) {
+    let Some(model_settings) = root
+        .get_mut(CLAUDE_MODEL_SETTINGS_KEY)
+        .and_then(Value::as_object_mut)
+    else {
+        return;
+    };
+    let Some(entry) = model_settings.get_mut(key).and_then(Value::as_object_mut) else {
+        return;
+    };
+    entry.remove(CLAUDE_EFFORT_LEVEL_KEY);
+    if entry.is_empty() {
+        model_settings.remove(key);
+    }
+    if model_settings.is_empty() {
+        root.remove(CLAUDE_MODEL_SETTINGS_KEY);
+    }
+}
+
+fn write_model_settings_effort(
+    root: &mut serde_json::Map<String, Value>,
+    key: &str,
+    effort: ClaudeReasoningEffort,
+) {
+    let value = Value::String(reasoning_effort_to_string(effort).to_string());
+    let settings = root
+        .entry(CLAUDE_MODEL_SETTINGS_KEY.to_string())
+        .or_insert_with(|| Value::Object(serde_json::Map::new()));
+    if !settings.is_object() {
+        *settings = Value::Object(serde_json::Map::new());
+    }
+    let entries = settings
+        .as_object_mut()
+        .expect("modelSettings is an object");
+    let entry = entries
+        .entry(key.to_string())
+        .or_insert_with(|| Value::Object(serde_json::Map::new()));
+    if !entry.is_object() {
+        *entry = Value::Object(serde_json::Map::new());
+    }
+    entry
+        .as_object_mut()
+        .expect("modelSettings entry is an object")
+        .insert(CLAUDE_EFFORT_LEVEL_KEY.to_string(), value);
+}
+
+/// Persist a reasoning effort the way Claude Code itself saves `/effort`, so an
+/// in-session change is not overridden:
+///
+/// - `low` / `medium` / `high` / `xhigh` go to
+///   `modelSettings[model].effortLevel` (or top-level `effortLevel` when no
+///   model is known), which `/effort` and `--effort` can still override.
+/// - `max` has no persistent settings form, so it is pinned through
+///   `env.CLAUDE_CODE_EFFORT_LEVEL`; callers label it as a lock.
+pub fn set_claude_reasoning_effort(
+    root: &mut serde_json::Map<String, Value>,
+    model_override: Option<&str>,
+    effort: Option<ClaudeReasoningEffort>,
+) {
+    let model = model_override
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .or_else(|| resolved_claude_model(root));
+    let model_key = model.as_deref().and_then(normalize_claude_model_key);
+
+    {
+        let env = ensure_env_object(root);
+        // The env var outranks `/effort`, so it is reserved for `max`.
+        remove_env_key(env, CLAUDE_EFFORT_ENV);
+        if effort == Some(ClaudeReasoningEffort::Max) {
             env.insert(
                 CLAUDE_EFFORT_ENV.to_string(),
-                Value::String(reasoning_effort_to_string(effort).to_string()),
+                Value::String("max".to_string()),
             );
+        }
+        if matches!(
+            effort,
+            Some(
+                ClaudeReasoningEffort::High
+                    | ClaudeReasoningEffort::Xhigh
+                    | ClaudeReasoningEffort::Max
+            )
+        ) {
             env.insert(
                 CLAUDE_DISABLE_ADAPTIVE_ENV.to_string(),
                 Value::String("1".to_string()),
             );
-        }
-        None => {
-            remove_env_key(env, CLAUDE_EFFORT_ENV);
+        } else {
             remove_env_key(env, CLAUDE_DISABLE_ADAPTIVE_ENV);
         }
     }
+
+    if let Some(key) = model_key.as_deref() {
+        remove_model_settings_effort(root, key);
+    }
+
+    match effort {
+        Some(
+            effort @ (ClaudeReasoningEffort::Low
+            | ClaudeReasoningEffort::Medium
+            | ClaudeReasoningEffort::High
+            | ClaudeReasoningEffort::Xhigh),
+        ) => match model_key {
+            Some(key) => write_model_settings_effort(root, &key, effort),
+            None => {
+                root.insert(
+                    CLAUDE_EFFORT_LEVEL_KEY.to_string(),
+                    Value::String(reasoning_effort_to_string(effort).to_string()),
+                );
+            }
+        },
+        Some(ClaudeReasoningEffort::Max) => {}
+        // "inherit" clears the managed layers, including the legacy top-level
+        // `effortLevel` (Claude Code now stores levels per model).
+        None => {
+            root.remove(CLAUDE_EFFORT_LEVEL_KEY);
+        }
+    }
+
+    cleanup_env_if_empty(root);
 }
 
 fn apply_thinking_settings(
     root: &mut serde_json::Map<String, Value>,
-    env: &mut serde_json::Map<String, Value>,
     thinking_mode: ClaudeThinkingMode,
 ) {
     match thinking_mode {
         ClaudeThinkingMode::Inherit => {
             root.remove("alwaysThinkingEnabled");
+            let env = ensure_env_object(root);
             remove_env_key(env, CLAUDE_DISABLE_THINKING_ENV);
         }
         ClaudeThinkingMode::On => {
             root.insert("alwaysThinkingEnabled".to_string(), Value::Bool(true));
+            let env = ensure_env_object(root);
             remove_env_key(env, CLAUDE_DISABLE_THINKING_ENV);
             remove_env_key(env, CLAUDE_MAX_THINKING_TOKENS_ENV);
         }
         ClaudeThinkingMode::Off => {
             root.insert("alwaysThinkingEnabled".to_string(), Value::Bool(false));
+            let env = ensure_env_object(root);
             env.insert(
                 CLAUDE_DISABLE_THINKING_ENV.to_string(),
                 Value::String("1".to_string()),
@@ -479,11 +666,7 @@ fn build_current_config_from_settings(
         None => get_string_from_map(root, "model")?,
     };
 
-    let reasoning_effort = match get_env_string(CLAUDE_EFFORT_ENV)? {
-        Some(value) => parse_reasoning_effort(&value),
-        None => get_string_from_map(root, "effortLevel")?
-            .and_then(|value| parse_reasoning_effort(&value)),
-    };
+    let reasoning_effort = read_claude_reasoning_effort(root);
 
     let small_model = get_env_string(CLAUDE_SMALL_MODEL_ENV)?;
 
@@ -519,31 +702,23 @@ fn apply_profile_to_settings_path(
     settings_path: &Path,
 ) -> Result<(), String> {
     let mut root = read_settings_object_from_path(settings_path)?;
-    let mut env = get_env_object(&root)?.cloned().unwrap_or_default();
 
-    set_env_string(&mut env, CLAUDE_BASE_URL_ENV, profile.base_url.as_deref());
-    set_env_string(
-        &mut env,
-        CLAUDE_AUTH_TOKEN_ENV,
-        profile.bearer_token.as_deref(),
-    );
-    set_env_string(&mut env, CLAUDE_MODEL_ENV, profile.model.as_deref());
-    let resolved_small_model = resolved_small_model_value(profile);
-    set_env_string(
-        &mut env,
-        CLAUDE_SMALL_MODEL_ENV,
-        resolved_small_model.as_deref(),
-    );
-
-    apply_reasoning_env(&mut env, profile.reasoning_effort);
-    apply_thinking_settings(&mut root, &mut env, profile.thinking_mode);
-    remove_conflicting_env_keys(&mut env);
-
-    if env.is_empty() {
-        root.remove("env");
-    } else {
-        root.insert("env".to_string(), Value::Object(env));
+    {
+        let env = ensure_env_object(&mut root);
+        set_env_string(env, CLAUDE_BASE_URL_ENV, profile.base_url.as_deref());
+        set_env_string(env, CLAUDE_AUTH_TOKEN_ENV, profile.bearer_token.as_deref());
+        set_env_string(env, CLAUDE_MODEL_ENV, profile.model.as_deref());
+        let resolved_small_model = resolved_small_model_value(profile);
+        set_env_string(env, CLAUDE_SMALL_MODEL_ENV, resolved_small_model.as_deref());
+        remove_conflicting_env_keys(env);
     }
+
+    set_claude_reasoning_effort(
+        &mut root,
+        profile.model.as_deref(),
+        profile.reasoning_effort,
+    );
+    apply_thinking_settings(&mut root, profile.thinking_mode);
     cleanup_env_if_empty(&mut root);
 
     let content = serde_json::to_string_pretty(&Value::Object(root))
@@ -1120,6 +1295,16 @@ mod tests {
         serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
     }
 
+    fn model_settings_effort<'a>(settings: &'a Value, model: &str) -> Option<&'a str> {
+        settings
+            .get(CLAUDE_MODEL_SETTINGS_KEY)?
+            .as_object()?
+            .get(model)?
+            .as_object()?
+            .get(CLAUDE_EFFORT_LEVEL_KEY)?
+            .as_str()
+    }
+
     #[test]
     fn test_apply_creates_settings_file_when_missing() {
         let temp = TempDir::new().unwrap();
@@ -1145,9 +1330,10 @@ mod tests {
             Some("claude-sonnet-4-5")
         );
         assert_eq!(
-            env.get(CLAUDE_EFFORT_ENV).and_then(Value::as_str),
+            model_settings_effort(&settings, "claude-sonnet-4-5"),
             Some("high")
         );
+        assert!(!env.contains_key(CLAUDE_EFFORT_ENV));
         assert_eq!(
             env.get(CLAUDE_DISABLE_ADAPTIVE_ENV).and_then(Value::as_str),
             Some("1")
@@ -1211,11 +1397,12 @@ mod tests {
         assert!(!env.contains_key("CLAUDE_CODE_USE_BEDROCK"));
         assert!(!env.contains_key(CLAUDE_DISABLE_THINKING_ENV));
         assert!(!env.contains_key(CLAUDE_MAX_THINKING_TOKENS_ENV));
+        assert!(!env.contains_key(CLAUDE_EFFORT_ENV));
+        assert!(!env.contains_key(CLAUDE_DISABLE_ADAPTIVE_ENV));
         assert_eq!(
-            env.get(CLAUDE_EFFORT_ENV).and_then(Value::as_str),
+            model_settings_effort(&settings, "claude-sonnet-4-5"),
             Some("medium")
         );
-        assert!(!env.contains_key(CLAUDE_DISABLE_ADAPTIVE_ENV));
     }
 
     #[test]
@@ -1334,11 +1521,12 @@ mod tests {
 
         let settings_low = read_json(&settings_path);
         let env_low = settings_low.get("env").and_then(Value::as_object).unwrap();
+        assert!(!env_low.contains_key(CLAUDE_EFFORT_ENV));
+        assert!(!env_low.contains_key(CLAUDE_DISABLE_ADAPTIVE_ENV));
         assert_eq!(
-            env_low.get(CLAUDE_EFFORT_ENV).and_then(Value::as_str),
+            model_settings_effort(&settings_low, "claude-sonnet-4-5"),
             Some("low")
         );
-        assert!(!env_low.contains_key(CLAUDE_DISABLE_ADAPTIVE_ENV));
 
         let mut profile_max = profile.clone();
         profile_max.reasoning_effort = Some(ClaudeReasoningEffort::Max);
@@ -1357,6 +1545,10 @@ mod tests {
                 .and_then(Value::as_str),
             Some("1")
         );
+        assert_eq!(
+            model_settings_effort(&settings_max, "claude-sonnet-4-5"),
+            None
+        );
 
         let mut profile_none = profile;
         profile_none.reasoning_effort = None;
@@ -1367,6 +1559,78 @@ mod tests {
         let env_none = settings_none.get("env").and_then(Value::as_object).unwrap();
         assert!(!env_none.contains_key(CLAUDE_EFFORT_ENV));
         assert!(!env_none.contains_key(CLAUDE_DISABLE_ADAPTIVE_ENV));
+        assert_eq!(
+            model_settings_effort(&settings_none, "claude-sonnet-4-5"),
+            None
+        );
+    }
+
+    #[test]
+    fn test_apply_reasoning_effort_keeps_xhigh_out_of_the_env_lock() {
+        let temp = TempDir::new().unwrap();
+        let home = home(&temp);
+        let settings_path = claude_settings_path_for_home(home).unwrap();
+
+        let mut profile = make_profile("p1", "Profile 1");
+        profile.model = Some("claude-fable-5.2".to_string());
+        profile.reasoning_effort = Some(ClaudeReasoningEffort::Xhigh);
+        save_claude_profile_for_home(home, profile).unwrap();
+        apply_claude_profile_for_home(home, "p1").unwrap();
+
+        let settings = read_json(&settings_path);
+        let env = settings.get("env").and_then(Value::as_object).unwrap();
+        assert!(!env.contains_key(CLAUDE_EFFORT_ENV));
+        assert_eq!(
+            env.get(CLAUDE_DISABLE_ADAPTIVE_ENV).and_then(Value::as_str),
+            Some("1")
+        );
+        // Catalog spelling is normalized to Claude Code's canonical model key.
+        assert_eq!(
+            model_settings_effort(&settings, "claude-fable-5-2"),
+            Some("xhigh")
+        );
+        assert_eq!(
+            read_claude_reasoning_effort(settings.as_object().unwrap()),
+            Some(ClaudeReasoningEffort::Xhigh)
+        );
+    }
+
+    #[test]
+    fn test_reasoning_effort_helpers_follow_model_settings_precedence() {
+        let mut root = serde_json::Map::new();
+        root.insert(
+            "env".to_string(),
+            serde_json::json!({ "ANTHROPIC_MODEL": "claude-opus-5-5[1m]" }),
+        );
+        root.insert("effortLevel".to_string(), Value::String("low".to_string()));
+
+        set_claude_reasoning_effort(&mut root, None, Some(ClaudeReasoningEffort::Medium));
+        assert_eq!(
+            root.get(CLAUDE_MODEL_SETTINGS_KEY)
+                .and_then(Value::as_object)
+                .and_then(|settings| settings.get("claude-opus-5-5"))
+                .and_then(Value::as_object)
+                .and_then(|entry| entry.get(CLAUDE_EFFORT_LEVEL_KEY))
+                .and_then(Value::as_str),
+            Some("medium")
+        );
+        assert_eq!(
+            read_claude_reasoning_effort(&root),
+            Some(ClaudeReasoningEffort::Medium)
+        );
+
+        // `max` is pinned through the env var and drops the per-model entry.
+        set_claude_reasoning_effort(&mut root, None, Some(ClaudeReasoningEffort::Max));
+        assert!(root.get(CLAUDE_MODEL_SETTINGS_KEY).is_none());
+        assert_eq!(
+            read_claude_reasoning_effort(&root),
+            Some(ClaudeReasoningEffort::Max)
+        );
+
+        // "inherit" clears every managed layer, including the legacy key.
+        set_claude_reasoning_effort(&mut root, None, None);
+        assert!(root.get(CLAUDE_EFFORT_LEVEL_KEY).is_none());
+        assert_eq!(read_claude_reasoning_effort(&root), None);
     }
 
     #[test]

@@ -24,11 +24,22 @@ export const CLAUDE_AUTO_COMPACT_WINDOW_KEY = 'autoCompactWindow'
 export const CLAUDE_AUTO_COMPACT_WINDOW_MIN = 100_000
 export const CLAUDE_AUTO_COMPACT_WINDOW_MAX = 1_000_000
 
+/**
+ * Root-level Claude Code setting: default effort level for models that do not
+ * have their own `modelSettings` entry. Claude Code itself now saves `/effort`
+ * per model, so DroidGear only falls back to this key when no model is known.
+ */
+export const CLAUDE_EFFORT_LEVEL_KEY = 'effortLevel'
+
+/** Per-model Claude Code settings (`modelSettings.<model>.effortLevel`). */
+export const CLAUDE_MODEL_SETTINGS_KEY = 'modelSettings'
+
 export type ClaudeReasoningEffort =
   | 'inherit'
   | 'low'
   | 'medium'
   | 'high'
+  | 'xhigh'
   | 'max'
 
 export type ClaudeThinkingMode = 'inherit' | 'on' | 'off'
@@ -37,8 +48,84 @@ const REASONING_VALUES: ReadonlySet<string> = new Set([
   'low',
   'medium',
   'high',
+  'xhigh',
   'max',
 ])
+
+function isJsonObject(
+  value: JsonValue | undefined
+): value is Record<string, JsonValue> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function parseReasoningEffort(value: string): ClaudeReasoningEffort | null {
+  const normalized = value.trim().toLowerCase()
+  return REASONING_VALUES.has(normalized)
+    ? (normalized as ClaudeReasoningEffort)
+    : null
+}
+
+/**
+ * Canonical key for Claude Code's `modelSettings` map. Claude Code matches
+ * aliases, `[1m]` variants and date-suffixed IDs to the canonical model name,
+ * so catalog spellings such as `claude-fable-5.2` map to `claude-fable-5-2`.
+ * Custom gateway IDs are kept verbatim.
+ */
+export function normalizeClaudeModelKey(model: string): string | null {
+  const stripped = model.replaceAll(MODEL_1M_SUFFIX, '').trim()
+  if (stripped.length === 0) return null
+  return stripped.toLowerCase().startsWith('claude-')
+    ? stripped.toLowerCase().replaceAll('.', '-')
+    : stripped
+}
+
+function readModelSettingsEffort(
+  doc: ClaudeSettingsDoc | null | undefined,
+  model: string
+): ClaudeReasoningEffort | null {
+  const key = normalizeClaudeModelKey(model)
+  const settings = doc?.[CLAUDE_MODEL_SETTINGS_KEY]
+  if (!key || !isJsonObject(settings)) return null
+  const entry = settings[key]
+  if (!isJsonObject(entry)) return null
+  const raw = entry[CLAUDE_EFFORT_LEVEL_KEY]
+  return typeof raw === 'string' ? parseReasoningEffort(raw) : null
+}
+
+function removeModelSettingsEffort(
+  draft: ClaudeSettingsDoc,
+  key: string
+): void {
+  const settings = draft[CLAUDE_MODEL_SETTINGS_KEY]
+  if (!isJsonObject(settings)) return
+  const entry = settings[key]
+  if (!isJsonObject(entry)) return
+  Reflect.deleteProperty(entry, CLAUDE_EFFORT_LEVEL_KEY)
+  if (Object.keys(entry).length === 0) {
+    Reflect.deleteProperty(settings, key)
+  }
+  if (Object.keys(settings).length === 0) {
+    Reflect.deleteProperty(draft, CLAUDE_MODEL_SETTINGS_KEY)
+  }
+}
+
+function writeModelSettingsEffort(
+  draft: ClaudeSettingsDoc,
+  key: string,
+  effort: Exclude<ClaudeReasoningEffort, 'inherit' | 'max'>
+): void {
+  let settings = draft[CLAUDE_MODEL_SETTINGS_KEY]
+  if (!isJsonObject(settings)) {
+    settings = {}
+    draft[CLAUDE_MODEL_SETTINGS_KEY] = settings
+  }
+  const existing = settings[key]
+  const entry: Record<string, JsonValue> = isJsonObject(existing)
+    ? existing
+    : {}
+  entry[CLAUDE_EFFORT_LEVEL_KEY] = effort
+  settings[key] = entry
+}
 
 function getEnvObject(
   doc: ClaudeSettingsDoc | null | undefined
@@ -111,33 +198,80 @@ function deleteEnvKey(draft: ClaudeSettingsDoc, key: string): void {
   }
 }
 
+/**
+ * Effective effort level, mirroring Claude Code's own resolution order:
+ * `env.CLAUDE_CODE_EFFORT_LEVEL` → `modelSettings[model].effortLevel` →
+ * top-level `effortLevel`.
+ */
 export function getReasoningEffort(
   doc: ClaudeSettingsDoc | null | undefined
 ): ClaudeReasoningEffort {
   const raw = getEnvString(doc, CLAUDE_EFFORT_ENV)
-  if (!raw) return 'inherit'
-  const normalized = raw.toLowerCase()
-  return REASONING_VALUES.has(normalized)
-    ? (normalized as ClaudeReasoningEffort)
-    : 'inherit'
+  if (raw) {
+    const fromEnv = parseReasoningEffort(raw)
+    if (fromEnv) return fromEnv
+  }
+
+  const model = getResolvedModel(doc)
+  if (model) {
+    const fromModel = readModelSettingsEffort(doc, model)
+    if (fromModel) return fromModel
+  }
+
+  const topLevel = doc?.[CLAUDE_EFFORT_LEVEL_KEY]
+  if (typeof topLevel === 'string') {
+    const fallback = parseReasoningEffort(topLevel)
+    if (fallback) return fallback
+  }
+
+  return 'inherit'
 }
 
+/**
+ * Persists the effort level the way Claude Code itself saves `/effort`, so an
+ * in-session change is not overridden:
+ *
+ * - `low` / `medium` / `high` / `xhigh` go to
+ *   `modelSettings[model].effortLevel` (or top-level `effortLevel` when no
+ *   model is known); `/effort` and `--effort` can still override them.
+ * - `max` has no persistent settings form, so it is pinned through
+ *   `env.CLAUDE_CODE_EFFORT_LEVEL`; Claude Code ranks that variable above
+ *   `/effort`, so the UI labels it as a lock.
+ */
 export function setReasoningEffort(
   draft: ClaudeSettingsDoc,
   effort: ClaudeReasoningEffort
 ): void {
+  const model = getResolvedModel(draft)
+  const modelKey = model ? normalizeClaudeModelKey(model) : null
+
+  deleteEnvKey(draft, CLAUDE_EFFORT_ENV)
+  if (modelKey) removeModelSettingsEffort(draft, modelKey)
+
   if (effort === 'inherit') {
-    deleteEnvKey(draft, CLAUDE_EFFORT_ENV)
+    Reflect.deleteProperty(draft, CLAUDE_EFFORT_LEVEL_KEY)
     deleteEnvKey(draft, CLAUDE_DISABLE_ADAPTIVE_ENV)
     return
   }
-  const env = getOrCreateEnv(draft)
-  env[CLAUDE_EFFORT_ENV] = effort
-  if (effort === 'high' || effort === 'max') {
+
+  if (effort === 'max') {
+    const env = getOrCreateEnv(draft)
+    env[CLAUDE_EFFORT_ENV] = 'max'
+    env[CLAUDE_DISABLE_ADAPTIVE_ENV] = '1'
+    return
+  }
+
+  if (modelKey) {
+    writeModelSettingsEffort(draft, modelKey, effort)
+  } else {
+    draft[CLAUDE_EFFORT_LEVEL_KEY] = effort
+  }
+
+  if (effort === 'high' || effort === 'xhigh') {
+    const env = getOrCreateEnv(draft)
     env[CLAUDE_DISABLE_ADAPTIVE_ENV] = '1'
   } else {
-    Reflect.deleteProperty(env, CLAUDE_DISABLE_ADAPTIVE_ENV)
-    pruneEnvIfEmpty(draft)
+    deleteEnvKey(draft, CLAUDE_DISABLE_ADAPTIVE_ENV)
   }
 }
 

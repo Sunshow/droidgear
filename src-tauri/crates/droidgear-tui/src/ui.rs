@@ -1,4 +1,5 @@
 use crate::app;
+use droidgear_core::claude;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Position, Rect},
     style::{Color, Modifier, Style},
@@ -1219,12 +1220,11 @@ fn draw_claude_settings_detail(frame: &mut Frame, app: &app::App, area: Rect) {
 
     let context_1m = model.ends_with("[1m]");
 
-    let reasoning = env_str("CLAUDE_CODE_EFFORT_LEVEL");
-    let reasoning_display = if reasoning == "(not set)" {
-        "(inherit)".to_string()
-    } else {
-        reasoning
-    };
+    let reasoning_display = json
+        .as_object()
+        .and_then(claude::read_claude_reasoning_effort)
+        .map(|effort| claude::reasoning_effort_to_string(effort).to_string())
+        .unwrap_or_else(|| "(inherit)".to_string());
 
     let disable_thinking = env_str("CLAUDE_CODE_DISABLE_THINKING");
     let always_thinking = json.get("alwaysThinkingEnabled").and_then(|v| v.as_bool());
