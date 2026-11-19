@@ -149,7 +149,7 @@ describe('image playground store', () => {
       name: 'Test',
       modelId: 'test-image',
       source: { kind: 'custom', baseUrl: 'https://x', apiKey: 'sk-x' },
-      protocol: 'responses',
+      protocol: 'images',
       sizes: ['1024x1024'],
       qualities: ['high'],
       supportsImageInput: false,

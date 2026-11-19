@@ -3820,11 +3820,11 @@ url: string | null; mimeType: string }
 export type ImageModel = { id: string; name: string; modelId: string; source: ImageSource; protocol: ImageProtocol; 
 /**
  * Suggested size values. The meaning follows the protocol: `WxH` for
- * Chat/Responses, `WxH`, `A:B` or `1K`/`2K`/`4K` for Google.
+ * Chat/Images, `WxH`, `A:B` or `1K`/`2K`/`4K` for Google.
  */
 sizes: string[]; 
 /**
- * Suggested quality values (Responses: low/medium/high/auto, Google:
+ * Suggested quality values (Images: low/medium/high/auto, Google:
  * 1K/2K/4K).
  */
 qualities: string[]; 
@@ -3841,9 +3841,12 @@ export type ImageProtocol =
  */
 "chat" | 
 /**
- * OpenAI Responses with the `image_generation` tool (`/v1/responses`).
+ * OpenAI Images (`/v1/images/generations`).
+ * 
+ * `responses` is an alias for models and tasks saved before the Responses
+ * wire was removed; those entries now resolve to this endpoint.
  */
-"responses" | 
+"images" | 
 /**
  * Gemini native `:generateContent` / `:predict`.
  */
@@ -4426,7 +4429,13 @@ export type UpdateChannel = "managed" | "portable"
 /**
  * A video model configured for the playground.
  */
-export type VideoModel = { id: string; name: string; modelId: string; source: VideoSource; protocol: VideoProtocol; durations: number[]; resolutions: string[]; supportsImageInput: boolean }
+export type VideoModel = { id: string; name: string; modelId: string; source: VideoSource; protocol: VideoProtocol; 
+/**
+ * Editable suggestion lists. Older files may predate them; defaulting
+ * keeps the rest of the file (and its other models) loadable instead of
+ * failing the whole model list over two optional presets.
+ */
+durations?: number[]; resolutions?: string[]; supportsImageInput: boolean }
 /**
  * Video wire protocol used by a playground model.
  */

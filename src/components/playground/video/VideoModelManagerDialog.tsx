@@ -64,10 +64,11 @@ export function VideoModelManagerDialog({
         getModelId={model => model.modelId}
         protocolLabel={model => videoProtocolLabel(t, model.protocol)}
         sourceLabel={sourceLabel}
-        detailLabel={model =>
-          [
-            model.durations.length > 0
-              ? model.durations.map(duration => `${duration}s`).join('/')
+        detailLabel={model => {
+          const durations = model.durations ?? []
+          return [
+            durations.length > 0
+              ? durations.map(duration => `${duration}s`).join('/')
               : null,
             model.supportsImageInput
               ? t('playground.video.models.imageInput')
@@ -75,7 +76,7 @@ export function VideoModelManagerDialog({
           ]
             .filter(Boolean)
             .join(' · ')
-        }
+        }}
         onAdd={() => {
           setEditing(undefined)
           setFormOpen(true)

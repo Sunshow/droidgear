@@ -84,7 +84,7 @@ export function VideoCreatePanel() {
                 id="video-duration"
                 value={draft.duration}
                 onChange={e => updateDraft({ duration: e.target.value })}
-                placeholder={model?.durations[0]?.toString() ?? '5'}
+                placeholder={model?.durations?.[0]?.toString() ?? '5'}
                 inputMode="numeric"
                 className="min-w-0 flex-1"
               />
@@ -105,7 +105,7 @@ export function VideoCreatePanel() {
                 id="video-resolution"
                 value={draft.resolution}
                 onChange={e => updateDraft({ resolution: e.target.value })}
-                placeholder={model?.resolutions[0] ?? '1280x720'}
+                placeholder={model?.resolutions?.[0] ?? '1280x720'}
                 className="min-w-0 flex-1 font-mono text-xs"
               />
               <IdPicker

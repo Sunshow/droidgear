@@ -6,12 +6,18 @@
 //!   return their pictures as `message.images` entries (OpenRouter style) or
 //!   as markdown data URLs inside `message.content`, which is what New API's
 //!   Gemini channel produces.
-//! - `responses`: OpenAI Responses (`/v1/responses`) with the server-side
-//!   `image_generation` tool. Results arrive as `image_generation_call` output
-//!   items carrying a base64 `result`.
+//! - `images`: OpenAI Images (`/v1/images/generations`). This is the endpoint
+//!   New API advertises as `image-generation` and the one its task-based image
+//!   plugins bill through; results arrive as `data[].url` or `data[].b64_json`.
 //! - `google`: Gemini's native wire (`/v1beta/models/{model}:generateContent`)
 //!   with `responseModalities: ["TEXT", "IMAGE"]`, or `:predict` for `imagen*`
 //!   models.
+//!
+//! The Responses wire (`/v1/responses` + `image_generation` tool) was removed:
+//! gateways that support it also mirror the same models on the Images endpoint,
+//! while New API's task-based image channels only work through the latter. The
+//! old `responses` value is still accepted when loading models and tasks and
+//! resolves to `images`, so files written by older versions keep loading.
 //!
 //! Decoded images are written to `~/.droidgear/playground/media/images/` so
 //! task records stay small and a restart can still show the pictures. Models,
@@ -51,8 +57,12 @@ pub enum ImageProtocol {
     /// OpenAI ChatCompletions (`/v1/chat/completions`).
     #[default]
     Chat,
-    /// OpenAI Responses with the `image_generation` tool (`/v1/responses`).
-    Responses,
+    /// OpenAI Images (`/v1/images/generations`).
+    ///
+    /// `responses` is an alias for models and tasks saved before the Responses
+    /// wire was removed; those entries now resolve to this endpoint.
+    #[serde(alias = "responses")]
+    Images,
     /// Gemini native `:generateContent` / `:predict`.
     Google,
 }
@@ -88,9 +98,9 @@ pub struct ImageModel {
     pub source: ImageSource,
     pub protocol: ImageProtocol,
     /// Suggested size values. The meaning follows the protocol: `WxH` for
-    /// Chat/Responses, `WxH`, `A:B` or `1K`/`2K`/`4K` for Google.
+    /// Chat/Images, `WxH`, `A:B` or `1K`/`2K`/`4K` for Google.
     pub sizes: Vec<String>,
-    /// Suggested quality values (Responses: low/medium/high/auto, Google:
+    /// Suggested quality values (Images: low/medium/high/auto, Google:
     /// 1K/2K/4K).
     pub qualities: Vec<String>,
     /// Whether the model accepts reference images.
@@ -342,7 +352,8 @@ fn trimmed(base: &str) -> &str {
 }
 
 /// Base URL ending at `/v1`. Accepts a root, a `/v1` base, or an endpoint URL
-/// copied from the docs (chat/completions, responses, images/generations).
+/// copied from the docs, including the Removed Responses wire, so an endpoint
+/// URL from an older doc still resolves to its API base.
 fn openai_api_base(base: &str) -> String {
     let base = trimmed(base);
     for suffix in [
@@ -370,8 +381,8 @@ fn chat_completions_url(base: &str) -> String {
     format!("{}/chat/completions", openai_api_base(base))
 }
 
-fn responses_url(base: &str) -> String {
-    format!("{}/responses", openai_api_base(base))
+fn images_generations_url(base: &str) -> String {
+    format!("{}/images/generations", openai_api_base(base))
 }
 
 /// Base URL ending at the Google API version (`/v1beta` by default).
@@ -574,48 +585,24 @@ fn build_chat_body(params: &ImageParams<'_>) -> Value {
     body
 }
 
-/// Responses body with the server-side image generation tool.
-fn build_responses_body(params: &ImageParams<'_>) -> Value {
-    let mut content = vec![json!({ "type": "input_text", "text": params.prompt })];
-    for url in &params.image_urls {
-        content.push(json!({ "type": "input_image", "image_url": url }));
-    }
-
-    let mut tool = json!({ "type": "image_generation" });
-    if !params.size.is_empty() {
-        tool["size"] = json!(params.size);
-    }
-    if !params.quality.is_empty() {
-        tool["quality"] = json!(params.quality);
-    }
-
+/// OpenAI Images body. The endpoint has no tools or message wrapper, so every
+/// form field lands at the top level; `n` is only sent when the form asks for
+/// more than one picture.
+fn build_images_body(params: &ImageParams<'_>) -> Value {
     let mut body = json!({
         "model": params.model,
-        "input": [{ "role": "user", "content": content }],
-        "tools": [tool],
+        "prompt": params.prompt,
     });
-    merge_object(&mut body, &params.extra, &["model", "input"]);
+    merge_object(&mut body, &params.extra, &["model", "prompt"]);
 
-    // Advanced parameters may declare their own tools. Keep them, but make sure
-    // an image_generation tool is present and carries the form's options.
-    match body.get_mut("tools").and_then(Value::as_array_mut) {
-        Some(tools) => {
-            let existing = tools
-                .iter_mut()
-                .find(|item| item.get("type").and_then(Value::as_str) == Some("image_generation"));
-            match existing {
-                Some(item) => {
-                    if !params.size.is_empty() {
-                        item["size"] = json!(params.size);
-                    }
-                    if !params.quality.is_empty() {
-                        item["quality"] = json!(params.quality);
-                    }
-                }
-                None => tools.push(tool),
-            }
-        }
-        None => body["tools"] = json!([tool]),
+    if !params.size.is_empty() {
+        body["size"] = json!(params.size);
+    }
+    if !params.quality.is_empty() {
+        body["quality"] = json!(params.quality);
+    }
+    if params.count > 1 {
+        body["n"] = json!(params.count);
     }
     body
 }
@@ -1023,76 +1010,73 @@ fn parse_chat_response(value: &Value) -> ParsedResponse {
     }
 }
 
-/// Parses a Responses response: image_generation_call items carry base64
-/// results, and output text is kept as a short explanation.
-fn parse_responses_response(value: &Value) -> Result<ParsedResponse, String> {
-    let mut images = Vec::new();
-    let mut texts = Vec::new();
-    let mut revised_prompt = None;
-    let mut failure: Option<String> = None;
+/// Normalizes the `data` field of an Images response into a list of entries.
+/// Gateways answer with an array, but a single object or a bare base64 string
+/// also shows up in the wild.
+fn image_data_entries(value: &Value) -> Vec<&Value> {
+    match value.get("data") {
+        Some(Value::Array(items)) => items.iter().collect(),
+        Some(other) => vec![other],
+        None => Vec::new(),
+    }
+}
 
-    if let Some(output) = value.get("output").and_then(Value::as_array) {
-        for item in output {
-            let item_type = item.get("type").and_then(Value::as_str).unwrap_or_default();
-            if item_type == "image_generation_call" {
-                if item.get("status").and_then(Value::as_str) == Some("failed") {
-                    // A later call may still have produced an image, so only
-                    // surface this failure when nothing else decoded.
-                    if failure.is_none() {
-                        failure = Some(
-                            item.get("error")
-                                .and_then(playground::value_message)
-                                .unwrap_or_else(|| "The image generation call failed.".to_string()),
-                        );
+/// Walks gateway metadata for image values. New API's task based image plugins
+/// sometimes echo the provider payload (`metadata.output...message.content[]`
+/// with an `image` field) next to the normalized `data` array.
+fn collect_metadata_images(value: &Value, images: &mut Vec<RawImage>) {
+    match value {
+        Value::Object(object) => {
+            for (key, item) in object {
+                match key.as_str() {
+                    "image" | "image_url" => collect_image_field(item, images),
+                    "b64_json" => {
+                        if let Some(data) = item.as_str() {
+                            push_image(images, data);
+                        }
                     }
-                    continue;
+                    _ => collect_metadata_images(item, images),
                 }
-                if revised_prompt.is_none() {
-                    revised_prompt = item
-                        .get("revised_prompt")
-                        .and_then(Value::as_str)
-                        .map(str::trim)
-                        .filter(|text| !text.is_empty())
-                        .map(str::to_string);
-                }
-                if let Some(result) = item.get("result").and_then(Value::as_str) {
-                    push_image(&mut images, result);
-                }
-                continue;
             }
-            if let Some(content) = item.get("content") {
-                collect_text(content, &mut texts, &mut images);
+        }
+        Value::Array(items) => {
+            for item in items {
+                collect_metadata_images(item, images);
             }
+        }
+        _ => {}
+    }
+}
+
+/// Parses an Images response: `data[]` entries carry a `url` or a `b64_json`
+/// payload, and edited prompts come back as `revised_prompt`.
+fn parse_images_response(value: &Value) -> ParsedResponse {
+    let mut images = Vec::new();
+    let mut revised_prompt = None;
+
+    for entry in image_data_entries(value) {
+        collect_image_field(entry, &mut images);
+        if revised_prompt.is_none() {
+            revised_prompt = entry
+                .get("revised_prompt")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|text| !text.is_empty())
+                .map(str::to_string);
         }
     }
 
-    let status = value
-        .get("status")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    if images.is_empty() && status == "failed" {
-        let reason = value
-            .get("error")
-            .and_then(playground::value_message)
-            .or_else(|| {
-                value
-                    .get("incomplete_details")
-                    .and_then(playground::value_message)
-            })
-            .unwrap_or_else(|| "The Responses request failed.".to_string());
-        return Err(reason);
-    }
     if images.is_empty() {
-        if let Some(reason) = failure {
-            return Err(reason);
+        if let Some(metadata) = value.get("metadata") {
+            collect_metadata_images(metadata, &mut images);
         }
     }
 
-    Ok(ParsedResponse {
+    ParsedResponse {
         images,
         revised_prompt,
-        response_text: join_text(texts),
-    })
+        response_text: None,
+    }
 }
 
 /// Parses a Gemini `generateContent` response or an Imagen `:predict`
@@ -1453,10 +1437,18 @@ pub async fn create_image_task(
             }
             parse_chat_response(&value)
         }
-        ImageProtocol::Responses => {
-            let body = build_responses_body(&params);
+        ImageProtocol::Images => {
+            if !params.image_urls.is_empty() {
+                return Err(
+                    "The Images endpoint does not accept reference images. Use a ChatCompletions or Google model for image editing."
+                        .to_string(),
+                );
+            }
+            let body = build_images_body(&params);
             let request = authorized(
-                client.post(responses_url(&source.base_url)).json(&body),
+                client
+                    .post(images_generations_url(&source.base_url))
+                    .json(&body),
                 &source.api_key,
             )
             .timeout(GENERATION_TIMEOUT);
@@ -1464,7 +1456,7 @@ pub async fn create_image_task(
             if let Some(error) = body_error(&value) {
                 return Err(error);
             }
-            parse_responses_response(&value)?
+            parse_images_response(&value)
         }
         ImageProtocol::Google => {
             if is_imagen_model(params.model) {
@@ -1557,16 +1549,16 @@ mod tests {
             "https://gateway.example/v1/chat/completions"
         );
         assert_eq!(
-            responses_url("https://gateway.example/v1/chat/completions"),
-            "https://gateway.example/v1/responses"
-        );
-        assert_eq!(
-            responses_url("https://openrouter.ai/api/v1"),
-            "https://openrouter.ai/api/v1/responses"
-        );
-        assert_eq!(
             chat_completions_url("https://generativelanguage.googleapis.com/v1beta/openai"),
             "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+        );
+        assert_eq!(
+            images_generations_url("https://gateway.example/v1"),
+            "https://gateway.example/v1/images/generations"
+        );
+        assert_eq!(
+            images_generations_url("https://gateway.example/v1/images/generations"),
+            "https://gateway.example/v1/images/generations"
         );
     }
 
@@ -1661,35 +1653,6 @@ mod tests {
         assert_eq!(body["model"], "gpt-image-1");
         // The form's modalities win over the advanced JSON.
         assert_eq!(body["modalities"], json!(["image", "text"]));
-    }
-
-    #[test]
-    fn responses_body_declares_the_image_generation_tool() {
-        let mut params = params("gpt-5.4-mini", "1024x1536");
-        params.quality = "high";
-        params.image_urls = vec!["data:image/png;base64,AAA"];
-        let body = build_responses_body(&params);
-        assert_eq!(body["tools"][0]["type"], "image_generation");
-        assert_eq!(body["tools"][0]["size"], "1024x1536");
-        assert_eq!(body["tools"][0]["quality"], "high");
-        assert_eq!(body["input"][0]["content"][0]["type"], "input_text");
-        assert_eq!(body["input"][0]["content"][1]["type"], "input_image");
-        assert_eq!(
-            body["input"][0]["content"][1]["image_url"],
-            "data:image/png;base64,AAA"
-        );
-    }
-
-    #[test]
-    fn responses_body_merges_user_tools_instead_of_dropping_the_form_tool() {
-        let mut params = params("gpt-5.4-mini", "auto");
-        params
-            .extra
-            .insert("tools".to_string(), json!([{ "type": "web_search" }]));
-        let body = build_responses_body(&params);
-        assert_eq!(body["tools"][0]["type"], "web_search");
-        assert_eq!(body["tools"][1]["type"], "image_generation");
-        assert_eq!(body["tools"][1]["size"], "auto");
     }
 
     #[test]
@@ -1813,34 +1776,107 @@ mod tests {
     }
 
     #[test]
-    fn responses_parser_reads_image_generation_calls() {
-        let value = json!({
-            "status": "completed",
-            "output": [
-                { "type": "message", "content": [{ "type": "output_text", "text": "Here it is" }] },
-                {
-                    "type": "image_generation_call",
-                    "status": "completed",
-                    "result": "QUJD",
-                    "revised_prompt": "a cat on a sofa"
-                }
-            ]
-        });
-        let parsed = parse_responses_response(&value).unwrap();
-        assert_eq!(parsed.images.len(), 1);
-        assert_eq!(parsed.revised_prompt.as_deref(), Some("a cat on a sofa"));
-        assert_eq!(parsed.response_text.as_deref(), Some("Here it is"));
+    fn removed_responses_wire_loads_as_the_images_endpoint() {
+        let model: ImageModel = serde_json::from_value(json!({
+            "id": "im_legacy",
+            "name": "legacy model",
+            "modelId": "qwen-image-2.1-turbo",
+            "source": { "kind": "custom", "baseUrl": "https://gw.example/v1", "apiKey": "" },
+            "protocol": "responses",
+            "sizes": ["1024x1024"],
+            "qualities": [],
+            "supportsImageInput": false
+        }))
+        .unwrap();
+        assert_eq!(model.protocol, ImageProtocol::Images);
+        // New writes only ever emit the current value.
+        assert_eq!(
+            serde_json::to_value(model.protocol).unwrap(),
+            json!("images")
+        );
     }
 
     #[test]
-    fn responses_parser_reports_failed_calls() {
+    fn images_body_maps_the_form_to_top_level_keys() {
+        let mut params = params("qwen-image-2.1-turbo", "1024x1024");
+        params.quality = "high";
+        params.count = 2;
+        let body = build_images_body(&params);
+        assert_eq!(body["model"], "qwen-image-2.1-turbo");
+        assert_eq!(body["prompt"], "a cat");
+        assert_eq!(body["size"], "1024x1024");
+        assert_eq!(body["quality"], "high");
+        assert_eq!(body["n"], 2);
+        assert!(body.get("messages").is_none());
+        assert!(body.get("tools").is_none());
+    }
+
+    #[test]
+    fn images_body_keeps_advanced_fields_and_lets_the_form_win() {
+        let mut params = params("qwen-image-2.1-turbo", "");
+        params.extra.insert("model".to_string(), json!("ignored"));
+        params.extra.insert("prompt".to_string(), json!("ignored"));
+        params
+            .extra
+            .insert("response_format".to_string(), json!("b64_json"));
+        params.extra.insert("n".to_string(), json!(3));
+        let body = build_images_body(&params);
+        assert_eq!(body["model"], "qwen-image-2.1-turbo");
+        assert_eq!(body["prompt"], "a cat");
+        assert_eq!(body["response_format"], "b64_json");
+        // A single image is the default, so `n` comes from the advanced JSON.
+        assert_eq!(body["n"], 3);
+    }
+
+    #[test]
+    fn images_parser_reads_urls_base64_and_revised_prompts() {
         let value = json!({
-            "status": "failed",
-            "error": { "message": "content policy" },
-            "output": []
+            "created": 1_795_063_637u64,
+            "data": [
+                { "url": "https://cdn.example/a.png" },
+                { "b64_json": "QUJD", "revised_prompt": " a red apple " }
+            ]
         });
-        let error = parse_responses_response(&value).unwrap_err();
-        assert!(error.contains("content policy"));
+        let parsed = parse_images_response(&value);
+        assert_eq!(
+            parsed.images,
+            vec![
+                RawImage::Url("https://cdn.example/a.png".to_string()),
+                RawImage::Data {
+                    mime_type: String::new(),
+                    base64: "QUJD".to_string(),
+                },
+            ]
+        );
+        assert_eq!(parsed.revised_prompt.as_deref(), Some("a red apple"));
+        assert!(parsed.response_text.is_none());
+    }
+
+    #[test]
+    fn images_parser_accepts_wrapped_and_metadata_payloads() {
+        // Some gateways wrap the entry set in a single object.
+        let single = json!({ "data": { "url": "https://cdn.example/only.png" } });
+        assert_eq!(parse_images_response(&single).images.len(), 1);
+
+        // New API task plugins can echo the provider answer next to `data`.
+        let nested = json!({
+            "data": [],
+            "metadata": {
+                "output": {
+                    "choices": [{
+                        "message": {
+                            "content": [
+                                { "type": "image", "image": "https://cdn.example/nested.png" }
+                            ]
+                        }
+                    }]
+                }
+            }
+        });
+        assert_eq!(
+            parse_images_response(&nested).images,
+            vec![RawImage::Url("https://cdn.example/nested.png".to_string())]
+        );
     }
 
     #[test]
@@ -1880,27 +1916,6 @@ mod tests {
         assert!(
             matches!(&parsed.images[0], RawImage::Data { mime_type, .. } if mime_type.is_empty())
         );
-    }
-
-    #[test]
-    fn responses_parser_keeps_images_when_one_call_fails() {
-        let value = json!({
-            "status": "completed",
-            "output": [
-                { "type": "image_generation_call", "status": "failed", "error": "boom" },
-                { "type": "image_generation_call", "status": "completed", "result": "QUJD" }
-            ]
-        });
-        let parsed = parse_responses_response(&value).unwrap();
-        assert_eq!(parsed.images.len(), 1);
-
-        let failed = json!({
-            "status": "completed",
-            "output": [
-                { "type": "image_generation_call", "status": "failed", "error": "boom" }
-            ]
-        });
-        assert_eq!(parse_responses_response(&failed).unwrap_err(), "boom");
     }
 
     #[test]

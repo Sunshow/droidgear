@@ -54,7 +54,7 @@ export function VideoModelDialog({
           placeholder: defaults.durations.join(', '),
           // A model saved with empty lists gets the shared suggestions back,
           // matching what the create form's picker offers.
-          initial: (model?.durations.length
+          initial: (model?.durations?.length
             ? model.durations
             : defaults.durations
           ).join(', '),
@@ -63,7 +63,7 @@ export function VideoModelDialog({
           key: 'resolutions',
           label: t('playground.video.modelDialog.resolutions'),
           placeholder: defaults.resolutions.join(', '),
-          initial: (model?.resolutions.length
+          initial: (model?.resolutions?.length
             ? model.resolutions
             : defaults.resolutions
           ).join(', '),

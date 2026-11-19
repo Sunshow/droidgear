@@ -261,8 +261,9 @@ describe('ImagePlaygroundPage', () => {
       imageModels: [
         {
           ...model,
-          protocol: 'responses',
-          qualities: ['auto', 'high'],
+          modelId: 'gemini-3-pro-image',
+          protocol: 'google',
+          qualities: ['1K', '2K'],
         },
       ],
     })
@@ -271,6 +272,18 @@ describe('ImagePlaygroundPage', () => {
 
     expect(
       screen.queryByRole('spinbutton', { name: 'Images per request' })
+    ).not.toBeInTheDocument()
+  })
+
+  it('hides reference images for the Images endpoint', () => {
+    useImagePlaygroundStore.setState({
+      imageModels: [{ ...model, protocol: 'images' }],
+    })
+
+    render(<ImagePlaygroundPage />)
+
+    expect(
+      screen.queryByRole('button', { name: 'Add image' })
     ).not.toBeInTheDocument()
   })
 

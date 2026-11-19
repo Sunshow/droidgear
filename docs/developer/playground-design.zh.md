@@ -13,8 +13,10 @@ Playground 是 DroidGear 里的模型测试台：选一个模型，发一次真�
 图片页支持三种上游协议：
 
 - **ChatCompletions**：`/v1/chat/completions`，图片从 `message.images` 或 `message.content` 里的 markdown data URL 提取。
-- **Responses**：`/v1/responses` + `image_generation` 工具，结果在 `image_generation_call.result`。
+- **Images**：`/v1/images/generations`，结果在 `data[].url` 或 `data[].b64_json`；New API 的 `image-generation` 端点类型走这条协议。
 - **Google**：`/v1beta/models/{model}:generateContent`（`imagen*` 模型用 `:predict`）。
+
+Responses（`/v1/responses` + `image_generation` 工具）已移除：同时支持它的网关也会把同一个模型映射到 Images 端点，而 New API 的任务计费图片渠道只认 Images。旧文件里的 `responses` 会在读取时按 `images` 解析，模型和任务历史照常加载。
 
 模型可以从渠道导入，也可以手填任意模型 ID；每个模型单独选择协议。模型和任务记录都保存在 `~/.droidgear/playground/`，重启后恢复。
 
@@ -26,13 +28,13 @@ Playground 是 DroidGear 里的模型测试台：选一个模型，发一次真�
 
 ## 范围
 
-| 项     | 结论                                                                                         |
-| ------ | -------------------------------------------------------------------------------------------- |
-| 平台   | 只做桌面 GUI。TUI 暂不支持，这是对 AGENTS.md 规则 9（GUI/TUI 同步）的有意例外                |
-| 写配置 | 只写 `~/.droidgear/playground/`，不修改 `~/.factory`、`~/.codex` 等任何工具配置              |
-| 协议   | 视频：`sora`、`new-api`、`doubao`（第 2 节）；图片：`chat`、`responses`、`google`（第 8 节） |
-| P2     | 视频页：渠道导入、协议选择、创建/查询/下载、进度刷新、`<video>` 预览、任务记录持久化         |
-| P3     | 图片页：渠道导入、协议选择、同步生成、多图结果、参考图、`<img>` 预览、任务记录持久化         |
+| 项     | 结论                                                                                      |
+| ------ | ----------------------------------------------------------------------------------------- |
+| 平台   | 只做桌面 GUI。TUI 暂不支持，这是对 AGENTS.md 规则 9（GUI/TUI 同步）的有意例外             |
+| 写配置 | 只写 `~/.droidgear/playground/`，不修改 `~/.factory`、`~/.codex` 等任何工具配置           |
+| 协议   | 视频：`sora`、`new-api`、`doubao`（第 2 节）；图片：`chat`、`images`、`google`（第 8 节） |
+| P2     | 视频页：渠道导入、协议选择、创建/查询/下载、进度刷新、`<video>` 预览、任务记录持久化      |
+| P3     | 图片页：渠道导入、协议选择、同步生成、多图结果、参考图、`<img>` 预览、任务记录持久化      |
 
 ## 1. 导航
 
@@ -413,36 +415,36 @@ src/lib/playground-utils.ts                       # 参考图按行解析
 | 协议                 | 创建                                                | 结果位置                                                                   |
 | -------------------- | --------------------------------------------------- | -------------------------------------------------------------------------- |
 | `chat`               | `POST {base}/v1/chat/completions`                   | `choices[].message.images[].image_url.url` 或 `content` 里的 markdown 图片 |
-| `responses`          | `POST {base}/v1/responses`                          | `output[].result`（`type = image_generation_call`）                        |
+| `images`             | `POST {base}/v1/images/generations`                 | `data[].url` 或 `data[].b64_json`                                          |
 | `google`             | `POST {base}/v1beta/models/{model}:generateContent` | `candidates[].content.parts[].inlineData.data`                             |
 | `google` + `imagen*` | `POST {base}/v1beta/models/{model}:predict`         | `predictions[].bytesBase64Encoded`                                         |
 
-- Base URL 归一化：Chat/Responses 会自动补 `/v1`，也接受直接粘贴的 `/v1/chat/completions` 或 `/v1/responses`；Google 会补 `/v1beta`，也接受已带 `/v1beta` 的地址。Google 的 OpenAI 兼容地址（`/v1beta/openai`）按 ChatCompletions 协议使用，Base URL 以 `/openai` 结尾时不会补 `/v1`。
+- Base URL 归一化：Chat/Images 会自动补 `/v1`，也接受直接粘贴的 `/v1/chat/completions`、`/v1/images/generations`（旧的 `/v1/responses` 也会被剥掉）；Google 会补 `/v1beta`，也接受已带 `/v1beta` 的地址。Google 的 OpenAI 兼容地址（`/v1beta/openai`）按 ChatCompletions 协议使用，Base URL 以 `/openai` 结尾时不会补 `/v1`。
 - Google 鉴权同时发送 `x-goog-api-key` 与 `Authorization: Bearer`：Gemini 原生端点读前者，New API 兼容网关通常读后者，二者兼发对上游无影响。
+- New API 的 `/v1/models` 会给每个模型返回 `supported_endpoint_types`：`image-generation` 对应 `images` 协议，`openai` 对应 `chat`。任务计费（`任务用量表达式`）的图片模型只能走 `images`：从 chat 打过去会先扣费、再以 `server_error`（`The task could not be observed.`）收场，这类模型的协议要选 `images`。
 - `imagen*` 模型按模型 ID 前缀识别，和 new-api 的判断一致。
 
 ### 8.3 请求映射
 
 创建表单的字段在三种协议上落到不同位置：
 
-| 表单字段 | `chat`                                                | `responses`                            | `google`                                                       |
-| -------- | ----------------------------------------------------- | -------------------------------------- | -------------------------------------------------------------- |
-| prompt   | `messages[0].content[0].text`                         | `input[0].content[0].text`             | `contents[0].parts[0].text`                                    |
-| 参考图   | `messages[0].content[]` 的 `image_url`                | `input[0].content[]` 的 `input_image`  | `parts[].inlineData`（URL 先下载并转 base64）                  |
-| size     | `WxH` 发 `size`；`A:B` 发 `image_config.aspect_ratio` | `tools[0].size`                        | `generationConfig.imageConfig.aspectRatio`（`WxH` 会约成比例） |
-| quality  | 不发送，留给高级参数                                  | `tools[0].quality`                     | `generationConfig.imageConfig.imageSize`                       |
-| count    | `n`（>1 时）                                          | 只有一张，不发送                       | `imagen` 用 `parameters.sampleCount`                           |
-| 高级参数 | 合并进请求体                                          | 合并进请求体；`tools` 会与表单工具合并 | 合并进请求体；`generationConfig` 只补缺失键                    |
+| 表单字段 | `chat`                                                | `images`               | `google`                                                       |
+| -------- | ----------------------------------------------------- | ---------------------- | -------------------------------------------------------------- |
+| prompt   | `messages[0].content[0].text`                         | `prompt`               | `contents[0].parts[0].text`                                    |
+| 参考图   | `messages[0].content[]` 的 `image_url`                | 不支持，直接报错       | `parts[].inlineData`（URL 先下载并转 base64）                  |
+| size     | `WxH` 发 `size`；`A:B` 发 `image_config.aspect_ratio` | `size`                 | `generationConfig.imageConfig.aspectRatio`（`WxH` 会约成比例） |
+| quality  | 不发送，留给高级参数                                  | `quality`              | `generationConfig.imageConfig.imageSize`                       |
+| count    | `n`（>1 时）                                          | `n`（>1 时）           | `imagen` 用 `parameters.sampleCount`                           |
+| 高级参数 | 合并进请求体                                          | 合并进请求体、表单优先 | 合并进请求体；`generationConfig` 只补缺失键                    |
 
 - Chat 请求固定带 `modalities: ["image", "text"]`：OpenRouter 一类网关靠它开启图片输出；New API 的 Gemini 渠道会按自己的模型配置补 `responseModalities`，多余字段会被忽略。
-- Responses 的图片生成工具总会存在；高级参数里自己写了 `tools` 时保留用户的工具，再向其中合并尺寸/质量。
 - Google 的 `size` 支持组合写法，例如 `16:9 2K`：比例进 `aspectRatio`，`1K`/`2K`/`4K` 进 `imageSize`。
 - `imagen*` 不支持参考图，带上参考图会直接报错，提示改用 Gemini 图片模型。
 
 ### 8.4 结果解析
 
 - **Chat**：先读 `message.images`（OpenRouter 的 `image_url` 结构），再扫 `message.content` 里的 `![alt](url)`；`data:` URL 直接解码，http(s) URL 尝试下载，失败时保留 URL 供界面直接渲染。部分网关会用 Images API 的 `data[].b64_json` 形状回复 chat，也一并兼容。
-- **Responses**：收集所有 `image_generation_call.result`；`revised_prompt` 会保存并展示。`status = failed` 的 item 直接返回错误。
+- **Images**：读 `data[]` 的 `url` 与 `b64_json`，`revised_prompt` 一并保存；`data` 是单个对象、或网关把上游结果塞在 `metadata` 里时也能取到图。
 - **Google**：收集 `inlineData`/`inline_data`，以及 `:predict` 的 `predictions[].bytesBase64Encoded`；`promptFeedback.blockReason`、`finishReason`（`SAFETY` 等）和 `raiFilteredReason` 会转成可读错误。
 - 没有图片但有文字时，错误信息会带上模型回复的摘要；完全空响应返回 “The upstream returned no images.”。
 
@@ -471,9 +473,9 @@ src/lib/playground-utils.ts                       # 参考图按行解析
 ### 8.7 图片模型
 
 - 字段：显示名称、模型 ID、**图片协议**、来源（渠道 / 自定义地址）、尺寸建议、质量建议、是否支持参考图。
-- 尺寸/质量只是创建表单下拉里的建议值，可手输；默认值随协议变化（Chat：常见 `WxH` 与比例；Responses：`auto`/OpenAI 图片尺寸与 `low`/`medium`/`high`；Google：比例与 `1K`/`2K`/`4K`）。新增模型时切换协议会同步刷新这两组默认值。
+- 尺寸/质量只是创建表单下拉里的建议值，可手输；默认值随协议变化（Chat：常见 `WxH` 与比例；Images：`auto`/OpenAI 图片尺寸与 `low`/`medium`/`high`；Google：比例与 `1K`/`2K`/`4K`）。新增模型时切换协议会同步刷新这两组默认值。
 - 参考图开关决定创建区是否显示参考图宫格；模型不支持时 Rust 也会拒绝带参考图的请求。
-- 数量输入只在支持多图的协议显示：`chat` 总是显示；`google` 仅 `imagen*` 显示；`responses` 固定一张。
+- 数量输入只在支持多图的协议显示：`chat` 与 `images` 显示；`google` 仅 `imagen*` 显示。
 - 渠道导入、令牌解析、密钥保存和视频页一致：模型只存 `channelId` 与 `tokenId`，调用时再从渠道存储解析。
 
 ### 8.8 持久化
@@ -482,7 +484,7 @@ src/lib/playground-utils.ts                       # 参考图按行解析
 
 ### 8.9 已知限制
 
-- Responses 与 Gemini 图片模型（`imagen*` 除外）一次只生成一张图，数量字段对它们不显示。
+- Gemini 图片模型（`imagen*` 除外）一次只生成一张图，数量字段对它不显示。
 - ChatCompletions 没有统一的尺寸/质量参数名；Playground 只按 `WxH` → `size`、`A:B` → `image_config` 发送，其他写法需要放进高级参数。
 - Google 的参考图必须是可访问的 http(s) URL 或 data URL；本地文件在创建区已经转成 data URL，不受影响。URL 下载失败会中断本次生成。
 - 删除任务不会删除 `media/images/` 下的文件；媒体目录暂不自动清理。

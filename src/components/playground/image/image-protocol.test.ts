@@ -11,15 +11,15 @@ import {
 describe('imageProtocolDefaults', () => {
   it('suggests different values per protocol', () => {
     expect(imageProtocolDefaults('chat').sizes).toEqual(COMMON_IMAGE_SIZES.chat)
-    expect(imageProtocolDefaults('responses').sizes).toEqual(
-      COMMON_IMAGE_SIZES.responses
+    expect(imageProtocolDefaults('images').sizes).toEqual(
+      COMMON_IMAGE_SIZES.images
     )
     expect(imageProtocolDefaults('google').sizes).toEqual(
       COMMON_IMAGE_SIZES.google
     )
     expect(imageProtocolDefaults('chat').qualities).toEqual([])
-    expect(imageProtocolDefaults('responses').qualities).toEqual(
-      COMMON_IMAGE_QUALITIES.responses
+    expect(imageProtocolDefaults('images').qualities).toEqual(
+      COMMON_IMAGE_QUALITIES.images
     )
     expect(imageProtocolDefaults('google').qualities).toEqual([
       '1K',
@@ -36,9 +36,15 @@ describe('imageProtocolDefaults', () => {
 })
 
 describe('supportsMultipleImages', () => {
-  it('allows chat models and Imagen', () => {
+  it('allows chat, Images and Imagen', () => {
     expect(
       supportsMultipleImages({ protocol: 'chat', modelId: 'any-model' })
+    ).toBe(true)
+    expect(
+      supportsMultipleImages({
+        protocol: 'images',
+        modelId: 'qwen-image-2.1-turbo',
+      })
     ).toBe(true)
     expect(
       supportsMultipleImages({
@@ -48,10 +54,7 @@ describe('supportsMultipleImages', () => {
     ).toBe(true)
   })
 
-  it('rejects responses and Gemini image models', () => {
-    expect(
-      supportsMultipleImages({ protocol: 'responses', modelId: 'gpt-image-1' })
-    ).toBe(false)
+  it('rejects Gemini image models', () => {
     expect(
       supportsMultipleImages({
         protocol: 'google',
@@ -65,16 +68,16 @@ describe('buildImportedImageModels', () => {
   it('imports selected models with their own protocol defaults', () => {
     const protocols = new Map<string, ImageProtocol>([
       ['gemini-3-pro-image', 'google'],
-      ['gpt-image-1', 'responses'],
+      ['qwen-image-2.1-turbo', 'images'],
       ['not-selected', 'chat'],
     ])
     const drafts = buildImportedImageModels({
       models: [
         { id: 'gemini-3-pro-image', name: 'Nano Banana' },
-        { id: 'gpt-image-1', name: null },
+        { id: 'qwen-image-2.1-turbo', name: null },
         { id: 'not-selected', name: null },
       ],
-      selectedIds: new Set(['gemini-3-pro-image', 'gpt-image-1']),
+      selectedIds: new Set(['gemini-3-pro-image', 'qwen-image-2.1-turbo']),
       channelId: 'ch_1',
       tokenId: 7,
       protocols,
@@ -91,10 +94,10 @@ describe('buildImportedImageModels', () => {
       supportsImageInput: true,
     })
     expect(drafts[1]).toMatchObject({
-      name: 'gpt-image-1',
-      protocol: 'responses',
-      sizes: COMMON_IMAGE_SIZES.responses,
-      qualities: COMMON_IMAGE_QUALITIES.responses,
+      name: 'qwen-image-2.1-turbo',
+      protocol: 'images',
+      sizes: COMMON_IMAGE_SIZES.images,
+      qualities: COMMON_IMAGE_QUALITIES.images,
     })
   })
 })

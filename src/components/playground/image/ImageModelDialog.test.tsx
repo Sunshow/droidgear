@@ -87,7 +87,9 @@ describe('ImageModelDialog', () => {
     await user.type(screen.getByLabelText('Display name'), 'DALL-E')
     await user.type(screen.getByLabelText('Model ID'), 'gpt-image-1')
     await user.click(screen.getByRole('combobox', { name: 'Image protocol' }))
-    await user.click(await screen.findByRole('option', { name: 'Responses' }))
+    await user.click(
+      await screen.findByRole('option', { name: 'OpenAI Images' })
+    )
 
     expect(screen.getByLabelText('Sizes / ratios')).toHaveValue(
       'auto, 1024x1024, 1536x1024, 1024x1536'
@@ -103,7 +105,7 @@ describe('ImageModelDialog', () => {
 
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
-        protocol: 'responses',
+        protocol: 'images',
         source: {
           kind: 'custom',
           baseUrl: 'https://api.example',
