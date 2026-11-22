@@ -259,7 +259,7 @@ fn write_profile_file(home_dir: &Path, profile: &OpenClawProfile) -> Result<(), 
     let path = profile_path_for_home(home_dir, &profile.id)?;
     let s = serde_json::to_string_pretty(profile)
         .map_err(|e| format!("Failed to serialize profile JSON: {e}"))?;
-    storage::atomic_write(&path, s.as_bytes())
+    storage::atomic_write_private(&path, s.as_bytes())
 }
 
 fn load_profile_by_id(home_dir: &Path, id: &str) -> Result<OpenClawProfile, String> {
@@ -440,7 +440,7 @@ fn write_openclaw_config_for_home(
 
     let s = serde_json::to_string_pretty(&config)
         .map_err(|e| format!("Failed to serialize config: {e}"))?;
-    storage::atomic_write(&config_path, s.as_bytes())
+    storage::atomic_write_private(&config_path, s.as_bytes())
 }
 
 /// Apply every DroidGear-owned field from `profile` into `config` in place.
@@ -1220,7 +1220,7 @@ pub fn save_openclaw_subagents_for_home(
 
     let s = serde_json::to_string_pretty(&config)
         .map_err(|e| format!("Failed to serialize config: {e}"))?;
-    storage::atomic_write(&config_path, s.as_bytes())
+    storage::atomic_write_private(&config_path, s.as_bytes())
 }
 
 pub fn read_openclaw_subagents() -> Result<Vec<OpenClawSubAgent>, String> {

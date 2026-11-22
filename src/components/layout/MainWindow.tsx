@@ -1,11 +1,5 @@
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from '@/components/ui/resizable'
 import { TitleBar } from '@/components/titlebar/TitleBar'
 import { LeftSideBar } from './LeftSideBar'
-import { RightSideBar } from './RightSideBar'
 import { MainWindowContent } from './MainWindowContent'
 import { CommandPalette } from '@/components/command-palette/CommandPalette'
 import { PreferencesDialog } from '@/components/preferences/PreferencesDialog'
@@ -25,21 +19,8 @@ import { useMainWindowEventListeners } from '@/hooks/useMainWindowEventListeners
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { cn } from '@/lib/utils'
 
-/**
- * Layout sizing configuration for resizable panels.
- * All values are percentages of total width.
- */
-const LAYOUT = {
-  rightSidebar: { default: 20, min: 15, max: 40 },
-  main: { min: 30 },
-} as const
-
-// Main content default when right sidebar is visible
-const MAIN_CONTENT_DEFAULT = 100 - LAYOUT.rightSidebar.default
-
 export function MainWindow() {
   const leftSidebarVisible = useUIStore(state => state.leftSidebarVisible)
-  const rightSidebarVisible = useUIStore(state => state.rightSidebarVisible)
   const closeConfirmOpen = useUIStore(state => state.closeConfirmOpen)
 
   // Set up global event listeners (keyboard shortcuts, etc.)
@@ -67,25 +48,9 @@ export function MainWindow() {
           <LeftSideBar />
         </div>
 
-        <ResizablePanelGroup direction="horizontal">
-          <ResizablePanel
-            defaultSize={MAIN_CONTENT_DEFAULT}
-            minSize={LAYOUT.main.min}
-          >
-            <MainWindowContent />
-          </ResizablePanel>
-
-          <ResizableHandle className={cn(!rightSidebarVisible && 'hidden')} />
-
-          <ResizablePanel
-            defaultSize={LAYOUT.rightSidebar.default}
-            minSize={LAYOUT.rightSidebar.min}
-            maxSize={LAYOUT.rightSidebar.max}
-            className={cn(!rightSidebarVisible && 'hidden')}
-          >
-            <RightSideBar />
-          </ResizablePanel>
-        </ResizablePanelGroup>
+        <div className="min-w-0 flex-1">
+          <MainWindowContent />
+        </div>
       </div>
 
       {/* Global UI Components (hidden until triggered) */}

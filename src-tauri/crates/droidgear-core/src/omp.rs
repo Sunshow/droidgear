@@ -454,14 +454,14 @@ fn read_models_yml(home_dir: &Path) -> Result<OmpModelsConfig, String> {
     if source.trim().is_empty() {
         return Ok(OmpModelsConfig::default());
     }
-    serde_yaml::from_str(&source).map_err(|e| format!("Invalid models.yml YAML: {e}"))
+    serde_norway::from_str(&source).map_err(|e| format!("Invalid models.yml YAML: {e}"))
 }
 
 fn write_models_yml(home_dir: &Path, config: &OmpModelsConfig) -> Result<(), String> {
     let path = omp_models_yml_path_for_home(home_dir)?;
-    let yaml = serde_yaml::to_string(config)
+    let yaml = serde_norway::to_string(config)
         .map_err(|e| format!("Failed to serialize models.yml: {e}"))?;
-    storage::atomic_write(&path, yaml.as_bytes())
+    storage::atomic_write_private(&path, yaml.as_bytes())
 }
 
 pub fn read_omp_custom_providers_for_home(home_dir: &Path) -> Result<OmpCustomProviders, String> {
@@ -643,7 +643,7 @@ fn write_profile_file(home_dir: &Path, profile: &OmpProfile) -> Result<(), Strin
     let path = profile_path_for_home(home_dir, &profile.id)?;
     let s = serde_json::to_string_pretty(profile)
         .map_err(|e| format!("Failed to serialize profile JSON: {e}"))?;
-    storage::atomic_write(&path, s.as_bytes())
+    storage::atomic_write_private(&path, s.as_bytes())
 }
 
 fn load_profile_by_id(home_dir: &Path, id: &str) -> Result<OmpProfile, String> {
@@ -665,12 +665,12 @@ fn read_config_yml(home_dir: &Path) -> Result<OmpAgentConfig, String> {
     if s.trim().is_empty() {
         return Ok(OmpAgentConfig::default());
     }
-    serde_yaml::from_str(&s).map_err(|e| format!("Invalid config.yml YAML: {e}"))
+    serde_norway::from_str(&s).map_err(|e| format!("Invalid config.yml YAML: {e}"))
 }
 
 fn write_config_yml(home_dir: &Path, config: &OmpAgentConfig) -> Result<(), String> {
     let path = omp_config_yml_path_for_home(home_dir)?;
-    let yaml_str = serde_yaml::to_string(config)
+    let yaml_str = serde_norway::to_string(config)
         .map_err(|e| format!("Failed to serialize config.yml: {e}"))?;
 
     let config_dir = omp_config_dir_for_home(home_dir)?;
@@ -679,7 +679,7 @@ fn write_config_yml(home_dir: &Path, config: &OmpAgentConfig) -> Result<(), Stri
             .map_err(|e| format!("Failed to create OMP config directory: {e}"))?;
     }
 
-    storage::atomic_write(&path, yaml_str.as_bytes())
+    storage::atomic_write_private(&path, yaml_str.as_bytes())
 }
 
 // ============================================================================

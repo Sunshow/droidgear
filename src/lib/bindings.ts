@@ -628,27 +628,6 @@ async runExportTemplate(name: string) : Promise<Result<ExportResult, string>> {
 }
 },
 /**
- * Gets the value of an environment variable.
- * Returns None if the variable is not set.
- */
-async getEnvVar(name: string) : Promise<string | null> {
-    return await TAURI_INVOKE("get_env_var", { name });
-},
-/**
- * Sets an environment variable for the current process.
- * Note: This only affects the current process, not the system or shell.
- */
-async setEnvVar(name: string, value: string) : Promise<void> {
-    await TAURI_INVOKE("set_env_var", { name, value });
-},
-/**
- * Removes an environment variable from the current process.
- * Note: This only affects the current process, not the system or shell.
- */
-async removeEnvVar(name: string) : Promise<void> {
-    await TAURI_INVOKE("remove_env_var", { name });
-},
-/**
  * Gets environment variables from a login shell.
  * This is useful for GUI apps that don't inherit shell environment.
  * Uses non-interactive mode for faster execution.

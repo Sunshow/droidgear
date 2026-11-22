@@ -33,6 +33,57 @@ fn system_home_dir() -> Result<PathBuf, String> {
     dirs::home_dir().ok_or_else(|| "Failed to get home directory".to_string())
 }
 
+/// Canonical specs directory (`~/.factory/specs`, or the configured factory home).
+fn canonical_specs_dir_for_home(home_dir: &Path) -> Result<PathBuf, String> {
+    specs_dir_for_home(home_dir)?
+        .canonicalize()
+        .map_err(|_| "Specs directory unavailable".to_string())
+}
+
+/// Resolve a caller-supplied spec path and confine it to the specs directory.
+///
+/// Both sides are canonicalized, so `..` segments and symlinks cannot point at
+/// a file outside `specs/` (a plain `starts_with` on the raw path is bypassable).
+fn resolve_spec_path_for_home(home_dir: &Path, path: &str) -> Result<PathBuf, String> {
+    let specs_dir = canonical_specs_dir_for_home(home_dir)?;
+    let resolved = crate::storage::canonicalize_within(&specs_dir, Path::new(path))
+        .map_err(|_| "Spec file not found inside the specs directory".to_string())?;
+    if !resolved.is_file() {
+        return Err("Spec file not found".to_string());
+    }
+    if resolved.extension().and_then(|s| s.to_str()) != Some("md") {
+        return Err("Spec files must be Markdown (.md)".to_string());
+    }
+    Ok(resolved)
+}
+
+fn read_resolved_spec(path_buf: &Path) -> Result<SpecFile, String> {
+    let metadata =
+        fs::metadata(path_buf).map_err(|e| format!("Failed to read file metadata: {e}"))?;
+    let modified_at = metadata
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as f64)
+        .unwrap_or(0.0);
+
+    let content =
+        fs::read_to_string(path_buf).map_err(|e| format!("Failed to read file content: {e}"))?;
+
+    let name = path_buf
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_string();
+
+    Ok(SpecFile {
+        name,
+        path: path_buf.to_string_lossy().to_string(),
+        content,
+        modified_at,
+    })
+}
+
 pub fn list_specs_for_home(home_dir: &Path) -> Result<Vec<SpecFile>, String> {
     let specs_dir = specs_dir_for_home(home_dir)?;
 
@@ -103,35 +154,11 @@ pub fn list_specs() -> Result<Vec<SpecFile>, String> {
 }
 
 pub fn read_spec(path: &str) -> Result<SpecFile, String> {
-    let path_buf = PathBuf::from(path);
-    if !path_buf.exists() {
-        return Err("Spec file not found".to_string());
-    }
+    read_spec_for_home(&system_home_dir()?, path)
+}
 
-    let metadata =
-        fs::metadata(&path_buf).map_err(|e| format!("Failed to read file metadata: {e}"))?;
-    let modified_at = metadata
-        .modified()
-        .ok()
-        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-        .map(|d| d.as_millis() as f64)
-        .unwrap_or(0.0);
-
-    let content =
-        fs::read_to_string(&path_buf).map_err(|e| format!("Failed to read file content: {e}"))?;
-
-    let name = path_buf
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or("")
-        .to_string();
-
-    Ok(SpecFile {
-        name,
-        path: path.to_string(),
-        content,
-        modified_at,
-    })
+pub fn read_spec_for_home(home_dir: &Path, path: &str) -> Result<SpecFile, String> {
+    read_resolved_spec(&resolve_spec_path_for_home(home_dir, path)?)
 }
 
 pub fn rename_spec_for_home(
@@ -139,16 +166,8 @@ pub fn rename_spec_for_home(
     old_path: &str,
     new_name: &str,
 ) -> Result<SpecFile, String> {
-    let specs_dir = specs_dir_for_home(home_dir)?;
-    let old_path_buf = PathBuf::from(old_path);
-
-    if !old_path_buf.starts_with(&specs_dir) {
-        return Err("Invalid file path".to_string());
-    }
-
-    if !old_path_buf.exists() {
-        return Err("Spec file not found".to_string());
-    }
+    let specs_dir = canonical_specs_dir_for_home(home_dir)?;
+    let old_path_buf = resolve_spec_path_for_home(home_dir, old_path)?;
 
     let new_name = new_name.trim();
     if new_name.is_empty() {
@@ -161,9 +180,9 @@ pub fn rename_spec_for_home(
         format!("{new_name}.md")
     };
 
-    if new_name.contains('/') || new_name.contains('\\') {
-        return Err("Invalid file name".to_string());
-    }
+    // Reject separators, `.`, `..`, drive/root prefixes: the destination must be
+    // a direct child of the specs directory.
+    crate::storage::validate_child_name(&new_name).map_err(|_| "Invalid file name".to_string())?;
 
     let new_path = specs_dir.join(&new_name);
 
@@ -173,7 +192,7 @@ pub fn rename_spec_for_home(
 
     fs::rename(&old_path_buf, &new_path).map_err(|e| format!("Failed to rename file: {e}"))?;
 
-    read_spec(&new_path.to_string_lossy())
+    read_resolved_spec(&new_path)
 }
 
 pub fn rename_spec(old_path: &str, new_name: &str) -> Result<SpecFile, String> {
@@ -181,16 +200,7 @@ pub fn rename_spec(old_path: &str, new_name: &str) -> Result<SpecFile, String> {
 }
 
 pub fn delete_spec_for_home(home_dir: &Path, path: &str) -> Result<(), String> {
-    let specs_dir = specs_dir_for_home(home_dir)?;
-    let path_buf = PathBuf::from(path);
-
-    if !path_buf.starts_with(&specs_dir) {
-        return Err("Invalid file path".to_string());
-    }
-    if !path_buf.exists() {
-        return Err("Spec file not found".to_string());
-    }
-
+    let path_buf = resolve_spec_path_for_home(home_dir, path)?;
     fs::remove_file(&path_buf).map_err(|e| format!("Failed to delete file: {e}"))?;
     Ok(())
 }
@@ -204,18 +214,9 @@ pub fn update_spec_for_home(
     path: &str,
     content: &str,
 ) -> Result<SpecFile, String> {
-    let specs_dir = specs_dir_for_home(home_dir)?;
-    let path_buf = PathBuf::from(path);
-
-    if !path_buf.starts_with(&specs_dir) {
-        return Err("Invalid file path".to_string());
-    }
-    if !path_buf.exists() {
-        return Err("Spec file not found".to_string());
-    }
-
+    let path_buf = resolve_spec_path_for_home(home_dir, path)?;
     crate::storage::atomic_write(&path_buf, content.as_bytes())?;
-    read_spec(path)
+    read_resolved_spec(&path_buf)
 }
 
 pub fn update_spec(path: &str, content: &str) -> Result<SpecFile, String> {

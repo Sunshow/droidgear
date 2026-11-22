@@ -30,10 +30,6 @@ const mockT = ((key: string): string => {
     'commands.showLeftSidebar.description': 'Show the left sidebar',
     'commands.hideLeftSidebar.label': 'Hide Left Sidebar',
     'commands.hideLeftSidebar.description': 'Hide the left sidebar',
-    'commands.showRightSidebar.label': 'Show Right Sidebar',
-    'commands.showRightSidebar.description': 'Show the right sidebar',
-    'commands.hideRightSidebar.label': 'Hide Right Sidebar',
-    'commands.hideRightSidebar.description': 'Hide the right sidebar',
     'commands.openPreferences.label': 'Open Preferences',
     'commands.openPreferences.description': 'Open the application preferences',
   }

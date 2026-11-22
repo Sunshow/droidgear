@@ -13,6 +13,7 @@ use specta::Type;
 use std::path::{Path, PathBuf};
 
 use crate::paths;
+use crate::storage;
 
 const DROID_SETTINGS_DIR: &str = "droid-settings";
 const ACTIVE_FILE_KEY: &str = "droidSettingsActiveFile";
@@ -98,7 +99,8 @@ pub fn get_active_settings_path_for_home(home_dir: &Path) -> Result<PathBuf, Str
             let custom_path = droid_settings_dir_for_home(home_dir)
                 .join(&name)
                 .with_extension("json");
-            if custom_path.exists() {
+            // Ignore a tampered active name instead of escaping the directory.
+            if crate::storage::validate_child_name(&name).is_ok() && custom_path.exists() {
                 Ok(custom_path)
             } else {
                 Ok(global_settings_path_for_home(home_dir))
@@ -310,6 +312,9 @@ pub fn get_settings_path_by_name_for_home(home_dir: &Path, name: &str) -> Result
         return Ok(global_settings_path_for_home(home_dir));
     }
 
+    crate::storage::validate_child_name(name)
+        .map_err(|_| format!("Invalid settings file name '{name}'"))?;
+
     let path = droid_settings_dir_for_home(home_dir)
         .join(name)
         .with_extension("json");
@@ -340,6 +345,8 @@ pub fn set_active_settings_file_for_home(
                 }
                 save_active_file_name_for_home(home_dir, Some(n))?;
             } else {
+                crate::storage::validate_child_name(n)
+                    .map_err(|_| format!("Invalid settings file name '{n}'"))?;
                 let path = droid_settings_dir_for_home(home_dir)
                     .join(n)
                     .with_extension("json");
@@ -395,6 +402,7 @@ pub fn create_settings_file(
     if name.eq_ignore_ascii_case("global") {
         return Err("Cannot use 'Global' as a custom file name".to_string());
     }
+    crate::storage::validate_child_name(&name).map_err(|_| "Invalid file name".to_string())?;
 
     let dir = droid_settings_dir()?;
     if !dir.exists() {
@@ -412,12 +420,14 @@ pub fn create_settings_file(
         if active_path.exists() {
             std::fs::copy(&active_path, &path)
                 .map_err(|e| format!("Failed to copy settings: {e}"))?;
+            storage::restrict_to_owner(&path)?;
         } else {
-            std::fs::write(&path, "{}")
+            storage::atomic_write_private(&path, b"{}\n")
                 .map_err(|e| format!("Failed to create settings file: {e}"))?;
         }
     } else {
-        std::fs::write(&path, "{}").map_err(|e| format!("Failed to create settings file: {e}"))?;
+        storage::atomic_write_private(&path, b"{}\n")
+            .map_err(|e| format!("Failed to create settings file: {e}"))?;
     }
 
     // Auto-switch to the new file
@@ -431,6 +441,7 @@ pub fn delete_settings_file(name: String) -> Result<(), String> {
     if name.eq_ignore_ascii_case("global") {
         return Err("Cannot delete the global settings file".to_string());
     }
+    crate::storage::validate_child_name(&name).map_err(|_| "Invalid file name".to_string())?;
 
     let path = droid_settings_dir()?.join(&name).with_extension("json");
     if !path.exists() {

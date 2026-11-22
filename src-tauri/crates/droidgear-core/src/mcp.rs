@@ -105,7 +105,7 @@ fn write_mcp_file_for_home(home_dir: &Path, config: &Value) -> Result<(), String
     let json_content = serde_json::to_string_pretty(config)
         .map_err(|e| format!("Failed to serialize MCP config: {e}"))?;
 
-    crate::storage::atomic_write(&actual_path, json_content.as_bytes())
+    crate::storage::atomic_write_private(&actual_path, json_content.as_bytes())
         .map_err(|e| format!("Failed to write MCP config file: {e}"))
 }
 

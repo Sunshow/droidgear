@@ -102,8 +102,13 @@ fn auth_dir_for_home(home_dir: &Path) -> PathBuf {
     droidgear_dir_for_home(home_dir).join("auth")
 }
 
-fn auth_file_path_for_home(home_dir: &Path, channel_id: &str) -> PathBuf {
-    auth_dir_for_home(home_dir).join(format!("{channel_id}.json"))
+fn auth_file_path_for_home(home_dir: &Path, channel_id: &str) -> Result<PathBuf, String> {
+    // The id becomes a file name, so it must be a single path component.
+    // Without this, `save_channel_api_key`/`delete_channel_credentials` could
+    // write or delete any `*.json` file under the user's home directory.
+    crate::storage::validate_child_name(channel_id)
+        .map_err(|_| "Invalid channel id".to_string())?;
+    Ok(auth_dir_for_home(home_dir).join(format!("{channel_id}.json")))
 }
 
 // ============================================================================
@@ -129,7 +134,7 @@ fn read_channel_auth_for_home(
     home_dir: &Path,
     channel_id: &str,
 ) -> Result<Option<ChannelAuth>, String> {
-    let path = auth_file_path_for_home(home_dir, channel_id);
+    let path = auth_file_path_for_home(home_dir, channel_id)?;
     if !path.exists() {
         return Ok(None);
     }
@@ -147,7 +152,7 @@ fn write_channel_auth_for_home(
 ) -> Result<(), String> {
     let dir = auth_dir_for_home(home_dir);
     fs::create_dir_all(&dir).map_err(|e| format!("Failed to create auth directory: {e}"))?;
-    let path = auth_file_path_for_home(home_dir, channel_id);
+    let path = auth_file_path_for_home(home_dir, channel_id)?;
     let content =
         serde_json::to_string_pretty(auth).map_err(|e| format!("Failed to serialize auth: {e}"))?;
     // Channel auth holds API keys: keep it owner-only on Unix.
@@ -156,7 +161,7 @@ fn write_channel_auth_for_home(
 }
 
 fn delete_channel_auth_for_home(home_dir: &Path, channel_id: &str) -> Result<(), String> {
-    let path = auth_file_path_for_home(home_dir, channel_id);
+    let path = auth_file_path_for_home(home_dir, channel_id)?;
     if path.exists() {
         fs::remove_file(&path).map_err(|e| format!("Failed to delete auth file: {e}"))?;
     }
@@ -439,14 +444,52 @@ pub fn fetch_channel_tokens_blocking(
 ///
 /// Cuts on a character boundary: New API answers with localized text, and byte
 /// slicing would panic in the middle of a multi-byte character.
+///
+/// Credentials are redacted first — the body may be a token list or a login
+/// response, and these snippets end up in the system log and in the UI.
 fn body_snippet(body: &str) -> String {
     const MAX_CHARS: usize = 300;
-    if body.chars().count() <= MAX_CHARS {
-        return body.to_string();
+    let redacted = redact_secrets(body);
+    if redacted.chars().count() <= MAX_CHARS {
+        return redacted;
     }
-    let mut snippet: String = body.chars().take(MAX_CHARS).collect();
+    let mut snippet: String = redacted.chars().take(MAX_CHARS).collect();
     snippet.push_str("...");
     snippet
+}
+
+/// Masks bearer tokens, `sk-…` style keys and JSON credential fields so a
+/// response body can be logged for troubleshooting without leaking secrets.
+fn redact_secrets(input: &str) -> String {
+    use std::sync::LazyLock;
+
+    static REDACTORS: LazyLock<Vec<regex::Regex>> = LazyLock::new(|| {
+        vec![
+            // Authorization: Bearer <token> / "access_token": "<token>"
+            regex::Regex::new(r"(?i)(bearer\s+)[A-Za-z0-9._~+/=-]{8,}").expect("bearer regex"),
+            // Known provider key shapes (sk-…, ghp_…, glpat-…, xoxb-…).
+            regex::Regex::new(r"(?i)\b(?:sk|pk|rk|ghp|gho|ghu|ghs|ghr|glpat|xox[abp])[-_][A-Za-z0-9_-]{8,}")
+                .expect("key regex"),
+            // "api_key": "…", "password": "…", token: … (unquoted values too)
+            regex::Regex::new(
+                r#"(?i)("(?:api[_-]?key|key|access[_-]?token|refresh[_-]?token|token|password|secret)"\s*:\s*")[^"]*(")"#,
+            )
+            .expect("json field regex"),
+            regex::Regex::new(
+                r#"(?i)\b((?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|password|secret)\s*[:=]\s*)([^\s,;}&"']{4,})"#,
+            )
+            .expect("bare field regex"),
+        ]
+    });
+
+    let mut out = input.to_string();
+    out = REDACTORS[0].replace_all(&out, "${1}[REDACTED]").to_string();
+    out = REDACTORS[1].replace_all(&out, "[REDACTED]").to_string();
+    out = REDACTORS[2]
+        .replace_all(&out, "${1}[REDACTED]${2}")
+        .to_string();
+    out = REDACTORS[3].replace_all(&out, "${1}[REDACTED]").to_string();
+    out
 }
 
 /// Reads a response body as JSON, logging a truncated copy when parsing fails.
@@ -1304,6 +1347,33 @@ fn parse_gemini_models(data: &Value) -> Vec<ModelInfo> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn body_snippet_redacts_json_credentials_but_keeps_diagnostics() {
+        let body = r#"{"success":false,"access_token":"eyJhbGciOiJIUzI1NiJ9.body.sig","data":{"key":"sk-live-1234567890abcdef","password":"hunter2"}}"#;
+        let snippet = body_snippet(body);
+
+        assert!(snippet.contains("\"success\":false"));
+        assert!(snippet.contains("[REDACTED]"));
+        assert!(!snippet.contains("eyJhbGciOiJIUzI1NiJ9"));
+        assert!(!snippet.contains("sk-live-1234567890abcdef"));
+        assert!(!snippet.contains("hunter2"));
+    }
+
+    #[test]
+    fn body_snippet_redacts_bearer_tokens_and_bare_keys() {
+        let snippet =
+            body_snippet("Authorization: Bearer abc.def.ghi\napi_key=sk-proj-abcdefghijkl");
+
+        assert!(!snippet.contains("abc.def.ghi"));
+        assert!(!snippet.contains("abcdefghijkl"));
+        assert!(snippet.contains("Bearer [REDACTED]"));
+    }
+
+    #[test]
+    fn redact_secrets_leaves_ordinary_text_alone() {
+        assert_eq!(redact_secrets("rate limit exceeded"), "rate limit exceeded");
+    }
 
     #[test]
     fn test_model_endpoint_urls_sub2api_deepseek_falls_back_to_bare_path() {

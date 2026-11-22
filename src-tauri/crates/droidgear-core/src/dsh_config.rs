@@ -23,7 +23,7 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map as JsonMap, Value as JsonValue};
-use serde_yaml::Value as YamlValue;
+use serde_norway::Value as YamlValue;
 use specta::Type;
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -304,7 +304,7 @@ struct ComposedEntry {
 
 /// serde_yaml resolves `!!js` (a standard secondary-handle tag) to the plain
 /// scalar and drops the tag, while a local `!js` tag survives as
-/// [`serde_yaml::Value::Tagged`]. The read-only composition therefore rewrites
+/// [`serde_norway::Value::Tagged`]. The read-only composition therefore rewrites
 /// tag-position `!!js` to `!js` before parsing so `$js` markers round-trip.
 /// Only the tag position (whitespace, `:`, `{`, `[` before, whitespace/end
 /// after) is rewritten, so ordinary text values are untouched.
@@ -387,7 +387,7 @@ fn read_patch_document_normalized(path: &Path) -> Result<(Vec<YamlValue>, String
         return Ok((Vec::new(), text));
     }
     let normalized = normalize_js_tags(&text);
-    let value: YamlValue = serde_yaml::from_str(&normalized)
+    let value: YamlValue = serde_norway::from_str(&normalized)
         .map_err(|error| format!("Invalid DSH patch YAML: {error}"))?;
     match value {
         YamlValue::Sequence(entries) => Ok((entries, text)),
@@ -637,7 +637,7 @@ fn yaml_to_json(value: &YamlValue) -> JsonValue {
             for (key, value) in mapping {
                 let key = match key {
                     YamlValue::String(key) => key.clone(),
-                    other => serde_yaml::to_string(other)
+                    other => serde_norway::to_string(other)
                         .unwrap_or_default()
                         .trim()
                         .to_string(),
@@ -650,7 +650,7 @@ fn yaml_to_json(value: &YamlValue) -> JsonValue {
             let expression = match &tagged.value {
                 YamlValue::String(value) => value.clone(),
                 YamlValue::Number(number) => number.to_string(),
-                other => serde_yaml::to_string(other)
+                other => serde_norway::to_string(other)
                     .unwrap_or_default()
                     .trim()
                     .to_string(),
@@ -670,7 +670,7 @@ fn json_to_yaml(value: &JsonValue) -> YamlValue {
             } else if let Some(value) = number.as_u64() {
                 YamlValue::Number(value.into())
             } else {
-                YamlValue::Number(serde_yaml::Number::from(
+                YamlValue::Number(serde_norway::Number::from(
                     number.as_f64().unwrap_or_default(),
                 ))
             }
@@ -679,12 +679,12 @@ fn json_to_yaml(value: &JsonValue) -> YamlValue {
         JsonValue::Array(items) => YamlValue::Sequence(items.iter().map(json_to_yaml).collect()),
         JsonValue::Object(object) => {
             if let Some(JsonValue::String(expression)) = object.get("$js") {
-                return YamlValue::Tagged(Box::new(serde_yaml::value::TaggedValue {
-                    tag: serde_yaml::value::Tag::new("tag:yaml.org,2002:js"),
+                return YamlValue::Tagged(Box::new(serde_norway::value::TaggedValue {
+                    tag: serde_norway::value::Tag::new("tag:yaml.org,2002:js"),
                     value: YamlValue::String(expression.clone()),
                 }));
             }
-            let mut mapping = serde_yaml::Mapping::new();
+            let mut mapping = serde_norway::Mapping::new();
             for (key, value) in object {
                 mapping.insert(YamlValue::String(key.clone()), json_to_yaml(value));
             }
@@ -1396,7 +1396,7 @@ fn new_patch_row(
     config: Option<YamlValue>,
     disabled: Option<YamlValue>,
 ) -> YamlValue {
-    let mut mapping = serde_yaml::Mapping::new();
+    let mut mapping = serde_norway::Mapping::new();
     mapping.insert(
         YamlValue::String("id".to_string()),
         YamlValue::String(id.to_string()),

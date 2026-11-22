@@ -19,9 +19,10 @@ pub fn read_json_object_file(path: &Path) -> Result<HashMap<String, Value>, Stri
     }
 }
 
+/// Writes a JSON object file that may hold credentials (`auth.json`).
 pub fn write_json_object_file(path: &Path, obj: &HashMap<String, Value>) -> Result<(), String> {
     let v = Value::Object(obj.clone().into_iter().collect());
     let s =
         serde_json::to_string_pretty(&v).map_err(|e| format!("Failed to serialize JSON: {e}"))?;
-    storage::atomic_write(path, s.as_bytes())
+    storage::atomic_write_private(path, s.as_bytes())
 }

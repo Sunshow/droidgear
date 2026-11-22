@@ -21,7 +21,7 @@
 //! `#[serde(flatten)]` extras.
 
 use serde::{Deserialize, Serialize};
-use serde_yaml::Value as YamlValue;
+use serde_norway::Value as YamlValue;
 use specta::Type;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -417,7 +417,7 @@ fn normalize_input_modalities(values: &[String]) -> Vec<String> {
 // ============================================================================
 
 pub(crate) fn empty_mapping() -> YamlValue {
-    YamlValue::Mapping(serde_yaml::Mapping::new())
+    YamlValue::Mapping(serde_norway::Mapping::new())
 }
 
 fn read_settings_yaml_for_home(home_dir: &Path) -> Result<YamlValue, String> {
@@ -431,7 +431,7 @@ fn read_settings_yaml_for_home(home_dir: &Path) -> Result<YamlValue, String> {
         return Ok(empty_mapping());
     }
     let value: YamlValue =
-        serde_yaml::from_str(&s).map_err(|e| format!("Invalid Dsh settings YAML: {e}"))?;
+        serde_norway::from_str(&s).map_err(|e| format!("Invalid Dsh settings YAML: {e}"))?;
     if value.is_mapping() {
         Ok(value)
     } else {
@@ -446,9 +446,9 @@ fn write_settings_yaml_for_home(home_dir: &Path, value: &YamlValue) -> Result<()
         std::fs::create_dir_all(&dir)
             .map_err(|e| format!("Failed to create Dsh directory: {e}"))?;
     }
-    let yaml_str = serde_yaml::to_string(value)
+    let yaml_str = serde_norway::to_string(value)
         .map_err(|e| format!("Failed to serialize Dsh settings: {e}"))?;
-    storage::atomic_write(&path, yaml_str.as_bytes())
+    storage::atomic_write_private(&path, yaml_str.as_bytes())
 }
 
 // ============================================================================
@@ -486,7 +486,7 @@ pub(crate) fn read_patch_document(path: &Path) -> Result<(Vec<YamlValue>, String
         return Ok((Vec::new(), String::new()));
     }
     let value: YamlValue =
-        serde_yaml::from_str(&s).map_err(|e| format!("Invalid Dsh patch YAML: {e}"))?;
+        serde_norway::from_str(&s).map_err(|e| format!("Invalid Dsh patch YAML: {e}"))?;
     match value {
         YamlValue::Sequence(entries) => Ok((entries, s)),
         YamlValue::Null => Ok((Vec::new(), s)),
@@ -540,13 +540,13 @@ fn write_patch_document(path: &Path, original: &str, entries: &[YamlValue]) -> R
                 .map_err(|e| format!("Failed to create Dsh profile directory: {e}"))?;
         }
     }
-    storage::atomic_write(path, format!("{header}{}", blocks.concat()).as_bytes())
+    storage::atomic_write_private(path, format!("{header}{}", blocks.concat()).as_bytes())
 }
 
 /// Serialize a patch entry mapping as a sequence item: first line prefixed
 /// with `- `, continuation lines indented two spaces.
 pub(crate) fn serialize_patch_entry(entry: &YamlValue) -> Result<String, String> {
-    let body = serde_yaml::to_string(entry)
+    let body = serde_norway::to_string(entry)
         .map_err(|e| format!("Failed to serialize Dsh patch entry: {e}"))?;
     let mut out = String::from("- ");
     for (i, line) in body.lines().enumerate() {
@@ -605,7 +605,7 @@ fn find_llm_entry(entries: &[YamlValue]) -> Option<usize> {
 
 /// A fresh `llm-pi-ai` patch entry with an empty config mapping.
 fn new_llm_entry() -> YamlValue {
-    let mut entry = serde_yaml::Mapping::new();
+    let mut entry = serde_norway::Mapping::new();
     entry.insert(
         YamlValue::String("id".to_string()),
         YamlValue::String(DSH_LLM_SECTION.to_string()),
@@ -682,14 +682,14 @@ fn read_providers_from_legacy(
 
 /// Deserialize a provider id → config YAML mapping.
 fn parse_provider_map(
-    map: &serde_yaml::Mapping,
+    map: &serde_norway::Mapping,
 ) -> Result<HashMap<String, DshProviderConfig>, String> {
     let mut result = HashMap::new();
     for (key, value) in map {
         let Some(provider_id) = key.as_str() else {
             continue;
         };
-        let config: DshProviderConfig = serde_yaml::from_value(value.clone())
+        let config: DshProviderConfig = serde_norway::from_value(value.clone())
             .map_err(|e| format!("Invalid Dsh provider '{provider_id}': {e}"))?;
         result.insert(provider_id.to_string(), config);
     }
@@ -851,7 +851,7 @@ pub fn save_dsh_provider_for_profile(
         .as_mapping_mut()
         .ok_or_else(|| format!("{DSH_LLM_SECTION}.config.{DSH_PROVIDERS_KEY} must be a mapping"))?;
 
-    let value = serde_yaml::to_value(&config)
+    let value = serde_norway::to_value(&config)
         .map_err(|e| format!("Failed to serialize Dsh provider: {e}"))?;
     providers_map.insert(YamlValue::String(provider_id.to_string()), value);
 
@@ -883,7 +883,7 @@ fn save_dsh_provider_legacy(
         .as_mapping_mut()
         .ok_or_else(|| format!("{DSH_LLM_SECTION}.{DSH_PROVIDERS_KEY} must be a mapping"))?;
 
-    let value = serde_yaml::to_value(config)
+    let value = serde_norway::to_value(config)
         .map_err(|e| format!("Failed to serialize Dsh provider: {e}"))?;
     providers_map.insert(YamlValue::String(provider_id.to_string()), value);
 
@@ -1048,7 +1048,7 @@ fn read_credentials_yaml_for_home(home_dir: &Path) -> Result<YamlValue, String> 
         return Ok(empty_mapping());
     }
     let value: YamlValue =
-        serde_yaml::from_str(&s).map_err(|e| format!("Invalid Dsh credentials YAML: {e}"))?;
+        serde_norway::from_str(&s).map_err(|e| format!("Invalid Dsh credentials YAML: {e}"))?;
     let Some(map) = value.as_mapping() else {
         return Err("Dsh credentials root must be a mapping".to_string());
     };
@@ -1082,7 +1082,7 @@ fn write_credentials_yaml_for_home(home_dir: &Path, value: &YamlValue) -> Result
         std::fs::create_dir_all(&dir)
             .map_err(|e| format!("Failed to create Dsh directory: {e}"))?;
     }
-    let yaml_str = serde_yaml::to_string(value)
+    let yaml_str = serde_norway::to_string(value)
         .map_err(|e| format!("Failed to serialize Dsh credentials: {e}"))?;
 
     let temp_path = path.with_extension("tmp");
@@ -1686,7 +1686,7 @@ agent-default-model:
 
     #[test]
     fn test_provider_serialization_uses_file_field_names() {
-        let value = serde_yaml::to_value(sample_provider()).unwrap();
+        let value = serde_norway::to_value(sample_provider()).unwrap();
         assert!(value.get("displayName").is_some());
         assert!(value.get("baseURL").is_some());
         assert!(value.get("apiKeyEnv").is_some());
