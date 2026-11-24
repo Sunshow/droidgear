@@ -224,7 +224,7 @@ fn write_config_snapshot(
     let config_path = runtime_home_path.join("config.toml");
     let toml_str = toml::to_string_pretty(config)
         .map_err(|e| format!("Failed to serialize config.toml: {e}"))?;
-    storage::atomic_write(&config_path, toml_str.as_bytes())
+    storage::atomic_write_private(&config_path, toml_str.as_bytes())
 }
 
 fn read_auth_template(path: &Path) -> HashMap<String, serde_json::Value> {

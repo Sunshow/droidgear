@@ -52,3 +52,15 @@ jobs:
       # format checks, clippy, and the frontend + Rust test suites.
       - name: Run all checks
         run: npm run check:all
+
+      # RustSec advisories. Warnings (unmaintained / unsound / yanked) are
+      # reported but do not fail the build; actual vulnerabilities do.
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: Audit Rust dependencies
+        run: |
+          cd src-tauri
+          cargo audit

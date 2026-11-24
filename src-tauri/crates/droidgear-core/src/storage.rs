@@ -19,12 +19,34 @@ pub fn canonicalize_within(root: &Path, path: &Path) -> Result<std::path::PathBu
     Ok(resolved)
 }
 
+/// Accept exactly one ordinary path component.
+///
+/// Rejects separators, `.`, `..`, root and drive prefixes, so the result can be
+/// `join`ed onto a base directory without escaping it. This is the lexical
+/// counterpart of [`canonicalize_within`] for paths that do not exist yet.
+pub fn validate_child_name(name: &str) -> Result<(), String> {
+    if name.is_empty() {
+        return Err("Invalid file name".to_string());
+    }
+    if name.contains('/') || name.contains('\\') {
+        return Err("Invalid file name".to_string());
+    }
+    let mut components = Path::new(name).components();
+    match (components.next(), components.next()) {
+        (Some(std::path::Component::Normal(_)), None) => Ok(()),
+        _ => Err("Invalid file name".to_string()),
+    }
+}
+
 /// Replace `path` atomically.
 ///
 /// Writes a sibling temporary file with a unique suffix, then renames it over
 /// the target. The unique suffix means two concurrent writers can never share
 /// a temp file; the rename itself is atomic on POSIX filesystems, so readers
 /// see either the old or the new complete file.
+///
+/// On Unix the mode of an existing target is preserved, so rewriting a file that
+/// the user (or another tool) protected with 0600 never widens its permissions.
 pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
     atomic_write_with_mode(path, bytes, None)
 }
@@ -56,6 +78,8 @@ fn atomic_write_with_mode(path: &Path, bytes: &[u8], mode: Option<u32>) -> Resul
     let mut options = std::fs::OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]
+    let mode = mode.or_else(|| existing_mode(path));
+    #[cfg(unix)]
     if let Some(mode) = mode {
         use std::os::unix::fs::OpenOptionsExt;
         options.mode(mode);
@@ -71,6 +95,32 @@ fn atomic_write_with_mode(path: &Path, bytes: &[u8], mode: Option<u32>) -> Resul
             Err(format!("Failed to write file: {e}"))
         }
     }
+}
+
+#[cfg(unix)]
+fn existing_mode(path: &Path) -> Option<u32> {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::metadata(path)
+        .ok()
+        .map(|metadata| metadata.permissions().mode() & 0o777)
+}
+
+/// Make an existing file owner-only (0600) on Unix.
+///
+/// Used after `std::fs::copy`, which copies the source permission bits: copying
+/// a 0644 template into a directory of secret documents must not widen access.
+pub fn restrict_to_owner(path: &Path) -> Result<(), String> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+            .map_err(|e| format!("Failed to restrict file permissions: {e}"))?;
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+    }
+    Ok(())
 }
 
 fn unique_temp_path(parent: &Path, target: &Path) -> PathBuf {

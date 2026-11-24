@@ -221,7 +221,6 @@ src/components/
 ├── layout/           # App structure
 │   ├── MainWindow.tsx
 │   ├── LeftSideBar.tsx
-│   ├── RightSideBar.tsx
 │   └── MainWindowContent.tsx
 ├── titlebar/         # Window chrome
 │   ├── TitleBar.tsx

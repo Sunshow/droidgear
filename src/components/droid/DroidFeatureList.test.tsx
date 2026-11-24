@@ -48,7 +48,6 @@ describe('DroidFeatureList', () => {
       lastToolView: 'droid',
       droidSubView: 'models',
       leftSidebarVisible: true,
-      rightSidebarVisible: false,
       commandPaletteOpen: false,
       preferencesOpen: false,
       lastSpecExportPath: null,

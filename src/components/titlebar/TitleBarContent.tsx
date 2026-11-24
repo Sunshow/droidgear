@@ -2,13 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { useUIStore } from '@/store/ui-store'
 import { executeCommand, useCommandContext } from '@/lib/commands'
-import {
-  PanelLeft,
-  PanelLeftClose,
-  // PanelRight,
-  // PanelRightClose,
-  Settings,
-} from 'lucide-react'
+import { PanelLeft, PanelLeftClose, Settings } from 'lucide-react'
 
 /**
  * Left-side toolbar actions (sidebar toggle).
@@ -43,13 +37,11 @@ export function TitleBarLeftActions() {
 }
 
 /**
- * Right-side toolbar actions (settings, sidebar toggle).
+ * Right-side toolbar actions (settings).
  * Place this before window controls on Windows, or at the end on macOS/Linux.
  */
 export function TitleBarRightActions() {
   const { t } = useTranslation()
-  // const rightSidebarVisible = useUIStore(state => state.rightSidebarVisible)
-  // const toggleRightSidebar = useUIStore(state => state.toggleRightSidebar)
   const commandContext = useCommandContext()
 
   const handleOpenPreferences = async () => {
@@ -70,26 +62,6 @@ export function TitleBarRightActions() {
       >
         <Settings className="h-3 w-3" />
       </Button>
-
-      {/* Sidebar toggle hidden for now
-      <Button
-        onClick={toggleRightSidebar}
-        variant="ghost"
-        size="icon"
-        className="h-6 w-6 text-foreground/70 hover:text-foreground"
-        title={t(
-          rightSidebarVisible
-            ? 'titlebar.hideRightSidebar'
-            : 'titlebar.showRightSidebar'
-        )}
-      >
-        {rightSidebarVisible ? (
-          <PanelRightClose className="h-3 w-3" />
-        ) : (
-          <PanelRight className="h-3 w-3" />
-        )}
-      </Button>
-      */}
     </div>
   )
 }

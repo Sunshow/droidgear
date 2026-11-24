@@ -55,7 +55,7 @@ fn write_config(path: &Path, config: &Value) -> Result<(), String> {
     };
     let contents = serde_json::to_vec_pretty(config)
         .map_err(|error| format!("Failed to serialize Factory settings: {error}"))?;
-    storage::atomic_write(&actual_path, &contents)
+    storage::atomic_write_private(&actual_path, &contents)
 }
 
 fn config_object_mut(config: &mut Value) -> Result<&mut Map<String, Value>, String> {

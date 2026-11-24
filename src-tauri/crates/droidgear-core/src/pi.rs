@@ -807,7 +807,7 @@ fn write_profile_file(home_dir: &Path, profile: &PiProfile) -> Result<(), String
     let path = profile_path_for_home(home_dir, &profile.id)?;
     let s = serde_json::to_string_pretty(profile)
         .map_err(|e| format!("Failed to serialize profile JSON: {e}"))?;
-    storage::atomic_write(&path, s.as_bytes())
+    storage::atomic_write_private(&path, s.as_bytes())
 }
 
 fn load_profile_by_id(home_dir: &Path, id: &str) -> Result<PiProfile, String> {
@@ -960,7 +960,7 @@ pub fn apply_pi_profile_for_home(
     let live = crate::pi_merge::read_live_config_for_merge(&config_path)?;
     let before = crate::pi_merge::providers_from_document(&live)?;
     let merged = crate::pi_merge::merge_pi_config(&live, &profile.providers, false)?;
-    storage::atomic_write(&config_path, merged.as_bytes())?;
+    storage::atomic_write_private(&config_path, merged.as_bytes())?;
     set_active_pi_profile_id_for_home(home_dir, id)?;
 
     // Reconcile against what was written, not the profile: the merge unions the

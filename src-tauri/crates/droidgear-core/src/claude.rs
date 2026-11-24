@@ -223,7 +223,7 @@ fn write_profile_file(home_dir: &Path, profile: &ClaudeCodeProfile) -> Result<()
     let path = profile_path_for_home(home_dir, &profile.id)?;
     let content = serde_json::to_string_pretty(profile)
         .map_err(|e| format!("Failed to serialize profile JSON: {e}"))?;
-    storage::atomic_write(&path, content.as_bytes())
+    storage::atomic_write_private(&path, content.as_bytes())
 }
 
 fn load_profile_by_id(home_dir: &Path, id: &str) -> Result<ClaudeCodeProfile, String> {
@@ -723,7 +723,7 @@ fn apply_profile_to_settings_path(
 
     let content = serde_json::to_string_pretty(&Value::Object(root))
         .map_err(|e| format!("Failed to serialize settings.json: {e}"))?;
-    storage::atomic_write(settings_path, content.as_bytes())
+    storage::atomic_write_private(settings_path, content.as_bytes())
 }
 
 fn read_current_config_from_path(settings_path: &Path) -> Result<ClaudeCurrentConfig, String> {

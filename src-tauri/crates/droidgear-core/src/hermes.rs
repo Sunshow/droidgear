@@ -20,7 +20,7 @@
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use serde_yaml::Value;
+use serde_norway::Value;
 use specta::Type;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
@@ -315,7 +315,7 @@ fn write_profile_file(home_dir: &Path, profile: &HermesProfile) -> Result<(), St
     let path = profile_path_for_home(home_dir, &profile.id)?;
     let s = serde_json::to_string_pretty(profile)
         .map_err(|e| format!("Failed to serialize profile JSON: {e}"))?;
-    storage::atomic_write(&path, s.as_bytes())
+    storage::atomic_write_private(&path, s.as_bytes())
 }
 
 fn load_profile_by_id(home_dir: &Path, id: &str) -> Result<HermesProfile, String> {
@@ -481,13 +481,13 @@ fn provider_entry_str(item: &Value, key: &str) -> Option<String> {
 /// 遗留 `custom_providers` 列表中的同名条目会被移除（v11→v12 同向迁移）；
 /// 列表删空后整个键移除。
 fn upsert_provider_entry(
-    root: &mut serde_yaml::Mapping,
+    root: &mut serde_norway::Mapping,
     name: &str,
     entry: &HermesModelConfig,
 ) -> Result<(), String> {
     let providers = root
         .entry(Value::String("providers".to_string()))
-        .or_insert_with(|| Value::Mapping(serde_yaml::Mapping::new()));
+        .or_insert_with(|| Value::Mapping(serde_norway::Mapping::new()));
     let providers_map = providers
         .as_mapping_mut()
         .ok_or("providers must be a YAML mapping")?;
@@ -495,7 +495,7 @@ fn upsert_provider_entry(
     let key = Value::String(name.to_string());
     let existing = providers_map
         .entry(key)
-        .or_insert_with(|| Value::Mapping(serde_yaml::Mapping::new()));
+        .or_insert_with(|| Value::Mapping(serde_norway::Mapping::new()));
     let existing_map = existing
         .as_mapping_mut()
         .ok_or("providers entry must be a YAML mapping")?;
@@ -542,12 +542,12 @@ fn apply_profile_to_config_path(profile: &HermesProfile, config_path: &Path) -> 
         let s = std::fs::read_to_string(config_path)
             .map_err(|e| format!("Failed to read config.yaml: {e}"))?;
         if s.trim().is_empty() {
-            Value::Mapping(serde_yaml::Mapping::new())
+            Value::Mapping(serde_norway::Mapping::new())
         } else {
-            serde_yaml::from_str(&s).map_err(|e| format!("Failed to parse config.yaml: {e}"))?
+            serde_norway::from_str(&s).map_err(|e| format!("Failed to parse config.yaml: {e}"))?
         }
     } else {
-        Value::Mapping(serde_yaml::Mapping::new())
+        Value::Mapping(serde_norway::Mapping::new())
     };
 
     // Ensure root is a mapping.
@@ -583,7 +583,7 @@ fn apply_profile_to_config_path(profile: &HermesProfile, config_path: &Path) -> 
         if has_model || has_provider {
             let model_section = root
                 .entry(Value::String("model".to_string()))
-                .or_insert_with(|| Value::Mapping(serde_yaml::Mapping::new()));
+                .or_insert_with(|| Value::Mapping(serde_norway::Mapping::new()));
             let model_map = model_section
                 .as_mapping_mut()
                 .ok_or("model section must be a YAML mapping")?;
@@ -639,7 +639,7 @@ fn apply_profile_to_config_path(profile: &HermesProfile, config_path: &Path) -> 
     if let Some(ref effort) = profile.reasoning_effort {
         let agent_section = root
             .entry(Value::String("agent".to_string()))
-            .or_insert_with(|| Value::Mapping(serde_yaml::Mapping::new()));
+            .or_insert_with(|| Value::Mapping(serde_norway::Mapping::new()));
         let agent_map = agent_section
             .as_mapping_mut()
             .ok_or("agent section must be a YAML mapping")?;
@@ -649,9 +649,9 @@ fn apply_profile_to_config_path(profile: &HermesProfile, config_path: &Path) -> 
         );
     }
 
-    let yaml_str = serde_yaml::to_string(&config)
+    let yaml_str = serde_norway::to_string(&config)
         .map_err(|e| format!("Failed to serialize config.yaml: {e}"))?;
-    storage::atomic_write(config_path, yaml_str.as_bytes())
+    storage::atomic_write_private(config_path, yaml_str.as_bytes())
 }
 
 /// Internal: read current Hermes config from a specific config.yaml path.
@@ -676,7 +676,7 @@ fn read_current_config_from_path(config_path: &Path) -> Result<HermesCurrentConf
     }
 
     let parsed: Value =
-        serde_yaml::from_str(&s).map_err(|e| format!("Failed to parse config.yaml: {e}"))?;
+        serde_norway::from_str(&s).map_err(|e| format!("Failed to parse config.yaml: {e}"))?;
 
     // providers 字典（v12 主格式）→ 条目（先不标记默认）。
     // 只收带端点（api/base_url/url）的自定义供应商；无端点的条目
@@ -999,7 +999,7 @@ model:
 other_section:
   key: value
 "#;
-        let parsed: Value = serde_yaml::from_str(yaml).unwrap();
+        let parsed: Value = serde_norway::from_str(yaml).unwrap();
         let model_section = parsed.get("model").unwrap();
 
         assert_eq!(
@@ -1105,7 +1105,7 @@ custom_providers:
         apply_hermes_profile_for_home(home, "p1").unwrap();
 
         let after = std::fs::read_to_string(home.join(".hermes").join("config.yaml")).unwrap();
-        let parsed: Value = serde_yaml::from_str(&after).unwrap();
+        let parsed: Value = serde_norway::from_str(&after).unwrap();
 
         // model.default / model.provider 必须是新模型（核心修复）
         let model_section = parsed.get("model").unwrap();
@@ -1195,7 +1195,7 @@ custom_providers:
         apply_hermes_profile_for_home(home, "p1").unwrap();
 
         let after = std::fs::read_to_string(home.join(".hermes").join("config.yaml")).unwrap();
-        let parsed: Value = serde_yaml::from_str(&after).unwrap();
+        let parsed: Value = serde_norway::from_str(&after).unwrap();
 
         // providers 字典中同名条目应被更新而不是新增；
         // 遗留 custom_providers 中的同名条目已迁移删除。
@@ -1271,7 +1271,7 @@ model:
         apply_hermes_profile_for_home(home, "p1").unwrap();
 
         let after = std::fs::read_to_string(home.join(".hermes").join("config.yaml")).unwrap();
-        let parsed: Value = serde_yaml::from_str(&after).unwrap();
+        let parsed: Value = serde_norway::from_str(&after).unwrap();
 
         let model_section = parsed.get("model").unwrap();
         assert_eq!(
@@ -1323,7 +1323,7 @@ custom_providers:
         apply_hermes_profile_for_home(home, "p1").unwrap();
 
         let after = std::fs::read_to_string(home.join(".hermes").join("config.yaml")).unwrap();
-        let parsed: Value = serde_yaml::from_str(&after).unwrap();
+        let parsed: Value = serde_norway::from_str(&after).unwrap();
 
         // Unrelated section preserved
         assert_eq!(
@@ -1427,7 +1427,7 @@ custom_providers:
         apply_hermes_profile_for_home(home, "p1").unwrap();
 
         let after = std::fs::read_to_string(home.join(".hermes").join("config.yaml")).unwrap();
-        let parsed: Value = serde_yaml::from_str(&after).unwrap();
+        let parsed: Value = serde_norway::from_str(&after).unwrap();
 
         // reasoning_effort should be written under agent section
         assert_eq!(
@@ -1459,7 +1459,7 @@ model:
         apply_hermes_profile_for_home(home, &profile.id).unwrap();
 
         let after = std::fs::read_to_string(home.join(".hermes").join("config.yaml")).unwrap();
-        let parsed: Value = serde_yaml::from_str(&after).unwrap();
+        let parsed: Value = serde_norway::from_str(&after).unwrap();
         assert_eq!(
             parsed
                 .get("model")
@@ -1940,7 +1940,7 @@ model:
             raw
         );
         assert_eq!(got.default.as_deref(), Some("gpt-ghost"));
-        let parsed_raw: Value = serde_yaml::from_str(&raw).unwrap();
+        let parsed_raw: Value = serde_norway::from_str(&raw).unwrap();
         assert!(
             parsed_raw.get("providers").is_some(),
             "ghost 应被 upsert 进 providers 字典: {}",
@@ -2069,7 +2069,7 @@ providers:
         apply_hermes_profile_for_home(home, "p1").unwrap();
 
         let after = std::fs::read_to_string(home.join(".hermes").join("config.yaml")).unwrap();
-        let parsed: Value = serde_yaml::from_str(&after).unwrap();
+        let parsed: Value = serde_norway::from_str(&after).unwrap();
         let registry = parsed
             .get("providers")
             .and_then(|v| v.as_mapping())
@@ -2154,7 +2154,7 @@ custom_providers:
         apply_hermes_profile_for_home(home, "p1").unwrap();
 
         let after = std::fs::read_to_string(home.join(".hermes").join("config.yaml")).unwrap();
-        let parsed: Value = serde_yaml::from_str(&after).unwrap();
+        let parsed: Value = serde_norway::from_str(&after).unwrap();
 
         assert!(
             parsed.get("custom_providers").is_none(),

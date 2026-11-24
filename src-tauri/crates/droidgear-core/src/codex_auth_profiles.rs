@@ -179,7 +179,7 @@ fn apply_auth_profile_model_to_live_config(
 
     let toml_str = toml::to_string_pretty(&config)
         .map_err(|e| format!("Failed to serialize config.toml: {e}"))?;
-    storage::atomic_write(&config_path, toml_str.as_bytes())
+    storage::atomic_write_private(&config_path, toml_str.as_bytes())
 }
 
 fn ensure_dir(dir: &Path) -> Result<(), String> {

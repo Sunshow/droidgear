@@ -237,7 +237,7 @@ fn write_profile_file(home_dir: &Path, profile: &OpenCodeProfile) -> Result<(), 
     let path = profile_path_for_home(home_dir, &profile.id)?;
     let s = serde_json::to_string_pretty(profile)
         .map_err(|e| format!("Failed to serialize profile JSON: {e}"))?;
-    storage::atomic_write(&path, s.as_bytes())
+    storage::atomic_write_private(&path, s.as_bytes())
 }
 
 fn load_profile_by_id(home_dir: &Path, id: &str) -> Result<OpenCodeProfile, String> {
@@ -391,7 +391,7 @@ pub fn apply_opencode_profile_for_home(home_dir: &Path, id: &str) -> Result<(), 
 
     let config_content = serde_json::to_string_pretty(&config)
         .map_err(|e| format!("Failed to serialize config: {e}"))?;
-    storage::atomic_write(&config_path, config_content.as_bytes())?;
+    storage::atomic_write_private(&config_path, config_content.as_bytes())?;
 
     let auth_path = opencode_auth_path_for_home(home_dir)?;
     let mut auth = read_json_file(&auth_path);
@@ -406,7 +406,7 @@ pub fn apply_opencode_profile_for_home(home_dir: &Path, id: &str) -> Result<(), 
 
     let auth_content = serde_json::to_string_pretty(&auth)
         .map_err(|e| format!("Failed to serialize auth: {e}"))?;
-    storage::atomic_write(&auth_path, auth_content.as_bytes())?;
+    storage::atomic_write_private(&auth_path, auth_content.as_bytes())?;
 
     let active_path = active_profile_path_for_home(home_dir)?;
     storage::atomic_write(&active_path, id.as_bytes())?;

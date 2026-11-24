@@ -151,7 +151,7 @@ pub fn load_export_templates() -> Result<Vec<ExportTemplate>, String> {
     }
     let content =
         fs::read_to_string(&path).map_err(|e| format!("Failed to read export templates: {e}"))?;
-    let config: ExportConfig = serde_yaml::from_str(&content)
+    let config: ExportConfig = serde_norway::from_str(&content)
         .map_err(|e| format!("Failed to parse export templates: {e}"))?;
     Ok(config.templates)
 }
@@ -164,7 +164,7 @@ pub fn save_export_templates(templates: &[ExportTemplate]) -> Result<(), String>
     let config = ExportConfig {
         templates: templates.to_vec(),
     };
-    let content = serde_yaml::to_string(&config)
+    let content = serde_norway::to_string(&config)
         .map_err(|e| format!("Failed to serialize export templates: {e}"))?;
 
     crate::storage::atomic_write(&config_path()?, content.as_bytes())
@@ -628,7 +628,7 @@ fn render_json(records: &[ExportRecord], path: &Path) -> Result<(), String> {
 /// Render records as YAML and write to file.
 fn render_yaml(records: &[ExportRecord], path: &Path) -> Result<(), String> {
     let content =
-        serde_yaml::to_string(&records).map_err(|e| format!("YAML serialization failed: {e}"))?;
+        serde_norway::to_string(&records).map_err(|e| format!("YAML serialization failed: {e}"))?;
     write_atomic(path, &content)
 }
 
@@ -648,7 +648,7 @@ fn render_toml(records: &[ExportRecord], path: &Path) -> Result<(), String> {
 
 /// Atomic file write: temp file + rename.
 fn write_atomic(path: &Path, content: &str) -> Result<(), String> {
-    crate::storage::atomic_write(path, content.as_bytes())
+    crate::storage::atomic_write_private(path, content.as_bytes())
         .map_err(|e| format!("Failed to write to '{}': {e}", path.display()))
 }
 

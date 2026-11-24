@@ -6,7 +6,6 @@ describe('UIStore', () => {
     // Reset store state before each test
     useUIStore.setState({
       leftSidebarVisible: true,
-      rightSidebarVisible: true,
       commandPaletteOpen: false,
       preferencesOpen: false,
       isUpdateInstalling: false,
@@ -16,7 +15,6 @@ describe('UIStore', () => {
   it('has correct initial state', () => {
     const state = useUIStore.getState()
     expect(state.leftSidebarVisible).toBe(true)
-    expect(state.rightSidebarVisible).toBe(true)
     expect(state.commandPaletteOpen).toBe(false)
     expect(state.preferencesOpen).toBe(false)
   })

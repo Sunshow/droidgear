@@ -95,11 +95,6 @@ export async function buildAppMenu(): Promise<Menu> {
           text: t('menu.toggleLeftSidebar'),
           action: handleToggleLeftSidebar,
         }),
-        await MenuItem.new({
-          id: 'toggle-right-sidebar',
-          text: t('menu.toggleRightSidebar'),
-          action: handleToggleRightSidebar,
-        }),
         await PredefinedMenuItem.new({ item: 'Separator' }),
         await MenuItem.new({
           id: 'reset-window',
@@ -175,11 +170,6 @@ function handleOpenPreferences(): void {
 function handleToggleLeftSidebar(): void {
   logger.info('Toggle Left Sidebar menu item clicked')
   useUIStore.getState().toggleLeftSidebar()
-}
-
-function handleToggleRightSidebar(): void {
-  logger.info('Toggle Right Sidebar menu item clicked')
-  useUIStore.getState().toggleRightSidebar()
 }
 
 async function handleResetWindow(): Promise<void> {

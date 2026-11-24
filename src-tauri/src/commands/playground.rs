@@ -25,12 +25,17 @@ enum MediaSource {
 }
 
 impl MediaSource {
-    fn parse(source_path: Option<String>, source_url: Option<String>) -> Result<Self, String> {
+    async fn parse(
+        source_path: Option<String>,
+        source_url: Option<String>,
+    ) -> Result<Self, String> {
         if let Some(path) = normalise(source_path) {
             return validate_local_path(&path).map(Self::Local);
         }
         if let Some(url) = normalise(source_url) {
-            return validate_remote_url(&url).map(Self::Remote);
+            let url = validate_remote_url(&url)?;
+            ensure_remote_target_is_routable(&url).await?;
+            return Ok(Self::Remote(url));
         }
         Err("This task has no media file to save yet.".to_string())
     }
@@ -79,9 +84,88 @@ fn validate_local_path(raw: &str) -> Result<PathBuf, String> {
 fn validate_remote_url(raw: &str) -> Result<String, String> {
     let url = reqwest::Url::parse(raw).map_err(|error| format!("Invalid media URL: {error}"))?;
     match url.scheme() {
-        "http" | "https" => Ok(url.to_string()),
+        "http" | "https" => {
+            let host = url.host_str().unwrap_or_default();
+            if is_blocked_host(host) {
+                return Err("The media URL points at a local address.".to_string());
+            }
+            if let Some(ip) = parse_literal_ip(host) {
+                reject_local_ip(ip)?;
+            }
+            Ok(url.to_string())
+        }
         scheme => Err(format!("Unsupported media URL scheme: {scheme}")),
     }
+}
+
+/// The provider decides `source_url`, so a hostile response must not be able to
+/// point the downloader at loopback services, cloud metadata endpoints
+/// (`169.254.169.254`, `fe80::`) or the `localhost` aliases. Private LAN
+/// addresses stay allowed: self-hosted gateways legitimately hand out media
+/// URLs on `192.168.x` / `10.x`.
+async fn ensure_remote_target_is_routable(url: &str) -> Result<(), String> {
+    use std::net::ToSocketAddrs;
+
+    let parsed = reqwest::Url::parse(url).map_err(|error| format!("Invalid media URL: {error}"))?;
+    let host = parsed
+        .host_str()
+        .ok_or_else(|| "The media URL has no host.".to_string())?
+        .to_string();
+
+    if let Some(ip) = parse_literal_ip(&host) {
+        return reject_local_ip(ip);
+    }
+    let port = parsed.port_or_known_default().unwrap_or(443);
+    let resolved = tauri::async_runtime::spawn_blocking(move || {
+        (host.as_str(), port)
+            .to_socket_addrs()
+            .map(|addrs| addrs.map(|addr| addr.ip()).collect::<Vec<_>>())
+    })
+    .await
+    .map_err(|error| format!("Failed to resolve the media host: {error}"))?
+    .map_err(|error| format!("Failed to resolve the media host: {error}"))?;
+
+    if resolved.is_empty() {
+        return Err("The media host did not resolve to any address.".to_string());
+    }
+    for ip in resolved {
+        reject_local_ip(ip)?;
+    }
+    Ok(())
+}
+
+fn is_blocked_host(host: &str) -> bool {
+    let host = host.trim_end_matches('.').to_ascii_lowercase();
+    host == "localhost"
+        || host.ends_with(".localhost")
+        || host == "ip6-localhost"
+        || host == "metadata.google.internal"
+}
+
+/// `Url::host_str` keeps the brackets around IPv6 literals (`[::1]`).
+fn parse_literal_ip(host: &str) -> Option<std::net::IpAddr> {
+    host.trim_start_matches('[')
+        .trim_end_matches(']')
+        .parse()
+        .ok()
+}
+
+fn reject_local_ip(ip: std::net::IpAddr) -> Result<(), String> {
+    let blocked = match ip {
+        std::net::IpAddr::V4(v4) => {
+            v4.is_loopback() || v4.is_link_local() || v4.is_unspecified() || v4.is_broadcast()
+        }
+        std::net::IpAddr::V6(v6) => {
+            v6.is_loopback()
+                || v6.is_unspecified()
+                // fe80::/10 link-local range (stable since Rust 1.72).
+                || (v6.segments()[0] & 0xffc0) == 0xfe80
+        }
+    };
+    if blocked {
+        return Err("The media URL points at a local address.".to_string());
+    }
+    Ok(())
 }
 
 /// Keeps the dialog's default name a plain file name: no directory traversal
@@ -116,7 +200,7 @@ pub async fn save_playground_media_as(
     source_url: Option<String>,
     suggested_name: String,
 ) -> Result<Option<String>, String> {
-    let source = MediaSource::parse(source_path, source_url)?;
+    let source = MediaSource::parse(source_path, source_url).await?;
     let mut file_name = sanitize_file_name(&suggested_name);
     // The dialog only appends an extension when the default name already has
     // one, so borrow it from the source instead of saving an extensionless file.
@@ -175,6 +259,8 @@ async fn copy_file(source: PathBuf, destination: PathBuf) -> Result<(), String> 
 async fn download_file(url: &str, destination: PathBuf) -> Result<(), String> {
     let client = reqwest::Client::builder()
         .timeout(DOWNLOAD_TIMEOUT)
+        // A redirect must not undo the loopback/metadata check above.
+        .redirect(reqwest::redirect::Policy::limited(2))
         .build()
         .map_err(|error| format!("Failed to build the HTTP client: {error}"))?;
     let response = client
@@ -188,6 +274,13 @@ async fn download_file(url: &str, destination: PathBuf) -> Result<(), String> {
             "The provider returned HTTP {status} for the media file."
         ));
     }
+    let final_url = response.url().clone();
+    if is_blocked_host(final_url.host_str().unwrap_or_default()) {
+        return Err("The media URL points at a local address.".to_string());
+    }
+    if let Some(ip) = final_url.host_str().and_then(parse_literal_ip) {
+        reject_local_ip(ip)?;
+    }
     let bytes = response
         .bytes()
         .await
@@ -199,4 +292,52 @@ async fn download_file(url: &str, destination: PathBuf) -> Result<(), String> {
     })
     .await
     .map_err(|error| format!("Failed to write the media file: {error}"))?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{is_blocked_host, reject_local_ip, validate_remote_url};
+
+    #[test]
+    fn remote_media_url_accepts_public_https() {
+        assert!(validate_remote_url("https://cdn.example.com/video.mp4?id=1").is_ok());
+        // Self-hosted gateways on a LAN stay supported.
+        assert!(validate_remote_url("http://192.168.1.10:3000/file.png").is_ok());
+        assert!(validate_remote_url("https://10.0.0.5/media/a.png").is_ok());
+    }
+
+    #[test]
+    fn remote_media_url_rejects_local_targets_and_odd_schemes() {
+        for blocked in [
+            "http://127.0.0.1:8080/admin",
+            "http://localhost:1420/",
+            "http://metadata.google.internal/computeMetadata/v1/",
+            "http://169.254.169.254/latest/meta-data/",
+            "https://[::1]/",
+            "https://[fe80::1]/",
+            "file:///etc/passwd",
+            "data:image/png;base64,AAAA",
+        ] {
+            assert!(
+                validate_remote_url(blocked).is_err(),
+                "{blocked} should be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn blocked_hosts_cover_loopback_aliases() {
+        assert!(is_blocked_host("localhost"));
+        assert!(is_blocked_host("foo.localhost."));
+        assert!(!is_blocked_host("example.com"));
+    }
+
+    #[test]
+    fn link_local_and_loopback_ips_are_rejected() {
+        assert!(reject_local_ip("127.0.0.1".parse().unwrap()).is_err());
+        assert!(reject_local_ip("169.254.169.254".parse().unwrap()).is_err());
+        assert!(reject_local_ip("fe80::1".parse().unwrap()).is_err());
+        assert!(reject_local_ip("::1".parse().unwrap()).is_err());
+        assert!(reject_local_ip("93.184.216.34".parse().unwrap()).is_ok());
+    }
 }

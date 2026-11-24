@@ -308,7 +308,7 @@ pub fn migrate_legacy_profiles_for_home(home_dir: &Path) -> Result<u32, String> 
         let payload = build_settings_from_profile(&profile);
         let bytes = serde_json::to_vec_pretty(&payload)
             .map_err(|e| format!("Failed to serialize migrated settings: {e}"))?;
-        if storage::atomic_write(&target_path, &bytes).is_ok() {
+        if storage::atomic_write_private(&target_path, &bytes).is_ok() {
             migrated += 1;
         }
     }
@@ -394,6 +394,12 @@ pub fn get_settings_path_by_name_for_home(home_dir: &Path, name: &str) -> Result
         return global_settings_path_for_home(home_dir);
     }
 
+    // Only a direct child of the settings directory may be addressed here.
+    // Read paths used to skip this check while write paths enforced it, which
+    // let `../../<anything>.json` be read and activated as `--settings`.
+    crate::storage::validate_child_name(name)
+        .map_err(|_| format!("Invalid settings file name '{name}'"))?;
+
     let path = claude_settings_dir_for_home(home_dir)
         .join(name)
         .with_extension("json");
@@ -415,6 +421,8 @@ pub fn set_active_settings_file_for_home(
 ) -> Result<ClaudeSettingsFileInfo, String> {
     match &name {
         Some(value) if !value.is_empty() && !value.eq_ignore_ascii_case("global") => {
+            crate::storage::validate_child_name(value)
+                .map_err(|_| format!("Invalid settings file name '{value}'"))?;
             let path = claude_settings_dir_for_home(home_dir)
                 .join(value)
                 .with_extension("json");
@@ -479,11 +487,12 @@ pub fn create_settings_file_for_home(
         if active_path.exists() {
             std::fs::copy(&active_path, &path)
                 .map_err(|e| format!("Failed to copy settings: {e}"))?;
+            storage::restrict_to_owner(&path)?;
         } else {
-            storage::atomic_write(&path, b"{}\n")?;
+            storage::atomic_write_private(&path, b"{}\n")?;
         }
     } else {
-        storage::atomic_write(&path, b"{}\n")?;
+        storage::atomic_write_private(&path, b"{}\n")?;
     }
 
     save_active_file_name_for_home(home_dir, Some(&name))?;
@@ -598,7 +607,7 @@ pub fn save_settings_file_for_home(
 
     let bytes = serde_json::to_vec_pretty(&value)
         .map_err(|e| format!("Failed to serialize settings file: {e}"))?;
-    storage::atomic_write(&path, &bytes)
+    storage::atomic_write_private(&path, &bytes)
 }
 
 pub fn save_settings_file(name: &str, value: Value) -> Result<(), String> {
@@ -642,6 +651,7 @@ pub fn duplicate_settings_file_for_home(
 
     std::fs::copy(&source_path, &dest_path)
         .map_err(|e| format!("Failed to copy settings file: {e}"))?;
+    storage::restrict_to_owner(&dest_path)?;
 
     save_active_file_name_for_home(home_dir, Some(new_name))?;
     get_active_settings_file_for_home(home_dir)
@@ -708,7 +718,7 @@ pub fn merge_settings_file_to_global_for_home(home_dir: &Path, name: &str) -> Re
                 .map_err(|e| format!("Failed to create claude config dir: {e}"))?;
         }
     }
-    storage::atomic_write(&global_path, &bytes)
+    storage::atomic_write_private(&global_path, &bytes)
 }
 
 // ============================================================================

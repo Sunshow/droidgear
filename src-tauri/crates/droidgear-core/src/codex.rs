@@ -654,7 +654,7 @@ fn write_profile_file(home_dir: &Path, profile: &CodexProfile) -> Result<(), Str
     let path = profile_path_for_home(home_dir, &profile.id)?;
     let s = serde_json::to_string_pretty(profile)
         .map_err(|e| format!("Failed to serialize profile JSON: {e}"))?;
-    storage::atomic_write(&path, s.as_bytes())
+    storage::atomic_write_private(&path, s.as_bytes())
 }
 
 fn load_profile_by_id(home_dir: &Path, id: &str) -> Result<CodexProfile, String> {
@@ -967,7 +967,7 @@ pub fn apply_codex_profile_config_only_for_home(home_dir: &Path, id: &str) -> Re
 
     let toml_str = toml::to_string_pretty(&config)
         .map_err(|e| format!("Failed to serialize config.toml: {e}"))?;
-    storage::atomic_write(&config_path, toml_str.as_bytes())?;
+    storage::atomic_write_private(&config_path, toml_str.as_bytes())?;
 
     sync_models_json_for_home(home_dir, &resolved_model)?;
 
@@ -1004,7 +1004,7 @@ pub fn apply_codex_profile_for_home(home_dir: &Path, id: &str) -> Result<(), Str
 
     let toml_str = toml::to_string_pretty(&config)
         .map_err(|e| format!("Failed to serialize config.toml: {e}"))?;
-    storage::atomic_write(&config_path, toml_str.as_bytes())?;
+    storage::atomic_write_private(&config_path, toml_str.as_bytes())?;
 
     sync_models_json_for_home(home_dir, &resolved_model)?;
 
