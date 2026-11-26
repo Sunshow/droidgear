@@ -167,10 +167,10 @@ Configuration remains ordinary `~/.factory/mcp.json`: this preset stores a nonse
 ### Playground
 
 - **Video Generation** - A top-level view that sends one real request per model and previews the result, supporting New API Sora / OpenAI Videos, New API native and Doubao / Ark protocols with a per-model choice
-- **Image Generation** - A second page in the same view with OpenAI ChatCompletions, Responses (the `image_generation` tool) and Google Gemini (`generateContent` / `imagen: predict`); generation is one synchronous request, multiple results switch through thumbnails, and decoded images are stored locally
+- **Image Generation** - A second page in the same view with OpenAI ChatCompletions, OpenAI Images (`/v1/images/generations`) and Google Gemini (`generateContent` / `imagen: predict`); generation is one synchronous request, multiple results switch through thumbnails, and decoded images are stored locally. Models saved on the removed Responses protocol load as Images
 - **Model Sources** - Import models from a channel in three steps (channel, token, models), or enter a model ID with a custom base URL and API key; entries keep only the channel and token ids so rotating either needs no re-import, and secrets live in their own owner-only file
 - **Task Management** - Video tasks can be created, queried, cancelled and re-run; image tasks can be re-run or loaded back into the form. Both lists filter by status, videos auto-refresh, and results render in an HTML5 player or an image preview
-- **Reference Images** - A thumbnail grid that takes pasted URLs and local files (20 MB per image); videos map them to `image` / `images` / Ark `reference_image`, images send chat image blocks or Gemini `inlineData`
+- **Reference Images** - A thumbnail grid that takes pasted URLs and local files (20 MB per image); videos map them to `image` / `images` / Ark `reference_image`, images send chat image blocks or Gemini `inlineData`. OpenAI Images does not accept reference images
 - **Persistence** - Models, secrets and task records live under `~/.droidgear/playground/`, so a restart restores the task list and ongoing video tasks keep polling; generated images go to `media/images/`
 - **Read-Only** - Only reads channels and never writes a tool config; not available in the TUI
 
